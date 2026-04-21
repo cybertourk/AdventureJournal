@@ -27,6 +27,7 @@ export function renderApp(state) {
         case 'pc-edit': html = getPCEditHTML(state); break;
         case 'session-edit': html = getSessionEditHTML(state); break;
         case 'journal': html = getJournalHTML(state); break;
+        case 'codex': html = getCodexHTML(state); break;
         default: html = `<div class="text-center text-red-500">Unknown View: ${state.currentView}</div>`;
     }
 
@@ -60,10 +61,12 @@ export function renderBreadcrumbs(state) {
         `;
     }
 
-    if ((state.activeAdventure || state.currentView === 'pc-manager' || state.currentView === 'pc-edit') && state.activeCampaign && state.currentView !== 'campaign') {
+    if ((state.activeAdventure || state.currentView === 'pc-manager' || state.currentView === 'pc-edit' || state.currentView === 'codex') && state.activeCampaign && state.currentView !== 'campaign') {
         html += `<i class="fa-solid fa-chevron-right mx-1 sm:mx-2 text-stone-600 flex-shrink-0 text-[8px] sm:text-xs"></i>`;
         if (state.currentView === 'pc-manager' || state.currentView === 'pc-edit') {
             html += `<button onclick="window.appActions.setView('pc-manager')" class="hover:text-amber-400 uppercase tracking-wider font-bold transition flex-shrink-0 ${state.currentView === 'pc-manager' ? 'text-amber-500' : ''}">Manage Party</button>`;
+        } else if (state.currentView === 'codex') {
+            html += `<span class="uppercase tracking-wider font-bold text-amber-500 flex-shrink-0">Campaign Codex</span>`;
         } else {
             html += `
                 <button onclick="window.appActions.setView('adventure')" class="hover:text-amber-400 uppercase tracking-wider font-bold truncate max-w-[100px] sm:max-w-xs transition flex-shrink-0 ${state.currentView === 'adventure' ? 'text-amber-500' : ''}">
@@ -156,6 +159,7 @@ function getCampaignHTML(state) {
     const totalCampLoot = camp.adventures ? camp.adventures.reduce((sum, a) => sum + a.totalLootGP, 0) : 0;
     const advCount = camp.adventures ? camp.adventures.length : 0;
     const pcCount = camp.playerCharacters ? camp.playerCharacters.length : 0;
+    const codexCount = camp.codex ? camp.codex.length : 0;
 
     let html = `
     <div class="animate-in fade-in duration-300">
@@ -165,10 +169,14 @@ function getCampaignHTML(state) {
                 <div class="flex flex-wrap items-center gap-2 sm:gap-3 text-stone-400 text-xs sm:text-sm font-sans mt-2">
                     <span class="bg-stone-900 px-2 py-1 rounded border border-stone-700 shadow-inner">${advCount} Adventures</span>
                     <span class="bg-stone-900 px-2 py-1 rounded border border-stone-700 shadow-inner">${pcCount} Heroes</span>
+                    <span class="bg-stone-900 px-2 py-1 rounded border border-stone-700 shadow-inner">${codexCount} Codex Entries</span>
                     <span class="bg-stone-900 px-2 py-1 rounded border border-stone-700 shadow-inner font-bold text-amber-600">${totalCampLoot.toLocaleString(undefined, {minimumFractionDigits: 2})} gp Total</span>
                 </div>
             </div>
             <div class="flex flex-wrap gap-2 w-full md:w-auto">
+                <button onclick="window.appActions.setView('codex')" class="flex-1 md:flex-none flex items-center justify-center px-3 sm:px-4 py-2 sm:py-2 bg-stone-800 text-amber-500 border border-stone-600 rounded-sm hover:bg-stone-700 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md">
+                    <i class="fa-solid fa-book-journal-whills mr-1 sm:mr-2"></i> Codex
+                </button>
                 <button onclick="window.appActions.setView('pc-manager')" class="flex-1 md:flex-none flex items-center justify-center px-3 sm:px-4 py-2 sm:py-2 bg-stone-800 text-amber-500 border border-stone-600 rounded-sm hover:bg-stone-700 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md">
                     <i class="fa-solid fa-users mr-1 sm:mr-2"></i> Manage Party
                 </button>
@@ -373,7 +381,6 @@ function getPCEditHTML(state) {
     const camp = state.activeCampaign;
     const isNew = !state.activePcId;
     
-    // Find the existing PC if editing, otherwise provide defaults
     const pc = !isNew && camp?.playerCharacters 
         ? camp.playerCharacters.find(p => p.id === state.activePcId) 
         : { name: '', race: '', classLevel: '', ideals: '', bonds: '', flaws: '', backstory: '', dmNotes: '' };
@@ -466,6 +473,80 @@ function getPCEditHTML(state) {
     `;
 }
 
+function getCodexHTML(state) {
+    const camp = state.activeCampaign;
+    if (!camp) return '';
+    const codex = camp.codex || [];
+    
+    let html = `
+    <div class="animate-in fade-in duration-300">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 sm:mb-8 gap-4 border-b-2 border-stone-800 pb-4">
+            <div class="w-full md:w-auto">
+                <h2 class="text-2xl sm:text-3xl md:text-4xl font-serif font-bold text-amber-500 leading-tight">Campaign Codex</h2>
+                <p class="text-stone-400 text-xs sm:text-sm font-sans mt-2 italic">Knowledge base for ${camp.name}</p>
+            </div>
+            <div class="flex flex-wrap gap-2 w-full md:w-auto items-center">
+                <div class="relative flex-grow md:flex-grow-0">
+                    <i class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-stone-500 text-xs"></i>
+                    <input type="text" id="codex-search" class="w-full md:w-48 pl-8 pr-3 py-2 bg-stone-900 border border-stone-700 text-stone-200 text-xs rounded-sm focus:outline-none focus:border-amber-600 shadow-inner placeholder-stone-600" placeholder="Search..." onkeyup="window.filterCodex()">
+                </div>
+                <button onclick="window.appActions._openCodexModal({isNew: true})" class="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-amber-600 text-stone-950 border border-amber-500 rounded-sm hover:bg-amber-500 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md">
+                    <i class="fa-solid fa-plus mr-2"></i> New Entry
+                </button>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6" id="codex-grid">
+    `;
+    
+    if (codex.length === 0) {
+        html += `
+            <div class="col-span-full p-8 sm:p-12 text-center text-stone-500 bg-[#f4ebd8] rounded-sm border border-[#d4c5a9] shadow-sm">
+                <i class="fa-solid fa-book-journal-whills text-4xl sm:text-6xl mx-auto text-stone-400 mb-3 sm:mb-4 opacity-50"></i>
+                <p class="font-serif text-base sm:text-lg">The Codex is empty.</p>
+                <p class="text-xs sm:text-sm mt-2 font-sans">Create entries for NPCs, Locations, and Lore to auto-link them in your session logs.</p>
+            </div>
+        `;
+    } else {
+        // Sort alphabetical
+        const sorted = [...codex].sort((a,b) => a.name.localeCompare(b.name));
+        sorted.forEach(c => {
+            let typeColor = "text-stone-500";
+            if (c.type === 'NPC') typeColor = "text-blue-600";
+            if (c.type === 'Location') typeColor = "text-emerald-600";
+            if (c.type === 'Item') typeColor = "text-amber-600";
+            if (c.type === 'Faction') typeColor = "text-purple-600";
+            if (c.type === 'Lore') typeColor = "text-red-800";
+            
+            const tagsStr = (c.tags || []).join(', ');
+            const hasImg = c.image ? `<i class="fa-solid fa-image text-stone-400 ml-2" title="Has Image"></i>` : '';
+            
+            html += `
+            <div class="codex-card bg-[#fdfbf7] p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-sm flex flex-col group relative overflow-hidden hover:shadow-md transition cursor-pointer" onclick="window.appActions.viewCodex('${c.id}')" data-search="${c.name.toLowerCase()} ${c.type.toLowerCase()} ${tagsStr.toLowerCase()}">
+                <div class="absolute top-0 left-0 w-1 h-full bg-stone-400 group-hover:bg-amber-500 transition-colors"></div>
+                <div class="pl-2 flex justify-between items-start mb-2">
+                    <h3 class="font-serif font-bold text-lg text-stone-900 leading-tight">${c.name} ${hasImg}</h3>
+                </div>
+                <div class="pl-2 flex items-center gap-2 mb-3 flex-wrap">
+                    <span class="text-[9px] font-bold uppercase tracking-wider ${typeColor} border border-current px-1.5 py-0.5 rounded-sm">${c.type}</span>
+                    ${(c.tags || []).slice(0,2).map(t => `<span class="text-[9px] font-bold uppercase tracking-wider text-stone-500 bg-stone-200 px-1.5 py-0.5 rounded-sm">${t}</span>`).join('')}
+                    ${(c.tags && c.tags.length > 2) ? `<span class="text-[9px] font-bold text-stone-400">+${c.tags.length - 2}</span>` : ''}
+                </div>
+                <div class="pl-2 mt-auto pt-3 border-t border-[#d4c5a9]/50">
+                    <p class="text-xs text-stone-600 font-sans line-clamp-2 italic">"${c.desc || 'No description...'}"</p>
+                </div>
+            </div>
+            `;
+        });
+    }
+    
+    html += `
+        </div>
+    </div>
+    `;
+    return html;
+}
+
 function getSessionEditHTML(state) {
     const adv = state.activeAdventure;
     const session = state.activeSession;
@@ -476,10 +557,41 @@ function getSessionEditHTML(state) {
     const draftNumPlayers = adv.numPlayers;
 
     const draftLootText = session ? session.lootText : '';
-    const draftEvents = session ? session.events : '';
-    const draftNpcs = session ? session.npcs : '';
-    const draftLocations = session ? session.locations : '';
     const draftNotes = session ? session.notes : '';
+
+    // V20 Dynamic Row Builders injected natively into the template
+    const sceneRow = (s, idx) => {
+        const hasText = s.text && s.text.trim().length > 0;
+        const viewModeClass = hasText ? '' : 'hidden';
+        const editModeClass = hasText ? 'hidden' : '';
+        const btnText = hasText ? 'Edit Mode' : 'Read Mode';
+        const btnClass = hasText ? 'text-amber-600' : '';
+        const viewContent = hasText && window.appActions.parseSmartText ? window.appActions.parseSmartText(s.text) : (s.text || '');
+
+        return `
+        <div class="mb-4 scene-row bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm p-1 shadow-sm">
+            <div class="flex justify-between items-center bg-[#f4ebd8] px-2 py-1 mb-1 border-b border-[#d4c5a9]">
+                <span class="text-[10px] text-stone-500 font-bold uppercase tracking-widest">Scene ${idx + 1}</span>
+                <div class="flex gap-2">
+                    <button class="text-[10px] text-stone-500 hover:text-amber-600 uppercase font-bold toggle-btn ${btnClass} transition" onclick="window.appActions.toggleSceneView(this)">${btnText}</button>
+                    <button class="text-[10px] text-stone-500 hover:text-blue-600 uppercase font-bold transition" onclick="window.appActions.defineSelection(this)">Define Selection</button>
+                    ${idx > 0 ? `<button class="text-[10px] text-red-800 hover:text-red-600 uppercase font-bold transition" onclick="this.closest('.scene-row').remove()">Remove</button>` : ''}
+                </div>
+            </div>
+            <textarea class="scene-editor w-full bg-transparent text-stone-900 text-xs sm:text-sm p-2 h-24 resize-y border-none focus:ring-0 leading-relaxed outline-none font-sans smart-text-area custom-scrollbar ${editModeClass}" 
+                placeholder="Describe the scene... (Use @ to link codex entries)" 
+                oninput="window.appActions.handleSmartInput(this)"
+                spellcheck="false">${s.text || ''}</textarea>
+            <div class="scene-viewer w-full text-stone-800 text-xs sm:text-sm p-2 h-auto min-h-[6rem] leading-relaxed whitespace-pre-wrap font-serif ${viewModeClass}">${viewContent}</div>
+        </div>`;
+    };
+
+    const clueRow = (c, idx) => `
+        <div class="mb-2 flex gap-2 items-center clue-row bg-[#fdfbf7] border border-[#d4c5a9] p-1.5 rounded-sm shadow-sm">
+            <i class="fa-solid fa-magnifying-glass text-stone-400 ml-1"></i>
+            <input type="text" class="clue-input flex-1 bg-transparent border-none text-stone-900 px-1 text-xs sm:text-sm outline-none placeholder:italic placeholder:text-stone-400" placeholder="Quest update, clue, or objective..." value="${c.text || ''}">
+            <button class="text-stone-400 hover:text-red-700 font-bold px-2 transition" onclick="this.closest('.clue-row').remove()"><i class="fa-solid fa-xmark"></i></button>
+        </div>`;
 
     let html = `
     <div class="animate-in slide-in-from-bottom-4 duration-300 bg-[#f4ebd8] rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col" style="min-height: calc(100vh - 120px);">
@@ -552,32 +664,40 @@ function getSessionEditHTML(state) {
                     </div>
                 </div>
 
-                <!-- Text Areas -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
+                <!-- Modular Layout Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8">
+                    
+                    <!-- Left Col: Scenes -->
+                    <div class="lg:col-span-2 space-y-4">
+                        <div class="flex justify-between items-center border-b border-[#d4c5a9] pb-1 mb-2">
+                            <label class="text-xs sm:text-sm font-bold text-stone-800 font-serif">Scenes & Encounters</label>
+                            <button onclick="window.appActions.addLogScene()" class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-600 hover:text-amber-700 transition"><i class="fa-solid fa-plus mr-1"></i> Add Scene</button>
+                        </div>
+                        <div id="container-scenes">
+                            ${(session?.scenes || [{id:1, text:''}]).map((s, i) => sceneRow(s, i)).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Right Col: Clues, Loot, Notes -->
                     <div class="space-y-4 sm:space-y-6">
+                        <div>
+                            <div class="flex justify-between items-center border-b border-[#d4c5a9] pb-1 mb-2">
+                                <label class="text-xs sm:text-sm font-bold text-stone-800 font-serif">Investigation & Clues</label>
+                                <button onclick="window.appActions.addLogClue()" class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-600 hover:text-amber-700 transition"><i class="fa-solid fa-plus mr-1"></i> Add</button>
+                            </div>
+                            <div id="container-clues">
+                                ${(session?.clues || [{id:1, text:''}]).map((c, i) => clueRow(c, i)).join('')}
+                            </div>
+                        </div>
                         <div>
                             <label class="block text-xs sm:text-sm font-bold text-stone-800 font-serif mb-1 sm:mb-2 flex justify-between items-baseline border-b border-[#d4c5a9] pb-1">
                                 Loot <span id="budget-live-calc" class="font-sans font-bold text-red-900 text-[10px] sm:text-xs">Calc: 0 gp</span>
                             </label>
-                            <textarea id="draft-loot" rows="4" class="w-full p-2 sm:p-3 border border-[#d4c5a9] bg-[#fdfbf7] rounded-sm focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400 custom-scrollbar" placeholder="e.g. 50 gp, 2 pp, +1 Longsword..." oninput="window.appActions.updateSessionBudget()">${draftLootText}</textarea>
+                            <textarea id="draft-loot" rows="3" class="w-full p-2 sm:p-3 border border-[#d4c5a9] bg-[#fdfbf7] rounded-sm focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400 custom-scrollbar" oninput="window.appActions.updateSessionBudget()">${draftLootText}</textarea>
                         </div>
                         <div>
-                            <label class="block text-xs sm:text-sm font-bold text-stone-800 font-serif mb-1 sm:mb-2 border-b border-[#d4c5a9] pb-1">General Notes</label>
-                            <textarea id="draft-notes" rows="6" class="w-full p-2 sm:p-3 border border-[#d4c5a9] bg-[#fdfbf7] rounded-sm focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400 custom-scrollbar" placeholder="Overall summary of the session...">${draftNotes}</textarea>
-                        </div>
-                    </div>
-                    <div class="space-y-4 sm:space-y-6">
-                        <div>
-                            <label class="block text-xs sm:text-sm font-bold text-stone-800 font-serif mb-1 sm:mb-2 border-b border-[#d4c5a9] pb-1">Events</label>
-                            <textarea id="draft-events" rows="3" class="w-full p-2 sm:p-3 border border-[#d4c5a9] bg-[#fdfbf7] rounded-sm focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400 custom-scrollbar" placeholder="Key happenings...">${draftEvents}</textarea>
-                        </div>
-                        <div>
-                            <label class="block text-xs sm:text-sm font-bold text-stone-800 font-serif mb-1 sm:mb-2 border-b border-[#d4c5a9] pb-1">NPCs Met</label>
-                            <textarea id="draft-npcs" rows="3" class="w-full p-2 sm:p-3 border border-[#d4c5a9] bg-[#fdfbf7] rounded-sm focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400 custom-scrollbar" placeholder="Characters encountered...">${draftNpcs}</textarea>
-                        </div>
-                        <div>
-                            <label class="block text-xs sm:text-sm font-bold text-stone-800 font-serif mb-1 sm:mb-2 border-b border-[#d4c5a9] pb-1">Locations Visited</label>
-                            <textarea id="draft-locations" rows="3" class="w-full p-2 sm:p-3 border border-[#d4c5a9] bg-[#fdfbf7] rounded-sm focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400 custom-scrollbar" placeholder="Dungeons, towns, ruins...">${draftLocations}</textarea>
+                            <label class="block text-xs sm:text-sm font-bold text-stone-800 font-serif mb-1 sm:mb-2 border-b border-[#d4c5a9] pb-1">General / DM Notes</label>
+                            <textarea id="draft-notes" rows="5" class="w-full p-2 sm:p-3 border border-[#d4c5a9] bg-[#fdfbf7] rounded-sm focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400 custom-scrollbar">${draftNotes}</textarea>
                         </div>
                     </div>
                 </div>
@@ -727,3 +847,20 @@ export function updateBudgetUI(totalBudget, totalLoot, remaining, calculatedLoot
         liveCalcEl.textContent = `Calc: ${calculatedLootVal.toLocaleString()} gp`;
     }
 }
+
+// --- GLOBAL WINDOW BINDINGS FOR INLINE HTML ---
+
+window.filterCodex = function() {
+    const input = document.getElementById('codex-search');
+    if(!input) return;
+    const query = input.value.toLowerCase();
+    const cards = document.querySelectorAll('.codex-card');
+    cards.forEach(card => {
+        const searchData = card.getAttribute('data-search');
+        if (searchData.includes(query)) {
+            card.style.display = 'flex';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+};
