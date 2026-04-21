@@ -24,6 +24,7 @@ export function renderApp(state) {
         case 'campaign': html = getCampaignHTML(state); break;
         case 'adventure': html = getAdventureHTML(state); break;
         case 'pc-manager': html = getPCManagerHTML(state); break;
+        case 'pc-edit': html = getPCEditHTML(state); break;
         case 'session-edit': html = getSessionEditHTML(state); break;
         case 'journal': html = getJournalHTML(state); break;
         default: html = `<div class="text-center text-red-500">Unknown View: ${state.currentView}</div>`;
@@ -31,7 +32,7 @@ export function renderApp(state) {
 
     container.innerHTML = html;
 
-    // Post-render UI adjustments (like setting up the active tabs on edit screen)
+    // Post-render UI adjustments
     if (state.currentView === 'session-edit') {
         updateSessionTabUI('session');
     }
@@ -59,10 +60,10 @@ export function renderBreadcrumbs(state) {
         `;
     }
 
-    if ((state.activeAdventure || state.currentView === 'pc-manager') && state.activeCampaign && state.currentView !== 'campaign') {
+    if ((state.activeAdventure || state.currentView === 'pc-manager' || state.currentView === 'pc-edit') && state.activeCampaign && state.currentView !== 'campaign') {
         html += `<i class="fa-solid fa-chevron-right mx-1 sm:mx-2 text-stone-600 flex-shrink-0 text-[8px] sm:text-xs"></i>`;
-        if (state.currentView === 'pc-manager') {
-            html += `<span class="uppercase tracking-wider font-bold text-amber-500 flex-shrink-0">Manage Party</span>`;
+        if (state.currentView === 'pc-manager' || state.currentView === 'pc-edit') {
+            html += `<button onclick="window.appActions.setView('pc-manager')" class="hover:text-amber-400 uppercase tracking-wider font-bold transition flex-shrink-0 ${state.currentView === 'pc-manager' ? 'text-amber-500' : ''}">Manage Party</button>`;
         } else {
             html += `
                 <button onclick="window.appActions.setView('adventure')" class="hover:text-amber-400 uppercase tracking-wider font-bold truncate max-w-[100px] sm:max-w-xs transition flex-shrink-0 ${state.currentView === 'adventure' ? 'text-amber-500' : ''}">
@@ -72,13 +73,15 @@ export function renderBreadcrumbs(state) {
         }
     }
 
-    if (state.currentView === 'session-edit' || state.currentView === 'journal') {
+    if (state.currentView === 'session-edit' || state.currentView === 'journal' || state.currentView === 'pc-edit') {
         html += `<i class="fa-solid fa-chevron-right mx-1 sm:mx-2 text-stone-600 flex-shrink-0 text-[8px] sm:text-xs"></i>`;
         html += `<span class="uppercase tracking-wider font-bold text-amber-500 flex-shrink-0">`;
         if (state.currentView === 'session-edit') {
             html += state.activeSessionId ? 'Amend Record' : 'New Record';
         } else if (state.currentView === 'journal') {
             html += state.activeSessionId ? 'Session Scroll' : (state.activeAdventureId ? 'Arc Scroll' : 'Campaign Tome');
+        } else if (state.currentView === 'pc-edit') {
+            html += state.activePcId ? 'Edit Hero' : 'New Hero';
         }
         html += `</span>`;
     }
@@ -308,60 +311,159 @@ function getAdventureHTML(state) {
 }
 
 function getPCManagerHTML(state) {
-    const pcs = state.tempPCs || [];
+    const pcs = state.activeCampaign?.playerCharacters || [];
     const campName = state.activeCampaign?.name || "the campaign";
 
     let html = `
-    <div class="animate-in fade-in duration-300 max-w-2xl mx-auto bg-[#f4ebd8] p-4 sm:p-6 rounded-sm border border-[#d4c5a9] shadow-[0_8px_24px_rgba(0,0,0,0.6)] relative overflow-hidden">
-        <div class="absolute top-0 left-0 w-full h-1 bg-amber-600"></div>
-        <div class="flex justify-between items-center mb-4 sm:mb-6">
-            <h2 class="text-2xl sm:text-3xl font-serif font-bold text-stone-900 flex items-center border-b-2 border-stone-300 pb-2 w-full pr-8">
-                <i class="fa-solid fa-users mr-2 sm:mr-3 text-red-900 text-xl sm:text-3xl"></i> Assemble Party
-            </h2>
-            <button onclick="window.appActions.setView('campaign')" class="text-stone-500 hover:text-red-900 transition absolute right-4 sm:right-6 top-4 sm:top-6 p-2">
-                <i class="fa-solid fa-xmark text-lg sm:text-xl"></i>
-            </button>
-        </div>
-        <p class="text-xs sm:text-sm text-stone-600 italic mb-4">These heroes will persist across all adventures within the <strong>${campName}</strong> campaign.</p>
-
-        <div class="mb-4 sm:mb-6 flex gap-2">
-            <input type="text" id="new-pc-name" placeholder="Enter Hero's Name..." class="flex-grow p-2 sm:p-3 bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm focus:ring-2 focus:ring-red-900 focus:outline-none font-serif text-base sm:text-lg shadow-inner" onkeydown="if(event.key === 'Enter') window.appActions.addTempPC()">
-            <button onclick="window.appActions.addTempPC()" class="px-4 sm:px-5 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition flex items-center font-bold uppercase tracking-wider text-xs sm:text-sm shadow-md">
-                <i class="fa-solid fa-plus mr-1 sm:mr-2"></i> Add
-            </button>
+    <div class="animate-in fade-in duration-300">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 sm:mb-8 gap-4 border-b-2 border-stone-800 pb-4">
+            <div class="w-full md:w-auto">
+                <h2 class="text-2xl sm:text-3xl md:text-4xl font-serif font-bold text-amber-500 leading-tight">Party Manifest</h2>
+                <p class="text-stone-400 text-xs sm:text-sm font-sans mt-2 italic">Heroes of ${campName}</p>
+            </div>
+            <div class="flex flex-wrap gap-2 w-full md:w-auto">
+                <button onclick="window.appActions.openPCEdit(null)" class="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-red-900 text-amber-50 border border-red-950 rounded-sm hover:bg-red-800 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md">
+                    <i class="fa-solid fa-user-plus mr-2"></i> Enroll Hero
+                </button>
+            </div>
         </div>
 
-        <div class="bg-[#e8dec7] border border-[#d4c5a9] rounded-sm p-3 sm:p-4 mb-4 sm:mb-6 min-h-[150px] sm:min-h-[200px] shadow-inner max-h-[40vh] overflow-y-auto custom-scrollbar">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
     `;
 
     if (pcs.length === 0) {
-        html += `<p class="text-stone-500 text-center mt-8 sm:mt-12 font-serif italic text-sm sm:text-base">The tavern is empty. No heroes have joined yet.</p>`;
+        html += `
+            <div class="col-span-full p-8 sm:p-12 text-center text-stone-500 bg-[#f4ebd8] rounded-sm border border-[#d4c5a9] shadow-sm">
+                <i class="fa-solid fa-users-slash text-4xl sm:text-6xl mx-auto text-stone-400 mb-3 sm:mb-4 opacity-50"></i>
+                <p class="font-serif text-base sm:text-lg">The tavern is currently empty.</p>
+                <p class="text-xs sm:text-sm mt-2 font-sans">Click "Enroll Hero" to add a player character to the campaign.</p>
+            </div>
+        `;
     } else {
-        html += `<ul class="space-y-2 sm:space-y-3">`;
         pcs.forEach(pc => {
+            const classLevel = pc.classLevel || "Unknown Class";
+            const race = pc.race || "Unknown Race";
             html += `
-            <li class="flex justify-between items-center p-2 sm:p-3 bg-[#f4ebd8] border border-[#d4c5a9] rounded-sm shadow-sm">
-                <span class="font-serif font-bold text-base sm:text-lg text-stone-900 truncate pr-2">${pc.name}</span>
-                <button onclick="window.appActions.removeTempPC('${pc.id}')" class="flex-shrink-0 text-red-900 hover:text-red-700 p-2 bg-red-900/10 rounded-sm transition" title="Remove Hero">
-                    <i class="fa-solid fa-skull"></i>
-                </button>
-            </li>
+            <div class="bg-[#fdfbf7] p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-sm flex flex-col justify-between group relative overflow-hidden hover:shadow-md transition cursor-pointer" onclick="window.appActions.openPCEdit('${pc.id}')">
+                <div class="absolute top-0 left-0 w-1 h-full bg-stone-500"></div>
+                <div class="pl-2">
+                    <h3 class="font-serif font-bold text-lg sm:text-xl text-stone-900 truncate">${pc.name}</h3>
+                    <p class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-stone-500 mt-1 sm:mt-2">
+                        ${race} <span class="mx-1">•</span> ${classLevel}
+                    </p>
+                </div>
+                <div class="mt-4 sm:mt-5 pt-3 sm:pt-4 border-t border-[#d4c5a9]/50 pl-2">
+                    <span class="text-stone-700 group-hover:text-red-900 text-[10px] sm:text-xs font-bold uppercase tracking-wider flex items-center transition">
+                        Open Journal <i class="fa-solid fa-arrow-right ml-2"></i>
+                    </span>
+                </div>
+            </div>
             `;
         });
-        html += `</ul>`;
     }
 
     html += `
         </div>
-        <div class="flex flex-wrap sm:flex-nowrap justify-end gap-2 sm:gap-3">
-            <button onclick="window.appActions.setView('campaign')" class="w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-2.5 text-stone-600 border border-stone-400 rounded-sm hover:bg-stone-300 transition font-bold uppercase tracking-wider text-[10px] sm:text-sm">Cancel</button>
-            <button onclick="window.appActions.savePCs()" class="w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-2.5 bg-red-900 text-amber-50 rounded-sm hover:bg-red-800 transition font-bold uppercase tracking-wider text-[10px] sm:text-sm flex items-center justify-center shadow-md">
-                <i class="fa-solid fa-floppy-disk mr-2"></i> Commit Party
-            </button>
-        </div>
     </div>
     `;
     return html;
+}
+
+function getPCEditHTML(state) {
+    const camp = state.activeCampaign;
+    const isNew = !state.activePcId;
+    
+    // Find the existing PC if editing, otherwise provide defaults
+    const pc = !isNew && camp?.playerCharacters 
+        ? camp.playerCharacters.find(p => p.id === state.activePcId) 
+        : { name: '', race: '', classLevel: '', ideals: '', bonds: '', flaws: '', backstory: '', dmNotes: '' };
+
+    if (!pc) return `<div class="text-center text-red-500 p-8">Hero not found.</div>`;
+
+    const title = isNew ? "Enroll New Hero" : `Hero Journal: ${pc.name}`;
+
+    return `
+    <div class="animate-in slide-in-from-bottom-4 duration-300 bg-[#f4ebd8] rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col max-w-4xl mx-auto mb-8">
+        
+        <!-- Header -->
+        <div class="bg-stone-900 p-4 border-b-4 border-red-900 text-amber-500 flex justify-between items-center relative">
+            <h2 class="text-xl sm:text-2xl font-serif font-bold z-10 flex items-center">
+                <i class="fa-solid fa-user-pen mr-3 text-red-700"></i> ${title}
+            </h2>
+            <div class="absolute right-0 top-0 bottom-0 w-24 sm:w-32 opacity-10 pointer-events-none overflow-hidden flex items-center justify-end pr-4">
+                <i class="fa-solid fa-shield-halved text-5xl sm:text-6xl text-amber-50"></i>
+            </div>
+        </div>
+
+        <!-- Form Content -->
+        <div class="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
+            
+            <!-- Basic Info Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 bg-[#fdfbf7] p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-inner">
+                <div class="col-span-1 sm:col-span-2 lg:col-span-1">
+                    <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Hero Name *</label>
+                    <input type="text" id="pc-edit-name" value="${pc.name}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white font-bold text-stone-900 shadow-sm outline-none focus:border-red-900 font-serif" placeholder="e.g. Eldrin">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Race / Lineage</label>
+                    <input type="text" id="pc-edit-race" value="${pc.race || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white font-bold text-stone-700 shadow-sm outline-none focus:border-red-900" placeholder="e.g. Wood Elf">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Class & Level</label>
+                    <input type="text" id="pc-edit-class" value="${pc.classLevel || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white font-bold text-stone-700 shadow-sm outline-none focus:border-red-900" placeholder="e.g. Ranger 4">
+                </div>
+            </div>
+
+            <!-- Roleplay Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+                <div>
+                    <label class="block text-xs font-bold text-stone-800 font-serif mb-2 border-b border-[#d4c5a9] pb-1">Ideals</label>
+                    <textarea id="pc-edit-ideals" rows="3" class="w-full p-3 border border-[#d4c5a9] bg-[#fdfbf7] rounded-sm focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400 custom-scrollbar" placeholder="What drives them?">${pc.ideals || ''}</textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-stone-800 font-serif mb-2 border-b border-[#d4c5a9] pb-1">Bonds</label>
+                    <textarea id="pc-edit-bonds" rows="3" class="w-full p-3 border border-[#d4c5a9] bg-[#fdfbf7] rounded-sm focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400 custom-scrollbar" placeholder="Who or what do they care about?">${pc.bonds || ''}</textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-stone-800 font-serif mb-2 border-b border-[#d4c5a9] pb-1">Flaws</label>
+                    <textarea id="pc-edit-flaws" rows="3" class="w-full p-3 border border-[#d4c5a9] bg-[#fdfbf7] rounded-sm focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400 custom-scrollbar" placeholder="What are their weaknesses?">${pc.flaws || ''}</textarea>
+                </div>
+            </div>
+
+            <!-- Detailed Notes -->
+            <div class="space-y-4 sm:space-y-6">
+                <div>
+                    <label class="block text-sm font-bold text-stone-800 font-serif mb-2 border-b border-[#d4c5a9] pb-1 flex items-center">
+                        <i class="fa-solid fa-book-open text-stone-500 mr-2"></i> Backstory
+                    </label>
+                    <textarea id="pc-edit-backstory" rows="5" class="w-full p-3 border border-[#d4c5a9] bg-[#fdfbf7] rounded-sm focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400 custom-scrollbar" placeholder="The hero's origins...">${pc.backstory || ''}</textarea>
+                </div>
+                
+                <div class="relative">
+                    <div class="absolute -left-2 top-0 bottom-0 w-1 bg-red-900 rounded-l-sm"></div>
+                    <label class="block text-sm font-bold text-stone-800 font-serif mb-2 border-b border-[#d4c5a9] pb-1 flex items-center pl-2">
+                        <i class="fa-solid fa-eye text-red-900 mr-2"></i> DM's Secret Notes
+                    </label>
+                    <textarea id="pc-edit-dmnotes" rows="4" class="w-full p-3 border border-[#d4c5a9] bg-stone-200 rounded-sm focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-500 custom-scrollbar" placeholder="Hooks, secrets, curses, or background ties...">${pc.dmNotes || ''}</textarea>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Footer Actions -->
+        <div class="bg-[#e8dec7] p-4 border-t border-[#d4c5a9] flex flex-wrap-reverse sm:flex-nowrap justify-between items-center gap-4">
+            <div>
+                ${!isNew ? `<button onclick="window.appActions.deletePC('${pc.id}')" class="px-4 py-2 text-stone-500 hover:text-red-700 hover:bg-red-900/10 rounded-sm transition font-bold uppercase tracking-wider text-[10px] sm:text-xs flex items-center"><i class="fa-solid fa-skull mr-2"></i> Remove Hero</button>` : '<div></div>'}
+            </div>
+            <div class="flex gap-2 w-full sm:w-auto justify-end">
+                <button onclick="window.appActions.setView('pc-manager')" class="flex-1 sm:flex-none px-4 sm:px-6 py-2 bg-[#fdfbf7] text-stone-700 border border-[#d4c5a9] rounded-sm hover:bg-white transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-sm">Cancel</button>
+                <button onclick="window.appActions.savePCEdit()" class="flex-1 sm:flex-none px-4 sm:px-6 py-2 bg-stone-900 text-amber-50 border border-stone-950 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider flex items-center justify-center text-[10px] sm:text-xs shadow-md">
+                    <i class="fa-solid fa-floppy-disk mr-2"></i> Inscribe
+                </button>
+            </div>
+        </div>
+    </div>
+    `;
 }
 
 function getSessionEditHTML(state) {
@@ -431,7 +533,7 @@ function getSessionEditHTML(state) {
                         </div>
                     </div>
 
-                    <!-- Budget Display (Mobile Wrapping) -->
+                    <!-- Budget Display -->
                     <div class="ml-auto w-full lg:w-auto bg-stone-900 border border-stone-700 p-2 sm:p-3 rounded-sm flex flex-wrap sm:flex-nowrap gap-2 sm:gap-6 text-center items-center justify-between sm:justify-start shadow-inner mt-2 lg:mt-0">
                         <div class="flex-1 sm:flex-none">
                             <div class="text-[8px] sm:text-[10px] text-stone-400 font-bold uppercase tracking-widest">Treasury</div>
@@ -457,25 +559,25 @@ function getSessionEditHTML(state) {
                             <label class="block text-xs sm:text-sm font-bold text-stone-800 font-serif mb-1 sm:mb-2 flex justify-between items-baseline border-b border-[#d4c5a9] pb-1">
                                 Loot <span id="budget-live-calc" class="font-sans font-bold text-red-900 text-[10px] sm:text-xs">Calc: 0 gp</span>
                             </label>
-                            <textarea id="draft-loot" rows="4" class="w-full p-2 sm:p-3 border border-[#d4c5a9] bg-[#fdfbf7] rounded-sm focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400" placeholder="e.g. 50 gp, 2 pp, +1 Longsword..." oninput="window.appActions.updateSessionBudget()">${draftLootText}</textarea>
+                            <textarea id="draft-loot" rows="4" class="w-full p-2 sm:p-3 border border-[#d4c5a9] bg-[#fdfbf7] rounded-sm focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400 custom-scrollbar" placeholder="e.g. 50 gp, 2 pp, +1 Longsword..." oninput="window.appActions.updateSessionBudget()">${draftLootText}</textarea>
                         </div>
                         <div>
                             <label class="block text-xs sm:text-sm font-bold text-stone-800 font-serif mb-1 sm:mb-2 border-b border-[#d4c5a9] pb-1">General Notes</label>
-                            <textarea id="draft-notes" rows="6" class="w-full p-2 sm:p-3 border border-[#d4c5a9] bg-[#fdfbf7] rounded-sm focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400" placeholder="Overall summary of the session...">${draftNotes}</textarea>
+                            <textarea id="draft-notes" rows="6" class="w-full p-2 sm:p-3 border border-[#d4c5a9] bg-[#fdfbf7] rounded-sm focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400 custom-scrollbar" placeholder="Overall summary of the session...">${draftNotes}</textarea>
                         </div>
                     </div>
                     <div class="space-y-4 sm:space-y-6">
                         <div>
                             <label class="block text-xs sm:text-sm font-bold text-stone-800 font-serif mb-1 sm:mb-2 border-b border-[#d4c5a9] pb-1">Events</label>
-                            <textarea id="draft-events" rows="3" class="w-full p-2 sm:p-3 border border-[#d4c5a9] bg-[#fdfbf7] rounded-sm focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400" placeholder="Key happenings...">${draftEvents}</textarea>
+                            <textarea id="draft-events" rows="3" class="w-full p-2 sm:p-3 border border-[#d4c5a9] bg-[#fdfbf7] rounded-sm focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400 custom-scrollbar" placeholder="Key happenings...">${draftEvents}</textarea>
                         </div>
                         <div>
                             <label class="block text-xs sm:text-sm font-bold text-stone-800 font-serif mb-1 sm:mb-2 border-b border-[#d4c5a9] pb-1">NPCs Met</label>
-                            <textarea id="draft-npcs" rows="3" class="w-full p-2 sm:p-3 border border-[#d4c5a9] bg-[#fdfbf7] rounded-sm focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400" placeholder="Characters encountered...">${draftNpcs}</textarea>
+                            <textarea id="draft-npcs" rows="3" class="w-full p-2 sm:p-3 border border-[#d4c5a9] bg-[#fdfbf7] rounded-sm focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400 custom-scrollbar" placeholder="Characters encountered...">${draftNpcs}</textarea>
                         </div>
                         <div>
                             <label class="block text-xs sm:text-sm font-bold text-stone-800 font-serif mb-1 sm:mb-2 border-b border-[#d4c5a9] pb-1">Locations Visited</label>
-                            <textarea id="draft-locations" rows="3" class="w-full p-2 sm:p-3 border border-[#d4c5a9] bg-[#fdfbf7] rounded-sm focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400" placeholder="Dungeons, towns, ruins...">${draftLocations}</textarea>
+                            <textarea id="draft-locations" rows="3" class="w-full p-2 sm:p-3 border border-[#d4c5a9] bg-[#fdfbf7] rounded-sm focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400 custom-scrollbar" placeholder="Dungeons, towns, ruins...">${draftLocations}</textarea>
                         </div>
                     </div>
                 </div>
@@ -523,7 +625,7 @@ function getSessionEditHTML(state) {
                             </label>
                         </div>
                     </div>
-                    <textarea id="pc-note-${pc.id}" class="w-full p-2 sm:p-3 border border-[#d4c5a9] rounded-sm bg-[#f4ebd8] focus:bg-[#fdfbf7] focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400 flex-grow" rows="3" placeholder="Heroic deeds or flaws...">${pcNote}</textarea>
+                    <textarea id="pc-note-${pc.id}" class="w-full p-2 sm:p-3 border border-[#d4c5a9] rounded-sm bg-[#f4ebd8] focus:bg-[#fdfbf7] focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400 flex-grow custom-scrollbar" rows="3" placeholder="Heroic deeds or flaws...">${pcNote}</textarea>
                 </div>
             `;
         });
@@ -540,7 +642,7 @@ function getSessionEditHTML(state) {
                         <i class="fa-solid fa-scroll mr-2 text-red-700"></i> Live Preview
                     </h3>
                 </div>
-                <textarea id="draft-preview-text" readonly class="w-full flex-grow p-4 sm:p-6 bg-[#fdfbf7] border border-[#d4c5a9] border-t-0 rounded-b-sm text-stone-900 font-mono text-[10px] sm:text-sm leading-relaxed resize-none outline-none shadow-inner h-[50vh] sm:h-[60vh] min-h-[300px] sm:min-h-[400px]"></textarea>
+                <textarea id="draft-preview-text" readonly class="w-full flex-grow p-4 sm:p-6 bg-[#fdfbf7] border border-[#d4c5a9] border-t-0 rounded-b-sm text-stone-900 font-mono text-[10px] sm:text-sm leading-relaxed resize-none outline-none shadow-inner h-[50vh] sm:h-[60vh] min-h-[300px] sm:min-h-[400px] custom-scrollbar"></textarea>
             </div>
 
         </div>
