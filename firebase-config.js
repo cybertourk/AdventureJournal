@@ -1,11 +1,11 @@
-import { initializeApp } from "firebase/app";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
 import { 
     getAuth, 
     signInWithEmailAndPassword, 
     createUserWithEmailAndPassword, 
     signOut, 
     onAuthStateChanged 
-} from "firebase/auth";
+} from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 import { 
     getFirestore, 
     doc, 
@@ -17,7 +17,7 @@ import {
     getDocs, 
     query,
     where
-} from "firebase/firestore";
+} from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
 
 // FIREBASE CONFIGURATION (Adventure Journal)
 const firebaseConfig = {
