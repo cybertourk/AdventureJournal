@@ -11,6 +11,30 @@ export function renderLevelOptions(selected) {
     ).join('');
 }
 
+// --- SMART TEXT FIELD GENERATOR ---
+export function renderSmartField(id, labelHtml, value, placeholder, rows, wrapperClass = '', extraInput = '') {
+    const hasText = value && value.trim().length > 0;
+    const viewModeClass = hasText ? '' : 'hidden';
+    const editModeClass = hasText ? 'hidden' : '';
+    const btnText = hasText ? 'Edit Mode' : 'Read Mode';
+    const btnClass = hasText ? 'text-amber-600' : '';
+    const viewContent = (hasText && window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(value) : (value || '');
+
+    return `
+    <div class="scene-row flex flex-col ${wrapperClass}">
+        <div class="flex justify-between items-baseline border-b border-[#d4c5a9] pb-1 mb-2 mt-1">
+            <label class="flex-grow text-xs sm:text-sm font-bold text-stone-800 font-serif flex items-center justify-between pr-4">${labelHtml}</label>
+            <div class="flex gap-2 flex-shrink-0">
+                <button type="button" class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-stone-500 hover:text-amber-600 transition toggle-btn ${btnClass}" onclick="window.appActions.toggleSceneView(this)">${btnText}</button>
+                <button type="button" class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-stone-500 hover:text-blue-600 transition" onclick="window.appActions.defineSelection(this)">Define</button>
+            </div>
+        </div>
+        <textarea id="${id}" rows="${rows}" class="scene-editor w-full p-2 sm:p-3 border border-[#d4c5a9] bg-[#fdfbf7] rounded-sm focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400 custom-scrollbar smart-text-area ${editModeClass}" placeholder="${placeholder}" oninput="window.appActions.handleSmartInput(this); ${extraInput}" spellcheck="false">${value}</textarea>
+        <div class="scene-viewer w-full p-2 sm:p-3 border border-transparent bg-transparent text-stone-800 text-xs sm:text-sm min-h-[${rows * 1.5}rem] leading-relaxed whitespace-pre-wrap font-serif ${viewModeClass}">${viewContent}</div>
+    </div>
+    `;
+}
+
 // --- MAIN RENDERER ---
 export function renderApp(state) {
     const container = document.getElementById('app-container');
@@ -421,38 +445,17 @@ function getPCEditHTML(state) {
                 </div>
             </div>
 
-            <!-- Roleplay Grid -->
+            <!-- Roleplay Grid (Now Smart Linked) -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-                <div>
-                    <label class="block text-xs font-bold text-stone-800 font-serif mb-2 border-b border-[#d4c5a9] pb-1">Ideals</label>
-                    <textarea id="pc-edit-ideals" rows="3" class="w-full p-3 border border-[#d4c5a9] bg-[#fdfbf7] rounded-sm focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400 custom-scrollbar" placeholder="What drives them?">${pc.ideals || ''}</textarea>
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-stone-800 font-serif mb-2 border-b border-[#d4c5a9] pb-1">Bonds</label>
-                    <textarea id="pc-edit-bonds" rows="3" class="w-full p-3 border border-[#d4c5a9] bg-[#fdfbf7] rounded-sm focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400 custom-scrollbar" placeholder="Who or what do they care about?">${pc.bonds || ''}</textarea>
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-stone-800 font-serif mb-2 border-b border-[#d4c5a9] pb-1">Flaws</label>
-                    <textarea id="pc-edit-flaws" rows="3" class="w-full p-3 border border-[#d4c5a9] bg-[#fdfbf7] rounded-sm focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400 custom-scrollbar" placeholder="What are their weaknesses?">${pc.flaws || ''}</textarea>
-                </div>
+                ${renderSmartField('pc-edit-ideals', 'Ideals', pc.ideals || '', 'What drives them?', 3)}
+                ${renderSmartField('pc-edit-bonds', 'Bonds', pc.bonds || '', 'Who or what do they care about?', 3)}
+                ${renderSmartField('pc-edit-flaws', 'Flaws', pc.flaws || '', 'What are their weaknesses?', 3)}
             </div>
 
-            <!-- Detailed Notes -->
+            <!-- Detailed Notes (Now Smart Linked) -->
             <div class="space-y-4 sm:space-y-6">
-                <div>
-                    <label class="block text-sm font-bold text-stone-800 font-serif mb-2 border-b border-[#d4c5a9] pb-1 flex items-center">
-                        <i class="fa-solid fa-book-open text-stone-500 mr-2"></i> Backstory
-                    </label>
-                    <textarea id="pc-edit-backstory" rows="5" class="w-full p-3 border border-[#d4c5a9] bg-[#fdfbf7] rounded-sm focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400 custom-scrollbar" placeholder="The hero's origins...">${pc.backstory || ''}</textarea>
-                </div>
-                
-                <div class="relative">
-                    <div class="absolute -left-2 top-0 bottom-0 w-1 bg-red-900 rounded-l-sm"></div>
-                    <label class="block text-sm font-bold text-stone-800 font-serif mb-2 border-b border-[#d4c5a9] pb-1 flex items-center pl-2">
-                        <i class="fa-solid fa-eye text-red-900 mr-2"></i> DM's Secret Notes
-                    </label>
-                    <textarea id="pc-edit-dmnotes" rows="4" class="w-full p-3 border border-[#d4c5a9] bg-stone-200 rounded-sm focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-500 custom-scrollbar" placeholder="Hooks, secrets, curses, or background ties...">${pc.dmNotes || ''}</textarea>
-                </div>
+                ${renderSmartField('pc-edit-backstory', '<i class="fa-solid fa-book-open text-stone-500 mr-2"></i> Backstory', pc.backstory || '', "The hero's origins...", 5)}
+                ${renderSmartField('pc-edit-dmnotes', '<i class="fa-solid fa-eye text-red-900 mr-2"></i> DM\'s Secret Notes', pc.dmNotes || '', 'Hooks, secrets, curses, or background ties...', 4, 'pl-3 border-l-4 border-red-900')}
             </div>
 
         </div>
@@ -508,7 +511,6 @@ function getCodexHTML(state) {
             </div>
         `;
     } else {
-        // Sort alphabetical
         const sorted = [...codex].sort((a,b) => a.name.localeCompare(b.name));
         sorted.forEach(c => {
             let typeColor = "text-stone-500";
@@ -559,14 +561,14 @@ function getSessionEditHTML(state) {
     const draftLootText = session ? session.lootText : '';
     const draftNotes = session ? session.notes : '';
 
-    // V20 Dynamic Row Builders injected natively into the template
+    // Standard V20 Scene Rows and Clues
     const sceneRow = (s, idx) => {
         const hasText = s.text && s.text.trim().length > 0;
         const viewModeClass = hasText ? '' : 'hidden';
         const editModeClass = hasText ? 'hidden' : '';
         const btnText = hasText ? 'Edit Mode' : 'Read Mode';
         const btnClass = hasText ? 'text-amber-600' : '';
-        const viewContent = hasText && window.appActions.parseSmartText ? window.appActions.parseSmartText(s.text) : (s.text || '');
+        const viewContent = (hasText && window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(s.text) : (s.text || '');
 
         return `
         <div class="mb-4 scene-row bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm p-1 shadow-sm">
@@ -574,7 +576,7 @@ function getSessionEditHTML(state) {
                 <span class="text-[10px] text-stone-500 font-bold uppercase tracking-widest">Scene ${idx + 1}</span>
                 <div class="flex gap-2">
                     <button class="text-[10px] text-stone-500 hover:text-amber-600 uppercase font-bold toggle-btn ${btnClass} transition" onclick="window.appActions.toggleSceneView(this)">${btnText}</button>
-                    <button class="text-[10px] text-stone-500 hover:text-blue-600 uppercase font-bold transition" onclick="window.appActions.defineSelection(this)">Define Selection</button>
+                    <button class="text-[10px] text-stone-500 hover:text-blue-600 uppercase font-bold transition" onclick="window.appActions.defineSelection(this)">Define</button>
                     ${idx > 0 ? `<button class="text-[10px] text-red-800 hover:text-red-600 uppercase font-bold transition" onclick="this.closest('.scene-row').remove()">Remove</button>` : ''}
                 </div>
             </div>
@@ -678,7 +680,7 @@ function getSessionEditHTML(state) {
                         </div>
                     </div>
 
-                    <!-- Right Col: Clues, Loot, Notes -->
+                    <!-- Right Col: Clues, Loot, Notes (Now Smart Linked) -->
                     <div class="space-y-4 sm:space-y-6">
                         <div>
                             <div class="flex justify-between items-center border-b border-[#d4c5a9] pb-1 mb-2">
@@ -690,20 +692,16 @@ function getSessionEditHTML(state) {
                             </div>
                         </div>
                         <div>
-                            <label class="block text-xs sm:text-sm font-bold text-stone-800 font-serif mb-1 sm:mb-2 flex justify-between items-baseline border-b border-[#d4c5a9] pb-1">
-                                Loot <span id="budget-live-calc" class="font-sans font-bold text-red-900 text-[10px] sm:text-xs">Calc: 0 gp</span>
-                            </label>
-                            <textarea id="draft-loot" rows="3" class="w-full p-2 sm:p-3 border border-[#d4c5a9] bg-[#fdfbf7] rounded-sm focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400 custom-scrollbar" oninput="window.appActions.updateSessionBudget()">${draftLootText}</textarea>
+                            ${renderSmartField('draft-loot', 'Loot <span id="budget-live-calc" class="font-sans font-bold text-red-900 text-[10px] sm:text-xs">Calc: 0 gp</span>', draftLootText, 'e.g. 50 gp, 2 pp, +1 Longsword...', 3, '', 'window.appActions.updateSessionBudget();')}
                         </div>
                         <div>
-                            <label class="block text-xs sm:text-sm font-bold text-stone-800 font-serif mb-1 sm:mb-2 border-b border-[#d4c5a9] pb-1">General / DM Notes</label>
-                            <textarea id="draft-notes" rows="5" class="w-full p-2 sm:p-3 border border-[#d4c5a9] bg-[#fdfbf7] rounded-sm focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400 custom-scrollbar">${draftNotes}</textarea>
+                            ${renderSmartField('draft-notes', 'General / DM Notes', draftNotes, 'Overall summary of the session...', 5)}
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- TAB: PCs -->
+            <!-- TAB: PCs (Now Smart Linked) -->
             <div id="tab-content-pcs" class="hidden">
     `;
 
@@ -721,9 +719,9 @@ function getSessionEditHTML(state) {
         pcs.forEach(pc => {
             const pcNote = session?.pcNotes ? (session.pcNotes[pc.id] || '') : '';
             html += `
-                <div class="bg-[#fdfbf7] p-3 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-sm flex flex-col gap-3 sm:gap-4 relative overflow-hidden pc-draft-item" data-id="${pc.id}">
+                <div class="bg-[#fdfbf7] p-3 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-sm flex flex-col relative overflow-hidden pc-draft-item" data-id="${pc.id}">
                     <div class="absolute top-0 left-0 w-1 h-full bg-stone-400"></div>
-                    <div class="flex justify-between items-center border-b border-stone-200 pb-2 sm:pb-3 pl-2">
+                    <div class="flex justify-between items-center pb-2 sm:pb-3 pl-2">
                         <span class="font-serif font-bold text-base sm:text-xl text-stone-900 truncate pr-2">${pc.name}</span>
                         <div class="flex gap-2 sm:gap-4 flex-shrink-0">
                             <!-- Inspiration Toggle Using Tailwind Peer CSS -->
@@ -745,7 +743,7 @@ function getSessionEditHTML(state) {
                             </label>
                         </div>
                     </div>
-                    <textarea id="pc-note-${pc.id}" class="w-full p-2 sm:p-3 border border-[#d4c5a9] rounded-sm bg-[#f4ebd8] focus:bg-[#fdfbf7] focus:ring-2 focus:ring-red-900 outline-none text-xs sm:text-sm font-sans shadow-inner placeholder:italic placeholder:text-stone-400 flex-grow custom-scrollbar" rows="3" placeholder="Heroic deeds or flaws...">${pcNote}</textarea>
+                    ${renderSmartField(`pc-note-${pc.id}`, 'Session Notes', pcNote, 'Heroic deeds or flaws...', 3, 'mt-1 flex-grow')}
                 </div>
             `;
         });
