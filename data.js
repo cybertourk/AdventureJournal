@@ -5,18 +5,18 @@ import { generateSessionMarkdown, generateAdventureMarkdown, generateCampaignMar
 // --- GLOBAL STATE ---
 window.appData = {
     campaigns: [],
-    currentView: 'home', // home, campaign, adventure, session-edit, pc-manager, journal
+    currentView: 'home', // home, campaign, adventure, session-edit, pc-manager, pc-edit, journal
     activeCampaignId: null,
     activeAdventureId: null,
     activeSessionId: null,
+    activePcId: null, // Used when editing a specific hero
     
-    // Derived Active Entities (updated via getters/setters or before render)
+    // Derived Active Entities
     activeCampaign: null,
     activeAdventure: null,
     activeSession: null,
 
-    // Temporary state for editing
-    tempPCs: [],
+    // Temporary state
     currentMarkdown: ''
 };
 
@@ -72,7 +72,6 @@ export function setCampaignsData(campaignsArray) {
 }
 
 // --- APP ACTIONS ---
-// We bind these to the window object so they can be called directly from inline HTML event handlers.
 
 window.appActions = {
     
@@ -85,12 +84,13 @@ window.appActions = {
             window.appData.activeCampaignId = null;
             window.appData.activeAdventureId = null;
             window.appData.activeSessionId = null;
+            window.appData.activePcId = null;
         } else if (viewName === 'campaign') {
             window.appData.activeAdventureId = null;
             window.appData.activeSessionId = null;
+            window.appData.activePcId = null;
         } else if (viewName === 'pc-manager') {
-            updateDerivedState(); // Ensure activeCampaign is set
-            window.appData.tempPCs = JSON.parse(JSON.stringify(window.appData.activeCampaign?.playerCharacters || []));
+            window.appData.activePcId = null;
         }
         
         reRender();
@@ -131,10 +131,7 @@ window.appActions = {
             adventures: []
         };
 
-        // Note: Firebase snapshot will trigger a re-render automatically once saved
         await saveCampaign(newCamp);
-        
-        // Optimistic UI update to make it feel fast
         window.appData.campaigns.push(newCamp);
         window.appActions.openCampaign(newCamp.id);
     },
@@ -179,20 +176,17 @@ window.appActions = {
             name: name,
             startLevel: startLevel,
             endLevel: endLevel,
-            numPlayers: camp.playerCharacters.length || 4,
+            numPlayers: camp.playerCharacters?.length || 4,
             totalLootGP: 0,
             sessions: []
         };
 
-        // Create a copy of the campaign with the new adventure
         const updatedCamp = {
             ...camp,
             adventures: [...(camp.adventures || []), newAdv]
         };
 
         await saveCampaign(updatedCamp);
-        
-        // Optimistic UI update
         const campIndex = window.appData.campaigns.findIndex(c => c.id === camp.id);
         if (campIndex !== -1) window.appData.campaigns[campIndex] = updatedCamp;
         
@@ -212,8 +206,6 @@ window.appActions = {
         };
 
         await saveCampaign(updatedCamp);
-        
-        // Optimistic update
         const campIndex = window.appData.campaigns.findIndex(c => c.id === camp.id);
         if (campIndex !== -1) window.appData.campaigns[campIndex] = updatedCamp;
         
@@ -224,45 +216,75 @@ window.appActions = {
         }
     },
 
-    // --- PC Manager ---
-    addTempPC: () => {
-        const input = document.getElementById('new-pc-name');
-        const name = input ? input.value.trim() : '';
-        if (!name) return;
+    // --- PC Manager (Hero Profiles) ---
+    
+    openPCEdit: (pcId = null) => {
+        window.appData.activePcId = pcId;
+        window.appActions.setView('pc-edit');
+    },
 
-        window.appData.tempPCs.push({
-            id: generateId(),
-            name: name,
-            inspiration: false,
-            automaticSuccess: false
-        });
+    savePCEdit: async () => {
+        updateDerivedState();
+        const camp = window.appData.activeCampaign;
+        if (!camp) return;
+
+        const pcId = window.appData.activePcId || generateId();
         
-        input.value = '';
-        reRender(); // Re-render to show new PC in the list
+        // Find existing PC to preserve inspiration/auto-success statuses if editing
+        const existingPC = camp.playerCharacters?.find(p => p.id === pcId) || { inspiration: false, automaticSuccess: false };
+
+        const nameInput = document.getElementById('pc-edit-name')?.value.trim();
+        if (!nameInput) {
+            notify("Hero must have a name.", "error");
+            return;
+        }
+
+        const updatedPC = {
+            ...existingPC,
+            id: pcId,
+            name: nameInput,
+            race: document.getElementById('pc-edit-race')?.value.trim() || '',
+            classLevel: document.getElementById('pc-edit-class')?.value.trim() || '',
+            ideals: document.getElementById('pc-edit-ideals')?.value.trim() || '',
+            bonds: document.getElementById('pc-edit-bonds')?.value.trim() || '',
+            flaws: document.getElementById('pc-edit-flaws')?.value.trim() || '',
+            backstory: document.getElementById('pc-edit-backstory')?.value.trim() || '',
+            dmNotes: document.getElementById('pc-edit-dmnotes')?.value.trim() || ''
+        };
+
+        const isNew = !camp.playerCharacters?.some(p => p.id === pcId);
+        const newPCs = isNew 
+            ? [...(camp.playerCharacters || []), updatedPC]
+            : camp.playerCharacters.map(p => p.id === pcId ? updatedPC : p);
+
+        const updatedCamp = { ...camp, playerCharacters: newPCs };
+
+        await saveCampaign(updatedCamp);
+        const campIndex = window.appData.campaigns.findIndex(c => c.id === camp.id);
+        if (campIndex !== -1) window.appData.campaigns[campIndex] = updatedCamp;
+        
+        window.appActions.setView('pc-manager');
+        notify("Hero profile inscribed.", "success");
     },
 
-    removeTempPC: (id) => {
-        window.appData.tempPCs = window.appData.tempPCs.filter(pc => pc.id !== id);
-        reRender();
-    },
-
-    savePCs: async () => {
+    deletePC: async (pcId) => {
+        if (!confirm("Are you sure you want to remove this hero from the campaign?")) return;
+        
         updateDerivedState();
         const camp = window.appData.activeCampaign;
         if (!camp) return;
 
         const updatedCamp = {
             ...camp,
-            playerCharacters: window.appData.tempPCs
+            playerCharacters: camp.playerCharacters.filter(pc => pc.id !== pcId)
         };
 
         await saveCampaign(updatedCamp);
-        
-        // Optimistic update
         const campIndex = window.appData.campaigns.findIndex(c => c.id === camp.id);
         if (campIndex !== -1) window.appData.campaigns[campIndex] = updatedCamp;
         
-        window.appActions.setView('campaign');
+        reRender();
+        notify("Hero removed.", "success");
     },
 
     // --- Session Editing ---
@@ -283,22 +305,17 @@ window.appActions = {
         const adv = window.appData.activeAdventure;
         if (!adv) return;
 
-        // Gather current input values
         const startLvl = parseInt(document.getElementById('draft-start-level')?.value || 1);
         const endLvl = parseInt(document.getElementById('draft-end-level')?.value || 2);
         const numPlayers = parseInt(document.getElementById('draft-num-players')?.value || 1);
         const lootText = document.getElementById('draft-loot')?.value || '';
 
-        // Calculate Loot
         const newLootValue = calculateLootValue(lootText);
-        
-        // Calculate prior loot (excluding current session if editing)
         const currentSessionId = window.appData.activeSessionId;
         const lootBeforeThisSession = adv.sessions
             .filter(s => s.id !== currentSessionId)
             .reduce((acc, s) => acc + s.lootValue, 0);
 
-        // Budget Math
         const startBudget = BUDGET_BY_LEVEL[startLvl] || 0;
         const endBudget = BUDGET_BY_LEVEL[endLvl] || 0;
         const budgetPerPC = (endLvl > startLvl) ? (endBudget - startBudget) : 0;
@@ -307,27 +324,21 @@ window.appActions = {
         const currentTotalLoot = lootBeforeThisSession + newLootValue;
         const remainingBudget = totalPartyBudget - currentTotalLoot;
 
-        // Update DOM
         updateBudgetUI(totalPartyBudget, currentTotalLoot, remainingBudget, newLootValue);
     },
 
-    // Build a temporary session object from DOM elements for previews or saving
     _gatherSessionDraft: () => {
         updateDerivedState();
         const camp = window.appData.activeCampaign;
         const session = window.appData.activeSession;
 
         const lootText = document.getElementById('draft-loot')?.value || '';
-        
-        // Gather PC states from the DOM
         const pcNotes = {};
         const draftPCs = JSON.parse(JSON.stringify(camp?.playerCharacters || []));
         
         draftPCs.forEach(pc => {
             const noteEl = document.getElementById(`pc-note-${pc.id}`);
-            if (noteEl && noteEl.value.trim()) {
-                pcNotes[pc.id] = noteEl.value.trim();
-            }
+            if (noteEl && noteEl.value.trim()) pcNotes[pc.id] = noteEl.value.trim();
             
             const inspEl = document.getElementById(`pc-insp-${pc.id}`);
             if (inspEl) pc.inspiration = inspEl.checked;
@@ -364,8 +375,6 @@ window.appActions = {
         if (!camp) return;
 
         const draft = window.appActions._gatherSessionDraft();
-        
-        // To generate an accurate markdown preview, we temporarily spoof the campaign PCs
         const mockCampaign = { ...camp, playerCharacters: draft.updatedPCs };
         const md = generateSessionMarkdown(draft.sessionData, mockCampaign);
         
@@ -381,7 +390,6 @@ window.appActions = {
 
         const draft = window.appActions._gatherSessionDraft();
 
-        // Update the specific adventure's session list
         const newAdventures = camp.adventures.map(a => {
             if (a.id !== adv.id) return a;
 
@@ -405,8 +413,6 @@ window.appActions = {
         };
 
         await saveCampaign(updatedCamp);
-        
-        // Optimistic update
         const campIndex = window.appData.campaigns.findIndex(c => c.id === camp.id);
         if (campIndex !== -1) window.appData.campaigns[campIndex] = updatedCamp;
         
@@ -435,8 +441,6 @@ window.appActions = {
 
         const updatedCamp = { ...camp, adventures: newAdventures };
         await saveCampaign(updatedCamp);
-        
-        // Optimistic update
         const campIndex = window.appData.campaigns.findIndex(c => c.id === camp.id);
         if (campIndex !== -1) window.appData.campaigns[campIndex] = updatedCamp;
         
@@ -455,7 +459,7 @@ window.appActions = {
         let md = '';
         if (scope === 'session' && sessionId) {
             window.appData.activeSessionId = sessionId;
-            updateDerivedState(); // Re-derive to ensure activeSession is set
+            updateDerivedState(); 
             const session = window.appData.activeSession;
             if (session) md = generateSessionMarkdown(session, camp);
         } else if (scope === 'adventure' && adv) {
@@ -490,10 +494,10 @@ window.appActions = {
         const handleSuccess = () => {
             if (btn) {
                 btn.innerHTML = `<i class="fa-solid fa-check mr-2"></i> Scribed!`;
-                btn.className = "px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wider flex items-center transition shadow-md bg-emerald-700 text-white border border-emerald-900";
+                btn.className = "flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider flex justify-center items-center transition shadow-md bg-emerald-700 text-white border border-emerald-900";
                 setTimeout(() => {
                     btn.innerHTML = originalHtml;
-                    btn.className = "px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wider flex items-center transition shadow-md bg-stone-700 text-amber-50 hover:bg-stone-600 border border-stone-500";
+                    btn.className = "flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider flex justify-center items-center transition shadow-md bg-stone-700 text-amber-50 hover:bg-stone-600 border border-stone-500";
                 }, 2000);
             }
         };
