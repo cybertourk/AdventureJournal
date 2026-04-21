@@ -5,18 +5,23 @@ import { generateSessionMarkdown, generateAdventureMarkdown, generateCampaignMar
 // --- GLOBAL STATE ---
 window.appData = {
     campaigns: [],
-    currentView: 'home', // home, campaign, adventure, session-edit, pc-manager, pc-edit, journal
+    currentView: 'home', // home, campaign, adventure, session-edit, pc-manager, pc-edit, journal, codex
     activeCampaignId: null,
     activeAdventureId: null,
     activeSessionId: null,
-    activePcId: null, // Used when editing a specific hero
+    activePcId: null, 
     
     // Derived Active Entities
     activeCampaign: null,
     activeAdventure: null,
     activeSession: null,
 
+    // Codex & Smart Text State
+    codexCache: [], // Array of strings (names of all codex entries in the active campaign)
+    activeSmartTextarea: null, // Tracks which textarea is currently being typed in
+
     // Temporary state
+    tempPCs: [],
     currentMarkdown: ''
 };
 
@@ -46,9 +51,19 @@ export function calculateLootValue(text) {
 function updateDerivedState() {
     window.appData.activeCampaign = window.appData.campaigns.find(c => c.id === window.appData.activeCampaignId) || null;
     
-    if (window.appData.activeCampaign && window.appData.activeAdventureId) {
-        window.appData.activeAdventure = window.appData.activeCampaign.adventures.find(a => a.id === window.appData.activeAdventureId) || null;
+    if (window.appData.activeCampaign) {
+        // Ensure Codex array exists
+        if (!window.appData.activeCampaign.codex) window.appData.activeCampaign.codex = [];
+        // Build Autocomplete Cache
+        window.appData.codexCache = window.appData.activeCampaign.codex.map(c => c.name);
+        
+        if (window.appData.activeAdventureId) {
+            window.appData.activeAdventure = window.appData.activeCampaign.adventures.find(a => a.id === window.appData.activeAdventureId) || null;
+        } else {
+            window.appData.activeAdventure = null;
+        }
     } else {
+        window.appData.codexCache = [];
         window.appData.activeAdventure = null;
     }
 
@@ -128,7 +143,8 @@ window.appActions = {
             id: generateId(),
             name: name,
             playerCharacters: [],
-            adventures: []
+            adventures: [],
+            codex: [] // Initialize empty Codex
         };
 
         await saveCampaign(newCamp);
@@ -229,8 +245,6 @@ window.appActions = {
         if (!camp) return;
 
         const pcId = window.appData.activePcId || generateId();
-        
-        // Find existing PC to preserve inspiration/auto-success statuses if editing
         const existingPC = camp.playerCharacters?.find(p => p.id === pcId) || { inspiration: false, automaticSuccess: false };
 
         const nameInput = document.getElementById('pc-edit-name')?.value.trim();
@@ -327,6 +341,13 @@ window.appActions = {
         updateBudgetUI(totalPartyBudget, currentTotalLoot, remainingBudget, newLootValue);
     },
 
+    // Dynamic List Parsers for the new V20-style Session Editor
+    _readDynamicList: (containerId, mapper) => {
+        const container = document.getElementById(containerId);
+        if (!container) return [];
+        return Array.from(container.children).map(mapper).filter(x => x !== null);
+    },
+
     _gatherSessionDraft: () => {
         updateDerivedState();
         const camp = window.appData.activeCampaign;
@@ -354,10 +375,23 @@ window.appActions = {
                 timestamp: session?.timestamp || Date.now(),
                 lootText: lootText,
                 lootValue: calculateLootValue(lootText),
+                
+                // NEW Dynamic Arrays
+                scenes: window.appActions._readDynamicList('container-scenes', (row, idx) => ({
+                    id: idx + 1,
+                    text: row.querySelector('.scene-editor')?.value || ''
+                })),
+                clues: window.appActions._readDynamicList('container-clues', (row, idx) => ({
+                    id: idx + 1,
+                    text: row.querySelector('.clue-input')?.value || ''
+                })),
+                
+                // Legacy fields (kept for backward compatibility during transition)
                 events: document.getElementById('draft-events')?.value || '',
                 npcs: document.getElementById('draft-npcs')?.value || '',
                 locations: document.getElementById('draft-locations')?.value || '',
                 notes: document.getElementById('draft-notes')?.value || '',
+                
                 pcNotes: pcNotes
             },
             updatedPCs: draftPCs,
@@ -446,6 +480,311 @@ window.appActions = {
         
         reRender();
         notify("Session log destroyed.", "success");
+    },
+
+    // --- Dynamic DOM Log Builders ---
+    
+    addLogScene: () => {
+        const container = document.getElementById('container-scenes');
+        if(!container) return;
+        const idx = container.children.length;
+        
+        const html = `
+            <div class="mb-4 scene-row bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm p-1 shadow-sm">
+                <div class="flex justify-between items-center bg-[#f4ebd8] px-2 py-1 mb-1 border-b border-[#d4c5a9]">
+                    <span class="text-[10px] text-stone-500 font-bold uppercase tracking-widest">Scene ${idx + 1}</span>
+                    <div class="flex gap-2">
+                        <button class="text-[10px] text-stone-500 hover:text-amber-600 uppercase font-bold toggle-btn text-amber-600 transition" onclick="window.appActions.toggleSceneView(this)">Edit Mode</button>
+                        <button class="text-[10px] text-stone-500 hover:text-blue-600 uppercase font-bold transition" onclick="window.appActions.defineSelection(this)">Define Selection</button>
+                        <button class="text-[10px] text-red-800 hover:text-red-600 uppercase font-bold transition" onclick="this.closest('.scene-row').remove()">Remove</button>
+                    </div>
+                </div>
+                <textarea class="scene-editor w-full bg-transparent text-stone-900 text-xs sm:text-sm p-2 h-24 resize-y border-none focus:ring-0 leading-relaxed outline-none font-sans smart-text-area" 
+                    placeholder="Describe the scene..." 
+                    oninput="window.appActions.handleSmartInput(this)"
+                    spellcheck="false"></textarea>
+                <div class="scene-viewer hidden w-full text-stone-800 text-xs sm:text-sm p-2 h-auto min-h-[6rem] leading-relaxed whitespace-pre-wrap font-serif"></div>
+            </div>`;
+        container.insertAdjacentHTML('beforeend', html);
+    },
+
+    addLogClue: () => {
+        const container = document.getElementById('container-clues');
+        if(!container) return;
+        const html = `
+            <div class="mb-2 flex gap-2 items-center clue-row bg-[#fdfbf7] border border-[#d4c5a9] p-1.5 rounded-sm shadow-sm">
+                <i class="fa-solid fa-magnifying-glass text-stone-400 ml-1"></i>
+                <input type="text" class="clue-input flex-1 bg-transparent border-none text-stone-900 px-1 text-xs sm:text-sm outline-none placeholder:italic placeholder:text-stone-400" placeholder="Quest update, clue, or objective...">
+                <button class="text-stone-400 hover:text-red-700 font-bold px-2 transition" onclick="this.closest('.clue-row').remove()"><i class="fa-solid fa-xmark"></i></button>
+            </div>`;
+        container.insertAdjacentHTML('beforeend', html);
+    },
+
+    // --- Smart Text & Codex Interactions ---
+    
+    toggleSceneView: (btn) => {
+        const row = btn.closest('.scene-row');
+        const editor = row.querySelector('.scene-editor');
+        const viewer = row.querySelector('.scene-viewer');
+        
+        if (editor.classList.contains('hidden')) {
+            editor.classList.remove('hidden');
+            viewer.classList.add('hidden');
+            btn.innerText = "Edit Mode";
+            btn.classList.add('text-amber-600');
+        } else {
+            const rawText = editor.value;
+            const html = window.appActions.parseSmartText(rawText);
+            viewer.innerHTML = html;
+            editor.classList.add('hidden');
+            viewer.classList.remove('hidden');
+            btn.innerText = "Read Mode";
+            btn.classList.remove('text-amber-600');
+        }
+    },
+
+    parseSmartText: (text) => {
+        if (!text) return "";
+        let safeText = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        
+        // Sort cache by length descending to prevent partial word matches over full matches
+        const sortedCache = [...window.appData.codexCache].sort((a,b) => b.length - a.length);
+        
+        sortedCache.forEach(name => {
+            // Escape regex specials
+            const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(`\\b${escapedName}\\b`, 'gi');
+            
+            const entry = (window.appData.activeCampaign?.codex || []).find(c => c.name.toLowerCase() === name.toLowerCase());
+            if (entry) {
+                safeText = safeText.replace(regex, (match) => {
+                    return `<span class="codex-link" onclick="window.appActions.viewCodex('${entry.id}')">${match}</span>`;
+                });
+            }
+        });
+        
+        return safeText.replace(/\n/g, '<br>');
+    },
+
+    handleSmartInput: (textarea) => {
+        window.appData.activeSmartTextarea = textarea;
+        const text = textarea.value;
+        const cursorPos = textarea.selectionStart;
+        
+        const lastChunk = text.substring(0, cursorPos).split(/[\n\.\,\!\?]/).pop();
+        const lastWord = lastChunk.trim().split(" ").pop(); 
+        
+        // Trigger on "@" symbol
+        const match = text.substring(0, cursorPos).match(/@([\w\s]*)$/);
+        
+        if (match) {
+            const query = match[1].toLowerCase();
+            const matches = window.appData.codexCache.filter(name => name.toLowerCase().includes(query));
+            
+            if (matches.length > 0) {
+                window.appActions._showSuggestions(matches, textarea, cursorPos, match[0].length);
+            } else {
+                document.getElementById('autocomplete-suggestions').style.display = 'none';
+            }
+        } else {
+            document.getElementById('autocomplete-suggestions').style.display = 'none';
+        }
+    },
+
+    _showSuggestions: (matches, inputEl, cursor, triggerLen) => {
+        const suggestions = document.getElementById('autocomplete-suggestions');
+        if(!suggestions) return;
+        
+        suggestions.innerHTML = '';
+        
+        // In a real robust app, we'd use a library for exact caret coordinates in textareas.
+        // For our static setup, we attach the box near the textarea element.
+        const rect = inputEl.getBoundingClientRect();
+        suggestions.style.left = (rect.left + window.scrollX + 20) + 'px';
+        suggestions.style.top = (rect.top + window.scrollY + 30) + 'px'; 
+        suggestions.style.display = 'block';
+        
+        matches.forEach(m => {
+            const div = document.createElement('div');
+            div.className = "autocomplete-item";
+            div.innerText = m;
+            div.onmousedown = (e) => { 
+                e.preventDefault();
+                const text = inputEl.value;
+                const before = text.substring(0, cursor - triggerLen);
+                const after = text.substring(cursor);
+                inputEl.value = before + m + after;
+                suggestions.style.display = 'none';
+                window.appActions.updateSessionBudget(); // Trigger auto-save draft processing
+            };
+            suggestions.appendChild(div);
+        });
+    },
+
+    defineSelection: (btn) => {
+        const row = btn.closest('.scene-row');
+        const textarea = row.querySelector('.scene-editor');
+        
+        if (textarea.classList.contains('hidden')) return;
+        
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        
+        if (start === end) {
+            notify("Highlight a name in the text first to define it.", "error");
+            return;
+        }
+        
+        const selectedText = textarea.value.substring(start, end).trim();
+        if (!selectedText) return;
+        
+        // Open the Codex Quick Edit Modal (Will inject this into the global popup container)
+        window.appActions._openCodexModal({ name: selectedText, isNew: true });
+    },
+
+    viewCodex: (id) => {
+        updateDerivedState();
+        const entry = (window.appData.activeCampaign?.codex || []).find(c => c.id === id);
+        if (!entry) return;
+        window.appActions._openCodexModal(entry);
+    },
+
+    _openCodexModal: (entry) => {
+        const container = document.getElementById('global-popup-container');
+        if (!container) return;
+
+        const isNew = entry.isNew || !entry.id;
+        const id = entry.id || "";
+        const name = entry.name || "";
+        const type = entry.type || "NPC";
+        const desc = entry.desc || "";
+        const tags = entry.tags ? entry.tags.join(', ') : "";
+        
+        // View Mode vs Edit Mode
+        const viewHidden = isNew ? "hidden" : "";
+        const editHidden = isNew ? "" : "hidden";
+
+        let tagsHTML = `<span class="codex-tag border border-stone-600 text-stone-400">${type}</span>`;
+        if (entry.tags) {
+            tagsHTML += entry.tags.map(t => `<span class="codex-tag">${t}</span>`).join('');
+        }
+
+        container.innerHTML = `
+            <div id="codex-popup" class="fixed inset-0 bg-stone-950/90 z-[10000] flex items-center justify-center p-4 backdrop-blur-sm animate-in">
+                <div class="bg-[#f4ebd8] border-2 border-stone-800 p-6 max-w-lg w-full shadow-[0_0_30px_rgba(0,0,0,0.8)] relative flex flex-col gap-4 max-h-[90vh] overflow-y-auto custom-scrollbar rounded-sm">
+                    <button onclick="document.getElementById('global-popup-container').innerHTML=''" class="absolute top-3 right-4 text-stone-500 hover:text-red-800 text-2xl transition"><i class="fa-solid fa-xmark"></i></button>
+                    
+                    <!-- VIEW MODE -->
+                    <div id="codex-popup-view" class="${viewHidden}">
+                        <h3 class="text-2xl text-stone-900 font-serif font-bold mb-2 border-b-2 border-stone-300 pb-2">${name}</h3>
+                        <div class="flex gap-2 mb-4 flex-wrap">${tagsHTML}</div>
+                        <div class="text-sm text-stone-700 leading-relaxed font-sans whitespace-pre-wrap bg-[#fdfbf7] p-4 border border-[#d4c5a9] rounded-sm shadow-inner min-h-[100px]">${desc || "No description provided."}</div>
+                        <div class="mt-6 pt-4 border-t border-[#d4c5a9] text-right">
+                            <button onclick="document.getElementById('codex-popup-view').classList.add('hidden'); document.getElementById('codex-popup-edit').classList.remove('hidden');" class="text-xs text-stone-600 hover:text-amber-600 font-bold uppercase tracking-widest flex items-center justify-end w-full"><i class="fa-solid fa-pen mr-2"></i> Amend Record</button>
+                        </div>
+                    </div>
+
+                    <!-- EDIT MODE -->
+                    <div id="codex-popup-edit" class="${editHidden} flex flex-col gap-4">
+                        <h3 class="text-xl text-stone-900 font-serif font-bold border-b-2 border-stone-300 pb-2 flex items-center"><i class="fa-solid fa-feather mr-2 text-red-900"></i> ${isNew ? 'Define New Entity' : 'Amend Record'}</h3>
+                        <input type="hidden" id="cx-modal-id" value="${id}">
+                        
+                        <div>
+                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Name (Auto-Link Trigger)</label>
+                            <input type="text" id="cx-modal-name" value="${name}" class="w-full bg-[#fdfbf7] border border-[#d4c5a9] text-stone-900 p-2 text-sm font-bold focus:border-red-900 outline-none rounded-sm shadow-inner">
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Type</label>
+                                <select id="cx-modal-type" class="w-full bg-[#fdfbf7] border border-[#d4c5a9] text-stone-900 p-2 text-xs outline-none rounded-sm shadow-inner">
+                                    <option value="NPC" ${type==='NPC'?'selected':''}>NPC</option>
+                                    <option value="Location" ${type==='Location'?'selected':''}>Location</option>
+                                    <option value="Faction" ${type==='Faction'?'selected':''}>Faction</option>
+                                    <option value="Item" ${type==='Item'?'selected':''}>Item</option>
+                                    <option value="Lore" ${type==='Lore'?'selected':''}>Lore / Rule</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Tags (Comma Separated)</label>
+                                <input type="text" id="cx-modal-tags" value="${tags}" class="w-full bg-[#fdfbf7] border border-[#d4c5a9] text-stone-900 p-2 text-xs focus:border-red-900 outline-none rounded-sm shadow-inner" placeholder="e.g. Ally, Vendor">
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Description</label>
+                            <textarea id="cx-modal-desc" class="w-full h-40 bg-[#fdfbf7] border border-[#d4c5a9] text-stone-900 p-3 text-sm focus:border-red-900 outline-none resize-none rounded-sm shadow-inner custom-scrollbar">${desc}</textarea>
+                        </div>
+                        
+                        <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-[#d4c5a9]">
+                            ${!isNew ? `<button onclick="window.appActions.deleteCodexEntry('${id}')" class="text-red-700 hover:text-red-900 text-[10px] uppercase font-bold mr-auto tracking-widest px-2">Delete</button>` : ''}
+                            <button onclick="document.getElementById('global-popup-container').innerHTML=''" class="border border-stone-400 text-stone-600 px-4 py-2 text-xs uppercase font-bold hover:bg-stone-200 rounded-sm tracking-widest">Cancel</button>
+                            <button onclick="window.appActions.saveCodexEntry()" class="bg-stone-900 text-amber-50 px-5 py-2 text-xs uppercase font-bold hover:bg-stone-800 shadow-md rounded-sm tracking-widest">Save</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    saveCodexEntry: async () => {
+        updateDerivedState();
+        const camp = window.appData.activeCampaign;
+        if (!camp) return;
+
+        const id = document.getElementById('cx-modal-id').value;
+        const name = document.getElementById('cx-modal-name').value.trim();
+        if (!name) {
+            notify("A name is required for Codex auto-linking.", "error");
+            return;
+        }
+
+        const newEntry = {
+            id: id || generateId(),
+            name: name,
+            type: document.getElementById('cx-modal-type').value,
+            tags: document.getElementById('cx-modal-tags').value.split(',').map(t=>t.trim()).filter(t=>t),
+            desc: document.getElementById('cx-modal-desc').value
+        };
+
+        const isNew = !id;
+        const newCodexArray = isNew
+            ? [...(camp.codex || []), newEntry]
+            : camp.codex.map(c => c.id === id ? newEntry : c);
+
+        const updatedCamp = { ...camp, codex: newCodexArray };
+
+        await saveCampaign(updatedCamp);
+        
+        // Optimistic update & Cache rebuild
+        const campIndex = window.appData.campaigns.findIndex(c => c.id === camp.id);
+        if (campIndex !== -1) window.appData.campaigns[campIndex] = updatedCamp;
+        updateDerivedState(); 
+
+        document.getElementById('global-popup-container').innerHTML = '';
+        notify("Codex updated.", "success");
+    },
+
+    deleteCodexEntry: async (id) => {
+        if (!confirm("Destroy this Codex entry? Auto-links using this name will no longer function.")) return;
+        
+        updateDerivedState();
+        const camp = window.appData.activeCampaign;
+        if (!camp) return;
+
+        const updatedCamp = {
+            ...camp,
+            codex: (camp.codex || []).filter(c => c.id !== id)
+        };
+
+        await saveCampaign(updatedCamp);
+        
+        const campIndex = window.appData.campaigns.findIndex(c => c.id === camp.id);
+        if (campIndex !== -1) window.appData.campaigns[campIndex] = updatedCamp;
+        updateDerivedState();
+
+        document.getElementById('global-popup-container').innerHTML = '';
+        notify("Entry destroyed.", "success");
     },
 
     // --- Journal Viewing ---
