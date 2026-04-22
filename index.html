@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -145,7 +146,6 @@
             </h2>
             
             <div class="space-y-6">
-                <!-- We can add Display Name changes or Preferences here in the future -->
                 <p class="text-sm text-stone-600 italic">More settings will be scribed here in future updates.</p>
 
                 <div>
@@ -157,6 +157,55 @@
                         </button>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- UNIVERSAL VISIBILITY MODAL (FOG OF WAR) -->
+    <div id="visibility-modal" class="hidden fixed inset-0 bg-stone-950/90 z-[16000] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-300">
+        <div class="bg-[#f4ebd8] p-5 sm:p-6 rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.8)] max-w-sm w-full relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-2 bg-emerald-700" id="vis-modal-header-bar"></div>
+            <h2 class="text-xl font-serif font-bold text-stone-900 mb-4 flex items-center border-b border-[#d4c5a9] pb-2">
+                <i class="fa-solid fa-eye mr-2 text-stone-700" id="vis-modal-icon"></i> <span id="vis-modal-title">Visibility Settings</span>
+            </h2>
+
+            <input type="hidden" id="vis-target-type"> <!-- 'scene', 'clue', 'codex' -->
+            <input type="hidden" id="vis-target-idx"> <!-- array index or ID -->
+
+            <div class="space-y-3 mb-6">
+                <label class="flex items-center p-3 border border-[#d4c5a9] rounded-sm cursor-pointer hover:bg-white transition bg-[#fdfbf7]">
+                    <input type="radio" name="vis-mode" value="public" class="mr-3 w-4 h-4 text-emerald-600 focus:ring-emerald-600" onchange="window.appActions.toggleVisSpecificList()">
+                    <div>
+                        <div class="font-bold text-stone-900 text-sm">Public</div>
+                        <div class="text-[10px] text-stone-500 uppercase tracking-widest mt-0.5">Visible to all players</div>
+                    </div>
+                </label>
+
+                <label class="flex items-center p-3 border border-[#d4c5a9] rounded-sm cursor-pointer hover:bg-white transition bg-[#fdfbf7]">
+                    <input type="radio" name="vis-mode" value="hidden" class="mr-3 w-4 h-4 text-red-700 focus:ring-red-700" onchange="window.appActions.toggleVisSpecificList()">
+                    <div>
+                        <div class="font-bold text-stone-900 text-sm">Hidden</div>
+                        <div class="text-[10px] text-stone-500 uppercase tracking-widest mt-0.5">Visible only to the DM</div>
+                    </div>
+                </label>
+
+                <label class="flex items-center p-3 border border-[#d4c5a9] rounded-sm cursor-pointer hover:bg-white transition bg-[#fdfbf7]">
+                    <input type="radio" name="vis-mode" value="specific" class="mr-3 w-4 h-4 text-blue-600 focus:ring-blue-600" onchange="window.appActions.toggleVisSpecificList()">
+                    <div>
+                        <div class="font-bold text-stone-900 text-sm">Specific Players</div>
+                        <div class="text-[10px] text-stone-500 uppercase tracking-widest mt-0.5">Visible only to selected players</div>
+                    </div>
+                </label>
+
+                <!-- Specific Players List -->
+                <div id="vis-specific-list" class="hidden ml-7 mt-2 p-3 bg-[#e8dec7] border border-[#d4c5a9] rounded-sm shadow-inner max-h-40 overflow-y-auto custom-scrollbar">
+                    <!-- Populated dynamically via JS -->
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-3 border-t border-[#d4c5a9]">
+                <button onclick="document.getElementById('visibility-modal').classList.add('hidden')" class="px-4 py-2 text-stone-600 hover:text-stone-900 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs">Cancel</button>
+                <button onclick="window.appActions.saveVisibility()" class="px-5 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md">Apply</button>
             </div>
         </div>
     </div>
@@ -197,3 +246,6 @@
     <script type="module" src="main.js"></script>
 </body>
 </html>
+
+
+```
