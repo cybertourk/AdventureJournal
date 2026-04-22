@@ -1,3 +1,4 @@
+```javascript
 import { saveCampaign, deleteCampaign, notify, joinCampaign } from './firebase-manager.js';
 import { renderApp, BUDGET_BY_LEVEL, updateBudgetUI, updateSessionTabUI } from './ui-core.js';
 import { generateSessionMarkdown, generateAdventureMarkdown, generateCampaignMarkdown } from './markdown.js';
@@ -681,11 +682,17 @@ window.appActions = {
             <div class="mb-4 scene-row bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm shadow-sm flex flex-col group cursor-text" onclick="window.appActions.openUniversalEditor('${inputId}', 'Scene ${idx + 1}')">
                 <div class="flex justify-between items-center bg-[#f4ebd8] px-3 py-1.5 border-b border-[#d4c5a9] rounded-t-sm">
                     <span class="text-[10px] text-stone-500 font-bold uppercase tracking-widest">Scene ${idx + 1}</span>
-                    <div class="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div class="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity items-center">
+                        <button class="text-red-700 hover:text-red-600 font-bold px-2 py-1 text-[10px] uppercase tracking-widest transition flex items-center" onclick="event.stopPropagation(); window.appActions.openVisibilityMenu(this)">
+                            <i class="fa-solid fa-eye-slash mr-1"></i> Hidden
+                        </button>
+                        <div class="w-px h-3 bg-stone-300"></div>
                         <button class="text-[10px] text-stone-500 hover:text-blue-600 uppercase font-bold transition" onclick="event.stopPropagation(); window.appActions.openUniversalEditor('${inputId}', 'Scene ${idx + 1}')"><i class="fa-solid fa-pen"></i> Edit</button>
                         <button class="text-[10px] text-red-800 hover:text-red-600 uppercase font-bold transition" onclick="event.stopPropagation(); this.closest('.scene-row').remove()"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 </div>
+                <input type="hidden" class="vis-mode-input" value="hidden">
+                <input type="hidden" class="vis-players-input" value="">
                 <input type="hidden" id="${inputId}" class="scene-hidden-input" value="">
                 <div id="view-${inputId}" class="w-full text-stone-800 text-xs sm:text-sm p-3 min-h-[4rem] leading-relaxed whitespace-pre-wrap font-serif group-hover:bg-white transition">
                     <span class="text-stone-400 italic font-sans">Tap to describe the scene...</span>
@@ -698,12 +705,267 @@ window.appActions = {
         const container = document.getElementById('container-clues');
         if(!container) return;
         const html = `
-            <div class="mb-2 flex gap-2 items-center clue-row bg-[#fdfbf7] border border-[#d4c5a9] p-1.5 rounded-sm shadow-sm">
+            <div class="mb-2 flex gap-2 items-center clue-row bg-[#fdfbf7] border border-[#d4c5a9] p-1.5 rounded-sm shadow-sm group">
                 <i class="fa-solid fa-magnifying-glass text-stone-400 ml-1"></i>
+                <input type="hidden" class="vis-mode-input" value="hidden">
+                <input type="hidden" class="vis-players-input" value="">
+                
                 <input type="text" class="clue-input flex-1 bg-transparent border-none text-stone-900 px-1 text-xs sm:text-sm outline-none placeholder:italic placeholder:text-stone-400" placeholder="Quest update, clue, or objective...">
-                <button class="text-stone-400 hover:text-red-700 font-bold px-2 transition" onclick="this.closest('.clue-row').remove()"><i class="fa-solid fa-xmark"></i></button>
+                
+                <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button class="text-red-700 hover:text-red-600 font-bold px-2 py-1 text-[10px] uppercase tracking-widest transition flex items-center" onclick="window.appActions.openVisibilityMenu(this)">
+                        <i class="fa-solid fa-eye-slash"></i>
+                    </button>
+                    <button class="text-stone-400 hover:text-red-700 font-bold px-2 transition" onclick="this.closest('.clue-row').remove()">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
             </div>`;
         container.insertAdjacentHTML('beforeend', html);
+    },
+
+    // --- VISIBILITY (FOG OF WAR) ACTIONS ---
+
+    // Internal state pointer so the Save function knows what element we are currently editing
+    _activeVisBtn: null,
+
+    openVisibilityMenu: (btnElement, type = 'dom', explicitId = null) => {
+        updateDerivedState();
+        const camp = window.appData.activeCampaign;
+        if (!camp) return;
+
+        window.appActions._activeVisBtn = btnElement;
+        
+        // 1. Gather Data depending on where the button was clicked
+        let currentMode = 'public';
+        let currentPlayers = [];
+        
+        // Mode A: DOM Elements (Scenes and Clues living entirely in the HTML string before being saved)
+        if (type === 'dom') {
+            const container = btnElement.closest('.scene-row') || btnElement.closest('.clue-row');
+            if (!container) return;
+            
+            const modeInput = container.querySelector('.vis-mode-input');
+            const playersInput = container.querySelector('.vis-players-input');
+            
+            if (modeInput) currentMode = modeInput.value || 'public';
+            if (playersInput && playersInput.value) currentPlayers = playersInput.value.split(',');
+        } 
+        // Mode B: Database Entities (Codex entries, where clicking instantly updates the database)
+        else if (type === 'codex') {
+            const entry = camp.codex.find(c => c.id === explicitId);
+            if (entry && entry.visibility) {
+                currentMode = entry.visibility.mode || 'public';
+                currentPlayers = entry.visibility.visibleTo || [];
+            }
+            document.getElementById('vis-target-type').value = type;
+            document.getElementById('vis-target-idx').value = explicitId;
+        }
+
+        // 2. Setup the Radio Buttons
+        const modal = document.getElementById('visibility-modal');
+        const radios = modal.querySelectorAll('input[name="vis-mode"]');
+        radios.forEach(r => {
+            r.checked = (r.value === currentMode);
+        });
+
+        // 3. Build the Specific Player Checklist dynamically
+        const specificList = document.getElementById('vis-specific-list');
+        specificList.innerHTML = '';
+        
+        const activePlayers = camp.activePlayers || [];
+        const playerNames = camp.playerNames || {};
+        
+        const validPlayers = activePlayers.filter(uid => uid !== camp.dmId);
+        
+        if (validPlayers.length === 0) {
+            specificList.innerHTML = `<p class="text-xs text-stone-500 italic">No players available to share with.</p>`;
+        } else {
+            validPlayers.forEach(uid => {
+                const isChecked = currentPlayers.includes(uid) ? 'checked' : '';
+                const pName = playerNames[uid] || `Unknown (${uid.substring(0,5)})`;
+                
+                specificList.innerHTML += `
+                    <label class="flex items-center mb-2 cursor-pointer group">
+                        <input type="checkbox" value="${uid}" class="vis-player-checkbox mr-2 w-3 h-3 text-blue-600 focus:ring-blue-600" ${isChecked}>
+                        <span class="text-xs font-bold text-stone-700 group-hover:text-stone-900 transition">${pName}</span>
+                    </label>
+                `;
+            });
+        }
+
+        // 4. Update UI and Show
+        window.appActions.toggleVisSpecificList();
+        modal.classList.remove('hidden');
+    },
+
+    toggleVisSpecificList: () => {
+        const modal = document.getElementById('visibility-modal');
+        const mode = modal.querySelector('input[name="vis-mode"]:checked').value;
+        const list = document.getElementById('vis-specific-list');
+        const header = document.getElementById('vis-modal-header-bar');
+        const icon = document.getElementById('vis-modal-icon');
+        
+        if (mode === 'specific') {
+            list.classList.remove('hidden');
+            header.className = 'absolute top-0 left-0 w-full h-2 bg-blue-600';
+            icon.className = 'fa-solid fa-user-lock mr-2 text-stone-700';
+        } else {
+            list.classList.add('hidden');
+            if (mode === 'hidden') {
+                header.className = 'absolute top-0 left-0 w-full h-2 bg-red-700';
+                icon.className = 'fa-solid fa-eye-slash mr-2 text-stone-700';
+            } else {
+                header.className = 'absolute top-0 left-0 w-full h-2 bg-emerald-600';
+                icon.className = 'fa-solid fa-eye mr-2 text-stone-700';
+            }
+        }
+    },
+
+    saveVisibility: async () => {
+        const modal = document.getElementById('visibility-modal');
+        const mode = modal.querySelector('input[name="vis-mode"]:checked').value;
+        
+        // Gather selected player IDs
+        const checkboxes = modal.querySelectorAll('.vis-player-checkbox:checked');
+        const selectedPlayers = Array.from(checkboxes).map(cb => cb.value);
+
+        // Security check: If specific is checked but no one is selected, force it to 'hidden'
+        const finalMode = (mode === 'specific' && selectedPlayers.length === 0) ? 'hidden' : mode;
+
+        const targetType = document.getElementById('vis-target-type').value;
+
+        // MODE A: DOM Update (For Session Editor)
+        if (!targetType || targetType === '') {
+            const btn = window.appActions._activeVisBtn;
+            if (!btn) return;
+
+            const container = btn.closest('.scene-row') || btn.closest('.clue-row');
+            if (container) {
+                const modeInput = container.querySelector('.vis-mode-input');
+                const playersInput = container.querySelector('.vis-players-input');
+                
+                if (modeInput) modeInput.value = finalMode;
+                if (playersInput) playersInput.value = selectedPlayers.join(',');
+
+                // Update the Button UI so the DM instantly sees the change
+                if (container.classList.contains('scene-row')) {
+                    if (finalMode === 'hidden') btn.innerHTML = `<i class="fa-solid fa-eye-slash mr-1"></i> Hidden`;
+                    else if (finalMode === 'specific') btn.innerHTML = `<i class="fa-solid fa-user-lock mr-1"></i> Shared`;
+                    else btn.innerHTML = `<i class="fa-solid fa-eye mr-1"></i> Public`;
+                } else {
+                    if (finalMode === 'hidden') btn.innerHTML = `<i class="fa-solid fa-eye-slash"></i>`;
+                    else if (finalMode === 'specific') btn.innerHTML = `<i class="fa-solid fa-user-lock"></i>`;
+                    else btn.innerHTML = `<i class="fa-solid fa-eye"></i>`;
+                }
+
+                // Update Button Color
+                btn.className = btn.className.replace(/text-(emerald|red|blue)-\d00/g, '');
+                btn.className = btn.className.replace(/hover:text-(emerald|red|blue)-\d00/g, '');
+                
+                if (finalMode === 'hidden') btn.className += ' text-red-700 hover:text-red-600';
+                else if (finalMode === 'specific') btn.className += ' text-blue-600 hover:text-blue-500';
+                else btn.className += ' text-emerald-600 hover:text-emerald-500';
+            }
+        } 
+        // MODE B: Database Update (For Codex Entries)
+        else if (targetType === 'codex') {
+            const explicitId = document.getElementById('vis-target-idx').value;
+            updateDerivedState();
+            const camp = window.appData.activeCampaign;
+            if (!camp) return;
+
+            const newCodexArray = camp.codex.map(c => {
+                if (c.id === explicitId) {
+                    return {
+                        ...c,
+                        visibility: { mode: finalMode, visibleTo: selectedPlayers }
+                    };
+                }
+                return c;
+            });
+
+            await window.appActions._saveCampaignHelper({ ...camp, codex: newCodexArray });
+        }
+
+        // Clean up
+        document.getElementById('vis-target-type').value = '';
+        document.getElementById('vis-target-idx').value = '';
+        modal.classList.add('hidden');
+    },
+
+    // A tiny helper to avoid importing saveCampaign here while retaining closure scope
+    _saveCampaignHelper: async (campData) => {
+        const { saveCampaign } = await import('./firebase-manager.js');
+        await saveCampaign(campData);
+    },
+
+    addLogClue: () => {
+    _gatherSessionDraft: () => {
+        updateDerivedState();
+        const camp = window.appData.activeCampaign;
+        const adv = window.appData.activeAdventure;
+        const session = window.appData.activeSession;
+
+        const lootText = document.getElementById('input-draft-loot')?.value || '';
+        const pcNotes = {};
+        
+        // Filter PCs down to ONLY the ones active in this specific adventure
+        const activePcIds = adv?.activePcIds || camp?.playerCharacters?.map(p => p.id) || [];
+        const draftPCs = JSON.parse(JSON.stringify(camp?.playerCharacters || [])).filter(pc => activePcIds.includes(pc.id));
+        
+        draftPCs.forEach(pc => {
+            const noteEl = document.getElementById(`input-pc-note-${pc.id}`);
+            if (noteEl && noteEl.value.trim()) pcNotes[pc.id] = noteEl.value.trim();
+            
+            const inspEl = document.getElementById(`pc-insp-${pc.id}`);
+            if (inspEl) pc.inspiration = inspEl.checked;
+            
+            const autoEl = document.getElementById(`pc-auto-${pc.id}`);
+            if (autoEl) pc.automaticSuccess = autoEl.checked;
+        });
+
+        // Helper to grab visibility from the DOM rows
+        const grabVisibility = (row) => {
+            const mode = row.querySelector('.vis-mode-input')?.value || 'public';
+            const playersStr = row.querySelector('.vis-players-input')?.value || '';
+            const players = playersStr ? playersStr.split(',') : [];
+            return { mode: mode, visibleTo: players };
+        };
+
+        return {
+            sessionData: {
+                id: session?.id || generateId(),
+                name: document.getElementById('draft-name')?.value || `Log from ${new Date().toLocaleDateString()}`,
+                timestamp: session?.timestamp || Date.now(),
+                lootText: lootText,
+                lootValue: calculateLootValue(lootText),
+                
+                scenes: window.appActions._readDynamicList('container-scenes', (row, idx) => ({
+                    id: idx + 1,
+                    text: row.querySelector('.scene-hidden-input')?.value || '',
+                    visibility: grabVisibility(row)
+                })),
+                clues: window.appActions._readDynamicList('container-clues', (row, idx) => ({
+                    id: idx + 1,
+                    text: row.querySelector('.clue-input')?.value || '',
+                    visibility: grabVisibility(row)
+                })),
+                
+                events: document.getElementById('input-draft-events')?.value || '',
+                npcs: document.getElementById('input-draft-npcs')?.value || '',
+                locations: document.getElementById('input-draft-locations')?.value || '',
+                notes: document.getElementById('input-draft-notes')?.value || '',
+                
+                pcNotes: pcNotes
+            },
+            updatedPCs: draftPCs, // Only updates the states for PCs in this draft
+            advSettings: {
+                startLevel: parseInt(document.getElementById('draft-start-level')?.value || 1),
+                endLevel: parseInt(document.getElementById('draft-end-level')?.value || 2),
+                numPlayers: parseInt(document.getElementById('draft-num-players')?.value || 1)
+            }
+        };
     },
 
     // --- UNIVERSAL EDITOR ACTIONS ---
@@ -1123,3 +1385,8 @@ window.appActions = {
         }
     }
 };
+
+
+
+
+```
