@@ -1,7 +1,42 @@
+```javascript
 export function getCodexHTML(state) {
     const camp = state.activeCampaign;
     if (!camp) return '';
     const codex = camp.codex || [];
+    
+    const isDM = camp._isDM;
+    const myUid = state.currentUserUid;
+
+    // --- FOG OF WAR FILTER ---
+    const isVisibleToPlayer = (item) => {
+        if (isDM) return true; // DM sees all
+        const vis = item.visibility || { mode: 'public' }; // Default to public for older legacy data
+        if (vis.mode === 'public') return true;
+        if (vis.mode === 'hidden') return false;
+        if (vis.mode === 'specific' && vis.visibleTo && vis.visibleTo.includes(myUid)) return true;
+        return false;
+    };
+
+    const visibleCodex = codex.filter(isVisibleToPlayer);
+
+    // --- VISIBILITY UI HELPER ---
+    const getVisStatus = (item) => {
+        const mode = item?.visibility?.mode || 'public';
+        const players = (item?.visibility?.visibleTo || []).join(',');
+        
+        let icon = 'fa-eye';
+        let color = 'text-emerald-600 hover:text-emerald-500';
+        
+        if (mode === 'hidden') {
+            icon = 'fa-eye-slash';
+            color = 'text-red-700 hover:text-red-600';
+        } else if (mode === 'specific') {
+            icon = 'fa-user-lock';
+            color = 'text-blue-600 hover:text-blue-500';
+        }
+        
+        return { mode, players, icon, color };
+    };
     
     let html = `
     <div class="animate-in fade-in duration-300">
@@ -15,25 +50,27 @@ export function getCodexHTML(state) {
                     <i class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-stone-500 text-xs"></i>
                     <input type="text" id="codex-search" class="w-full md:w-48 pl-8 pr-3 py-2 bg-stone-900 border border-stone-700 text-stone-200 text-xs rounded-sm focus:outline-none focus:border-amber-600 shadow-inner placeholder-stone-600" placeholder="Search..." onkeyup="window.filterCodex()">
                 </div>
+                ${isDM ? `
                 <button onclick="window.appActions._openCodexModal({isNew: true})" class="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-amber-600 text-stone-950 border border-amber-500 rounded-sm hover:bg-amber-500 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md">
                     <i class="fa-solid fa-plus mr-2"></i> New Entry
                 </button>
+                ` : ''}
             </div>
         </div>
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6" id="codex-grid">
     `;
     
-    if (codex.length === 0) {
+    if (visibleCodex.length === 0) {
         html += `
             <div class="col-span-full p-8 sm:p-12 text-center text-stone-500 bg-[#f4ebd8] rounded-sm border border-[#d4c5a9] shadow-sm">
                 <i class="fa-solid fa-book-journal-whills text-4xl sm:text-6xl mx-auto text-stone-400 mb-3 sm:mb-4 opacity-50"></i>
-                <p class="font-serif text-base sm:text-lg">The Codex is empty.</p>
-                <p class="text-xs sm:text-sm mt-2 font-sans">Create entries for NPCs, Locations, and Lore to auto-link them in your session logs.</p>
+                <p class="font-serif text-base sm:text-lg">${isDM ? 'The Codex is empty.' : 'No knowledge has been revealed to you yet.'}</p>
+                ${isDM ? `<p class="text-xs sm:text-sm mt-2 font-sans">Create entries for NPCs, Locations, and Lore to auto-link them in your session logs.</p>` : ''}
             </div>
         `;
     } else {
-        const sorted = [...codex].sort((a,b) => a.name.localeCompare(b.name));
+        const sorted = [...visibleCodex].sort((a,b) => a.name.localeCompare(b.name));
         sorted.forEach(c => {
             let typeColor = "text-stone-500";
             if (c.type === 'NPC') typeColor = "text-blue-600";
@@ -45,11 +82,23 @@ export function getCodexHTML(state) {
             const tagsStr = (c.tags || []).join(', ');
             const hasImg = c.image ? `<i class="fa-solid fa-image text-stone-400 ml-2" title="Has Image"></i>` : '';
             
+            const vis = getVisStatus(c);
+            const visBadge = isDM ? `
+                <div class="relative z-10 flex-shrink-0 ml-2" onclick="event.stopPropagation()">
+                    <input type="hidden" class="vis-mode-input" value="${vis.mode}">
+                    <input type="hidden" class="vis-players-input" value="${vis.players}">
+                    <button class="${vis.color} bg-[#f4ebd8] border border-[#d4c5a9] px-2 py-1 rounded-sm shadow-sm text-[10px] transition hover:border-current group-hover:bg-white" onclick="window.appActions.openVisibilityMenu(this, 'codex', '${c.id}')" title="Visibility Settings">
+                        <i class="fa-solid ${vis.icon}"></i>
+                    </button>
+                </div>
+            ` : '';
+            
             html += `
             <div class="codex-card bg-[#fdfbf7] p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-sm flex flex-col group relative overflow-hidden hover:shadow-md transition cursor-pointer" onclick="window.appActions.viewCodex('${c.id}')" data-search="${c.name.toLowerCase()} ${c.type.toLowerCase()} ${tagsStr.toLowerCase()}">
                 <div class="absolute top-0 left-0 w-1 h-full bg-stone-400 group-hover:bg-amber-500 transition-colors"></div>
                 <div class="pl-2 flex justify-between items-start mb-2">
-                    <h3 class="font-serif font-bold text-lg text-stone-900 leading-tight">${c.name} ${hasImg}</h3>
+                    <h3 class="font-serif font-bold text-lg text-stone-900 leading-tight truncate pr-2">${c.name} ${hasImg}</h3>
+                    ${visBadge}
                 </div>
                 <div class="pl-2 flex items-center gap-2 mb-3 flex-wrap">
                     <span class="text-[9px] font-bold uppercase tracking-wider ${typeColor} border border-current px-1.5 py-0.5 rounded-sm">${c.type}</span>
@@ -110,3 +159,6 @@ export function getJournalHTML(state) {
     `;
     return html;
 }
+
+
+```
