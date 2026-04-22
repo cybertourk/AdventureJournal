@@ -20,6 +20,9 @@ export function renderSmartField(id, labelHtml, value, placeholderText, rows, wr
 
     // Strip HTML from label to pass as plain text to the editor modal title, and escape apostrophes safely
     const plainLabel = labelHtml.replace(/<[^>]*>?/gm, '').trim().replace(/'/g, "\\'");
+    
+    // Ensure hidden input preserves both double quotes AND newlines
+    const safeValue = (value || '').replace(/"/g, '&quot;').replace(/\n/g, '&#10;');
 
     return `
     <div class="scene-row flex flex-col ${wrapperClass} group cursor-text" onclick="window.appActions.openUniversalEditor('input-${id}', '${plainLabel}')">
@@ -30,7 +33,7 @@ export function renderSmartField(id, labelHtml, value, placeholderText, rows, wr
             </div>
         </div>
         
-        <input type="hidden" id="input-${id}" value="${value.replace(/"/g, '&quot;')}">
+        <input type="hidden" id="input-${id}" value="${safeValue}">
         
         <div id="view-input-${id}" class="w-full p-2 sm:p-3 border border-transparent bg-transparent text-stone-800 text-xs sm:text-sm min-h-[${rows * 1.5}rem] leading-relaxed whitespace-pre-wrap font-serif group-hover:bg-white transition rounded-sm">
             ${viewContent}
@@ -570,9 +573,9 @@ function getPCEditHTML(state) {
 
             <!-- Detailed Notes (Universal Editor Linked) -->
             <div class="space-y-4 sm:space-y-6">
-                ${renderSmartField('pc-edit-appearance', '<i class="fa-solid fa-user text-stone-500 mr-2"></i> Appearance', pc.appearance || '', "Detailed physical description, scars, tattoos, clothing...", 4, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner')}
-                ${renderSmartField('pc-edit-backstory', '<i class="fa-solid fa-book-open text-stone-500 mr-2"></i> Backstory', pc.backstory || '', "The hero's origins...", 5, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner')}
-                ${renderSmartField('pc-edit-dmnotes', '<i class="fa-solid fa-eye text-red-900 mr-2"></i> DM\\'s Secret Notes', pc.dmNotes || '', 'Hooks, secrets, curses, or background ties...', 4, 'bg-stone-200 border border-[#d4c5a9] shadow-inner border-l-4 border-l-red-900')}
+                ${renderSmartField('pc-edit-appearance', `<i class="fa-solid fa-user text-stone-500 mr-2"></i> Appearance`, pc.appearance || '', "Detailed physical description, scars, tattoos, clothing...", 4, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner')}
+                ${renderSmartField('pc-edit-backstory', `<i class="fa-solid fa-book-open text-stone-500 mr-2"></i> Backstory`, pc.backstory || '', "The hero's origins...", 5, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner')}
+                ${renderSmartField('pc-edit-dmnotes', `<i class="fa-solid fa-eye text-red-900 mr-2"></i> DM's Secret Notes`, pc.dmNotes || '', 'Hooks, secrets, curses, or background ties...', 4, 'bg-stone-200 border border-[#d4c5a9] shadow-inner border-l-4 border-l-red-900')}
             </div>
 
         </div>
@@ -776,7 +779,7 @@ function getSessionEditHTML(state) {
                                         <button class="text-[10px] text-red-800 hover:text-red-600 uppercase font-bold transition" onclick="event.stopPropagation(); this.closest('.scene-row').remove()"><i class="fa-solid fa-trash"></i></button>
                                     </div>
                                 </div>
-                                <input type="hidden" id="scene-input-${idx}" class="scene-hidden-input" value="${(s.text || '').replace(/"/g, '&quot;')}">
+                                <input type="hidden" id="scene-input-${idx}" class="scene-hidden-input" value="${(s.text || '').replace(/"/g, '&quot;').replace(/\n/g, '&#10;')}">
                                 <div id="view-scene-input-${idx}" class="w-full text-stone-800 text-xs sm:text-sm p-3 min-h-[4rem] leading-relaxed whitespace-pre-wrap font-serif group-hover:bg-white transition">
                                     ${(s.text && window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(s.text) : '<span class="text-stone-400 italic font-sans">Tap to describe the scene...</span>'}
                                 </div>
