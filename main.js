@@ -1,5 +1,5 @@
 import { auth, db, appId, onAuthStateChanged } from './firebase-config.js';
-import { subscribeToCampaigns, subscribeToPlayerCampaigns, subscribeToPersonalData, logoutUser } from './firebase-manager.js';
+import { subscribeToCampaigns, subscribeToPlayerCampaigns, subscribeToPersonalData, logoutUser, deleteUserAccount } from './firebase-manager.js';
 import { initAuthUI } from './ui-auth.js';
 import { setCampaignsData } from './data.js';
 
@@ -31,10 +31,50 @@ document.addEventListener('DOMContentLoaded', () => {
     const logoutBtn = document.getElementById('logout-btn');
     const authStatusText = document.getElementById('auth-status-text');
 
+    // Settings Modal Elements
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsModal = document.getElementById('account-settings-modal');
+    const closeSettingsBtn = document.getElementById('close-settings-btn');
+    const deleteAccountBtn = document.getElementById('delete-account-btn');
+
     // Handle Logout
     if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
             logoutUser();
+        });
+    }
+
+    // Handle Settings Modal UI
+    if (settingsBtn && settingsModal) {
+        settingsBtn.addEventListener('click', () => {
+            settingsModal.classList.remove('hidden');
+        });
+    }
+
+    if (closeSettingsBtn && settingsModal) {
+        closeSettingsBtn.addEventListener('click', () => {
+            settingsModal.classList.add('hidden');
+        });
+    }
+
+    // Handle Delete Account Execution
+    if (deleteAccountBtn) {
+        deleteAccountBtn.addEventListener('click', async () => {
+            // Visual feedback while communicating with Firebase
+            const originalText = deleteAccountBtn.innerHTML;
+            deleteAccountBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Deleting...`;
+            deleteAccountBtn.disabled = true;
+
+            const success = await deleteUserAccount();
+            
+            if (success) {
+                // Hide modal on success (auth state listener will automatically bounce them to login screen)
+                settingsModal.classList.add('hidden');
+            } else {
+                // Reset button if it failed (e.g. requires recent login)
+                deleteAccountBtn.innerHTML = originalText;
+                deleteAccountBtn.disabled = false;
+            }
         });
     }
 
