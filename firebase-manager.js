@@ -225,16 +225,21 @@ export async function saveCampaign(campaignData) {
     }
 
     try {
-        if (!campaignData.dmId) {
-            campaignData.dmId = user.uid;
+        // SECURITY SCRUB: Ensure we never save local UI flags to the database
+        const cleanData = { ...campaignData };
+        delete cleanData._isDM;
+        delete cleanData._isPlayer;
+
+        if (!cleanData.dmId) {
+            cleanData.dmId = user.uid;
         }
         
-        if (!campaignData.activePlayers) {
-            campaignData.activePlayers = [];
+        if (!cleanData.activePlayers) {
+            cleanData.activePlayers = [];
         }
         
-        const docRef = doc(db, 'artifacts', appId, 'campaigns', campaignData.id);
-        await setDoc(docRef, campaignData);
+        const docRef = doc(db, 'artifacts', appId, 'campaigns', cleanData.id);
+        await setDoc(docRef, cleanData);
     } catch (error) {
         console.error("Error saving campaign:", error);
         notify("Failed to save campaign to the vault.", "error");
