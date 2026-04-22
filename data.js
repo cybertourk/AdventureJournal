@@ -5,7 +5,7 @@ import { generateSessionMarkdown, generateAdventureMarkdown, generateCampaignMar
 // --- GLOBAL STATE ---
 window.appData = {
     campaigns: [],
-    currentView: 'home', // home, campaign, adventure, session-edit, pc-manager, pc-edit, journal, codex
+    currentView: 'home', // home, campaign, adventure, adv-roster, session-edit, pc-manager, pc-edit, journal, codex
     activeCampaignId: null,
     activeAdventureId: null,
     activeSessionId: null,
@@ -17,11 +17,12 @@ window.appData = {
     activeSession: null,
 
     // Codex & Smart Text State
-    codexCache: [], // Array of strings (names of all codex entries in the active campaign)
-    activeSmartTextarea: null, // Tracks which textarea is currently being typed in
+    codexCache: [], 
+    activeSmartTextarea: null, 
 
     // Temporary state
     tempPCs: [],
+    tempAdvRoster: [], // Tracks which PC IDs are selected for an adventure
     currentMarkdown: ''
 };
 
@@ -52,9 +53,7 @@ function updateDerivedState() {
     window.appData.activeCampaign = window.appData.campaigns.find(c => c.id === window.appData.activeCampaignId) || null;
     
     if (window.appData.activeCampaign) {
-        // Ensure Codex array exists
         if (!window.appData.activeCampaign.codex) window.appData.activeCampaign.codex = [];
-        // Build Autocomplete Cache
         window.appData.codexCache = window.appData.activeCampaign.codex.map(c => c.name);
         
         if (window.appData.activeAdventureId) {
@@ -94,7 +93,6 @@ window.appActions = {
     setView: (viewName) => {
         window.appData.currentView = viewName;
         
-        // Reset specific state based on navigation
         if (viewName === 'home') {
             window.appData.activeCampaignId = null;
             window.appData.activeAdventureId = null;
@@ -144,7 +142,7 @@ window.appActions = {
             name: name,
             playerCharacters: [],
             adventures: [],
-            codex: [] // Initialize empty Codex
+            codex: []
         };
 
         await saveCampaign(newCamp);
@@ -186,13 +184,15 @@ window.appActions = {
 
         const startLevel = parseInt(startLevelSelect.value) || 1;
         const endLevel = parseInt(endLevelSelect.value) || 2;
+        const defaultRoster = camp.playerCharacters?.map(pc => pc.id) || [];
 
         const newAdv = {
             id: generateId(),
             name: name,
             startLevel: startLevel,
             endLevel: endLevel,
-            numPlayers: camp.playerCharacters?.length || 4,
+            numPlayers: defaultRoster.length || 4,
+            activePcIds: defaultRoster,
             totalLootGP: 0,
             sessions: []
         };
@@ -232,6 +232,53 @@ window.appActions = {
         }
     },
 
+    // --- Adventure Roster Management ---
+    openAdvRoster: () => {
+        updateDerivedState();
+        const adv = window.appData.activeAdventure;
+        const camp = window.appData.activeCampaign;
+        if (!adv || !camp) return;
+
+        // If the adventure doesn't have an activePcIds array yet (from older save), default to all PCs
+        window.appData.tempAdvRoster = adv.activePcIds ? [...adv.activePcIds] : camp.playerCharacters.map(pc => pc.id);
+        window.appActions.setView('adv-roster');
+    },
+
+    toggleAdvRosterPc: (pcId) => {
+        const idx = window.appData.tempAdvRoster.indexOf(pcId);
+        if (idx === -1) {
+            window.appData.tempAdvRoster.push(pcId);
+        } else {
+            window.appData.tempAdvRoster.splice(idx, 1);
+        }
+        reRender(); // Re-render to update checkbox visuals
+    },
+
+    saveAdvRoster: async () => {
+        updateDerivedState();
+        const camp = window.appData.activeCampaign;
+        const adv = window.appData.activeAdventure;
+        if (!camp || !adv) return;
+
+        const updatedAdventures = camp.adventures.map(a => {
+            if (a.id !== adv.id) return a;
+            return {
+                ...a,
+                activePcIds: window.appData.tempAdvRoster,
+                numPlayers: window.appData.tempAdvRoster.length // Auto-update the expected party size
+            };
+        });
+
+        const updatedCamp = { ...camp, adventures: updatedAdventures };
+        await saveCampaign(updatedCamp);
+
+        const campIndex = window.appData.campaigns.findIndex(c => c.id === camp.id);
+        if (campIndex !== -1) window.appData.campaigns[campIndex] = updatedCamp;
+
+        window.appActions.setView('adventure');
+        notify("Arc roster inscribed.", "success");
+    },
+
     // --- PC Manager (Hero Profiles) ---
     
     openPCEdit: (pcId = null) => {
@@ -253,7 +300,6 @@ window.appActions = {
             return;
         }
 
-        // Instead of reading textareas (since they don't exist anymore), read the hidden inputs updated by the universal editor
         const updatedPC = {
             ...existingPC,
             id: pcId,
@@ -342,7 +388,6 @@ window.appActions = {
         updateBudgetUI(totalPartyBudget, currentTotalLoot, remainingBudget, newLootValue);
     },
 
-    // Dynamic List Parsers for the new V20-style Session Editor
     _readDynamicList: (containerId, mapper) => {
         const container = document.getElementById(containerId);
         if (!container) return [];
@@ -352,11 +397,15 @@ window.appActions = {
     _gatherSessionDraft: () => {
         updateDerivedState();
         const camp = window.appData.activeCampaign;
+        const adv = window.appData.activeAdventure;
         const session = window.appData.activeSession;
 
         const lootText = document.getElementById('input-draft-loot')?.value || '';
         const pcNotes = {};
-        const draftPCs = JSON.parse(JSON.stringify(camp?.playerCharacters || []));
+        
+        // Filter PCs down to ONLY the ones active in this specific adventure
+        const activePcIds = adv?.activePcIds || camp?.playerCharacters?.map(p => p.id) || [];
+        const draftPCs = JSON.parse(JSON.stringify(camp?.playerCharacters || [])).filter(pc => activePcIds.includes(pc.id));
         
         draftPCs.forEach(pc => {
             const noteEl = document.getElementById(`input-pc-note-${pc.id}`);
@@ -377,7 +426,6 @@ window.appActions = {
                 lootText: lootText,
                 lootValue: calculateLootValue(lootText),
                 
-                // Dynamic Arrays
                 scenes: window.appActions._readDynamicList('container-scenes', (row, idx) => ({
                     id: idx + 1,
                     text: row.querySelector('.scene-hidden-input')?.value || ''
@@ -387,7 +435,6 @@ window.appActions = {
                     text: row.querySelector('.clue-input')?.value || ''
                 })),
                 
-                // Legacy fields (kept for backward compatibility during transition)
                 events: document.getElementById('input-draft-events')?.value || '',
                 npcs: document.getElementById('input-draft-npcs')?.value || '',
                 locations: document.getElementById('input-draft-locations')?.value || '',
@@ -395,7 +442,7 @@ window.appActions = {
                 
                 pcNotes: pcNotes
             },
-            updatedPCs: draftPCs,
+            updatedPCs: draftPCs, // Only updates the states for PCs in this draft
             advSettings: {
                 startLevel: parseInt(document.getElementById('draft-start-level')?.value || 1),
                 endLevel: parseInt(document.getElementById('draft-end-level')?.value || 2),
@@ -441,9 +488,15 @@ window.appActions = {
             };
         });
 
+        // Merge the draft PCs back into the global Campaign PCs array safely
+        const mergedPCs = camp.playerCharacters.map(pc => {
+            const draftedPC = draft.updatedPCs.find(d => d.id === pc.id);
+            return draftedPC ? draftedPC : pc; // Only overwrite if they were in the draft
+        });
+
         const updatedCamp = {
             ...camp,
-            playerCharacters: draft.updatedPCs,
+            playerCharacters: mergedPCs,
             adventures: newAdventures
         };
 
@@ -554,7 +607,6 @@ window.appActions = {
         
         if (!modal || !textarea || !hiddenTargetId) return;
 
-        // Find the hidden input and the visual display div for this field
         const targetInput = document.getElementById(hiddenTargetId);
         const viewDiv = document.getElementById(`view-${hiddenTargetId}`);
 
@@ -571,16 +623,13 @@ window.appActions = {
             }
         }
 
-        // Close Modal
         window.appActions.closeUniversalEditor();
 
-        // Trigger updates if necessary
         if (hiddenTargetId === 'input-draft-loot' && window.appActions.updateSessionBudget && window.appData.currentView === 'session-edit') {
             window.appActions.updateSessionBudget();
         }
     },
 
-    // --- Format Toolbar Action ---
     formatText: (textareaId, formatType) => {
         const textarea = document.getElementById(textareaId);
         if (!textarea) return;
@@ -601,7 +650,6 @@ window.appActions = {
             case 'list': prefix = '- '; suffix = ''; break;
         }
 
-        // For block formatting (headers, lists), ensure it applies to the start of the line
         if (['h1', 'h2', 'h3', 'list'].includes(formatType)) {
             const lineStart = textarea.value.lastIndexOf('\n', start - 1) + 1;
             textarea.setSelectionRange(lineStart, end);
@@ -610,13 +658,12 @@ window.appActions = {
             textarea.focus();
             textarea.setSelectionRange(lineStart + prefix.length, end + prefix.length);
         } else {
-            // Inline formatting (bold, italic, etc.)
             textarea.value = textarea.value.substring(0, start) + prefix + selectedText + suffix + textarea.value.substring(end);
             textarea.focus();
             if (start === end) {
-                textarea.setSelectionRange(start + prefix.length, start + prefix.length); // Put cursor between tags
+                textarea.setSelectionRange(start + prefix.length, start + prefix.length); 
             } else {
-                textarea.setSelectionRange(start, end + prefix.length + suffix.length); // Highlight the wrapped text
+                textarea.setSelectionRange(start, end + prefix.length + suffix.length);
             }
         }
     },
@@ -627,27 +674,21 @@ window.appActions = {
         if (!text) return "";
         let safeText = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
         
-        // --- 1. PARSE MARKDOWN FORMATTING ---
-        // Headers (H1, H2, H3)
         safeText = safeText.replace(/^### (.*$)/gim, '<h3 class="text-lg font-serif font-bold text-amber-600 mt-3 mb-1">$1</h3>');
         safeText = safeText.replace(/^## (.*$)/gim, '<h2 class="text-xl font-serif font-bold text-amber-500 mt-4 mb-2">$1</h2>');
         safeText = safeText.replace(/^# (.*$)/gim, '<h1 class="text-2xl font-serif font-black text-amber-500 mt-5 mb-2">$1</h1>');
         
-        // Lists
         safeText = safeText.replace(/^\- (.*$)/gim, '<li class="ml-4 list-disc marker:text-amber-600">$1</li>');
 
-        // Bold, Underline, Italic
         safeText = safeText.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-stone-900">$1</strong>');
         safeText = safeText.replace(/__(.*?)__/g, '<u class="underline decoration-stone-500 underline-offset-2">$1</u>');
         safeText = safeText.replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, '<em class="italic text-stone-700">$1</em>');
         safeText = safeText.replace(/\b_(.*?)_\b/g, '<em class="italic text-stone-700">$1</em>');
 
-        // --- 2. PARSE CODEX LINKS ---
         const sortedCache = [...window.appData.codexCache].sort((a,b) => b.length - a.length);
         
         sortedCache.forEach(name => {
             const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            // Safely look for word boundaries but ignore matches that happen inside HTML tags
             const regex = new RegExp(`(?<!<[^>]*)\\b${escapedName}\\b(?![^<]*>)`, 'gi');
             
             const entry = (window.appData.activeCampaign?.codex || []).find(c => c.name.toLowerCase() === name.toLowerCase());
@@ -658,10 +699,8 @@ window.appActions = {
             }
         });
         
-        // --- 3. LINE BREAKS ---
         safeText = safeText.replace(/\n/g, '<br>');
         
-        // Cleanup trailing <br> tags immediately following headings or lists to prevent awkward spacing
         safeText = safeText.replace(/<\/h1><br>/g, '</h1>');
         safeText = safeText.replace(/<\/h2><br>/g, '</h2>');
         safeText = safeText.replace(/<\/h3><br>/g, '</h3>');
@@ -675,7 +714,6 @@ window.appActions = {
         const text = textarea.value;
         const cursorPos = textarea.selectionStart;
         
-        // Trigger on "@" symbol
         const match = text.substring(0, cursorPos).match(/@([\w\s]*)$/);
         
         if (match) {
@@ -719,25 +757,6 @@ window.appActions = {
         });
     },
 
-    defineSelection: (btn) => {
-        // Find selection inside the universal editor
-        const textarea = document.getElementById('ue-textarea');
-        if (!textarea || textarea.offsetParent === null) return; // If UE isn't visible, do nothing
-        
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-        
-        if (start === end) {
-            notify("Highlight a name in the text first to define it.", "error");
-            return;
-        }
-        
-        const selectedText = textarea.value.substring(start, end).trim();
-        if (!selectedText) return;
-        
-        window.appActions._openCodexModal({ name: selectedText, isNew: true });
-    },
-
     viewCodex: (id) => {
         updateDerivedState();
         const entry = (window.appData.activeCampaign?.codex || []).find(c => c.id === id);
@@ -756,7 +775,6 @@ window.appActions = {
         const desc = entry.desc || "";
         const tags = entry.tags ? entry.tags.join(', ') : "";
         
-        // View Mode vs Edit Mode
         const viewHidden = isNew ? "hidden" : "";
         const editHidden = isNew ? "" : "hidden";
 
@@ -811,7 +829,18 @@ window.appActions = {
                         
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Description</label>
-                            <textarea id="cx-modal-desc" class="w-full h-40 bg-[#fdfbf7] border border-[#d4c5a9] text-stone-900 p-3 text-sm focus:border-red-900 outline-none resize-none rounded-sm shadow-inner custom-scrollbar" placeholder="Description... Use @ to link other entries.">${desc}</textarea>
+                            
+                            <div class="format-toolbar flex gap-1 bg-[#e8dec7] border border-b-0 border-[#d4c5a9] p-1 rounded-t-sm mt-1">
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'bold')" class="w-6 h-6 flex items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bold"><i class="fa-solid fa-bold"></i></button>
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'italic')" class="w-6 h-6 flex items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Italic"><i class="fa-solid fa-italic"></i></button>
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'underline')" class="w-6 h-6 flex items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Underline"><i class="fa-solid fa-underline"></i></button>
+                                <div class="w-px h-4 bg-[#d4c5a9] mx-1 self-center"></div>
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'h1')" class="w-6 h-6 flex items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition font-serif font-bold" title="Heading 1">H1</button>
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'h2')" class="w-6 h-6 flex items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition font-serif font-bold" title="Heading 2">H2</button>
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'list')" class="w-6 h-6 flex items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
+                            </div>
+
+                            <textarea id="cx-modal-desc" class="w-full h-40 bg-[#fdfbf7] border border-[#d4c5a9] text-stone-900 p-3 text-sm focus:border-red-900 outline-none resize-none rounded-b-sm shadow-inner custom-scrollbar" placeholder="Description... Use @ to link other entries.">${desc}</textarea>
                         </div>
                         
                         <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-[#d4c5a9]">
@@ -854,7 +883,6 @@ window.appActions = {
 
         await saveCampaign(updatedCamp);
         
-        // Optimistic update & Cache rebuild
         const campIndex = window.appData.campaigns.findIndex(c => c.id === camp.id);
         if (campIndex !== -1) window.appData.campaigns[campIndex] = updatedCamp;
         updateDerivedState(); 
