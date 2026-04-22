@@ -303,16 +303,35 @@ window.appActions = {
             return;
         }
 
-        // Read the hidden inputs updated by the universal editor
+        // Read all inputs for the expanded Hero Sheet
         const updatedPC = {
             ...existingPC,
             id: pcId,
             name: nameInput,
             race: document.getElementById('pc-edit-race')?.value.trim() || '',
             classLevel: document.getElementById('pc-edit-class')?.value.trim() || '',
+            background: document.getElementById('pc-edit-background')?.value.trim() || '',
+            
+            // Characteristics
+            alignment: document.getElementById('pc-edit-alignment')?.value.trim() || '',
+            faith: document.getElementById('pc-edit-faith')?.value.trim() || '',
+            gender: document.getElementById('pc-edit-gender')?.value.trim() || '',
+            age: document.getElementById('pc-edit-age')?.value.trim() || '',
+            size: document.getElementById('pc-edit-size')?.value.trim() || '',
+            height: document.getElementById('pc-edit-height')?.value.trim() || '',
+            weight: document.getElementById('pc-edit-weight')?.value.trim() || '',
+            eyes: document.getElementById('pc-edit-eyes')?.value.trim() || '',
+            hair: document.getElementById('pc-edit-hair')?.value.trim() || '',
+            skin: document.getElementById('pc-edit-skin')?.value.trim() || '',
+
+            // Personality (Zen Mode inputs)
+            traits: document.getElementById('input-pc-edit-traits')?.value || '',
             ideals: document.getElementById('input-pc-edit-ideals')?.value || '',
             bonds: document.getElementById('input-pc-edit-bonds')?.value || '',
             flaws: document.getElementById('input-pc-edit-flaws')?.value || '',
+            
+            // Detailed Notes (Zen Mode inputs)
+            appearance: document.getElementById('input-pc-edit-appearance')?.value || '',
             backstory: document.getElementById('input-pc-edit-backstory')?.value || '',
             dmNotes: document.getElementById('input-pc-edit-dmnotes')?.value || ''
         };
@@ -555,9 +574,9 @@ window.appActions = {
             <div class="mb-4 scene-row bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm shadow-sm flex flex-col group cursor-text" onclick="window.appActions.openUniversalEditor('${inputId}', 'Scene ${idx + 1}')">
                 <div class="flex justify-between items-center bg-[#f4ebd8] px-3 py-1.5 border-b border-[#d4c5a9] rounded-t-sm">
                     <span class="text-[10px] text-stone-500 font-bold uppercase tracking-widest">Scene ${idx + 1}</span>
-                    <div class="flex gap-3">
-                        <button class="text-[10px] text-stone-500 hover:text-blue-600 uppercase font-bold transition" onclick="event.stopPropagation(); window.appActions.openUniversalEditor('${inputId}', 'Scene ${idx + 1}')">Edit Scene</button>
-                        <button class="text-[10px] text-red-800 hover:text-red-600 uppercase font-bold transition" onclick="event.stopPropagation(); this.closest('.scene-row').remove()">Remove</button>
+                    <div class="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button class="text-[10px] text-stone-500 hover:text-blue-600 uppercase font-bold transition" onclick="event.stopPropagation(); window.appActions.openUniversalEditor('${inputId}', 'Scene ${idx + 1}')"><i class="fa-solid fa-pen"></i> Edit</button>
+                        <button class="text-[10px] text-red-800 hover:text-red-600 uppercase font-bold transition" onclick="event.stopPropagation(); this.closest('.scene-row').remove()"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 </div>
                 <input type="hidden" id="${inputId}" class="scene-hidden-input" value="">
@@ -681,24 +700,17 @@ window.appActions = {
         if (!text) return "";
         let safeText = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
         
-        // --- 1. PARSE MARKDOWN FORMATTING ---
-        // Enhanced Headings and Dividers to perfectly support the markdown generator outputs
-        safeText = safeText.replace(/^#### (.*$)/gim, '<h4 class="text-base font-serif font-bold text-amber-700 mt-4 mb-1">$1</h4>');
-        safeText = safeText.replace(/^### (.*$)/gim, '<h3 class="text-lg font-serif font-bold text-amber-600 mt-5 mb-1 border-b border-[#d4c5a9] pb-1">$1</h3>');
-        safeText = safeText.replace(/^## (.*$)/gim, '<h2 class="text-xl font-serif font-bold text-amber-500 mt-6 mb-2 border-b border-amber-600/30 pb-1">$1</h2>');
-        safeText = safeText.replace(/^# (.*$)/gim, '<h1 class="text-2xl font-serif font-black text-amber-500 mt-6 mb-3 border-b-2 border-amber-500 pb-2">$1</h1>');
-        safeText = safeText.replace(/^---$/gim, '<hr class="border-t border-[#d4c5a9] my-6">');
+        safeText = safeText.replace(/^### (.*$)/gim, '<h3 class="text-lg font-serif font-bold text-amber-600 mt-3 mb-1">$1</h3>');
+        safeText = safeText.replace(/^## (.*$)/gim, '<h2 class="text-xl font-serif font-bold text-amber-500 mt-4 mb-2">$1</h2>');
+        safeText = safeText.replace(/^# (.*$)/gim, '<h1 class="text-2xl font-serif font-black text-amber-500 mt-5 mb-2">$1</h1>');
         
-        // Lists
-        safeText = safeText.replace(/^\- (.*$)/gim, '<li class="ml-6 list-disc marker:text-amber-600 py-0.5">$1</li>');
+        safeText = safeText.replace(/^\- (.*$)/gim, '<li class="ml-4 list-disc marker:text-amber-600">$1</li>');
 
-        // Bold, Underline, Italic
         safeText = safeText.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-stone-900">$1</strong>');
         safeText = safeText.replace(/__(.*?)__/g, '<u class="underline decoration-stone-500 underline-offset-2">$1</u>');
         safeText = safeText.replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, '<em class="italic text-stone-700">$1</em>');
         safeText = safeText.replace(/\b_(.*?)_\b/g, '<em class="italic text-stone-700">$1</em>');
 
-        // --- 2. PARSE CODEX LINKS ---
         const sortedCache = [...window.appData.codexCache].sort((a,b) => b.length - a.length);
         
         sortedCache.forEach(name => {
@@ -713,16 +725,12 @@ window.appActions = {
             }
         });
         
-        // --- 3. LINE BREAKS ---
         safeText = safeText.replace(/\n/g, '<br>');
         
-        // Cleanup trailing <br> tags immediately following block elements
         safeText = safeText.replace(/<\/h1><br>/g, '</h1>');
         safeText = safeText.replace(/<\/h2><br>/g, '</h2>');
         safeText = safeText.replace(/<\/h3><br>/g, '</h3>');
-        safeText = safeText.replace(/<\/h4><br>/g, '</h4>');
         safeText = safeText.replace(/<\/li><br>/g, '</li>');
-        safeText = safeText.replace(/(<hr[^>]*>)<br>/g, '$1');
 
         return safeText;
     },
