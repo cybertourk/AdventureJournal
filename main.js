@@ -1,5 +1,5 @@
 import { auth, db, appId, doc, getDoc, onAuthStateChanged } from './firebase-config.js';
-import { subscribeToCampaigns, logoutUser } from './firebase-manager.js';
+import { subscribeToCampaigns, subscribeToPlayerCampaigns, subscribeToPersonalData, logoutUser } from './firebase-manager.js';
 import { initAuthUI } from './ui-auth.js';
 import { renderApp } from './ui-core.js';
 import { setCampaignsData } from './data.js';
@@ -14,6 +14,7 @@ if (!window.appData) {
         activeSessionId: null,
         activePcId: null,
         userRole: null, // Tracks if the logged-in user is 'dm' or 'player'
+        personalCodex: [], // Tracks the player's private codex entries
         tempPCs: [],
         tempAdvRoster: [],
         currentMarkdown: '',
@@ -78,11 +79,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 } else {
                     if (authStatusText) authStatusText.textContent = "Player Access";
-                    
-                    // We will build the player subscriptions in the next steps!
-                    // For now, route them to the new player home view with an empty array.
                     window.appData.currentView = 'player-home';
-                    setCampaignsData([]); 
+                    
+                    // Fetch Campaigns the Player has joined
+                    subscribeToPlayerCampaigns(user, (campaigns) => {
+                        setCampaignsData(campaigns);
+                    });
+
+                    // Fetch the Player's Personal Data (like their private Codex)
+                    subscribeToPersonalData(user, (data) => {
+                        if (data && data.personalCodex) {
+                            window.appData.personalCodex = data.personalCodex;
+                        } else {
+                            window.appData.personalCodex = [];
+                        }
+                    });
                 }
 
             } catch (error) {
@@ -107,10 +118,13 @@ document.addEventListener('DOMContentLoaded', () => {
             window.appData.activeSessionId = null;
             window.appData.activePcId = null;
             window.appData.userRole = null;
+            window.appData.personalCodex = [];
             window.appData.currentView = 'home';
             
-            // Unsubscribe happens automatically in firebase-manager.js when user is null
+            // Unsubscribe listeners when logged out
             subscribeToCampaigns(null, () => {});
+            subscribeToPlayerCampaigns(null, () => {});
+            subscribeToPersonalData(null, () => {});
         }
     });
 });
