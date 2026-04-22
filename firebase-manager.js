@@ -7,7 +7,7 @@ import {
     signOut, 
     doc, 
     setDoc, 
-    getDoc, // Added getDoc for fetching campaigns by ID
+    getDoc, 
     deleteDoc, 
     onSnapshot, 
     collection, 
@@ -24,7 +24,6 @@ export function notify(msg, type = 'info') {
     }
     
     const notif = document.createElement('div');
-    // Thematic styling based on notification type
     const bgClass = type === 'error' ? 'bg-red-900' : (type === 'success' ? 'bg-emerald-700' : 'bg-stone-800');
     notif.className = `${bgClass} text-amber-50 px-4 py-3 rounded-sm shadow-[0_4px_12px_rgba(0,0,0,0.5)] text-sm border border-stone-600 font-bold uppercase tracking-wider animate-in transition-opacity duration-500`;
     
@@ -36,7 +35,6 @@ export function notify(msg, type = 'info') {
     
     container.appendChild(notif);
     
-    // Auto-remove after 3 seconds
     setTimeout(() => {
         notif.style.opacity = '0';
         setTimeout(() => notif.remove(), 500);
@@ -56,17 +54,16 @@ export async function loginUser(email, password) {
     }
 }
 
-export async function registerUser(email, password, role = 'dm') {
+export async function registerUser(email, password, role = 'user') {
     try {
-        // Create the user account
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
         
-        // Create a profile document for the user to track their role and personal data
+        // Every user is a generic 'user' now and has the capacity for a Personal Codex
         await setDoc(doc(db, 'artifacts', appId, 'users', user.uid), {
             email: email,
             role: role,
-            personalCodex: [], // Initialize personal codex for players
+            personalCodex: [], 
             created: new Date().toISOString()
         });
         
@@ -90,11 +87,10 @@ export async function logoutUser() {
 
 // --- DATABASE (FIRESTORE) ACTIONS ---
 
-// DM Listener
+// DM Listener: Campaigns I created
 let currentCampaignsListener = null;
 
 export function subscribeToCampaigns(user, callback) {
-    // Clear any existing listeners
     if (currentCampaignsListener) {
         currentCampaignsListener();
         currentCampaignsListener = null;
@@ -105,25 +101,22 @@ export function subscribeToCampaigns(user, callback) {
         return;
     }
 
-    // Query: Give me all campaigns where the dmId matches the currently logged-in user
     const campaignsRef = collection(db, 'artifacts', appId, 'campaigns');
     const q = query(campaignsRef, where("dmId", "==", user.uid));
 
-    // Listen for real-time updates
     currentCampaignsListener = onSnapshot(q, (snapshot) => {
         const campaigns = [];
         snapshot.forEach(docSnap => {
             campaigns.push(docSnap.data());
         });
-        // Pass the updated array back to our app state
         callback(campaigns);
     }, (error) => {
-        console.error("Error fetching campaigns:", error);
-        notify("Failed to load campaigns from the vault.", "error");
+        console.error("Error fetching DM campaigns:", error);
+        notify("Failed to load your GM campaigns.", "error");
     });
 }
 
-// Player Campaigns Listener
+// Player Listener: Campaigns I joined
 let currentPlayerCampaignsListener = null;
 
 export function subscribeToPlayerCampaigns(user, callback) {
@@ -137,7 +130,6 @@ export function subscribeToPlayerCampaigns(user, callback) {
         return;
     }
 
-    // Query: Give me all campaigns where the activePlayers array contains this user's UID
     const campaignsRef = collection(db, 'artifacts', appId, 'campaigns');
     const q = query(campaignsRef, where("activePlayers", "array-contains", user.uid));
 
@@ -149,11 +141,11 @@ export function subscribeToPlayerCampaigns(user, callback) {
         callback(campaigns);
     }, (error) => {
         console.error("Error fetching player campaigns:", error);
-        notify("Failed to load joined campaigns from the vault.", "error");
+        notify("Failed to load joined campaigns.", "error");
     });
 }
 
-// Player Personal Data Listener (For Personal Codex)
+// Personal Data Listener (For Private Codex)
 let currentPersonalDataListener = null;
 
 export function subscribeToPersonalData(user, callback) {
@@ -207,7 +199,6 @@ export async function joinCampaign(campaignId) {
             const data = campSnap.data();
             const activePlayers = data.activePlayers || [];
             
-            // Prevent duplicate entries
             if (!activePlayers.includes(user.uid)) {
                 activePlayers.push(user.uid);
                 await setDoc(docRef, { activePlayers: activePlayers }, { merge: true });
@@ -234,19 +225,15 @@ export async function saveCampaign(campaignData) {
     }
 
     try {
-        // Ensure the campaign is linked to the DM saving it (if it's new)
         if (!campaignData.dmId) {
             campaignData.dmId = user.uid;
         }
         
-        // Ensure activePlayers array exists so players can join
         if (!campaignData.activePlayers) {
             campaignData.activePlayers = [];
         }
         
         const docRef = doc(db, 'artifacts', appId, 'campaigns', campaignData.id);
-        
-        // Because campaigns are relatively small JSON objects, we overwrite the entire document safely
         await setDoc(docRef, campaignData);
     } catch (error) {
         console.error("Error saving campaign:", error);
