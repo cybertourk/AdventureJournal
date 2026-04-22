@@ -120,13 +120,45 @@
         </main>
     </div>
 
-    <!-- NEW: Global Modals & Overlays for Smart Text / Codex -->
+    <!-- GLOBAL MODALS & OVERLAYS -->
     
     <!-- Floating Autocomplete Box -->
-    <div id="autocomplete-suggestions" class="hidden absolute bg-stone-900 border border-amber-600 rounded-sm shadow-2xl z-[9000] max-h-48 overflow-y-auto text-sm text-stone-200 custom-scrollbar"></div>
+    <div id="autocomplete-suggestions" class="hidden absolute bg-stone-900 border border-amber-600 rounded-sm shadow-2xl z-[12000] max-h-48 overflow-y-auto text-sm text-stone-200 custom-scrollbar"></div>
     
     <!-- Global Popup Container (Codex Modals injected here) -->
     <div id="global-popup-container"></div>
+
+    <!-- UNIVERSAL ZEN EDITOR -->
+    <div id="universal-editor-modal" class="hidden fixed inset-0 bg-stone-950/95 z-[11000] flex flex-col backdrop-blur-sm transition-opacity duration-300">
+        <!-- Header -->
+        <div class="bg-stone-900 p-3 sm:p-4 border-b-2 border-red-900 flex justify-between items-center text-amber-500 shadow-md">
+            <h2 class="text-lg sm:text-xl font-serif font-bold flex items-center">
+                <i class="fa-solid fa-feather mr-2 sm:mr-3 text-red-700"></i> 
+                <span id="ue-title-text">Edit Content</span>
+            </h2>
+            <div class="flex gap-2">
+                <button onclick="window.appActions.closeUniversalEditor()" class="px-3 sm:px-4 py-2 text-stone-400 hover:text-white transition font-bold uppercase tracking-wider text-[10px] sm:text-xs">Cancel</button>
+                <button onclick="window.appActions.saveUniversalEditor()" class="px-4 sm:px-5 py-2 bg-red-900 text-amber-50 rounded-sm hover:bg-red-800 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md">Done</button>
+            </div>
+        </div>
+        <!-- Format Toolbar -->
+        <div class="flex gap-1 sm:gap-2 bg-[#e8dec7] p-2 border-b border-[#d4c5a9] justify-center sm:justify-start overflow-x-auto shadow-sm hide-scrollbar">
+            <button type="button" onclick="window.appActions.formatText('ue-textarea', 'bold')" class="w-8 h-8 flex flex-shrink-0 items-center justify-center text-sm text-stone-700 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bold"><i class="fa-solid fa-bold"></i></button>
+            <button type="button" onclick="window.appActions.formatText('ue-textarea', 'italic')" class="w-8 h-8 flex flex-shrink-0 items-center justify-center text-sm text-stone-700 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Italic"><i class="fa-solid fa-italic"></i></button>
+            <button type="button" onclick="window.appActions.formatText('ue-textarea', 'underline')" class="w-8 h-8 flex flex-shrink-0 items-center justify-center text-sm text-stone-700 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Underline"><i class="fa-solid fa-underline"></i></button>
+            <div class="w-px h-6 bg-[#c2b59b] mx-1 sm:mx-2 self-center"></div>
+            <button type="button" onclick="window.appActions.formatText('ue-textarea', 'h1')" class="w-8 h-8 flex flex-shrink-0 items-center justify-center text-sm text-stone-700 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition font-serif font-bold" title="Heading 1">H1</button>
+            <button type="button" onclick="window.appActions.formatText('ue-textarea', 'h2')" class="w-8 h-8 flex flex-shrink-0 items-center justify-center text-sm text-stone-700 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition font-serif font-bold" title="Heading 2">H2</button>
+            <button type="button" onclick="window.appActions.formatText('ue-textarea', 'h3')" class="w-8 h-8 flex flex-shrink-0 items-center justify-center text-sm text-stone-700 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition font-serif font-bold" title="Heading 3">H3</button>
+            <div class="w-px h-6 bg-[#c2b59b] mx-1 sm:mx-2 self-center"></div>
+            <button type="button" onclick="window.appActions.formatText('ue-textarea', 'list')" class="w-8 h-8 flex flex-shrink-0 items-center justify-center text-sm text-stone-700 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
+        </div>
+        <!-- Text Area -->
+        <div class="flex-grow p-2 sm:p-4 md:p-8 bg-[#f4ebd8] flex justify-center overflow-hidden">
+            <textarea id="ue-textarea" class="w-full max-w-4xl h-full bg-[#fdfbf7] text-stone-900 p-4 sm:p-6 text-sm sm:text-base resize-none border border-[#d4c5a9] shadow-inner rounded-sm outline-none focus:ring-2 focus:ring-red-900 custom-scrollbar" placeholder="Scribe your notes here... Use @ to link Codex entries." oninput="window.appActions.handleSmartInput(this)" spellcheck="false"></textarea>
+        </div>
+        <input type="hidden" id="ue-target-id">
+    </div>
 
     <!-- Application Entry Point -->
     <script type="module" src="main.js"></script>
