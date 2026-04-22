@@ -53,6 +53,7 @@ export function initAuthUI() {
         registerForm.addEventListener('submit', async (e) => {
             e.preventDefault(); // Prevent page reload
             
+            const displayNameInput = document.getElementById('register-display-name');
             const emailInput = document.getElementById('register-email');
             const passwordInput = document.getElementById('register-password');
             const submitBtn = registerForm.querySelector('button[type="submit"]');
@@ -63,8 +64,8 @@ export function initAuthUI() {
             submitBtn.disabled = true;
 
             try {
-                // Everyone is a generic 'user' now! No more strict DM/Player separation.
-                await registerUser(emailInput.value, passwordInput.value, 'user');
+                // Pass the displayName to the firebase manager
+                await registerUser(emailInput.value, passwordInput.value, displayNameInput.value, 'user');
                 // On success, the auth state changes automatically
             } catch (error) {
                 // If registration fails, reset the button
