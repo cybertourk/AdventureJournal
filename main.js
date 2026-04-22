@@ -1,4 +1,4 @@
-import { auth, onAuthStateChanged } from './firebase-config.js';
+import { auth, db, appId, doc, getDoc, onAuthStateChanged } from './firebase-config.js';
 import { subscribeToCampaigns, logoutUser } from './firebase-manager.js';
 import { initAuthUI } from './ui-auth.js';
 import { renderApp } from './ui-core.js';
@@ -12,8 +12,13 @@ if (!window.appData) {
         activeCampaignId: null,
         activeAdventureId: null,
         activeSessionId: null,
+        activePcId: null,
+        userRole: null, // Tracks if the logged-in user is 'dm' or 'player'
         tempPCs: [],
-        currentMarkdown: ''
+        tempAdvRoster: [],
+        currentMarkdown: '',
+        codexCache: [],
+        activeSmartTextarea: null
     };
 }
 
@@ -34,14 +39,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Listen for authentication state changes
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
         if (user) {
             // User is signed in.
             if (authScreen) authScreen.classList.add('hidden');
             if (appScreen) appScreen.classList.remove('hidden');
-            if (authStatusText) authStatusText.textContent = "Dungeon Master Access";
 
-            // Show the loading spinner while fetching campaigns
+            // Show the loading spinner while fetching the profile and campaigns
             const container = document.getElementById('app-container');
             if (container) {
                  container.innerHTML = `
@@ -52,11 +56,43 @@ document.addEventListener('DOMContentLoaded', () => {
                  `;
             }
 
-            // Subscribe to the user's campaigns in Firestore
-            subscribeToCampaigns(user, (campaigns) => {
-                // When campaigns are loaded or updated, push them to data.js which handles re-rendering
-                setCampaignsData(campaigns);
-            });
+            try {
+                // Determine the user's role from their profile document
+                const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid);
+                const userDoc = await getDoc(userDocRef);
+                
+                let role = 'player'; // Default to player for safety
+                if (userDoc.exists() && userDoc.data().role) {
+                    role = userDoc.data().role;
+                }
+
+                window.appData.userRole = role;
+
+                if (role === 'dm') {
+                    if (authStatusText) authStatusText.textContent = "Dungeon Master Access";
+                    window.appData.currentView = 'home';
+                    
+                    // Subscribe to the DM's campaigns in Firestore
+                    subscribeToCampaigns(user, (campaigns) => {
+                        setCampaignsData(campaigns);
+                    });
+                } else {
+                    if (authStatusText) authStatusText.textContent = "Player Access";
+                    
+                    // We will build the player subscriptions in the next steps!
+                    // For now, route them to the new player home view with an empty array.
+                    window.appData.currentView = 'player-home';
+                    setCampaignsData([]); 
+                }
+
+            } catch (error) {
+                console.error("Error fetching user profile:", error);
+                // Fallback safely to player on error
+                window.appData.userRole = 'player';
+                if (authStatusText) authStatusText.textContent = "Player Access";
+                window.appData.currentView = 'player-home';
+                setCampaignsData([]);
+            }
 
         } else {
             // User is signed out.
@@ -69,6 +105,8 @@ document.addEventListener('DOMContentLoaded', () => {
             window.appData.activeCampaignId = null;
             window.appData.activeAdventureId = null;
             window.appData.activeSessionId = null;
+            window.appData.activePcId = null;
+            window.appData.userRole = null;
             window.appData.currentView = 'home';
             
             // Unsubscribe happens automatically in firebase-manager.js when user is null
