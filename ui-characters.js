@@ -57,8 +57,46 @@ export function getPCManagerHTML(state) {
 
     html += `
         </div>
-    </div>
     `;
+
+    // --- CONNECTED PLAYERS UI (DM ONLY) ---
+    if (isDM) {
+        const activePlayerUIDs = camp.activePlayers || [];
+        const playerNames = camp.playerNames || {};
+        const connectedPlayers = activePlayerUIDs.filter(uid => uid !== camp.dmId);
+
+        html += `
+        <div class="mt-12 border-t-2 border-stone-800 pt-8 mb-8">
+            <h3 class="text-xl font-serif font-bold text-amber-500 mb-4 flex items-center">
+                <i class="fa-solid fa-users mr-3 text-red-900"></i> Connected Players
+            </h3>
+            <div class="bg-[#f4ebd8] p-4 sm:p-6 rounded-sm border border-[#d4c5a9] shadow-inner">
+        `;
+
+        if (connectedPlayers.length === 0) {
+            html += `<p class="text-stone-500 italic text-sm font-serif text-center py-4">No players have joined this campaign yet.</p>`;
+        } else {
+            html += `<ul class="space-y-3">`;
+            connectedPlayers.forEach(uid => {
+                const pName = playerNames[uid] || "Unknown Player / Deleted Account";
+                html += `
+                <li class="flex flex-col sm:flex-row sm:justify-between sm:items-center bg-[#fdfbf7] p-3 sm:p-4 border border-[#d4c5a9] rounded-sm shadow-sm gap-3">
+                    <div>
+                        <span class="font-bold text-stone-900 text-base block">${pName}</span>
+                        <span class="text-[10px] text-stone-500 font-mono uppercase tracking-widest block mt-0.5">ID: ${uid}</span>
+                    </div>
+                    <button onclick="window.appActions.kickPlayer('${uid}')" class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-red-800 hover:text-red-500 border border-red-800/30 hover:border-red-500 bg-red-900/10 px-3 py-2 rounded-sm transition flex items-center justify-center sm:justify-start shadow-sm w-full sm:w-auto">
+                        <i class="fa-solid fa-user-minus mr-2"></i> Kick Player
+                    </button>
+                </li>
+                `;
+            });
+            html += `</ul>`;
+        }
+        html += `</div></div>`;
+    }
+
+    html += `</div>`;
     return html;
 }
 
