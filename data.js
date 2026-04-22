@@ -253,17 +253,18 @@ window.appActions = {
             return;
         }
 
+        // Instead of reading textareas (since they don't exist anymore), read the hidden inputs updated by the universal editor
         const updatedPC = {
             ...existingPC,
             id: pcId,
             name: nameInput,
             race: document.getElementById('pc-edit-race')?.value.trim() || '',
             classLevel: document.getElementById('pc-edit-class')?.value.trim() || '',
-            ideals: document.getElementById('pc-edit-ideals')?.value.trim() || '',
-            bonds: document.getElementById('pc-edit-bonds')?.value.trim() || '',
-            flaws: document.getElementById('pc-edit-flaws')?.value.trim() || '',
-            backstory: document.getElementById('pc-edit-backstory')?.value.trim() || '',
-            dmNotes: document.getElementById('pc-edit-dmnotes')?.value.trim() || ''
+            ideals: document.getElementById('input-pc-edit-ideals')?.value || '',
+            bonds: document.getElementById('input-pc-edit-bonds')?.value || '',
+            flaws: document.getElementById('input-pc-edit-flaws')?.value || '',
+            backstory: document.getElementById('input-pc-edit-backstory')?.value || '',
+            dmNotes: document.getElementById('input-pc-edit-dmnotes')?.value || ''
         };
 
         const isNew = !camp.playerCharacters?.some(p => p.id === pcId);
@@ -322,7 +323,7 @@ window.appActions = {
         const startLvl = parseInt(document.getElementById('draft-start-level')?.value || 1);
         const endLvl = parseInt(document.getElementById('draft-end-level')?.value || 2);
         const numPlayers = parseInt(document.getElementById('draft-num-players')?.value || 1);
-        const lootText = document.getElementById('draft-loot')?.value || '';
+        const lootText = document.getElementById('input-draft-loot')?.value || '';
 
         const newLootValue = calculateLootValue(lootText);
         const currentSessionId = window.appData.activeSessionId;
@@ -353,12 +354,12 @@ window.appActions = {
         const camp = window.appData.activeCampaign;
         const session = window.appData.activeSession;
 
-        const lootText = document.getElementById('draft-loot')?.value || '';
+        const lootText = document.getElementById('input-draft-loot')?.value || '';
         const pcNotes = {};
         const draftPCs = JSON.parse(JSON.stringify(camp?.playerCharacters || []));
         
         draftPCs.forEach(pc => {
-            const noteEl = document.getElementById(`pc-note-${pc.id}`);
+            const noteEl = document.getElementById(`input-pc-note-${pc.id}`);
             if (noteEl && noteEl.value.trim()) pcNotes[pc.id] = noteEl.value.trim();
             
             const inspEl = document.getElementById(`pc-insp-${pc.id}`);
@@ -376,10 +377,10 @@ window.appActions = {
                 lootText: lootText,
                 lootValue: calculateLootValue(lootText),
                 
-                // NEW Dynamic Arrays
+                // Dynamic Arrays
                 scenes: window.appActions._readDynamicList('container-scenes', (row, idx) => ({
                     id: idx + 1,
-                    text: row.querySelector('.scene-editor')?.value || ''
+                    text: row.querySelector('.scene-hidden-input')?.value || ''
                 })),
                 clues: window.appActions._readDynamicList('container-clues', (row, idx) => ({
                     id: idx + 1,
@@ -387,10 +388,10 @@ window.appActions = {
                 })),
                 
                 // Legacy fields (kept for backward compatibility during transition)
-                events: document.getElementById('draft-events')?.value || '',
-                npcs: document.getElementById('draft-npcs')?.value || '',
-                locations: document.getElementById('draft-locations')?.value || '',
-                notes: document.getElementById('draft-notes')?.value || '',
+                events: document.getElementById('input-draft-events')?.value || '',
+                npcs: document.getElementById('input-draft-npcs')?.value || '',
+                locations: document.getElementById('input-draft-locations')?.value || '',
+                notes: document.getElementById('input-draft-notes')?.value || '',
                 
                 pcNotes: pcNotes
             },
@@ -488,22 +489,21 @@ window.appActions = {
         const container = document.getElementById('container-scenes');
         if(!container) return;
         const idx = container.children.length;
+        const inputId = `scene-input-${idx}`;
         
         const html = `
-            <div class="mb-4 scene-row bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm p-1 shadow-sm">
-                <div class="flex justify-between items-center bg-[#f4ebd8] px-2 py-1 mb-1 border-b border-[#d4c5a9]">
+            <div class="mb-4 scene-row bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm shadow-sm flex flex-col group cursor-text" onclick="window.appActions.openUniversalEditor('${inputId}', 'Scene ${idx + 1}')">
+                <div class="flex justify-between items-center bg-[#f4ebd8] px-3 py-1.5 border-b border-[#d4c5a9] rounded-t-sm">
                     <span class="text-[10px] text-stone-500 font-bold uppercase tracking-widest">Scene ${idx + 1}</span>
-                    <div class="flex gap-2">
-                        <button class="text-[10px] text-stone-500 hover:text-amber-600 uppercase font-bold toggle-btn text-amber-600 transition" onclick="window.appActions.toggleSceneView(this)">Edit Mode</button>
-                        <button class="text-[10px] text-stone-500 hover:text-blue-600 uppercase font-bold transition" onclick="window.appActions.defineSelection(this)">Define Selection</button>
-                        <button class="text-[10px] text-red-800 hover:text-red-600 uppercase font-bold transition" onclick="this.closest('.scene-row').remove()">Remove</button>
+                    <div class="flex gap-3">
+                        <button class="text-[10px] text-stone-500 hover:text-blue-600 uppercase font-bold transition" onclick="event.stopPropagation(); window.appActions.openUniversalEditor('${inputId}', 'Scene ${idx + 1}')">Edit Scene</button>
+                        <button class="text-[10px] text-red-800 hover:text-red-600 uppercase font-bold transition" onclick="event.stopPropagation(); this.closest('.scene-row').remove()">Remove</button>
                     </div>
                 </div>
-                <textarea class="scene-editor w-full bg-transparent text-stone-900 text-xs sm:text-sm p-2 h-24 resize-y border-none focus:ring-0 leading-relaxed outline-none font-sans smart-text-area" 
-                    placeholder="Describe the scene..." 
-                    oninput="window.appActions.handleSmartInput(this)"
-                    spellcheck="false"></textarea>
-                <div class="scene-viewer hidden w-full text-stone-800 text-xs sm:text-sm p-2 h-auto min-h-[6rem] leading-relaxed whitespace-pre-wrap font-serif"></div>
+                <input type="hidden" id="${inputId}" class="scene-hidden-input" value="">
+                <div id="view-${inputId}" class="w-full text-stone-800 text-xs sm:text-sm p-3 min-h-[4rem] leading-relaxed whitespace-pre-wrap font-serif group-hover:bg-white transition">
+                    <span class="text-stone-400 italic font-sans">Tap to describe the scene...</span>
+                </div>
             </div>`;
         container.insertAdjacentHTML('beforeend', html);
     },
@@ -520,59 +520,160 @@ window.appActions = {
         container.insertAdjacentHTML('beforeend', html);
     },
 
-    // --- Smart Text & Codex Interactions ---
-    
-    toggleSceneView: (btn) => {
-        const row = btn.closest('.scene-row');
-        const editor = row.querySelector('.scene-editor');
-        const viewer = row.querySelector('.scene-viewer');
+    // --- UNIVERSAL EDITOR ACTIONS ---
+
+    openUniversalEditor: (targetInputId, title) => {
+        const modal = document.getElementById('universal-editor-modal');
+        const textarea = document.getElementById('ue-textarea');
+        const targetInput = document.getElementById(targetInputId);
+        const titleEl = document.getElementById('ue-title-text');
+        const hiddenTargetId = document.getElementById('ue-target-id');
+
+        if (!modal || !textarea || !targetInput) return;
+
+        // Populate Editor
+        titleEl.textContent = title;
+        textarea.value = targetInput.value;
+        hiddenTargetId.value = targetInputId;
+
+        // Show Modal
+        modal.classList.remove('hidden');
+        textarea.focus();
+    },
+
+    closeUniversalEditor: () => {
+        const modal = document.getElementById('universal-editor-modal');
+        if (modal) modal.classList.add('hidden');
+        document.getElementById('autocomplete-suggestions').style.display = 'none';
+    },
+
+    saveUniversalEditor: () => {
+        const modal = document.getElementById('universal-editor-modal');
+        const textarea = document.getElementById('ue-textarea');
+        const hiddenTargetId = document.getElementById('ue-target-id').value;
         
-        if (editor.classList.contains('hidden')) {
-            editor.classList.remove('hidden');
-            viewer.classList.add('hidden');
-            btn.innerText = "Edit Mode";
-            btn.classList.add('text-amber-600');
-        } else {
-            const rawText = editor.value;
-            const html = window.appActions.parseSmartText(rawText);
-            viewer.innerHTML = html;
-            editor.classList.add('hidden');
-            viewer.classList.remove('hidden');
-            btn.innerText = "Read Mode";
-            btn.classList.remove('text-amber-600');
+        if (!modal || !textarea || !hiddenTargetId) return;
+
+        // Find the hidden input and the visual display div for this field
+        const targetInput = document.getElementById(hiddenTargetId);
+        const viewDiv = document.getElementById(`view-${hiddenTargetId}`);
+
+        if (targetInput) {
+            targetInput.value = textarea.value;
+        }
+
+        if (viewDiv) {
+            const hasText = textarea.value && textarea.value.trim().length > 0;
+            if (hasText) {
+                viewDiv.innerHTML = window.appActions.parseSmartText(textarea.value);
+            } else {
+                viewDiv.innerHTML = `<span class="text-stone-400 italic font-sans">Tap to edit...</span>`;
+            }
+        }
+
+        // Close Modal
+        window.appActions.closeUniversalEditor();
+
+        // Trigger updates if necessary
+        if (hiddenTargetId === 'input-draft-loot' && window.appActions.updateSessionBudget && window.appData.currentView === 'session-edit') {
+            window.appActions.updateSessionBudget();
         }
     },
 
+    // --- Format Toolbar Action ---
+    formatText: (textareaId, formatType) => {
+        const textarea = document.getElementById(textareaId);
+        if (!textarea) return;
+
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const selectedText = textarea.value.substring(start, end);
+        let prefix = '';
+        let suffix = '';
+
+        switch (formatType) {
+            case 'bold': prefix = '**'; suffix = '**'; break;
+            case 'italic': prefix = '*'; suffix = '*'; break;
+            case 'underline': prefix = '__'; suffix = '__'; break;
+            case 'h1': prefix = '# '; suffix = ''; break;
+            case 'h2': prefix = '## '; suffix = ''; break;
+            case 'h3': prefix = '### '; suffix = ''; break;
+            case 'list': prefix = '- '; suffix = ''; break;
+        }
+
+        // For block formatting (headers, lists), ensure it applies to the start of the line
+        if (['h1', 'h2', 'h3', 'list'].includes(formatType)) {
+            const lineStart = textarea.value.lastIndexOf('\n', start - 1) + 1;
+            textarea.setSelectionRange(lineStart, end);
+            const lineText = textarea.value.substring(lineStart, end);
+            textarea.value = textarea.value.substring(0, lineStart) + prefix + lineText + suffix + textarea.value.substring(end);
+            textarea.focus();
+            textarea.setSelectionRange(lineStart + prefix.length, end + prefix.length);
+        } else {
+            // Inline formatting (bold, italic, etc.)
+            textarea.value = textarea.value.substring(0, start) + prefix + selectedText + suffix + textarea.value.substring(end);
+            textarea.focus();
+            if (start === end) {
+                textarea.setSelectionRange(start + prefix.length, start + prefix.length); // Put cursor between tags
+            } else {
+                textarea.setSelectionRange(start, end + prefix.length + suffix.length); // Highlight the wrapped text
+            }
+        }
+    },
+
+    // --- Smart Text & Codex Interactions ---
+    
     parseSmartText: (text) => {
         if (!text) return "";
         let safeText = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
         
-        // Sort cache by length descending to prevent partial word matches over full matches
+        // --- 1. PARSE MARKDOWN FORMATTING ---
+        // Headers (H1, H2, H3)
+        safeText = safeText.replace(/^### (.*$)/gim, '<h3 class="text-lg font-serif font-bold text-amber-600 mt-3 mb-1">$1</h3>');
+        safeText = safeText.replace(/^## (.*$)/gim, '<h2 class="text-xl font-serif font-bold text-amber-500 mt-4 mb-2">$1</h2>');
+        safeText = safeText.replace(/^# (.*$)/gim, '<h1 class="text-2xl font-serif font-black text-amber-500 mt-5 mb-2">$1</h1>');
+        
+        // Lists
+        safeText = safeText.replace(/^\- (.*$)/gim, '<li class="ml-4 list-disc marker:text-amber-600">$1</li>');
+
+        // Bold, Underline, Italic
+        safeText = safeText.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-stone-900">$1</strong>');
+        safeText = safeText.replace(/__(.*?)__/g, '<u class="underline decoration-stone-500 underline-offset-2">$1</u>');
+        safeText = safeText.replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, '<em class="italic text-stone-700">$1</em>');
+        safeText = safeText.replace(/\b_(.*?)_\b/g, '<em class="italic text-stone-700">$1</em>');
+
+        // --- 2. PARSE CODEX LINKS ---
         const sortedCache = [...window.appData.codexCache].sort((a,b) => b.length - a.length);
         
         sortedCache.forEach(name => {
-            // Escape regex specials
             const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const regex = new RegExp(`\\b${escapedName}\\b`, 'gi');
+            // Safely look for word boundaries but ignore matches that happen inside HTML tags
+            const regex = new RegExp(`(?<!<[^>]*)\\b${escapedName}\\b(?![^<]*>)`, 'gi');
             
             const entry = (window.appData.activeCampaign?.codex || []).find(c => c.name.toLowerCase() === name.toLowerCase());
             if (entry) {
                 safeText = safeText.replace(regex, (match) => {
-                    return `<span class="codex-link" onclick="window.appActions.viewCodex('${entry.id}')">${match}</span>`;
+                    return `<span class="codex-link" onclick="event.stopPropagation(); window.appActions.viewCodex('${entry.id}')">${match}</span>`;
                 });
             }
         });
         
-        return safeText.replace(/\n/g, '<br>');
+        // --- 3. LINE BREAKS ---
+        safeText = safeText.replace(/\n/g, '<br>');
+        
+        // Cleanup trailing <br> tags immediately following headings or lists to prevent awkward spacing
+        safeText = safeText.replace(/<\/h1><br>/g, '</h1>');
+        safeText = safeText.replace(/<\/h2><br>/g, '</h2>');
+        safeText = safeText.replace(/<\/h3><br>/g, '</h3>');
+        safeText = safeText.replace(/<\/li><br>/g, '</li>');
+
+        return safeText;
     },
 
     handleSmartInput: (textarea) => {
         window.appData.activeSmartTextarea = textarea;
         const text = textarea.value;
         const cursorPos = textarea.selectionStart;
-        
-        const lastChunk = text.substring(0, cursorPos).split(/[\n\.\,\!\?]/).pop();
-        const lastWord = lastChunk.trim().split(" ").pop(); 
         
         // Trigger on "@" symbol
         const match = text.substring(0, cursorPos).match(/@([\w\s]*)$/);
@@ -597,8 +698,6 @@ window.appActions = {
         
         suggestions.innerHTML = '';
         
-        // In a real robust app, we'd use a library for exact caret coordinates in textareas.
-        // For our static setup, we attach the box near the textarea element.
         const rect = inputEl.getBoundingClientRect();
         suggestions.style.left = (rect.left + window.scrollX + 20) + 'px';
         suggestions.style.top = (rect.top + window.scrollY + 30) + 'px'; 
@@ -615,17 +714,15 @@ window.appActions = {
                 const after = text.substring(cursor);
                 inputEl.value = before + m + after;
                 suggestions.style.display = 'none';
-                window.appActions.updateSessionBudget(); // Trigger auto-save draft processing
             };
             suggestions.appendChild(div);
         });
     },
 
     defineSelection: (btn) => {
-        const row = btn.closest('.scene-row');
-        const textarea = row.querySelector('.scene-editor');
-        
-        if (textarea.classList.contains('hidden')) return;
+        // Find selection inside the universal editor
+        const textarea = document.getElementById('ue-textarea');
+        if (!textarea || textarea.offsetParent === null) return; // If UE isn't visible, do nothing
         
         const start = textarea.selectionStart;
         const end = textarea.selectionEnd;
@@ -638,7 +735,6 @@ window.appActions = {
         const selectedText = textarea.value.substring(start, end).trim();
         if (!selectedText) return;
         
-        // Open the Codex Quick Edit Modal (Will inject this into the global popup container)
         window.appActions._openCodexModal({ name: selectedText, isNew: true });
     },
 
@@ -668,9 +764,11 @@ window.appActions = {
         if (entry.tags) {
             tagsHTML += entry.tags.map(t => `<span class="codex-tag">${t}</span>`).join('');
         }
+        
+        const parsedDesc = desc ? window.appActions.parseSmartText(desc) : "No description provided.";
 
         container.innerHTML = `
-            <div id="codex-popup" class="fixed inset-0 bg-stone-950/90 z-[10000] flex items-center justify-center p-4 backdrop-blur-sm animate-in">
+            <div id="codex-popup" class="fixed inset-0 bg-stone-950/90 z-[12000] flex items-center justify-center p-4 backdrop-blur-sm animate-in">
                 <div class="bg-[#f4ebd8] border-2 border-stone-800 p-6 max-w-lg w-full shadow-[0_0_30px_rgba(0,0,0,0.8)] relative flex flex-col gap-4 max-h-[90vh] overflow-y-auto custom-scrollbar rounded-sm">
                     <button onclick="document.getElementById('global-popup-container').innerHTML=''" class="absolute top-3 right-4 text-stone-500 hover:text-red-800 text-2xl transition"><i class="fa-solid fa-xmark"></i></button>
                     
@@ -678,7 +776,7 @@ window.appActions = {
                     <div id="codex-popup-view" class="${viewHidden}">
                         <h3 class="text-2xl text-stone-900 font-serif font-bold mb-2 border-b-2 border-stone-300 pb-2">${name}</h3>
                         <div class="flex gap-2 mb-4 flex-wrap">${tagsHTML}</div>
-                        <div class="text-sm text-stone-700 leading-relaxed font-sans whitespace-pre-wrap bg-[#fdfbf7] p-4 border border-[#d4c5a9] rounded-sm shadow-inner min-h-[100px]">${desc || "No description provided."}</div>
+                        <div class="text-sm text-stone-700 leading-relaxed font-sans whitespace-pre-wrap bg-[#fdfbf7] p-4 border border-[#d4c5a9] rounded-sm shadow-inner min-h-[100px]">${parsedDesc}</div>
                         <div class="mt-6 pt-4 border-t border-[#d4c5a9] text-right">
                             <button onclick="document.getElementById('codex-popup-view').classList.add('hidden'); document.getElementById('codex-popup-edit').classList.remove('hidden');" class="text-xs text-stone-600 hover:text-amber-600 font-bold uppercase tracking-widest flex items-center justify-end w-full"><i class="fa-solid fa-pen mr-2"></i> Amend Record</button>
                         </div>
@@ -713,7 +811,7 @@ window.appActions = {
                         
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Description</label>
-                            <textarea id="cx-modal-desc" class="w-full h-40 bg-[#fdfbf7] border border-[#d4c5a9] text-stone-900 p-3 text-sm focus:border-red-900 outline-none resize-none rounded-sm shadow-inner custom-scrollbar">${desc}</textarea>
+                            <textarea id="cx-modal-desc" class="w-full h-40 bg-[#fdfbf7] border border-[#d4c5a9] text-stone-900 p-3 text-sm focus:border-red-900 outline-none resize-none rounded-sm shadow-inner custom-scrollbar" placeholder="Description... Use @ to link other entries.">${desc}</textarea>
                         </div>
                         
                         <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-[#d4c5a9]">
