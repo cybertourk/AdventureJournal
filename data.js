@@ -450,6 +450,33 @@ window.appActions = {
         notify("Hero removed.", "success");
     },
 
+    kickPlayer: async (uid) => {
+        updateDerivedState();
+        const camp = window.appData.activeCampaign;
+        if (!camp || !camp._isDM) return;
+
+        if (!confirm("Exile this player from the campaign? They will lose access to the tome.")) return;
+
+        const updatedPlayers = (camp.activePlayers || []).filter(id => id !== uid);
+        const updatedNames = { ...camp.playerNames };
+        delete updatedNames[uid];
+        
+        const updatedPCs = (camp.playerCharacters || []).map(pc => {
+            if (pc.playerId === uid) return { ...pc, playerId: '' };
+            return pc;
+        });
+
+        const updatedCamp = {
+            ...camp,
+            activePlayers: updatedPlayers,
+            playerNames: updatedNames,
+            playerCharacters: updatedPCs
+        };
+
+        await saveCampaign(updatedCamp);
+        notify("Player exiled from the campaign.", "success");
+    },
+
     // --- Session Editing ---
     openSessionEdit: (sessionId = null) => {
         window.appData.activeSessionId = sessionId;
