@@ -16,8 +16,8 @@ export function renderSmartField(id, labelHtml, value, placeholderText, rows, wr
     const hasText = value && value.trim().length > 0;
     const viewContent = (hasText && window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(value) : `<span class="text-stone-400 italic font-sans">${placeholderText || "Tap to edit..."}</span>`;
 
-    // Strip HTML from label to pass as plain text to the editor modal title
-    const plainLabel = labelHtml.replace(/<[^>]*>?/gm, '').trim();
+    // Strip HTML from label to pass as plain text to the editor modal title, and escape apostrophes!
+    const plainLabel = labelHtml.replace(/<[^>]*>?/gm, '').trim().replace(/'/g, "\\'");
 
     return `
     <div class="scene-row flex flex-col ${wrapperClass} group cursor-text" onclick="window.appActions.openUniversalEditor('input-${id}', '${plainLabel}')">
