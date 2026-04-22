@@ -1,3 +1,4 @@
+```javascript
 import { renderSmartField, renderLevelOptions } from './ui-core.js';
 
 export function getSessionEditHTML(state) {
@@ -7,6 +8,7 @@ export function getSessionEditHTML(state) {
     if (!adv || !camp) return '';
 
     const isDM = camp._isDM;
+    const myUid = state.currentUserUid;
     
     const draftName = session ? session.name : `Log from ${new Date().toLocaleDateString()}`;
     const draftStartLevel = adv.startLevel;
@@ -16,12 +18,63 @@ export function getSessionEditHTML(state) {
     const draftLootText = session ? session.lootText : '';
     const draftNotes = session ? session.notes : '';
 
-    const clueRow = (c, idx) => `
-        <div class="mb-2 flex gap-2 items-center clue-row bg-[#fdfbf7] border border-[#d4c5a9] p-1.5 rounded-sm shadow-sm">
+    // --- FOG OF WAR FILTER ---
+    const isVisibleToPlayer = (item) => {
+        if (isDM) return true; // DM sees all
+        const vis = item.visibility || { mode: 'public' }; // Default to public for older legacy data
+        if (vis.mode === 'public') return true;
+        if (vis.mode === 'hidden') return false;
+        if (vis.mode === 'specific' && vis.visibleTo && vis.visibleTo.includes(myUid)) return true;
+        return false;
+    };
+
+    const visibleScenes = (session?.scenes || [{id:1, text:''}]).filter(isVisibleToPlayer);
+    const visibleClues = (session?.clues || [{id:1, text:''}]).filter(isVisibleToPlayer);
+
+    // --- VISIBILITY UI HELPER ---
+    const getVisStatus = (item) => {
+        const mode = item?.visibility?.mode || 'public';
+        const players = (item?.visibility?.visibleTo || []).join(',');
+        
+        let icon = 'fa-eye';
+        let color = 'text-emerald-600 hover:text-emerald-500';
+        let label = 'Public';
+        
+        if (mode === 'hidden') {
+            icon = 'fa-eye-slash';
+            color = 'text-red-700 hover:text-red-600';
+            label = 'Hidden';
+        } else if (mode === 'specific') {
+            icon = 'fa-user-lock';
+            color = 'text-blue-600 hover:text-blue-500';
+            label = 'Shared';
+        }
+        
+        return { mode, players, icon, color, label };
+    };
+
+    const clueRow = (c, idx) => {
+        const vis = getVisStatus(c);
+        return `
+        <div class="mb-2 flex gap-2 items-center clue-row bg-[#fdfbf7] border border-[#d4c5a9] p-1.5 rounded-sm shadow-sm group">
             <i class="fa-solid fa-magnifying-glass text-stone-400 ml-1"></i>
+            <input type="hidden" class="vis-mode-input" value="${vis.mode}">
+            <input type="hidden" class="vis-players-input" value="${vis.players}">
+            
             <input type="text" ${!isDM ? 'readonly' : ''} class="clue-input flex-1 bg-transparent border-none text-stone-900 px-1 text-xs sm:text-sm outline-none placeholder:italic placeholder:text-stone-400 ${!isDM ? 'opacity-70' : ''}" placeholder="Quest update, clue, or objective..." value="${(c.text || '').replace(/"/g, '&quot;')}">
-            ${isDM ? `<button class="text-stone-400 hover:text-red-700 font-bold px-2 transition" onclick="this.closest('.clue-row').remove()"><i class="fa-solid fa-xmark"></i></button>` : ''}
+            
+            ${isDM ? `
+            <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button class="${vis.color} font-bold px-2 py-1 text-[10px] uppercase tracking-widest transition flex items-center" onclick="window.appActions.openVisibilityMenu(this)">
+                    <i class="fa-solid ${vis.icon}"></i>
+                </button>
+                <button class="text-stone-400 hover:text-red-700 font-bold px-2 transition" onclick="this.closest('.clue-row').remove()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            ` : ''}
         </div>`;
+    };
 
     let html = `
     <div class="animate-in slide-in-from-bottom-4 duration-300 bg-[#f4ebd8] rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col" style="min-height: calc(100vh - 120px);">
@@ -55,25 +108,25 @@ export function getSessionEditHTML(state) {
             
             <!-- TAB: SESSION -->
             <div id="tab-content-session" class="hidden">
-                <!-- Top Settings Bar -->
+                <!-- Top Settings Bar (DM ONLY FOR BUDGET/LOOT/LEVELS) -->
+                ${isDM ? `
                 <div class="bg-[#fdfbf7] p-3 sm:p-4 rounded-sm border border-[#d4c5a9] shadow-sm mb-4 sm:mb-6 flex flex-col lg:flex-row gap-4 sm:gap-6 lg:items-end">
-                    
                     <div class="flex flex-wrap gap-4 sm:gap-6">
                         <div>
                             <label class="block text-[9px] sm:text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1 sm:mb-1.5">Level Range</label>
                             <div class="flex items-center gap-1 sm:gap-2">
-                                <select id="draft-start-level" ${!isDM ? 'disabled' : ''} class="p-1 sm:p-1.5 border border-[#d4c5a9] rounded-sm text-xs sm:text-sm bg-white font-bold text-stone-700 shadow-sm outline-none focus:border-red-900" onchange="window.appActions.updateSessionBudget()">
+                                <select id="draft-start-level" class="p-1 sm:p-1.5 border border-[#d4c5a9] rounded-sm text-xs sm:text-sm bg-white font-bold text-stone-700 shadow-sm outline-none focus:border-red-900" onchange="window.appActions.updateSessionBudget()">
                                     ${renderLevelOptions(draftStartLevel)}
                                 </select>
                                 <span class="text-stone-400 font-serif italic text-xs sm:text-sm">to</span>
-                                <select id="draft-end-level" ${!isDM ? 'disabled' : ''} class="p-1 sm:p-1.5 border border-[#d4c5a9] rounded-sm text-xs sm:text-sm bg-white font-bold text-stone-700 shadow-sm outline-none focus:border-red-900" onchange="window.appActions.updateSessionBudget()">
+                                <select id="draft-end-level" class="p-1 sm:p-1.5 border border-[#d4c5a9] rounded-sm text-xs sm:text-sm bg-white font-bold text-stone-700 shadow-sm outline-none focus:border-red-900" onchange="window.appActions.updateSessionBudget()">
                                     ${renderLevelOptions(draftEndLevel)}
                                 </select>
                             </div>
                         </div>
                         <div>
                             <label class="block text-[9px] sm:text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1 sm:mb-1.5">Party Size</label>
-                            <input type="number" min="1" id="draft-num-players" ${!isDM ? 'readonly' : ''} value="${draftNumPlayers}" class="p-1 sm:p-1.5 border border-[#d4c5a9] rounded-sm text-xs sm:text-sm w-16 sm:w-20 text-center font-bold text-stone-700 shadow-sm outline-none focus:border-red-900" oninput="window.appActions.updateSessionBudget()">
+                            <input type="number" min="1" id="draft-num-players" value="${draftNumPlayers}" class="p-1 sm:p-1.5 border border-[#d4c5a9] rounded-sm text-xs sm:text-sm w-16 sm:w-20 text-center font-bold text-stone-700 shadow-sm outline-none focus:border-red-900" oninput="window.appActions.updateSessionBudget()">
                         </div>
                     </div>
 
@@ -95,6 +148,7 @@ export function getSessionEditHTML(state) {
                         </div>
                     </div>
                 </div>
+                ` : ''}
 
                 <!-- Modular Layout Grid -->
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8">
@@ -106,23 +160,33 @@ export function getSessionEditHTML(state) {
                             ${isDM ? `<button onclick="window.appActions.addLogScene()" class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-600 hover:text-amber-700 transition"><i class="fa-solid fa-plus mr-1"></i> Add Scene</button>` : ''}
                         </div>
                         <div id="container-scenes">
-                            ${(session?.scenes || [{id:1, text:''}]).map((s, idx) => `
-                            <div class="mb-4 scene-row bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm shadow-sm flex flex-col group ${!isDM ? '' : 'cursor-text'}" ${!isDM ? '' : `onclick="window.appActions.openUniversalEditor('scene-input-${idx}', 'Scene ${idx + 1}')"`}>
-                                <div class="flex justify-between items-center bg-[#f4ebd8] px-3 py-1.5 border-b border-[#d4c5a9] rounded-t-sm">
-                                    <span class="text-[10px] text-stone-500 font-bold uppercase tracking-widest">Scene ${idx + 1}</span>
-                                    ${isDM ? `
-                                    <div class="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button class="text-[10px] text-stone-500 hover:text-blue-600 uppercase font-bold transition" onclick="event.stopPropagation(); window.appActions.openUniversalEditor('scene-input-${idx}', 'Scene ${idx + 1}')"><i class="fa-solid fa-pen"></i> Edit</button>
-                                        <button class="text-[10px] text-red-800 hover:text-red-600 uppercase font-bold transition" onclick="event.stopPropagation(); this.closest('.scene-row').remove()"><i class="fa-solid fa-trash"></i></button>
+                            ${visibleScenes.length === 0 ? `<p class="text-stone-500 italic text-sm font-serif">No scenes revealed.</p>` : ''}
+                            ${visibleScenes.map((s, idx) => {
+                                const vis = getVisStatus(s);
+                                return `
+                                <div class="mb-4 scene-row bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm shadow-sm flex flex-col group ${!isDM ? '' : 'cursor-text'}" ${!isDM ? '' : `onclick="window.appActions.openUniversalEditor('scene-input-${idx}', 'Scene ${idx + 1}')"`}>
+                                    <div class="flex justify-between items-center bg-[#f4ebd8] px-3 py-1.5 border-b border-[#d4c5a9] rounded-t-sm">
+                                        <span class="text-[10px] text-stone-500 font-bold uppercase tracking-widest">Scene ${idx + 1}</span>
+                                        ${isDM ? `
+                                        <div class="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity items-center">
+                                            <button class="${vis.color} font-bold px-2 py-1 text-[10px] uppercase tracking-widest transition flex items-center" onclick="event.stopPropagation(); window.appActions.openVisibilityMenu(this)">
+                                                <i class="fa-solid ${vis.icon} mr-1"></i> ${vis.label}
+                                            </button>
+                                            <div class="w-px h-3 bg-stone-300"></div>
+                                            <button class="text-[10px] text-stone-500 hover:text-blue-600 uppercase font-bold transition" onclick="event.stopPropagation(); window.appActions.openUniversalEditor('scene-input-${idx}', 'Scene ${idx + 1}')"><i class="fa-solid fa-pen"></i> Edit</button>
+                                            <button class="text-[10px] text-red-800 hover:text-red-600 uppercase font-bold transition" onclick="event.stopPropagation(); this.closest('.scene-row').remove()"><i class="fa-solid fa-trash"></i></button>
+                                        </div>
+                                        ` : ''}
                                     </div>
-                                    ` : ''}
+                                    <input type="hidden" class="vis-mode-input" value="${vis.mode}">
+                                    <input type="hidden" class="vis-players-input" value="${vis.players}">
+                                    <input type="hidden" id="scene-input-${idx}" class="scene-hidden-input" value="${(s.text || '').replace(/"/g, '&quot;').replace(/\n/g, '&#10;')}">
+                                    <div id="view-scene-input-${idx}" class="w-full text-stone-800 text-xs sm:text-sm p-3 min-h-[4rem] leading-relaxed whitespace-pre-wrap font-serif ${!isDM ? '' : 'group-hover:bg-white'} transition">
+                                        ${(s.text && window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(s.text) : '<span class="text-stone-400 italic font-sans">No entry.</span>'}
+                                    </div>
                                 </div>
-                                <input type="hidden" id="scene-input-${idx}" class="scene-hidden-input" value="${(s.text || '').replace(/"/g, '&quot;').replace(/\n/g, '&#10;')}">
-                                <div id="view-scene-input-${idx}" class="w-full text-stone-800 text-xs sm:text-sm p-3 min-h-[4rem] leading-relaxed whitespace-pre-wrap font-serif ${!isDM ? '' : 'group-hover:bg-white'} transition">
-                                    ${(s.text && window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(s.text) : '<span class="text-stone-400 italic font-sans">No entry.</span>'}
-                                </div>
-                            </div>
-                            `).join('')}
+                                `;
+                            }).join('')}
                         </div>
                     </div>
 
@@ -134,12 +198,18 @@ export function getSessionEditHTML(state) {
                                 ${isDM ? `<button onclick="window.appActions.addLogClue()" class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-600 hover:text-amber-700 transition"><i class="fa-solid fa-plus mr-1"></i> Add</button>` : ''}
                             </div>
                             <div id="container-clues">
-                                ${(session?.clues || [{id:1, text:''}]).map((c, i) => clueRow(c, i)).join('')}
+                                ${visibleClues.length === 0 ? `<p class="text-stone-500 italic text-sm font-serif">No clues revealed.</p>` : ''}
+                                ${visibleClues.map((c, i) => clueRow(c, i)).join('')}
                             </div>
                         </div>
+                        
+                        <!-- DM ONLY: LOOT FIELD -->
+                        ${isDM ? `
                         <div>
-                            ${renderSmartField('draft-loot', 'Loot <span id="budget-live-calc" class="font-sans font-bold text-red-900 text-[10px] sm:text-xs ml-2">Calc: 0 gp</span>', draftLootText, 'e.g. 50 gp, 2 pp, +1 Longsword...', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', !isDM)}
+                            ${renderSmartField('draft-loot', 'Loot <span id="budget-live-calc" class="font-sans font-bold text-red-900 text-[10px] sm:text-xs ml-2">Calc: 0 gp</span>', draftLootText, 'e.g. 50 gp, 2 pp, +1 Longsword...', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', false)}
                         </div>
+                        ` : ''}
+                        
                         <div>
                             ${renderSmartField('draft-notes', 'General / DM Notes', draftNotes, 'Overall summary of the session...', 4, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', !isDM)}
                         </div>
@@ -261,3 +331,6 @@ export function updateBudgetUI(totalBudget, totalLoot, remaining, calculatedLoot
         liveCalcEl.textContent = `Calc: ${calculatedLootVal.toLocaleString()} gp`;
     }
 }
+
+
+```
