@@ -49,6 +49,7 @@ export function renderApp(state) {
         case 'home': html = getHomeHTML(state); break;
         case 'campaign': html = getCampaignHTML(state); break;
         case 'adventure': html = getAdventureHTML(state); break;
+        case 'adv-roster': html = getAdvRosterHTML(state); break;
         case 'pc-manager': html = getPCManagerHTML(state); break;
         case 'pc-edit': html = getPCEditHTML(state); break;
         case 'session-edit': html = getSessionEditHTML(state); break;
@@ -87,7 +88,7 @@ export function renderBreadcrumbs(state) {
         `;
     }
 
-    if ((state.activeAdventure || state.currentView === 'pc-manager' || state.currentView === 'pc-edit' || state.currentView === 'codex') && state.activeCampaign && state.currentView !== 'campaign') {
+    if ((state.activeAdventure || state.currentView === 'pc-manager' || state.currentView === 'pc-edit' || state.currentView === 'codex' || state.currentView === 'adv-roster') && state.activeCampaign && state.currentView !== 'campaign') {
         html += `<i class="fa-solid fa-chevron-right mx-1 sm:mx-2 text-stone-600 flex-shrink-0 text-[8px] sm:text-xs"></i>`;
         if (state.currentView === 'pc-manager' || state.currentView === 'pc-edit') {
             html += `<button onclick="window.appActions.setView('pc-manager')" class="hover:text-amber-400 uppercase tracking-wider font-bold transition flex-shrink-0 ${state.currentView === 'pc-manager' ? 'text-amber-500' : ''}">Manage Party</button>`;
@@ -102,7 +103,7 @@ export function renderBreadcrumbs(state) {
         }
     }
 
-    if (state.currentView === 'session-edit' || state.currentView === 'journal' || state.currentView === 'pc-edit') {
+    if (state.currentView === 'session-edit' || state.currentView === 'journal' || state.currentView === 'pc-edit' || state.currentView === 'adv-roster') {
         html += `<i class="fa-solid fa-chevron-right mx-1 sm:mx-2 text-stone-600 flex-shrink-0 text-[8px] sm:text-xs"></i>`;
         html += `<span class="uppercase tracking-wider font-bold text-amber-500 flex-shrink-0">`;
         if (state.currentView === 'session-edit') {
@@ -111,6 +112,8 @@ export function renderBreadcrumbs(state) {
             html += state.activeSessionId ? 'Session Scroll' : (state.activeAdventureId ? 'Arc Scroll' : 'Campaign Tome');
         } else if (state.currentView === 'pc-edit') {
             html += state.activePcId ? 'Edit Hero' : 'New Hero';
+        } else if (state.currentView === 'adv-roster') {
+            html += 'Arc Roster';
         }
         html += `</span>`;
     }
@@ -285,11 +288,14 @@ function getAdventureHTML(state) {
                 <h2 class="text-2xl sm:text-3xl md:text-4xl font-serif font-bold text-amber-500 leading-tight">${adv.name}</h2>
                 <div class="flex flex-wrap items-center gap-2 sm:gap-3 text-stone-400 text-xs sm:text-sm font-sans mt-2">
                     <span class="bg-stone-900 px-2 py-1 rounded border border-stone-700 shadow-inner">Level ${adv.startLevel}-${adv.endLevel}</span>
-                    <span class="bg-stone-900 px-2 py-1 rounded border border-stone-700 shadow-inner">${adv.numPlayers} Heroes</span>
+                    <span class="bg-stone-900 px-2 py-1 rounded border border-stone-700 shadow-inner">${adv.numPlayers} Heroes Active</span>
                     <span class="bg-stone-900 px-2 py-1 rounded border border-stone-700 shadow-inner font-bold text-amber-600">${adv.totalLootGP.toLocaleString(undefined, {minimumFractionDigits: 2})} gp Arc Loot</span>
                 </div>
             </div>
             <div class="flex flex-wrap gap-2 w-full md:w-auto">
+                <button onclick="window.appActions.openAdvRoster()" class="flex-1 md:flex-none flex items-center justify-center px-3 sm:px-4 py-2 sm:py-2 bg-stone-800 text-amber-500 border border-stone-600 rounded-sm hover:bg-stone-700 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md">
+                    <i class="fa-solid fa-users-gear mr-1 sm:mr-2"></i> Arc Roster
+                </button>
                 <button onclick="window.appActions.openJournal('adventure')" class="flex-1 md:flex-none flex items-center justify-center px-3 sm:px-4 py-2 sm:py-2 bg-[#f4ebd8] text-stone-900 border border-[#d4c5a9] rounded-sm hover:bg-[#e8dec7] transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md" title="Read adventure scroll">
                     <i class="fa-solid fa-scroll mr-1 sm:mr-2 text-stone-700"></i> Arc Scroll
                 </button>
@@ -341,6 +347,60 @@ function getAdventureHTML(state) {
         html += `</ul>`;
     }
     html += `</div></div>`;
+    return html;
+}
+
+function getAdvRosterHTML(state) {
+    const camp = state.activeCampaign;
+    const adv = state.activeAdventure;
+    if (!camp || !adv) return '';
+
+    const allPCs = camp.playerCharacters || [];
+    const selectedIds = state.tempAdvRoster || [];
+
+    let html = `
+    <div class="animate-in slide-in-from-bottom-4 duration-300 max-w-3xl mx-auto bg-[#f4ebd8] p-6 sm:p-8 rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-full h-2 bg-amber-600"></div>
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl sm:text-3xl font-serif font-bold text-stone-900 flex items-center border-b-2 border-stone-300 pb-2 w-full">
+                <i class="fa-solid fa-users-viewfinder mr-3 text-amber-600"></i> Arc Roster: ${adv.name}
+            </h2>
+        </div>
+        <p class="text-sm text-stone-600 italic mb-6">Select which heroes are actively participating in this adventure arc. Heroes not selected will not appear in session logs for this arc.</p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+    `;
+
+    if (allPCs.length === 0) {
+        html += `<div class="col-span-full text-center text-stone-500 italic py-8">No heroes registered in this campaign yet.</div>`;
+    } else {
+        allPCs.forEach(pc => {
+            const isSelected = selectedIds.includes(pc.id);
+            html += `
+            <label class="flex items-center p-4 border rounded-sm cursor-pointer transition-colors ${isSelected ? 'bg-amber-100 border-amber-500 shadow-inner' : 'bg-[#fdfbf7] border-[#d4c5a9] hover:bg-white hover:border-amber-300 shadow-sm'}">
+                <div class="relative flex items-center justify-center w-6 h-6 mr-4 border-2 rounded-sm ${isSelected ? 'bg-amber-500 border-amber-600' : 'bg-stone-200 border-stone-400'} transition-colors">
+                    ${isSelected ? '<i class="fa-solid fa-check text-white text-xs"></i>' : ''}
+                    <input type="checkbox" class="hidden" ${isSelected ? 'checked' : ''} onchange="window.appActions.toggleAdvRosterPc('${pc.id}')">
+                </div>
+                <div>
+                    <div class="font-serif font-bold text-stone-900 text-lg leading-tight">${pc.name}</div>
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-stone-500 mt-1">${pc.race || 'Unknown'} • ${pc.classLevel || 'Unknown'}</div>
+                </div>
+            </label>
+            `;
+        });
+    }
+
+    html += `
+        </div>
+        <div class="flex justify-end gap-3 pt-4 border-t border-[#d4c5a9]">
+            <button onclick="window.appActions.setView('adventure')" class="px-5 py-2.5 text-stone-600 border border-stone-400 rounded-sm hover:bg-stone-300 transition font-bold uppercase tracking-wider text-xs sm:text-sm">Cancel</button>
+            <button onclick="window.appActions.saveAdvRoster()" class="px-5 py-2.5 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-xs sm:text-sm flex items-center shadow-md">
+                <i class="fa-solid fa-floppy-disk mr-2"></i> Save Roster
+            </button>
+        </div>
+    </div>
+    `;
     return html;
 }
 
@@ -554,6 +614,7 @@ function getCodexHTML(state) {
 function getSessionEditHTML(state) {
     const adv = state.activeAdventure;
     const session = state.activeSession;
+    const camp = state.activeCampaign;
     
     const draftName = session ? session.name : `Log from ${new Date().toLocaleDateString()}`;
     const draftStartLevel = adv.startLevel;
@@ -566,7 +627,7 @@ function getSessionEditHTML(state) {
     const clueRow = (c, idx) => `
         <div class="mb-2 flex gap-2 items-center clue-row bg-[#fdfbf7] border border-[#d4c5a9] p-1.5 rounded-sm shadow-sm">
             <i class="fa-solid fa-magnifying-glass text-stone-400 ml-1"></i>
-            <input type="text" class="clue-input flex-1 bg-transparent border-none text-stone-900 px-1 text-xs sm:text-sm outline-none placeholder:italic placeholder:text-stone-400" placeholder="Quest update, clue, or objective..." value="${c.text || ''}">
+            <input type="text" class="clue-input flex-1 bg-transparent border-none text-stone-900 px-1 text-xs sm:text-sm outline-none placeholder:italic placeholder:text-stone-400" placeholder="Quest update, clue, or objective..." value="${(c.text || '').replace(/"/g, '&quot;')}">
             <button class="text-stone-400 hover:text-red-700 font-bold px-2 transition" onclick="this.closest('.clue-row').remove()"><i class="fa-solid fa-xmark"></i></button>
         </div>`;
 
@@ -694,13 +755,16 @@ function getSessionEditHTML(state) {
             <div id="tab-content-pcs" class="hidden">
     `;
 
-    const pcs = state.activeCampaign?.playerCharacters || [];
+    // Filter PCs down to ONLY the ones active in this specific adventure
+    const activePcIds = adv?.activePcIds || camp?.playerCharacters?.map(p => p.id) || [];
+    const pcs = (camp?.playerCharacters || []).filter(pc => activePcIds.includes(pc.id));
+    
     if (pcs.length === 0) {
         html += `
             <div class="text-center p-8 sm:p-12 bg-[#fdfbf7] rounded-sm border border-[#d4c5a9] shadow-sm">
                 <i class="fa-solid fa-users text-5xl sm:text-6xl text-stone-300 mx-auto mb-3 sm:mb-4"></i>
-                <h3 class="font-serif font-bold text-lg sm:text-xl text-stone-700">No Heroes Assigned</h3>
-                <p class="text-stone-500 text-xs sm:text-sm mb-4 sm:mb-6 font-sans">Return to the campaign overview to add players to the party before logging a session.</p>
+                <h3 class="font-serif font-bold text-lg sm:text-xl text-stone-700">No Heroes Participating</h3>
+                <p class="text-stone-500 text-xs sm:text-sm mb-4 sm:mb-6 font-sans">Return to the adventure overview and manage the Arc Roster to include heroes in this session.</p>
             </div>
         `;
     } else {
