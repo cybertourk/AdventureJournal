@@ -85,13 +85,17 @@ export function getPCEditHTML(state) {
 
     const title = isNew ? "Enroll New Hero" : `Hero Journal: ${pc.name}`;
 
-    // DM assigns the hero to a player UID
+    // DM assigns the hero to a player UID, now fetching Display Names from the campaign map
     let playerAssignHTML = '';
     if (isDM) {
         const activePlayerUIDs = camp.activePlayers || [];
-        const options = activePlayerUIDs.map(uid => 
-            `<option value="${uid}" ${pc.playerId === uid ? 'selected' : ''}>Player UID: ${uid.substring(0,8)}...</option>`
-        ).join('');
+        const playerNames = camp.playerNames || {};
+        
+        const options = activePlayerUIDs.map(uid => {
+            const displayName = playerNames[uid] || `Unknown (${uid.substring(0,5)}...)`;
+            return `<option value="${uid}" ${pc.playerId === uid ? 'selected' : ''}>Player: ${displayName}</option>`;
+        }).join('');
+        
         playerAssignHTML = `
             <div class="col-span-full border-b-2 border-stone-300 pb-4 mb-2">
                 <label class="block text-[10px] font-bold text-blue-700 uppercase tracking-widest mb-1.5"><i class="fa-solid fa-link mr-1"></i> DM Override: Assigned Player</label>
