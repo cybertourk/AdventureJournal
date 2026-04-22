@@ -14,6 +14,7 @@ import {
     query, 
     where 
 } from "./firebase-config.js";
+import { deleteUser } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
 // --- NOTIFICATION HELPER ---
 export function notify(msg, type = 'info') {
@@ -83,6 +84,40 @@ export async function logoutUser() {
     } catch (error) {
         console.error("Logout Error:", error);
         notify("Error leaving: " + error.message, "error");
+    }
+}
+
+export async function deleteUserAccount() {
+    const user = auth.currentUser;
+    if (!user) {
+        notify("You must be logged in to delete your account.", "error");
+        return false;
+    }
+
+    if (!confirm("FINAL WARNING: Are you sure you want to permanently delete your account and all personal data? This cannot be undone.")) {
+        return false;
+    }
+
+    try {
+        // 1. Delete user profile document from Firestore
+        const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid);
+        await deleteDoc(userDocRef);
+
+        // 2. Delete the user from Firebase Authentication
+        await deleteUser(user);
+
+        notify("Your account has been permanently deleted.", "success");
+        return true;
+    } catch (error) {
+        console.error("Error deleting account:", error);
+        
+        // Firebase Security Requirement for sensitive actions
+        if (error.code === 'auth/requires-recent-login') {
+            notify("Security check: You must log out and log back in before deleting your account.", "error");
+        } else {
+            notify("Failed to delete account: " + error.message, "error");
+        }
+        return false;
     }
 }
 
