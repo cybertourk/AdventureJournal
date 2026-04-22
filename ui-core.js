@@ -130,15 +130,20 @@ export function renderBreadcrumbs(state) {
 // --- VIEW GENERATORS ---
 
 function getHomeHTML(state) {
-    let html = `
-    <div class="animate-in fade-in duration-300">
+    const hostedCampaigns = state.campaigns.filter(c => c._isDM);
+    const playedCampaigns = state.campaigns.filter(c => c._isPlayer && !c._isDM); // Ensure we don't show the same campaign twice if the DM is also technically in the activePlayers array
+
+    let html = `<div class="animate-in fade-in duration-300">`;
+
+    // --- SECTION 1: DM CAMPAIGNS ---
+    html += `
         <h2 class="text-2xl sm:text-3xl font-serif font-bold text-amber-500 mb-4 sm:mb-6 border-b-2 border-stone-800 pb-2 sm:pb-3 flex items-center">
-            Your Campaigns
+            Tomes You Scribe
         </h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-12">
     `;
 
-    state.campaigns.forEach(camp => {
+    hostedCampaigns.forEach(camp => {
         const totalSessions = camp.adventures ? camp.adventures.reduce((sum, adv) => sum + adv.sessions.length, 0) : 0;
         const advCount = camp.adventures ? camp.adventures.length : 0;
         const pcCount = camp.playerCharacters ? camp.playerCharacters.length : 0;
@@ -152,10 +157,15 @@ function getHomeHTML(state) {
                         ${advCount} Adventures <span class="mx-1">•</span> ${pcCount} Heroes
                     </p>
                     <p class="text-xs sm:text-sm text-stone-700 italic mt-1">${totalSessions} total sessions recorded</p>
+                    
+                    <!-- Copy ID Button -->
+                    <button onclick="window.appActions.copyCampaignId('${camp.id}', this)" class="mt-3 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-stone-500 hover:text-amber-600 transition flex items-center bg-white border border-[#d4c5a9] px-2 py-1 rounded-sm shadow-sm w-max" title="Copy ID to share with players">
+                        <i class="fa-solid fa-copy mr-1.5"></i> Copy Invite ID
+                    </button>
                 </div>
                 <div class="flex justify-between items-center mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-[#d4c5a9]/50 pl-2">
                     <button onclick="window.appActions.openCampaign('${camp.id}')" class="text-red-900 hover:text-red-700 text-[10px] sm:text-xs font-bold uppercase tracking-wider flex items-center transition py-1 sm:py-0">
-                        Open Campaign <i class="fa-solid fa-arrow-left ml-2 rotate-180"></i>
+                        Open DM Dashboard <i class="fa-solid fa-arrow-left ml-2 rotate-180"></i>
                     </button>
                     <button onclick="window.appActions.deleteCampaign('${camp.id}')" class="text-stone-400 hover:text-red-800 p-2 sm:p-1 rounded transition" title="Burn Tome (Delete Campaign)">
                         <i class="fa-solid fa-skull w-4 h-4 sm:w-5 sm:h-5"></i>
@@ -181,8 +191,62 @@ function getHomeHTML(state) {
                 </div>
             </div>
         </div>
+    `;
+
+    // --- SECTION 2: PLAYER CAMPAIGNS ---
+    html += `
+        <h2 class="text-2xl sm:text-3xl font-serif font-bold text-blue-500 mb-4 sm:mb-6 border-b-2 border-stone-800 pb-2 sm:pb-3 flex items-center">
+            Tomes You Play
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8">
+    `;
+
+    playedCampaigns.forEach(camp => {
+        const totalSessions = camp.adventures ? camp.adventures.reduce((sum, adv) => sum + adv.sessions.length, 0) : 0;
+        const pcCount = camp.playerCharacters ? camp.playerCharacters.length : 0;
+
+        html += `
+            <div class="bg-stone-900 p-4 sm:p-5 rounded-sm border border-stone-700 shadow-[2px_2px_8px_rgba(0,0,0,0.4)] flex flex-col justify-between group relative overflow-hidden hover:border-blue-900 transition-colors">
+                <div class="absolute top-0 left-0 w-1 h-full bg-blue-900"></div>
+                <div class="pl-2">
+                    <h3 class="font-serif font-bold text-lg sm:text-xl text-stone-200 truncate" title="${camp.name}">${camp.name}</h3>
+                    <p class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-stone-500 mt-2">
+                        ${pcCount} Heroes in Party
+                    </p>
+                    <p class="text-xs sm:text-sm text-stone-400 italic mt-1">${totalSessions} total sessions recorded</p>
+                </div>
+                <div class="flex justify-between items-center mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-stone-800 pl-2">
+                    <button onclick="window.appActions.openCampaign('${camp.id}')" class="text-blue-500 hover:text-blue-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider flex items-center transition py-1 sm:py-0">
+                        Open Player Dashboard <i class="fa-solid fa-arrow-left ml-2 rotate-180"></i>
+                    </button>
+                    <!-- For players, maybe just a leave button instead of delete -->
+                    <button class="text-stone-600 hover:text-red-500 p-2 sm:p-1 rounded transition" title="Leave Campaign">
+                        <i class="fa-solid fa-door-open w-4 h-4 sm:w-5 sm:h-5"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+
+    html += `
+            <!-- Join Button -->
+            <button id="join-camp-btn" onclick="window.appActions.toggleJoinCampaignForm()" class="border-2 border-dashed border-stone-700 rounded-sm p-4 sm:p-5 flex flex-col items-center justify-center text-stone-500 hover:text-blue-500 hover:border-blue-900 hover:bg-stone-800/50 transition min-h-[120px] sm:min-h-[160px]">
+                <i class="fa-solid fa-link w-6 h-6 sm:w-8 sm:h-8 mb-2"></i>
+                <span class="font-bold uppercase tracking-wider text-xs sm:text-sm">Join By ID</span>
+            </button>
+            
+            <!-- Join Form (Hidden) -->
+            <div id="join-camp-form" class="hidden border border-stone-600 bg-stone-800 rounded-sm p-4 sm:p-5 flex flex-col justify-center min-h-[120px] sm:min-h-[160px] shadow-lg">
+                <input type="text" id="join-camp-id" placeholder="Paste Invite ID here..." class="w-full p-2 bg-stone-900 text-amber-50 border border-stone-500 rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-900 mb-3 sm:mb-4 font-mono font-bold placeholder:font-sans placeholder:font-normal placeholder:text-stone-500 text-sm sm:text-base text-center tracking-widest" onkeydown="if(event.key === 'Enter') window.appActions.joinCampaign()">
+                <div class="flex justify-end gap-2 mt-auto">
+                    <button onclick="window.appActions.toggleJoinCampaignForm()" class="px-3 py-1.5 text-stone-400 hover:text-white text-[10px] sm:text-xs font-bold uppercase tracking-wider transition">Cancel</button>
+                    <button onclick="window.appActions.joinCampaign()" class="px-4 py-1.5 bg-blue-900 text-amber-50 rounded-sm hover:bg-blue-800 text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-md transition">Join</button>
+                </div>
+            </div>
+        </div>
     </div>
     `;
+
     return html;
 }
 
