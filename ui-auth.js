@@ -55,7 +55,11 @@ export function initAuthUI() {
             
             const emailInput = document.getElementById('register-email');
             const passwordInput = document.getElementById('register-password');
-            const roleInput = document.getElementById('register-role');
+            
+            // Get the value of the currently selected radio button
+            const selectedRoleElement = document.querySelector('input[name="register-role"]:checked');
+            const roleValue = selectedRoleElement ? selectedRoleElement.value : 'player'; 
+
             const submitBtn = registerForm.querySelector('button[type="submit"]');
             
             // Basic UI feedback
@@ -64,7 +68,7 @@ export function initAuthUI() {
             submitBtn.disabled = true;
 
             try {
-                await registerUser(emailInput.value, passwordInput.value, roleInput.value);
+                await registerUser(emailInput.value, passwordInput.value, roleValue);
                 // On success, the auth state changes automatically
             } catch (error) {
                 // If registration fails, reset the button
