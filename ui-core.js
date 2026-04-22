@@ -471,7 +471,7 @@ function getPCEditHTML(state) {
     
     const pc = !isNew && camp?.playerCharacters 
         ? camp.playerCharacters.find(p => p.id === state.activePcId) 
-        : { name: '', race: '', classLevel: '', ideals: '', bonds: '', flaws: '', backstory: '', dmNotes: '' };
+        : { name: '', race: '', classLevel: '', background: '', alignment: '', faith: '', gender: '', age: '', size: '', height: '', weight: '', eyes: '', hair: '', skin: '', traits: '', ideals: '', bonds: '', flaws: '', appearance: '', backstory: '', dmNotes: '' };
 
     if (!pc) return `<div class="text-center text-red-500 p-8">Hero not found.</div>`;
 
@@ -507,10 +507,62 @@ function getPCEditHTML(state) {
                     <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Class & Level</label>
                     <input type="text" id="pc-edit-class" value="${pc.classLevel || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white font-bold text-stone-700 shadow-sm outline-none focus:border-red-900" placeholder="e.g. Ranger 4">
                 </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Background</label>
+                    <input type="text" id="pc-edit-background" value="${pc.background || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white font-bold text-stone-700 shadow-sm outline-none focus:border-red-900" placeholder="e.g. Acolyte">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Alignment</label>
+                    <input type="text" id="pc-edit-alignment" value="${pc.alignment || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white font-bold text-stone-700 shadow-sm outline-none focus:border-red-900" placeholder="e.g. Chaotic Good">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Faith / Deity</label>
+                    <input type="text" id="pc-edit-faith" value="${pc.faith || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white font-bold text-stone-700 shadow-sm outline-none focus:border-red-900" placeholder="e.g. Corellon Larethian">
+                </div>
+            </div>
+
+            <!-- Characteristics Grid -->
+            <div class="bg-[#fdfbf7] p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-inner">
+                <h3 class="text-xs sm:text-sm font-bold text-stone-800 font-serif mb-3 border-b border-[#d4c5a9] pb-1">Characteristics</h3>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Gender</label>
+                        <input type="text" id="pc-edit-gender" value="${pc.gender || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-700 shadow-sm outline-none focus:border-red-900">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Age</label>
+                        <input type="text" id="pc-edit-age" value="${pc.age || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-700 shadow-sm outline-none focus:border-red-900">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Size</label>
+                        <input type="text" id="pc-edit-size" value="${pc.size || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-700 shadow-sm outline-none focus:border-red-900" placeholder="Medium">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Height</label>
+                        <input type="text" id="pc-edit-height" value="${pc.height || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-700 shadow-sm outline-none focus:border-red-900">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Weight</label>
+                        <input type="text" id="pc-edit-weight" value="${pc.weight || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-700 shadow-sm outline-none focus:border-red-900">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Eyes</label>
+                        <input type="text" id="pc-edit-eyes" value="${pc.eyes || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-700 shadow-sm outline-none focus:border-red-900">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Hair</label>
+                        <input type="text" id="pc-edit-hair" value="${pc.hair || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-700 shadow-sm outline-none focus:border-red-900">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Skin</label>
+                        <input type="text" id="pc-edit-skin" value="${pc.skin || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-700 shadow-sm outline-none focus:border-red-900">
+                    </div>
+                </div>
             </div>
 
             <!-- Roleplay Grid (Universal Editor Linked) -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                ${renderSmartField('pc-edit-traits', 'Personality Traits', pc.traits || '', 'What are their unique quirks?', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner')}
                 ${renderSmartField('pc-edit-ideals', 'Ideals', pc.ideals || '', 'What drives them?', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner')}
                 ${renderSmartField('pc-edit-bonds', 'Bonds', pc.bonds || '', 'Who or what do they care about?', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner')}
                 ${renderSmartField('pc-edit-flaws', 'Flaws', pc.flaws || '', 'What are their weaknesses?', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner')}
@@ -518,8 +570,9 @@ function getPCEditHTML(state) {
 
             <!-- Detailed Notes (Universal Editor Linked) -->
             <div class="space-y-4 sm:space-y-6">
+                ${renderSmartField('pc-edit-appearance', '<i class="fa-solid fa-user text-stone-500 mr-2"></i> Appearance', pc.appearance || '', "Detailed physical description, scars, tattoos, clothing...", 4, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner')}
                 ${renderSmartField('pc-edit-backstory', '<i class="fa-solid fa-book-open text-stone-500 mr-2"></i> Backstory', pc.backstory || '', "The hero's origins...", 5, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner')}
-                ${renderSmartField('pc-edit-dmnotes', '<i class="fa-solid fa-eye text-red-900 mr-2"></i> DM\'s Secret Notes', pc.dmNotes || '', 'Hooks, secrets, curses, or background ties...', 4, 'bg-stone-200 border border-[#d4c5a9] shadow-inner border-l-4 border-l-red-900')}
+                ${renderSmartField('pc-edit-dmnotes', '<i class="fa-solid fa-eye text-red-900 mr-2"></i> DM\\'s Secret Notes', pc.dmNotes || '', 'Hooks, secrets, curses, or background ties...', 4, 'bg-stone-200 border border-[#d4c5a9] shadow-inner border-l-4 border-l-red-900')}
             </div>
 
         </div>
