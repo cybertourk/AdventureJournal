@@ -1,4 +1,4 @@
-import { saveCampaign, deleteCampaign, notify } from './firebase-manager.js';
+import { saveCampaign, deleteCampaign, notify, joinCampaign } from './firebase-manager.js';
 import { renderApp, BUDGET_BY_LEVEL, updateBudgetUI, updateSessionTabUI } from './ui-core.js';
 import { generateSessionMarkdown, generateAdventureMarkdown, generateCampaignMarkdown } from './markdown.js';
 
@@ -157,6 +157,82 @@ window.appActions = {
         const success = await deleteCampaign(id);
         if (success && window.appData.activeCampaignId === id) {
             window.appActions.setView('home');
+        }
+    },
+
+    // --- Player Actions ---
+    copyCampaignId: (id, btn) => {
+        const originalHtml = btn.innerHTML;
+        const originalClass = btn.className;
+
+        const handleSuccess = () => {
+            btn.innerHTML = `<i class="fa-solid fa-check mr-1.5"></i> Copied!`;
+            btn.className = "mt-3 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-white transition flex items-center bg-emerald-600 border border-emerald-700 px-2 py-1 rounded-sm shadow-sm w-max";
+            setTimeout(() => {
+                btn.innerHTML = originalHtml;
+                btn.className = originalClass;
+            }, 2000);
+        };
+
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(id).then(handleSuccess);
+        } else {
+            let textArea = document.createElement("textarea");
+            textArea.value = id;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-999999px";
+            textArea.style.top = "-999999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                handleSuccess();
+            } catch (err) {
+                console.error('Fallback: Oops, unable to copy', err);
+            }
+            document.body.removeChild(textArea);
+        }
+    },
+
+    toggleJoinCampaignForm: () => {
+        const btn = document.getElementById('join-camp-btn');
+        const form = document.getElementById('join-camp-form');
+        if (btn && form) {
+            btn.classList.toggle('hidden');
+            form.classList.toggle('hidden');
+            if (!form.classList.contains('hidden')) {
+                document.getElementById('join-camp-id').focus();
+            }
+        }
+    },
+
+    joinCampaign: async () => {
+        const input = document.getElementById('join-camp-id');
+        const campId = input ? input.value.trim() : '';
+        if (!campId) {
+            notify("Please enter a valid Campaign ID.", "error");
+            return;
+        }
+        
+        const form = document.getElementById('join-camp-form');
+        const submitBtn = form.querySelector('button:last-child');
+        const origText = submitBtn.textContent;
+        submitBtn.textContent = "Joining...";
+        submitBtn.disabled = true;
+        
+        try {
+            const success = await joinCampaign(campId);
+            if (success) {
+                input.value = '';
+                window.appActions.toggleJoinCampaignForm();
+                // The onSnapshot listener in main.js will automatically fetch the new campaign and update the UI!
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            submitBtn.textContent = origText;
+            submitBtn.disabled = false;
         }
     },
 
