@@ -85,14 +85,19 @@ export function getPCEditHTML(state) {
 
     const title = isNew ? "Enroll New Hero" : `Hero Journal: ${pc.name}`;
 
-    // DM assigns the hero to a player UID, now fetching Display Names from the campaign map
+    // DM assigns the hero to a player UID, fetching Display Names from the campaign map
     let playerAssignHTML = '';
     if (isDM) {
         const activePlayerUIDs = camp.activePlayers || [];
         const playerNames = camp.playerNames || {};
         
-        const options = activePlayerUIDs.map(uid => {
-            const displayName = playerNames[uid] || `Unknown (${uid.substring(0,5)}...)`;
+        // SECURITY FILTER: Remove the DM from the list, and remove any orphaned/deleted test UIDs that lack a display name
+        const validPlayerUIDs = activePlayerUIDs.filter(uid => 
+            uid !== camp.dmId && playerNames[uid]
+        );
+        
+        const options = validPlayerUIDs.map(uid => {
+            const displayName = playerNames[uid];
             return `<option value="${uid}" ${pc.playerId === uid ? 'selected' : ''}>Player: ${displayName}</option>`;
         }).join('');
         
