@@ -117,13 +117,23 @@ export async function deleteUserAccount() {
             // Delete the user from the playerNames dictionary
             const updatedNames = { ...campData.playerNames };
             delete updatedNames[uid];
+            
+            // Also unassign the user from any PCs in the campaign
+            const updatedPCs = (campData.playerCharacters || []).map(pc => {
+                if (pc.playerId === uid) return { ...pc, playerId: '' };
+                return pc;
+            });
 
             const docRef = doc(db, 'artifacts', appId, 'campaigns', campData.id);
-            // We use merge: true so we don't accidentally overwrite DMs currently saving the campaign
+            
+            // BUG FIX: We must NOT use { merge: true } here, because merge ignores deleted keys in map objects!
+            // Instead, we spread the full campData to overwrite the document entirely with the clean data.
             updatePromises.push(setDoc(docRef, { 
+                ...campData,
                 activePlayers: updatedPlayers, 
-                playerNames: updatedNames 
-            }, { merge: true }));
+                playerNames: updatedNames,
+                playerCharacters: updatedPCs
+            }));
         });
 
         // Wait for all campaign cleanups to finish before proceeding
