@@ -12,11 +12,11 @@ export function renderLevelOptions(selected) {
 }
 
 // --- SMART TEXT FIELD GENERATOR (ZEN MODE) ---
-export function renderSmartField(id, labelHtml, value, placeholderText, rows, wrapperClass = '') {
+export function renderSmartField(id, labelHtml, value, placeholderText, rows, wrapperClass = '', isReadonly = false) {
     const hasText = value && value.trim().length > 0;
     const viewContent = (hasText && window.appActions && window.appActions.parseSmartText) 
         ? window.appActions.parseSmartText(value) 
-        : `<span class="text-stone-400 italic font-sans">${placeholderText || "Tap to edit..."}</span>`;
+        : `<span class="text-stone-400 italic font-sans">${placeholderText || "No entry provided."}</span>`;
 
     // Strip HTML from label to pass as plain text to the editor modal title, and escape apostrophes safely
     const plainLabel = labelHtml.replace(/<[^>]*>?/gm, '').trim().replace(/'/g, "\\'");
@@ -24,18 +24,23 @@ export function renderSmartField(id, labelHtml, value, placeholderText, rows, wr
     // Ensure hidden input preserves both double quotes AND newlines
     const safeValue = (value || '').replace(/"/g, '&quot;').replace(/\n/g, '&#10;');
 
+    const onClickAttr = isReadonly ? '' : `onclick="window.appActions.openUniversalEditor('input-${id}', '${plainLabel}')"`;
+    const cursorClass = isReadonly ? '' : 'cursor-text';
+    const hoverClass = isReadonly ? '' : 'group-hover:bg-white';
+    const editBtnHtml = isReadonly ? '' : `<button type="button" class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-600 hover:text-amber-500 transition" onclick="event.stopPropagation(); window.appActions.openUniversalEditor('input-${id}', '${plainLabel}')"><i class="fa-solid fa-pen"></i> Edit</button>`;
+
     return `
-    <div class="scene-row flex flex-col ${wrapperClass} group cursor-text" onclick="window.appActions.openUniversalEditor('input-${id}', '${plainLabel}')">
+    <div class="scene-row flex flex-col ${wrapperClass} group ${cursorClass}" ${onClickAttr}>
         <div class="flex justify-between items-baseline border-b border-[#d4c5a9] pb-1 mb-1 mt-1">
             <label class="flex-grow text-xs sm:text-sm font-bold text-stone-800 font-serif flex items-center justify-between pr-4 pointer-events-none">${labelHtml}</label>
             <div class="flex gap-2 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button type="button" class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-600 hover:text-amber-500 transition" onclick="event.stopPropagation(); window.appActions.openUniversalEditor('input-${id}', '${plainLabel}')"><i class="fa-solid fa-pen"></i> Edit</button>
+                ${editBtnHtml}
             </div>
         </div>
         
         <input type="hidden" id="input-${id}" value="${safeValue}">
         
-        <div id="view-input-${id}" class="w-full p-2 sm:p-3 border border-transparent bg-transparent text-stone-800 text-xs sm:text-sm min-h-[${rows * 1.5}rem] leading-relaxed whitespace-pre-wrap font-serif group-hover:bg-white transition rounded-sm">
+        <div id="view-input-${id}" class="w-full p-2 sm:p-3 border border-transparent bg-transparent text-stone-800 text-xs sm:text-sm min-h-[${rows * 1.5}rem] leading-relaxed whitespace-pre-wrap font-serif ${hoverClass} transition rounded-sm">
             ${viewContent}
         </div>
     </div>
@@ -96,7 +101,7 @@ export function renderBreadcrumbs(state) {
     if ((state.activeAdventure || state.currentView === 'pc-manager' || state.currentView === 'pc-edit' || state.currentView === 'codex' || state.currentView === 'adv-roster') && state.activeCampaign && state.currentView !== 'campaign') {
         html += `<i class="fa-solid fa-chevron-right mx-1 sm:mx-2 text-stone-600 flex-shrink-0 text-[8px] sm:text-xs"></i>`;
         if (state.currentView === 'pc-manager' || state.currentView === 'pc-edit') {
-            html += `<button onclick="window.appActions.setView('pc-manager')" class="hover:text-amber-400 uppercase tracking-wider font-bold transition flex-shrink-0 ${state.currentView === 'pc-manager' ? 'text-amber-500' : ''}">Manage Party</button>`;
+            html += `<button onclick="window.appActions.setView('pc-manager')" class="hover:text-amber-400 uppercase tracking-wider font-bold transition flex-shrink-0 ${state.currentView === 'pc-manager' ? 'text-amber-500' : ''}">Party Manifest</button>`;
         } else if (state.currentView === 'codex') {
             html += `<span class="uppercase tracking-wider font-bold text-amber-500 flex-shrink-0">Campaign Codex</span>`;
         } else {
@@ -131,7 +136,7 @@ export function renderBreadcrumbs(state) {
 
 function getHomeHTML(state) {
     const hostedCampaigns = state.campaigns.filter(c => c._isDM);
-    const playedCampaigns = state.campaigns.filter(c => c._isPlayer && !c._isDM); // Ensure we don't show the same campaign twice if the DM is also technically in the activePlayers array
+    const playedCampaigns = state.campaigns.filter(c => c._isPlayer && !c._isDM);
 
     let html = `<div class="animate-in fade-in duration-300">`;
 
@@ -142,6 +147,10 @@ function getHomeHTML(state) {
         </h2>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-12">
     `;
+
+    if (hostedCampaigns.length === 0) {
+        html += `<div class="col-span-full text-stone-500 italic mb-4">You are not currently hosting any campaigns.</div>`;
+    }
 
     hostedCampaigns.forEach(camp => {
         const totalSessions = camp.adventures ? camp.adventures.reduce((sum, adv) => sum + adv.sessions.length, 0) : 0;
@@ -158,7 +167,6 @@ function getHomeHTML(state) {
                     </p>
                     <p class="text-xs sm:text-sm text-stone-700 italic mt-1">${totalSessions} total sessions recorded</p>
                     
-                    <!-- Copy ID Button -->
                     <button onclick="window.appActions.copyCampaignId('${camp.id}', this)" class="mt-3 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-stone-500 hover:text-amber-600 transition flex items-center bg-white border border-[#d4c5a9] px-2 py-1 rounded-sm shadow-sm w-max" title="Copy ID to share with players">
                         <i class="fa-solid fa-copy mr-1.5"></i> Copy Invite ID
                     </button>
@@ -176,13 +184,11 @@ function getHomeHTML(state) {
     });
 
     html += `
-            <!-- Create Button -->
             <button id="new-camp-btn" onclick="window.appActions.toggleNewCampaignForm()" class="border-2 border-dashed border-stone-700 rounded-sm p-4 sm:p-5 flex flex-col items-center justify-center text-stone-500 hover:text-amber-500 hover:border-amber-600 hover:bg-stone-800/50 transition min-h-[120px] sm:min-h-[160px]">
                 <i class="fa-solid fa-plus w-6 h-6 sm:w-8 sm:h-8 mb-2"></i>
                 <span class="font-bold uppercase tracking-wider text-xs sm:text-sm">Forge New Campaign</span>
             </button>
             
-            <!-- Create Form (Hidden) -->
             <div id="new-camp-form" class="hidden border border-stone-600 bg-stone-800 rounded-sm p-4 sm:p-5 flex flex-col justify-center min-h-[120px] sm:min-h-[160px] shadow-lg">
                 <input type="text" id="new-camp-name" placeholder="Campaign Title..." class="w-full p-2 bg-[#f4ebd8] text-stone-900 border border-stone-500 rounded-sm focus:outline-none focus:ring-2 focus:ring-red-900 mb-3 sm:mb-4 font-serif font-bold placeholder:font-sans placeholder:font-normal placeholder:text-stone-500 text-sm sm:text-base" onkeydown="if(event.key === 'Enter') window.appActions.createCampaign()">
                 <div class="flex justify-end gap-2 mt-auto">
@@ -219,7 +225,6 @@ function getHomeHTML(state) {
                     <button onclick="window.appActions.openCampaign('${camp.id}')" class="text-blue-500 hover:text-blue-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider flex items-center transition py-1 sm:py-0">
                         Open Player Dashboard <i class="fa-solid fa-arrow-left ml-2 rotate-180"></i>
                     </button>
-                    <!-- For players, maybe just a leave button instead of delete -->
                     <button class="text-stone-600 hover:text-red-500 p-2 sm:p-1 rounded transition" title="Leave Campaign">
                         <i class="fa-solid fa-door-open w-4 h-4 sm:w-5 sm:h-5"></i>
                     </button>
@@ -229,13 +234,11 @@ function getHomeHTML(state) {
     });
 
     html += `
-            <!-- Join Button -->
             <button id="join-camp-btn" onclick="window.appActions.toggleJoinCampaignForm()" class="border-2 border-dashed border-stone-700 rounded-sm p-4 sm:p-5 flex flex-col items-center justify-center text-stone-500 hover:text-blue-500 hover:border-blue-900 hover:bg-stone-800/50 transition min-h-[120px] sm:min-h-[160px]">
                 <i class="fa-solid fa-link w-6 h-6 sm:w-8 sm:h-8 mb-2"></i>
                 <span class="font-bold uppercase tracking-wider text-xs sm:text-sm">Join By ID</span>
             </button>
             
-            <!-- Join Form (Hidden) -->
             <div id="join-camp-form" class="hidden border border-stone-600 bg-stone-800 rounded-sm p-4 sm:p-5 flex flex-col justify-center min-h-[120px] sm:min-h-[160px] shadow-lg">
                 <input type="text" id="join-camp-id" placeholder="Paste Invite ID here..." class="w-full p-2 bg-stone-900 text-amber-50 border border-stone-500 rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-900 mb-3 sm:mb-4 font-mono font-bold placeholder:font-sans placeholder:font-normal placeholder:text-stone-500 text-sm sm:text-base text-center tracking-widest" onkeydown="if(event.key === 'Enter') window.appActions.joinCampaign()">
                 <div class="flex justify-end gap-2 mt-auto">
@@ -254,6 +257,7 @@ function getCampaignHTML(state) {
     const camp = state.activeCampaign;
     if (!camp) return '';
 
+    const isDM = camp._isDM;
     const totalCampLoot = camp.adventures ? camp.adventures.reduce((sum, a) => sum + a.totalLootGP, 0) : 0;
     const advCount = camp.adventures ? camp.adventures.length : 0;
     const pcCount = camp.playerCharacters ? camp.playerCharacters.length : 0;
@@ -276,7 +280,7 @@ function getCampaignHTML(state) {
                     <i class="fa-solid fa-book-journal-whills mr-1 sm:mr-2"></i> Codex
                 </button>
                 <button onclick="window.appActions.setView('pc-manager')" class="flex-1 md:flex-none flex items-center justify-center px-3 sm:px-4 py-2 sm:py-2 bg-stone-800 text-amber-500 border border-stone-600 rounded-sm hover:bg-stone-700 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md">
-                    <i class="fa-solid fa-users mr-1 sm:mr-2"></i> Manage Party
+                    <i class="fa-solid ${isDM ? 'fa-users' : 'fa-users-viewfinder'} mr-1 sm:mr-2"></i> ${isDM ? 'Manage Party' : 'View Party'}
                 </button>
                 <button onclick="window.appActions.openJournal('campaign')" class="flex-1 md:flex-none flex items-center justify-center px-3 sm:px-4 py-2 sm:py-2 bg-[#f4ebd8] text-stone-900 border border-[#d4c5a9] rounded-sm hover:bg-[#e8dec7] transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md" title="Read full campaign tome">
                     <i class="fa-solid fa-book mr-1 sm:mr-2 text-stone-700"></i> Grand Tome
@@ -307,39 +311,46 @@ function getCampaignHTML(state) {
                     <button onclick="window.appActions.openAdventure('${adv.id}')" class="text-stone-700 hover:text-stone-900 text-[10px] sm:text-xs font-bold uppercase tracking-wider flex items-center transition py-1">
                         Open Arc <i class="fa-solid fa-arrow-left ml-2 rotate-180"></i>
                     </button>
+                    ${isDM ? `
                     <button onclick="window.appActions.deleteAdventure('${adv.id}')" class="text-stone-400 hover:text-red-800 p-2 sm:p-1 rounded transition" title="Delete Adventure">
                         <i class="fa-solid fa-skull w-4 h-4"></i>
                     </button>
+                    ` : ''}
                 </div>
             </div>
             `;
         });
     }
 
+    if (isDM) {
+        html += `
+                <!-- Create Adventure Button -->
+                <button id="new-adv-btn" onclick="window.appActions.toggleNewAdventureForm()" class="border-2 border-dashed border-stone-600/50 rounded-sm p-4 sm:p-5 flex flex-col items-center justify-center text-stone-400 hover:text-amber-500 hover:border-amber-600/50 hover:bg-stone-800/30 transition min-h-[120px] sm:min-h-[140px]">
+                    <i class="fa-solid fa-plus w-5 h-5 sm:w-6 sm:h-6 mb-2"></i>
+                    <span class="font-bold uppercase tracking-wider text-[10px] sm:text-xs">Start New Adventure</span>
+                </button>
+                
+                <!-- Create Adventure Form (Hidden) -->
+                <div id="new-adv-form" class="hidden border border-stone-600 bg-stone-800 rounded-sm p-3 sm:p-4 flex flex-col justify-center min-h-[120px] sm:min-h-[140px] shadow-lg">
+                    <input type="text" id="new-adv-name" placeholder="Adventure Title..." class="w-full p-2 bg-[#f4ebd8] text-stone-900 border border-stone-500 rounded-sm focus:outline-none focus:ring-2 focus:ring-red-900 mb-2 sm:mb-3 font-serif font-bold placeholder:font-sans placeholder:font-normal placeholder:text-stone-500 text-xs sm:text-sm" onkeydown="if(event.key === 'Enter') window.appActions.createAdventure()">
+                    <div class="flex items-center gap-1 sm:gap-2 mb-3 sm:mb-4">
+                        <select id="new-adv-start" class="p-1 border border-stone-600 rounded-sm text-[10px] sm:text-xs bg-stone-700 text-stone-200 outline-none flex-1">
+                            ${renderLevelOptions(1)}
+                        </select>
+                        <span class="text-stone-400 text-[10px] sm:text-xs italic">to</span>
+                        <select id="new-adv-end" class="p-1 border border-stone-600 rounded-sm text-[10px] sm:text-xs bg-stone-700 text-stone-200 outline-none flex-1">
+                            ${renderLevelOptions(2)}
+                        </select>
+                    </div>
+                    <div class="flex justify-end gap-2 mt-auto">
+                        <button onclick="window.appActions.toggleNewAdventureForm()" class="px-2 sm:px-3 py-1 text-stone-400 hover:text-white text-[9px] sm:text-[10px] font-bold uppercase tracking-wider transition">Cancel</button>
+                        <button onclick="window.appActions.createAdventure()" class="px-2 sm:px-3 py-1 bg-stone-600 text-amber-50 rounded-sm hover:bg-stone-500 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider shadow-md transition">Begin</button>
+                    </div>
+                </div>
+        `;
+    }
+
     html += `
-            <!-- Create Adventure Button -->
-            <button id="new-adv-btn" onclick="window.appActions.toggleNewAdventureForm()" class="border-2 border-dashed border-stone-600/50 rounded-sm p-4 sm:p-5 flex flex-col items-center justify-center text-stone-400 hover:text-amber-500 hover:border-amber-600/50 hover:bg-stone-800/30 transition min-h-[120px] sm:min-h-[140px]">
-                <i class="fa-solid fa-plus w-5 h-5 sm:w-6 sm:h-6 mb-2"></i>
-                <span class="font-bold uppercase tracking-wider text-[10px] sm:text-xs">Start New Adventure</span>
-            </button>
-            
-            <!-- Create Adventure Form (Hidden) -->
-            <div id="new-adv-form" class="hidden border border-stone-600 bg-stone-800 rounded-sm p-3 sm:p-4 flex flex-col justify-center min-h-[120px] sm:min-h-[140px] shadow-lg">
-                <input type="text" id="new-adv-name" placeholder="Adventure Title..." class="w-full p-2 bg-[#f4ebd8] text-stone-900 border border-stone-500 rounded-sm focus:outline-none focus:ring-2 focus:ring-red-900 mb-2 sm:mb-3 font-serif font-bold placeholder:font-sans placeholder:font-normal placeholder:text-stone-500 text-xs sm:text-sm" onkeydown="if(event.key === 'Enter') window.appActions.createAdventure()">
-                <div class="flex items-center gap-1 sm:gap-2 mb-3 sm:mb-4">
-                    <select id="new-adv-start" class="p-1 border border-stone-600 rounded-sm text-[10px] sm:text-xs bg-stone-700 text-stone-200 outline-none flex-1">
-                        ${renderLevelOptions(1)}
-                    </select>
-                    <span class="text-stone-400 text-[10px] sm:text-xs italic">to</span>
-                    <select id="new-adv-end" class="p-1 border border-stone-600 rounded-sm text-[10px] sm:text-xs bg-stone-700 text-stone-200 outline-none flex-1">
-                        ${renderLevelOptions(2)}
-                    </select>
-                </div>
-                <div class="flex justify-end gap-2 mt-auto">
-                    <button onclick="window.appActions.toggleNewAdventureForm()" class="px-2 sm:px-3 py-1 text-stone-400 hover:text-white text-[9px] sm:text-[10px] font-bold uppercase tracking-wider transition">Cancel</button>
-                    <button onclick="window.appActions.createAdventure()" class="px-2 sm:px-3 py-1 bg-stone-600 text-amber-50 rounded-sm hover:bg-stone-500 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider shadow-md transition">Begin</button>
-                </div>
-            </div>
         </div>
     </div>
     `;
@@ -348,7 +359,10 @@ function getCampaignHTML(state) {
 
 function getAdventureHTML(state) {
     const adv = state.activeAdventure;
-    if (!adv) return '';
+    const camp = state.activeCampaign;
+    if (!adv || !camp) return '';
+
+    const isDM = camp._isDM;
 
     let html = `
     <div class="animate-in fade-in duration-300">
@@ -362,14 +376,16 @@ function getAdventureHTML(state) {
                 </div>
             </div>
             <div class="flex flex-wrap gap-2 w-full md:w-auto">
+                ${isDM ? `
                 <button onclick="window.appActions.openAdvRoster()" class="flex-1 md:flex-none flex items-center justify-center px-3 sm:px-4 py-2 sm:py-2 bg-stone-800 text-amber-500 border border-stone-600 rounded-sm hover:bg-stone-700 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md">
                     <i class="fa-solid fa-users-gear mr-1 sm:mr-2"></i> Arc Roster
                 </button>
+                ` : ''}
                 <button onclick="window.appActions.openJournal('adventure')" class="flex-1 md:flex-none flex items-center justify-center px-3 sm:px-4 py-2 sm:py-2 bg-[#f4ebd8] text-stone-900 border border-[#d4c5a9] rounded-sm hover:bg-[#e8dec7] transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md" title="Read adventure scroll">
                     <i class="fa-solid fa-scroll mr-1 sm:mr-2 text-stone-700"></i> Arc Scroll
                 </button>
                 <button onclick="window.appActions.openSessionEdit(null)" class="flex-1 md:flex-none flex items-center justify-center px-3 sm:px-4 py-2 sm:py-2 bg-red-900 text-amber-50 rounded-sm hover:bg-red-800 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md">
-                    <i class="fa-solid fa-pen-nib mr-1 sm:mr-2"></i> Log Session
+                    <i class="fa-solid ${isDM ? 'fa-pen-nib' : 'fa-eye'} mr-1 sm:mr-2"></i> ${isDM ? 'Log Session' : 'View Session'}
                 </button>
             </div>
         </div>
@@ -382,7 +398,7 @@ function getAdventureHTML(state) {
             <div class="p-8 sm:p-12 text-center text-stone-500 flex flex-col items-center">
                 <i class="fa-solid fa-pen-nib text-4xl sm:text-6xl mx-auto text-stone-400 mb-3 sm:mb-4 opacity-50"></i>
                 <p class="font-serif text-base sm:text-lg">The pages of this arc are currently blank.</p>
-                <p class="text-xs sm:text-sm mt-2 font-sans">Click "Log Session" to ink your first entry.</p>
+                ${isDM ? `<p class="text-xs sm:text-sm mt-2 font-sans">Click "Log Session" to ink your first entry.</p>` : ''}
             </div>
         `;
     } else {
@@ -404,11 +420,13 @@ function getAdventureHTML(state) {
                         <i class="fa-solid fa-scroll mr-1"></i> Read
                     </button>
                     <button onclick="window.appActions.openSessionEdit('${session.id}')" class="flex-1 sm:flex-none px-3 py-1.5 sm:py-2 text-amber-50 bg-stone-800 rounded-sm hover:bg-stone-700 border border-stone-600 transition text-[10px] sm:text-xs font-bold uppercase tracking-wider justify-center flex items-center shadow-sm">
-                        <i class="fa-solid fa-pen-nib mr-1"></i> Edit
+                        <i class="fa-solid ${isDM ? 'fa-pen-nib' : 'fa-eye'} mr-1"></i> ${isDM ? 'Edit' : 'View'}
                     </button>
+                    ${isDM ? `
                     <button onclick="window.appActions.deleteSession('${session.id}')" class="flex-none px-4 sm:px-3 py-1.5 sm:py-2 text-amber-50 bg-red-900 rounded-sm hover:bg-red-800 border border-red-950 transition text-[10px] sm:text-xs font-bold uppercase tracking-wider justify-center flex items-center shadow-sm">
                         <i class="fa-solid fa-skull"></i>
                     </button>
+                    ` : ''}
                 </div>
             </li>
             `;
@@ -422,7 +440,7 @@ function getAdventureHTML(state) {
 function getAdvRosterHTML(state) {
     const camp = state.activeCampaign;
     const adv = state.activeAdventure;
-    if (!camp || !adv) return '';
+    if (!camp || !adv || !camp._isDM) return ''; // Security check
 
     const allPCs = camp.playerCharacters || [];
     const selectedIds = state.tempAdvRoster || [];
@@ -474,20 +492,24 @@ function getAdvRosterHTML(state) {
 }
 
 function getPCManagerHTML(state) {
-    const pcs = state.activeCampaign?.playerCharacters || [];
-    const campName = state.activeCampaign?.name || "the campaign";
+    const camp = state.activeCampaign;
+    if (!camp) return '';
+    const pcs = camp.playerCharacters || [];
+    const isDM = camp._isDM;
 
     let html = `
     <div class="animate-in fade-in duration-300">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 sm:mb-8 gap-4 border-b-2 border-stone-800 pb-4">
             <div class="w-full md:w-auto">
                 <h2 class="text-2xl sm:text-3xl md:text-4xl font-serif font-bold text-amber-500 leading-tight">Party Manifest</h2>
-                <p class="text-stone-400 text-xs sm:text-sm font-sans mt-2 italic">Heroes of ${campName}</p>
+                <p class="text-stone-400 text-xs sm:text-sm font-sans mt-2 italic">Heroes of ${camp.name}</p>
             </div>
             <div class="flex flex-wrap gap-2 w-full md:w-auto">
+                ${isDM ? `
                 <button onclick="window.appActions.openPCEdit(null)" class="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-red-900 text-amber-50 border border-red-950 rounded-sm hover:bg-red-800 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md">
                     <i class="fa-solid fa-user-plus mr-2"></i> Enroll Hero
                 </button>
+                ` : ''}
             </div>
         </div>
 
@@ -499,7 +521,6 @@ function getPCManagerHTML(state) {
             <div class="col-span-full p-8 sm:p-12 text-center text-stone-500 bg-[#f4ebd8] rounded-sm border border-[#d4c5a9] shadow-sm">
                 <i class="fa-solid fa-users-slash text-4xl sm:text-6xl mx-auto text-stone-400 mb-3 sm:mb-4 opacity-50"></i>
                 <p class="font-serif text-base sm:text-lg">The tavern is currently empty.</p>
-                <p class="text-xs sm:text-sm mt-2 font-sans">Click "Enroll Hero" to add a player character to the campaign.</p>
             </div>
         `;
     } else {
@@ -538,11 +559,43 @@ function getPCEditHTML(state) {
     
     const pc = !isNew && camp?.playerCharacters 
         ? camp.playerCharacters.find(p => p.id === state.activePcId) 
-        : { name: '', race: '', classLevel: '', background: '', alignment: '', faith: '', gender: '', age: '', size: '', height: '', weight: '', eyes: '', hair: '', skin: '', traits: '', ideals: '', bonds: '', flaws: '', appearance: '', backstory: '', dmNotes: '' };
+        : { name: '', race: '', classLevel: '', background: '', alignment: '', faith: '', gender: '', age: '', size: '', height: '', weight: '', eyes: '', hair: '', skin: '', traits: '', ideals: '', bonds: '', flaws: '', appearance: '', backstory: '', dmNotes: '', playerId: '' };
 
-    if (!pc) return `<div class="text-center text-red-500 p-8">Hero not found.</div>`;
+    if (!pc && !isNew) return `<div class="text-center text-red-500 p-8">Hero not found.</div>`;
+
+    const isDM = camp._isDM;
+    const isOwner = pc.playerId === state.currentUserUid;
+    const canEdit = isDM || isOwner;
+
+    // If player doesn't own it and isn't DM, hide the save buttons entirely (Read Only Mode)
+    const readOnlyMode = !canEdit; 
+
+    // DM has full power. Player owner can edit roleplay fields, but NOT core fields (name/class)
+    const coreReadonlyAttr = !isDM ? 'readonly disabled' : '';
+    const coreClass = !isDM ? 'opacity-70 bg-[#e8dec7] cursor-not-allowed' : 'bg-white focus:border-red-900';
 
     const title = isNew ? "Enroll New Hero" : `Hero Journal: ${pc.name}`;
+
+    // DM assigns the hero to a player UID
+    let playerAssignHTML = '';
+    if (isDM) {
+        const activePlayerUIDs = camp.activePlayers || [];
+        const options = activePlayerUIDs.map(uid => 
+            `<option value="${uid}" ${pc.playerId === uid ? 'selected' : ''}>Player UID: ${uid.substring(0,8)}...</option>`
+        ).join('');
+        playerAssignHTML = `
+            <div class="col-span-full border-b-2 border-stone-300 pb-4 mb-2">
+                <label class="block text-[10px] font-bold text-blue-700 uppercase tracking-widest mb-1.5"><i class="fa-solid fa-link mr-1"></i> DM Override: Assigned Player</label>
+                <select id="pc-edit-player-id" class="w-full sm:w-1/2 p-2 border border-blue-300 rounded-sm text-sm bg-blue-50 font-bold text-blue-900 shadow-sm outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">-- DM Controlled (NPC / Unassigned) --</option>
+                    ${options}
+                </select>
+                <p class="text-[10px] text-stone-500 mt-1 italic">Assigning a player allows them to edit this hero's backstory and traits.</p>
+            </div>
+        `;
+    } else {
+        playerAssignHTML = `<input type="hidden" id="pc-edit-player-id" value="${pc.playerId || ''}">`;
+    }
 
     return `
     <div class="animate-in slide-in-from-bottom-4 duration-300 bg-[#f4ebd8] rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col max-w-4xl mx-auto mb-8">
@@ -552,6 +605,7 @@ function getPCEditHTML(state) {
             <h2 class="text-xl sm:text-2xl font-serif font-bold z-10 flex items-center">
                 <i class="fa-solid fa-user-pen mr-3 text-red-700"></i> ${title}
             </h2>
+            ${readOnlyMode ? `<span class="bg-stone-700 text-amber-100 text-[10px] px-2 py-1 rounded font-bold uppercase tracking-widest z-10 border border-stone-500">Read Only</span>` : ''}
             <div class="absolute right-0 top-0 bottom-0 w-24 sm:w-32 opacity-10 pointer-events-none overflow-hidden flex items-center justify-end pr-4">
                 <i class="fa-solid fa-shield-halved text-5xl sm:text-6xl text-amber-50"></i>
             </div>
@@ -562,29 +616,30 @@ function getPCEditHTML(state) {
             
             <!-- Basic Info Grid -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 bg-[#fdfbf7] p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-inner">
+                ${playerAssignHTML}
                 <div class="col-span-1 sm:col-span-2 lg:col-span-1">
                     <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Hero Name *</label>
-                    <input type="text" id="pc-edit-name" value="${pc.name}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white font-bold text-stone-900 shadow-sm outline-none focus:border-red-900 font-serif" placeholder="e.g. Eldrin">
+                    <input type="text" id="pc-edit-name" value="${pc.name}" ${coreReadonlyAttr} class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 shadow-sm outline-none font-serif ${coreClass}" placeholder="e.g. Eldrin">
                 </div>
                 <div>
                     <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Race / Lineage</label>
-                    <input type="text" id="pc-edit-race" value="${pc.race || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white font-bold text-stone-700 shadow-sm outline-none focus:border-red-900" placeholder="e.g. Wood Elf">
+                    <input type="text" id="pc-edit-race" value="${pc.race || ''}" ${coreReadonlyAttr} class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. Wood Elf">
                 </div>
                 <div>
                     <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Class & Level</label>
-                    <input type="text" id="pc-edit-class" value="${pc.classLevel || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white font-bold text-stone-700 shadow-sm outline-none focus:border-red-900" placeholder="e.g. Ranger 4">
+                    <input type="text" id="pc-edit-class" value="${pc.classLevel || ''}" ${coreReadonlyAttr} class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. Ranger 4">
                 </div>
                 <div>
                     <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Background</label>
-                    <input type="text" id="pc-edit-background" value="${pc.background || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white font-bold text-stone-700 shadow-sm outline-none focus:border-red-900" placeholder="e.g. Acolyte">
+                    <input type="text" id="pc-edit-background" value="${pc.background || ''}" ${coreReadonlyAttr} class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. Acolyte">
                 </div>
                 <div>
                     <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Alignment</label>
-                    <input type="text" id="pc-edit-alignment" value="${pc.alignment || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white font-bold text-stone-700 shadow-sm outline-none focus:border-red-900" placeholder="e.g. Chaotic Good">
+                    <input type="text" id="pc-edit-alignment" value="${pc.alignment || ''}" ${coreReadonlyAttr} class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. Chaotic Good">
                 </div>
                 <div>
                     <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Faith / Deity</label>
-                    <input type="text" id="pc-edit-faith" value="${pc.faith || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white font-bold text-stone-700 shadow-sm outline-none focus:border-red-900" placeholder="e.g. Corellon Larethian">
+                    <input type="text" id="pc-edit-faith" value="${pc.faith || ''}" ${coreReadonlyAttr} class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. Corellon Larethian">
                 </div>
             </div>
 
@@ -594,52 +649,54 @@ function getPCEditHTML(state) {
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <div>
                         <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Gender</label>
-                        <input type="text" id="pc-edit-gender" value="${pc.gender || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-700 shadow-sm outline-none focus:border-red-900">
+                        <input type="text" id="pc-edit-gender" value="${pc.gender || ''}" ${coreReadonlyAttr} class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Age</label>
-                        <input type="text" id="pc-edit-age" value="${pc.age || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-700 shadow-sm outline-none focus:border-red-900">
+                        <input type="text" id="pc-edit-age" value="${pc.age || ''}" ${coreReadonlyAttr} class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Size</label>
-                        <input type="text" id="pc-edit-size" value="${pc.size || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-700 shadow-sm outline-none focus:border-red-900" placeholder="Medium">
+                        <input type="text" id="pc-edit-size" value="${pc.size || ''}" ${coreReadonlyAttr} class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="Medium">
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Height</label>
-                        <input type="text" id="pc-edit-height" value="${pc.height || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-700 shadow-sm outline-none focus:border-red-900">
+                        <input type="text" id="pc-edit-height" value="${pc.height || ''}" ${coreReadonlyAttr} class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Weight</label>
-                        <input type="text" id="pc-edit-weight" value="${pc.weight || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-700 shadow-sm outline-none focus:border-red-900">
+                        <input type="text" id="pc-edit-weight" value="${pc.weight || ''}" ${coreReadonlyAttr} class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Eyes</label>
-                        <input type="text" id="pc-edit-eyes" value="${pc.eyes || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-700 shadow-sm outline-none focus:border-red-900">
+                        <input type="text" id="pc-edit-eyes" value="${pc.eyes || ''}" ${coreReadonlyAttr} class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Hair</label>
-                        <input type="text" id="pc-edit-hair" value="${pc.hair || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-700 shadow-sm outline-none focus:border-red-900">
+                        <input type="text" id="pc-edit-hair" value="${pc.hair || ''}" ${coreReadonlyAttr} class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Skin</label>
-                        <input type="text" id="pc-edit-skin" value="${pc.skin || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-700 shadow-sm outline-none focus:border-red-900">
+                        <input type="text" id="pc-edit-skin" value="${pc.skin || ''}" ${coreReadonlyAttr} class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
                     </div>
                 </div>
             </div>
 
             <!-- Roleplay Grid (Universal Editor Linked) -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                ${renderSmartField('pc-edit-traits', 'Personality Traits', pc.traits || '', 'What are their unique quirks?', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner')}
-                ${renderSmartField('pc-edit-ideals', 'Ideals', pc.ideals || '', 'What drives them?', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner')}
-                ${renderSmartField('pc-edit-bonds', 'Bonds', pc.bonds || '', 'Who or what do they care about?', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner')}
-                ${renderSmartField('pc-edit-flaws', 'Flaws', pc.flaws || '', 'What are their weaknesses?', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner')}
+                ${renderSmartField('pc-edit-traits', 'Personality Traits', pc.traits || '', 'What are their unique quirks?', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', readOnlyMode)}
+                ${renderSmartField('pc-edit-ideals', 'Ideals', pc.ideals || '', 'What drives them?', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', readOnlyMode)}
+                ${renderSmartField('pc-edit-bonds', 'Bonds', pc.bonds || '', 'Who or what do they care about?', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', readOnlyMode)}
+                ${renderSmartField('pc-edit-flaws', 'Flaws', pc.flaws || '', 'What are their weaknesses?', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', readOnlyMode)}
             </div>
 
             <!-- Detailed Notes (Universal Editor Linked) -->
             <div class="space-y-4 sm:space-y-6">
-                ${renderSmartField('pc-edit-appearance', `<i class="fa-solid fa-user text-stone-500 mr-2"></i> Appearance`, pc.appearance || '', "Detailed physical description, scars, tattoos, clothing...", 4, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner')}
-                ${renderSmartField('pc-edit-backstory', `<i class="fa-solid fa-book-open text-stone-500 mr-2"></i> Backstory`, pc.backstory || '', "The hero's origins...", 5, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner')}
-                ${renderSmartField('pc-edit-dmnotes', `<i class="fa-solid fa-eye text-red-900 mr-2"></i> DM's Secret Notes`, pc.dmNotes || '', 'Hooks, secrets, curses, or background ties...', 4, 'bg-stone-200 border border-[#d4c5a9] shadow-inner border-l-4 border-l-red-900')}
+                ${renderSmartField('pc-edit-appearance', `<i class="fa-solid fa-user text-stone-500 mr-2"></i> Appearance`, pc.appearance || '', "Detailed physical description, scars, tattoos, clothing...", 4, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', readOnlyMode)}
+                ${renderSmartField('pc-edit-backstory', `<i class="fa-solid fa-book-open text-stone-500 mr-2"></i> Backstory`, pc.backstory || '', "The hero's origins...", 5, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', readOnlyMode)}
+                
+                <!-- DM ONLY -->
+                ${isDM ? renderSmartField('pc-edit-dmnotes', `<i class="fa-solid fa-eye text-red-900 mr-2"></i> DM's Secret Notes`, pc.dmNotes || '', 'Hooks, secrets, curses, or background ties...', 4, 'bg-stone-200 border border-[#d4c5a9] shadow-inner border-l-4 border-l-red-900', false) : ''}
             </div>
 
         </div>
@@ -647,96 +704,28 @@ function getPCEditHTML(state) {
         <!-- Footer Actions -->
         <div class="bg-[#e8dec7] p-4 border-t border-[#d4c5a9] flex flex-wrap-reverse sm:flex-nowrap justify-between items-center gap-4">
             <div>
-                ${!isNew ? `<button onclick="window.appActions.deletePC('${pc.id}')" class="px-4 py-2 text-stone-500 hover:text-red-700 hover:bg-red-900/10 rounded-sm transition font-bold uppercase tracking-wider text-[10px] sm:text-xs flex items-center"><i class="fa-solid fa-skull mr-2"></i> Remove Hero</button>` : '<div></div>'}
+                ${(!isNew && isDM) ? `<button onclick="window.appActions.deletePC('${pc.id}')" class="px-4 py-2 text-stone-500 hover:text-red-700 hover:bg-red-900/10 rounded-sm transition font-bold uppercase tracking-wider text-[10px] sm:text-xs flex items-center"><i class="fa-solid fa-skull mr-2"></i> Remove Hero</button>` : '<div></div>'}
             </div>
             <div class="flex gap-2 w-full sm:w-auto justify-end">
-                <button onclick="window.appActions.setView('pc-manager')" class="flex-1 sm:flex-none px-4 sm:px-6 py-2 bg-[#fdfbf7] text-stone-700 border border-[#d4c5a9] rounded-sm hover:bg-white transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-sm">Cancel</button>
+                <button onclick="window.appActions.setView('pc-manager')" class="flex-1 sm:flex-none px-4 sm:px-6 py-2 bg-[#fdfbf7] text-stone-700 border border-[#d4c5a9] rounded-sm hover:bg-white transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-sm">${readOnlyMode ? 'Back' : 'Cancel'}</button>
+                ${!readOnlyMode ? `
                 <button onclick="window.appActions.savePCEdit()" class="flex-1 sm:flex-none px-4 sm:px-6 py-2 bg-stone-900 text-amber-50 border border-stone-950 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider flex items-center justify-center text-[10px] sm:text-xs shadow-md">
                     <i class="fa-solid fa-floppy-disk mr-2"></i> Inscribe
                 </button>
+                ` : ''}
             </div>
         </div>
     </div>
     `;
-}
-
-function getCodexHTML(state) {
-    const camp = state.activeCampaign;
-    if (!camp) return '';
-    const codex = camp.codex || [];
-    
-    let html = `
-    <div class="animate-in fade-in duration-300">
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 sm:mb-8 gap-4 border-b-2 border-stone-800 pb-4">
-            <div class="w-full md:w-auto">
-                <h2 class="text-2xl sm:text-3xl md:text-4xl font-serif font-bold text-amber-500 leading-tight">Campaign Codex</h2>
-                <p class="text-stone-400 text-xs sm:text-sm font-sans mt-2 italic">Knowledge base for ${camp.name}</p>
-            </div>
-            <div class="flex flex-wrap gap-2 w-full md:w-auto items-center">
-                <div class="relative flex-grow md:flex-grow-0">
-                    <i class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-stone-500 text-xs"></i>
-                    <input type="text" id="codex-search" class="w-full md:w-48 pl-8 pr-3 py-2 bg-stone-900 border border-stone-700 text-stone-200 text-xs rounded-sm focus:outline-none focus:border-amber-600 shadow-inner placeholder-stone-600" placeholder="Search..." onkeyup="window.filterCodex()">
-                </div>
-                <button onclick="window.appActions._openCodexModal({isNew: true})" class="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-amber-600 text-stone-950 border border-amber-500 rounded-sm hover:bg-amber-500 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md">
-                    <i class="fa-solid fa-plus mr-2"></i> New Entry
-                </button>
-            </div>
-        </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6" id="codex-grid">
-    `;
-    
-    if (codex.length === 0) {
-        html += `
-            <div class="col-span-full p-8 sm:p-12 text-center text-stone-500 bg-[#f4ebd8] rounded-sm border border-[#d4c5a9] shadow-sm">
-                <i class="fa-solid fa-book-journal-whills text-4xl sm:text-6xl mx-auto text-stone-400 mb-3 sm:mb-4 opacity-50"></i>
-                <p class="font-serif text-base sm:text-lg">The Codex is empty.</p>
-                <p class="text-xs sm:text-sm mt-2 font-sans">Create entries for NPCs, Locations, and Lore to auto-link them in your session logs.</p>
-            </div>
-        `;
-    } else {
-        const sorted = [...codex].sort((a,b) => a.name.localeCompare(b.name));
-        sorted.forEach(c => {
-            let typeColor = "text-stone-500";
-            if (c.type === 'NPC') typeColor = "text-blue-600";
-            if (c.type === 'Location') typeColor = "text-emerald-600";
-            if (c.type === 'Item') typeColor = "text-amber-600";
-            if (c.type === 'Faction') typeColor = "text-purple-600";
-            if (c.type === 'Lore') typeColor = "text-red-800";
-            
-            const tagsStr = (c.tags || []).join(', ');
-            const hasImg = c.image ? `<i class="fa-solid fa-image text-stone-400 ml-2" title="Has Image"></i>` : '';
-            
-            html += `
-            <div class="codex-card bg-[#fdfbf7] p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-sm flex flex-col group relative overflow-hidden hover:shadow-md transition cursor-pointer" onclick="window.appActions.viewCodex('${c.id}')" data-search="${c.name.toLowerCase()} ${c.type.toLowerCase()} ${tagsStr.toLowerCase()}">
-                <div class="absolute top-0 left-0 w-1 h-full bg-stone-400 group-hover:bg-amber-500 transition-colors"></div>
-                <div class="pl-2 flex justify-between items-start mb-2">
-                    <h3 class="font-serif font-bold text-lg text-stone-900 leading-tight">${c.name} ${hasImg}</h3>
-                </div>
-                <div class="pl-2 flex items-center gap-2 mb-3 flex-wrap">
-                    <span class="text-[9px] font-bold uppercase tracking-wider ${typeColor} border border-current px-1.5 py-0.5 rounded-sm">${c.type}</span>
-                    ${(c.tags || []).slice(0,2).map(t => `<span class="text-[9px] font-bold uppercase tracking-wider text-stone-500 bg-stone-200 px-1.5 py-0.5 rounded-sm">${t}</span>`).join('')}
-                    ${(c.tags && c.tags.length > 2) ? `<span class="text-[9px] font-bold text-stone-400">+${c.tags.length - 2}</span>` : ''}
-                </div>
-                <div class="pl-2 mt-auto pt-3 border-t border-[#d4c5a9]/50">
-                    <p class="text-xs text-stone-600 font-sans line-clamp-2 italic">"${c.desc || 'No description...'}"</p>
-                </div>
-            </div>
-            `;
-        });
-    }
-    
-    html += `
-        </div>
-    </div>
-    `;
-    return html;
 }
 
 function getSessionEditHTML(state) {
     const adv = state.activeAdventure;
     const session = state.activeSession;
     const camp = state.activeCampaign;
+    if (!adv || !camp) return '';
+
+    const isDM = camp._isDM;
     
     const draftName = session ? session.name : `Log from ${new Date().toLocaleDateString()}`;
     const draftStartLevel = adv.startLevel;
@@ -749,8 +738,8 @@ function getSessionEditHTML(state) {
     const clueRow = (c, idx) => `
         <div class="mb-2 flex gap-2 items-center clue-row bg-[#fdfbf7] border border-[#d4c5a9] p-1.5 rounded-sm shadow-sm">
             <i class="fa-solid fa-magnifying-glass text-stone-400 ml-1"></i>
-            <input type="text" class="clue-input flex-1 bg-transparent border-none text-stone-900 px-1 text-xs sm:text-sm outline-none placeholder:italic placeholder:text-stone-400" placeholder="Quest update, clue, or objective..." value="${(c.text || '').replace(/"/g, '&quot;')}">
-            <button class="text-stone-400 hover:text-red-700 font-bold px-2 transition" onclick="this.closest('.clue-row').remove()"><i class="fa-solid fa-xmark"></i></button>
+            <input type="text" ${!isDM ? 'readonly' : ''} class="clue-input flex-1 bg-transparent border-none text-stone-900 px-1 text-xs sm:text-sm outline-none placeholder:italic placeholder:text-stone-400 ${!isDM ? 'opacity-70' : ''}" placeholder="Quest update, clue, or objective..." value="${(c.text || '').replace(/"/g, '&quot;')}">
+            ${isDM ? `<button class="text-stone-400 hover:text-red-700 font-bold px-2 transition" onclick="this.closest('.clue-row').remove()"><i class="fa-solid fa-xmark"></i></button>` : ''}
         </div>`;
 
     let html = `
@@ -758,13 +747,15 @@ function getSessionEditHTML(state) {
         <!-- Header -->
         <div class="bg-stone-900 p-3 sm:p-4 border-b-4 border-red-900 text-amber-500 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 relative">
             <div class="flex-grow w-full sm:w-auto z-10">
-                <input type="text" id="draft-name" value="${draftName}" class="bg-stone-800 text-amber-400 px-3 py-1.5 sm:py-2 rounded-sm border border-stone-600 focus:border-amber-500 focus:outline-none w-full sm:w-80 font-serif font-bold text-lg sm:text-xl shadow-inner" placeholder="Session Title...">
+                <input type="text" id="draft-name" value="${draftName}" ${!isDM ? 'readonly disabled' : ''} class="bg-stone-800 text-amber-400 px-3 py-1.5 sm:py-2 rounded-sm border border-stone-600 focus:border-amber-500 focus:outline-none w-full sm:w-80 font-serif font-bold text-lg sm:text-xl shadow-inner" placeholder="Session Title...">
             </div>
             <div class="flex flex-wrap gap-2 w-full sm:w-auto self-end z-10">
-                <button onclick="window.appActions.setView('adventure')" class="px-4 sm:px-5 py-2 bg-stone-700 hover:bg-stone-600 text-stone-200 border border-stone-500 rounded-sm transition font-bold uppercase tracking-wider text-[10px] sm:text-xs flex-1 sm:flex-none text-center shadow-md">Cancel</button>
+                <button onclick="window.appActions.setView('adventure')" class="px-4 sm:px-5 py-2 bg-stone-700 hover:bg-stone-600 text-stone-200 border border-stone-500 rounded-sm transition font-bold uppercase tracking-wider text-[10px] sm:text-xs flex-1 sm:flex-none text-center shadow-md">${isDM ? 'Cancel' : 'Back'}</button>
+                ${isDM ? `
                 <button onclick="window.appActions.saveSession()" class="px-4 sm:px-5 py-2 bg-red-900 hover:bg-red-800 text-amber-50 border border-red-950 rounded-sm transition font-bold uppercase tracking-wider flex items-center justify-center text-[10px] sm:text-xs flex-1 sm:flex-none shadow-md">
                     <i class="fa-solid fa-pen-nib mr-1 sm:mr-2"></i> Record
                 </button>
+                ` : ''}
             </div>
             <div class="absolute right-0 top-0 bottom-0 w-24 sm:w-32 opacity-10 pointer-events-none overflow-hidden flex items-center justify-end pr-2 sm:pr-4">
                 <i class="fa-solid fa-scroll text-5xl sm:text-6xl text-amber-50"></i>
@@ -790,18 +781,18 @@ function getSessionEditHTML(state) {
                         <div>
                             <label class="block text-[9px] sm:text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1 sm:mb-1.5">Level Range</label>
                             <div class="flex items-center gap-1 sm:gap-2">
-                                <select id="draft-start-level" class="p-1 sm:p-1.5 border border-[#d4c5a9] rounded-sm text-xs sm:text-sm bg-white font-bold text-stone-700 shadow-sm outline-none focus:border-red-900" onchange="window.appActions.updateSessionBudget()">
+                                <select id="draft-start-level" ${!isDM ? 'disabled' : ''} class="p-1 sm:p-1.5 border border-[#d4c5a9] rounded-sm text-xs sm:text-sm bg-white font-bold text-stone-700 shadow-sm outline-none focus:border-red-900" onchange="window.appActions.updateSessionBudget()">
                                     ${renderLevelOptions(draftStartLevel)}
                                 </select>
                                 <span class="text-stone-400 font-serif italic text-xs sm:text-sm">to</span>
-                                <select id="draft-end-level" class="p-1 sm:p-1.5 border border-[#d4c5a9] rounded-sm text-xs sm:text-sm bg-white font-bold text-stone-700 shadow-sm outline-none focus:border-red-900" onchange="window.appActions.updateSessionBudget()">
+                                <select id="draft-end-level" ${!isDM ? 'disabled' : ''} class="p-1 sm:p-1.5 border border-[#d4c5a9] rounded-sm text-xs sm:text-sm bg-white font-bold text-stone-700 shadow-sm outline-none focus:border-red-900" onchange="window.appActions.updateSessionBudget()">
                                     ${renderLevelOptions(draftEndLevel)}
                                 </select>
                             </div>
                         </div>
                         <div>
                             <label class="block text-[9px] sm:text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1 sm:mb-1.5">Party Size</label>
-                            <input type="number" min="1" id="draft-num-players" value="${draftNumPlayers}" class="p-1 sm:p-1.5 border border-[#d4c5a9] rounded-sm text-xs sm:text-sm w-16 sm:w-20 text-center font-bold text-stone-700 shadow-sm outline-none focus:border-red-900" oninput="window.appActions.updateSessionBudget()">
+                            <input type="number" min="1" id="draft-num-players" ${!isDM ? 'readonly' : ''} value="${draftNumPlayers}" class="p-1 sm:p-1.5 border border-[#d4c5a9] rounded-sm text-xs sm:text-sm w-16 sm:w-20 text-center font-bold text-stone-700 shadow-sm outline-none focus:border-red-900" oninput="window.appActions.updateSessionBudget()">
                         </div>
                     </div>
 
@@ -831,49 +822,51 @@ function getSessionEditHTML(state) {
                     <div class="lg:col-span-2 space-y-4">
                         <div class="flex justify-between items-center border-b border-[#d4c5a9] pb-1 mb-2">
                             <label class="text-xs sm:text-sm font-bold text-stone-800 font-serif">Scenes & Encounters</label>
-                            <button onclick="window.appActions.addLogScene()" class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-600 hover:text-amber-700 transition"><i class="fa-solid fa-plus mr-1"></i> Add Scene</button>
+                            ${isDM ? `<button onclick="window.appActions.addLogScene()" class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-600 hover:text-amber-700 transition"><i class="fa-solid fa-plus mr-1"></i> Add Scene</button>` : ''}
                         </div>
                         <div id="container-scenes">
                             ${(session?.scenes || [{id:1, text:''}]).map((s, idx) => `
-                            <div class="mb-4 scene-row bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm shadow-sm flex flex-col group cursor-text" onclick="window.appActions.openUniversalEditor('scene-input-${idx}', 'Scene ${idx + 1}')">
+                            <div class="mb-4 scene-row bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm shadow-sm flex flex-col group ${!isDM ? '' : 'cursor-text'}" ${!isDM ? '' : `onclick="window.appActions.openUniversalEditor('scene-input-${idx}', 'Scene ${idx + 1}')"`}>
                                 <div class="flex justify-between items-center bg-[#f4ebd8] px-3 py-1.5 border-b border-[#d4c5a9] rounded-t-sm">
                                     <span class="text-[10px] text-stone-500 font-bold uppercase tracking-widest">Scene ${idx + 1}</span>
+                                    ${isDM ? `
                                     <div class="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button class="text-[10px] text-stone-500 hover:text-blue-600 uppercase font-bold transition" onclick="event.stopPropagation(); window.appActions.openUniversalEditor('scene-input-${idx}', 'Scene ${idx + 1}')"><i class="fa-solid fa-pen"></i> Edit</button>
                                         <button class="text-[10px] text-red-800 hover:text-red-600 uppercase font-bold transition" onclick="event.stopPropagation(); this.closest('.scene-row').remove()"><i class="fa-solid fa-trash"></i></button>
                                     </div>
+                                    ` : ''}
                                 </div>
                                 <input type="hidden" id="scene-input-${idx}" class="scene-hidden-input" value="${(s.text || '').replace(/"/g, '&quot;').replace(/\n/g, '&#10;')}">
-                                <div id="view-scene-input-${idx}" class="w-full text-stone-800 text-xs sm:text-sm p-3 min-h-[4rem] leading-relaxed whitespace-pre-wrap font-serif group-hover:bg-white transition">
-                                    ${(s.text && window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(s.text) : '<span class="text-stone-400 italic font-sans">Tap to describe the scene...</span>'}
+                                <div id="view-scene-input-${idx}" class="w-full text-stone-800 text-xs sm:text-sm p-3 min-h-[4rem] leading-relaxed whitespace-pre-wrap font-serif ${!isDM ? '' : 'group-hover:bg-white'} transition">
+                                    ${(s.text && window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(s.text) : '<span class="text-stone-400 italic font-sans">No entry.</span>'}
                                 </div>
                             </div>
                             `).join('')}
                         </div>
                     </div>
 
-                    <!-- Right Col: Clues, Loot, Notes (Now all Zen Mode) -->
+                    <!-- Right Col: Clues, Loot, Notes -->
                     <div class="space-y-4 sm:space-y-6">
                         <div>
                             <div class="flex justify-between items-center border-b border-[#d4c5a9] pb-1 mb-2">
                                 <label class="text-xs sm:text-sm font-bold text-stone-800 font-serif">Investigation & Clues</label>
-                                <button onclick="window.appActions.addLogClue()" class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-600 hover:text-amber-700 transition"><i class="fa-solid fa-plus mr-1"></i> Add</button>
+                                ${isDM ? `<button onclick="window.appActions.addLogClue()" class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-600 hover:text-amber-700 transition"><i class="fa-solid fa-plus mr-1"></i> Add</button>` : ''}
                             </div>
                             <div id="container-clues">
                                 ${(session?.clues || [{id:1, text:''}]).map((c, i) => clueRow(c, i)).join('')}
                             </div>
                         </div>
                         <div>
-                            ${renderSmartField('draft-loot', 'Loot <span id="budget-live-calc" class="font-sans font-bold text-red-900 text-[10px] sm:text-xs ml-2">Calc: 0 gp</span>', draftLootText, 'e.g. 50 gp, 2 pp, +1 Longsword...', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner')}
+                            ${renderSmartField('draft-loot', 'Loot <span id="budget-live-calc" class="font-sans font-bold text-red-900 text-[10px] sm:text-xs ml-2">Calc: 0 gp</span>', draftLootText, 'e.g. 50 gp, 2 pp, +1 Longsword...', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', !isDM)}
                         </div>
                         <div>
-                            ${renderSmartField('draft-notes', 'General / DM Notes', draftNotes, 'Overall summary of the session...', 4, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner')}
+                            ${renderSmartField('draft-notes', 'General / DM Notes', draftNotes, 'Overall summary of the session...', 4, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', !isDM)}
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- TAB: PCs (Zen Mode for Notes) -->
+            <!-- TAB: PCs -->
             <div id="tab-content-pcs" class="hidden">
     `;
 
@@ -900,25 +893,25 @@ function getSessionEditHTML(state) {
                         <span class="font-serif font-bold text-base sm:text-xl text-stone-900 truncate pr-2">${pc.name}</span>
                         <div class="flex gap-2 sm:gap-4 flex-shrink-0">
                             <!-- Inspiration Toggle -->
-                            <label class="flex items-center gap-1 sm:gap-1.5 cursor-pointer group" title="Inspiration">
-                                <input type="checkbox" id="pc-insp-${pc.id}" class="peer hidden" ${pc.inspiration ? 'checked' : ''} />
-                                <div class="p-1 sm:p-1.5 rounded-sm border transition-colors peer-checked:bg-amber-100 peer-checked:border-amber-400 peer-checked:text-amber-600 peer-checked:shadow-inner bg-stone-100 border-stone-200 text-stone-300 group-hover:bg-stone-200 group-hover:text-stone-400">
+                            <label class="flex items-center gap-1 sm:gap-1.5 ${!isDM ? 'cursor-not-allowed opacity-70' : 'cursor-pointer group'}" title="Inspiration">
+                                <input type="checkbox" id="pc-insp-${pc.id}" class="peer hidden" ${pc.inspiration ? 'checked' : ''} ${!isDM ? 'disabled' : ''} />
+                                <div class="p-1 sm:p-1.5 rounded-sm border transition-colors peer-checked:bg-amber-100 peer-checked:border-amber-400 peer-checked:text-amber-600 peer-checked:shadow-inner bg-stone-100 border-stone-200 text-stone-300 ${!isDM ? '' : 'group-hover:bg-stone-200 group-hover:text-stone-400'}">
                                     <i class="fa-solid fa-fire w-4 h-4 sm:w-5 sm:h-5"></i>
                                 </div>
                                 <span class="text-[8px] sm:text-[10px] font-bold uppercase tracking-widest peer-checked:text-amber-700 text-stone-400">Insp</span>
                             </label>
                             
                             <!-- Auto-Success Toggle -->
-                            <label class="flex items-center gap-1 sm:gap-1.5 cursor-pointer group" title="Auto-Success">
-                                <input type="checkbox" id="pc-auto-${pc.id}" class="peer hidden" ${pc.automaticSuccess ? 'checked' : ''} />
-                                <div class="p-1 sm:p-1.5 rounded-sm border transition-colors peer-checked:bg-blue-50 peer-checked:border-blue-300 peer-checked:text-blue-600 peer-checked:shadow-inner bg-stone-100 border-stone-200 text-stone-300 group-hover:bg-stone-200 group-hover:text-stone-400">
+                            <label class="flex items-center gap-1 sm:gap-1.5 ${!isDM ? 'cursor-not-allowed opacity-70' : 'cursor-pointer group'}" title="Auto-Success">
+                                <input type="checkbox" id="pc-auto-${pc.id}" class="peer hidden" ${pc.automaticSuccess ? 'checked' : ''} ${!isDM ? 'disabled' : ''} />
+                                <div class="p-1 sm:p-1.5 rounded-sm border transition-colors peer-checked:bg-blue-50 peer-checked:border-blue-300 peer-checked:text-blue-600 peer-checked:shadow-inner bg-stone-100 border-stone-200 text-stone-300 ${!isDM ? '' : 'group-hover:bg-stone-200 group-hover:text-stone-400'}">
                                     <i class="fa-solid fa-shield-halved w-4 h-4 sm:w-5 sm:h-5"></i>
                                 </div>
                                 <span class="text-[8px] sm:text-[10px] font-bold uppercase tracking-widest peer-checked:text-blue-700 text-stone-400">Auto</span>
                             </label>
                         </div>
                     </div>
-                    ${renderSmartField(`pc-note-${pc.id}`, 'Session Notes', pcNote, 'Heroic deeds or flaws...', 3, 'mt-2 flex-grow')}
+                    ${renderSmartField(`pc-note-${pc.id}`, 'Session Notes', pcNote, 'Heroic deeds or flaws...', 3, 'mt-2 flex-grow', !isDM)}
                 </div>
             `;
         });
