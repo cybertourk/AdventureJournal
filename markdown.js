@@ -4,19 +4,47 @@ export function generateSessionMarkdown(session, campaign) {
     let md = `### ${session.name}\n`;
     md += `*Logged on ${new Date(session.timestamp).toLocaleDateString()}*\n\n`;
 
+    // 1. SCENES (New Dynamic Format)
+    if (session.scenes && session.scenes.length > 0) {
+        const activeScenes = session.scenes.filter(s => s.text && s.text.trim() !== '');
+        if (activeScenes.length > 0) {
+            activeScenes.forEach(scene => {
+                md += `${scene.text}\n\n`;
+            });
+        }
+    } 
+    
+    // Legacy Support (Old Format)
     if (session.events && session.events.trim()) md += `#### Events\n${session.events}\n\n`;
     if (session.npcs && session.npcs.trim()) md += `#### NPCs\n${session.npcs}\n\n`;
     if (session.locations && session.locations.trim()) md += `#### Locations\n${session.locations}\n\n`;
     
+    // 2. CLUES (New Dynamic Format)
+    if (session.clues && session.clues.length > 0) {
+        const activeClues = session.clues.filter(c => c.text && c.text.trim() !== '');
+        if (activeClues.length > 0) {
+            md += `#### Investigation & Clues\n`;
+            activeClues.forEach(clue => {
+                md += `- ${clue.text}\n`;
+            });
+            md += `\n`;
+        }
+    }
+
+    // 3. LOOT
     if (session.lootText && session.lootText.trim()) {
         md += `#### Loot (${session.lootValue.toLocaleString()} gp)\n${session.lootText}\n\n`;
     }
 
+    // 4. NOTES
     if (session.notes && session.notes.trim()) md += `#### General Notes\n${session.notes}\n\n`;
 
+    // 5. PC NOTES
     const pcNotesKeys = Object.keys(session.pcNotes || {});
     if (pcNotesKeys.length > 0 && campaign && campaign.playerCharacters && campaign.playerCharacters.length > 0) {
-        md += `#### Player Character Notes\n`;
+        let hasAnyNotes = false;
+        let pcNotesOutput = `#### Hero Status\n`;
+        
         campaign.playerCharacters.forEach(pc => {
             const note = session.pcNotes[pc.id];
             const hasNote = note && note.trim() !== '';
@@ -25,11 +53,15 @@ export function generateSessionMarkdown(session, campaign) {
             if (pc.automaticSuccess) statuses.push('Auto-Success');
             
             if (hasNote || statuses.length > 0) {
+                hasAnyNotes = true;
                 let statusStr = statuses.length > 0 ? ` [${statuses.join(' | ')}]` : '';
-                md += `- **${pc.name}${statusStr}:** ${hasNote ? note : '*No specific notes this session.*'}\n`;
+                pcNotesOutput += `- **${pc.name}${statusStr}:** ${hasNote ? note : '*No specific notes this session.*'}\n`;
             }
         });
-        md += `\n`;
+        
+        if (hasAnyNotes) {
+            md += pcNotesOutput + `\n`;
+        }
     }
 
     return md;
