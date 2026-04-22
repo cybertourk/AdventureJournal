@@ -23,7 +23,8 @@ window.appData = {
     // Temporary state
     tempPCs: [],
     tempAdvRoster: [], // Tracks which PC IDs are selected for an adventure
-    currentMarkdown: ''
+    currentMarkdown: '',
+    currentUserUid: null // Set from main.js
 };
 
 // --- HELPER FUNCTIONS ---
@@ -149,8 +150,7 @@ window.appActions = {
         };
 
         await saveCampaign(newCamp);
-        window.appData.campaigns.push(newCamp);
-        window.appActions.openCampaign(newCamp.id);
+        // The real-time listener handles injecting the new data into state!
     },
 
     deleteCampaign: async (id) => {
@@ -252,7 +252,10 @@ window.appActions = {
     createAdventure: async () => {
         updateDerivedState();
         const camp = window.appData.activeCampaign;
-        if (!camp) return;
+        if (!camp || !camp._isDM) {
+            notify("Only the DM can begin new adventures.", "error");
+            return;
+        }
 
         const nameInput = document.getElementById('new-adv-name');
         const startLevelSelect = document.getElementById('new-adv-start');
@@ -282,18 +285,18 @@ window.appActions = {
         };
 
         await saveCampaign(updatedCamp);
-        const campIndex = window.appData.campaigns.findIndex(c => c.id === camp.id);
-        if (campIndex !== -1) window.appData.campaigns[campIndex] = updatedCamp;
-        
         window.appActions.openAdventure(newAdv.id);
     },
 
     deleteAdventure: async (id) => {
-        if (!confirm("Delete this adventure arc? All contained sessions will be lost.")) return;
-        
         updateDerivedState();
         const camp = window.appData.activeCampaign;
-        if (!camp) return;
+        if (!camp || !camp._isDM) {
+            notify("Only the DM can delete adventures.", "error");
+            return;
+        }
+
+        if (!confirm("Delete this adventure arc? All contained sessions will be lost.")) return;
 
         const updatedCamp = {
             ...camp,
@@ -301,13 +304,9 @@ window.appActions = {
         };
 
         await saveCampaign(updatedCamp);
-        const campIndex = window.appData.campaigns.findIndex(c => c.id === camp.id);
-        if (campIndex !== -1) window.appData.campaigns[campIndex] = updatedCamp;
         
         if (window.appData.activeAdventureId === id) {
             window.appActions.setView('campaign');
-        } else {
-            reRender();
         }
     },
 
@@ -316,7 +315,7 @@ window.appActions = {
         updateDerivedState();
         const adv = window.appData.activeAdventure;
         const camp = window.appData.activeCampaign;
-        if (!adv || !camp) return;
+        if (!adv || !camp || !camp._isDM) return;
 
         // If the adventure doesn't have an activePcIds array yet (from older save), default to all PCs
         window.appData.tempAdvRoster = adv.activePcIds ? [...adv.activePcIds] : camp.playerCharacters.map(pc => pc.id);
@@ -337,7 +336,7 @@ window.appActions = {
         updateDerivedState();
         const camp = window.appData.activeCampaign;
         const adv = window.appData.activeAdventure;
-        if (!camp || !adv) return;
+        if (!camp || !adv || !camp._isDM) return;
 
         const updatedAdventures = camp.adventures.map(a => {
             if (a.id !== adv.id) return a;
@@ -350,9 +349,6 @@ window.appActions = {
 
         const updatedCamp = { ...camp, adventures: updatedAdventures };
         await saveCampaign(updatedCamp);
-
-        const campIndex = window.appData.campaigns.findIndex(c => c.id === camp.id);
-        if (campIndex !== -1) window.appData.campaigns[campIndex] = updatedCamp;
 
         window.appActions.setView('adventure');
         notify("Arc roster inscribed.", "success");
@@ -370,46 +366,57 @@ window.appActions = {
         const camp = window.appData.activeCampaign;
         if (!camp) return;
 
+        const isDM = camp._isDM;
         const pcId = window.appData.activePcId || generateId();
-        const existingPC = camp.playerCharacters?.find(p => p.id === pcId) || { inspiration: false, automaticSuccess: false };
+        const existingPC = camp.playerCharacters?.find(p => p.id === pcId) || { inspiration: false, automaticSuccess: false, playerId: '' };
+
+        const isOwner = existingPC.playerId === window.appData.currentUserUid;
+
+        if (!isDM && !isOwner) {
+            notify("You do not have permission to modify this hero.", "error");
+            return;
+        }
 
         const nameInput = document.getElementById('pc-edit-name')?.value.trim();
-        if (!nameInput) {
+        if (!nameInput && isDM) {
             notify("Hero must have a name.", "error");
             return;
         }
 
-        // Read all inputs for the expanded Hero Sheet
+        // Gather Inputs safely based on access level
         const updatedPC = {
             ...existingPC,
             id: pcId,
-            name: nameInput,
-            race: document.getElementById('pc-edit-race')?.value.trim() || '',
-            classLevel: document.getElementById('pc-edit-class')?.value.trim() || '',
-            background: document.getElementById('pc-edit-background')?.value.trim() || '',
             
-            // Characteristics
-            alignment: document.getElementById('pc-edit-alignment')?.value.trim() || '',
-            faith: document.getElementById('pc-edit-faith')?.value.trim() || '',
-            gender: document.getElementById('pc-edit-gender')?.value.trim() || '',
-            age: document.getElementById('pc-edit-age')?.value.trim() || '',
-            size: document.getElementById('pc-edit-size')?.value.trim() || '',
-            height: document.getElementById('pc-edit-height')?.value.trim() || '',
-            weight: document.getElementById('pc-edit-weight')?.value.trim() || '',
-            eyes: document.getElementById('pc-edit-eyes')?.value.trim() || '',
-            hair: document.getElementById('pc-edit-hair')?.value.trim() || '',
-            skin: document.getElementById('pc-edit-skin')?.value.trim() || '',
+            // Core Identity (DM only can edit these, Players retain existing)
+            name: isDM ? nameInput : existingPC.name,
+            race: isDM ? (document.getElementById('pc-edit-race')?.value.trim() || '') : existingPC.race,
+            classLevel: isDM ? (document.getElementById('pc-edit-class')?.value.trim() || '') : existingPC.classLevel,
+            background: isDM ? (document.getElementById('pc-edit-background')?.value.trim() || '') : existingPC.background,
+            
+            // Characteristics (DM only)
+            alignment: isDM ? (document.getElementById('pc-edit-alignment')?.value.trim() || '') : existingPC.alignment,
+            faith: isDM ? (document.getElementById('pc-edit-faith')?.value.trim() || '') : existingPC.faith,
+            gender: isDM ? (document.getElementById('pc-edit-gender')?.value.trim() || '') : existingPC.gender,
+            age: isDM ? (document.getElementById('pc-edit-age')?.value.trim() || '') : existingPC.age,
+            size: isDM ? (document.getElementById('pc-edit-size')?.value.trim() || '') : existingPC.size,
+            height: isDM ? (document.getElementById('pc-edit-height')?.value.trim() || '') : existingPC.height,
+            weight: isDM ? (document.getElementById('pc-edit-weight')?.value.trim() || '') : existingPC.weight,
+            eyes: isDM ? (document.getElementById('pc-edit-eyes')?.value.trim() || '') : existingPC.eyes,
+            hair: isDM ? (document.getElementById('pc-edit-hair')?.value.trim() || '') : existingPC.hair,
+            skin: isDM ? (document.getElementById('pc-edit-skin')?.value.trim() || '') : existingPC.skin,
 
-            // Personality (Zen Mode inputs)
+            // Personality & Roleplay (DM or Player Owner can edit)
             traits: document.getElementById('input-pc-edit-traits')?.value || '',
             ideals: document.getElementById('input-pc-edit-ideals')?.value || '',
             bonds: document.getElementById('input-pc-edit-bonds')?.value || '',
             flaws: document.getElementById('input-pc-edit-flaws')?.value || '',
-            
-            // Detailed Notes (Zen Mode inputs)
             appearance: document.getElementById('input-pc-edit-appearance')?.value || '',
             backstory: document.getElementById('input-pc-edit-backstory')?.value || '',
-            dmNotes: document.getElementById('input-pc-edit-dmnotes')?.value || ''
+            
+            // DM Restricted Administrative Fields
+            playerId: isDM ? (document.getElementById('pc-edit-player-id')?.value || '') : (existingPC.playerId || ''),
+            dmNotes: isDM ? (document.getElementById('input-pc-edit-dmnotes')?.value || '') : (existingPC.dmNotes || '')
         };
 
         const isNew = !camp.playerCharacters?.some(p => p.id === pcId);
@@ -420,19 +427,19 @@ window.appActions = {
         const updatedCamp = { ...camp, playerCharacters: newPCs };
 
         await saveCampaign(updatedCamp);
-        const campIndex = window.appData.campaigns.findIndex(c => c.id === camp.id);
-        if (campIndex !== -1) window.appData.campaigns[campIndex] = updatedCamp;
-        
         window.appActions.setView('pc-manager');
         notify("Hero profile inscribed.", "success");
     },
 
     deletePC: async (pcId) => {
-        if (!confirm("Are you sure you want to remove this hero from the campaign?")) return;
-        
         updateDerivedState();
         const camp = window.appData.activeCampaign;
-        if (!camp) return;
+        if (!camp || !camp._isDM) {
+            notify("Only the DM can remove heroes.", "error");
+            return;
+        }
+
+        if (!confirm("Are you sure you want to remove this hero from the campaign?")) return;
 
         const updatedCamp = {
             ...camp,
@@ -440,10 +447,6 @@ window.appActions = {
         };
 
         await saveCampaign(updatedCamp);
-        const campIndex = window.appData.campaigns.findIndex(c => c.id === camp.id);
-        if (campIndex !== -1) window.appData.campaigns[campIndex] = updatedCamp;
-        
-        reRender();
         notify("Hero removed.", "success");
     },
 
@@ -571,6 +574,11 @@ window.appActions = {
         const camp = window.appData.activeCampaign;
         const adv = window.appData.activeAdventure;
         if (!camp || !adv) return;
+        
+        if (!camp._isDM) {
+            notify("Only the DM can alter the core Session Record.", "error");
+            return;
+        }
 
         const draft = window.appActions._gatherSessionDraft();
 
@@ -603,20 +611,20 @@ window.appActions = {
         };
 
         await saveCampaign(updatedCamp);
-        const campIndex = window.appData.campaigns.findIndex(c => c.id === camp.id);
-        if (campIndex !== -1) window.appData.campaigns[campIndex] = updatedCamp;
-        
         window.appActions.setView('adventure');
         notify("Session recorded.", "success");
     },
 
     deleteSession: async (sessionId) => {
-        if (!confirm("Are you sure you want to delete this session log?")) return;
-
         updateDerivedState();
         const camp = window.appData.activeCampaign;
         const adv = window.appData.activeAdventure;
-        if (!camp || !adv) return;
+        if (!camp || !adv || !camp._isDM) {
+            notify("Only the DM can delete session logs.", "error");
+            return;
+        }
+
+        if (!confirm("Are you sure you want to delete this session log?")) return;
 
         const newAdventures = camp.adventures.map(a => {
             if (a.id !== adv.id) return a;
@@ -631,10 +639,6 @@ window.appActions = {
 
         const updatedCamp = { ...camp, adventures: newAdventures };
         await saveCampaign(updatedCamp);
-        const campIndex = window.appData.campaigns.findIndex(c => c.id === camp.id);
-        if (campIndex !== -1) window.appData.campaigns[campIndex] = updatedCamp;
-        
-        reRender();
         notify("Session log destroyed.", "success");
     },
 
@@ -996,11 +1000,6 @@ window.appActions = {
         const updatedCamp = { ...camp, codex: newCodexArray };
 
         await saveCampaign(updatedCamp);
-        
-        const campIndex = window.appData.campaigns.findIndex(c => c.id === camp.id);
-        if (campIndex !== -1) window.appData.campaigns[campIndex] = updatedCamp;
-        updateDerivedState(); 
-
         document.getElementById('global-popup-container').innerHTML = '';
         notify("Codex updated.", "success");
     },
@@ -1018,11 +1017,6 @@ window.appActions = {
         };
 
         await saveCampaign(updatedCamp);
-        
-        const campIndex = window.appData.campaigns.findIndex(c => c.id === camp.id);
-        if (campIndex !== -1) window.appData.campaigns[campIndex] = updatedCamp;
-        updateDerivedState();
-
         document.getElementById('global-popup-container').innerHTML = '';
         notify("Entry destroyed.", "success");
     },
