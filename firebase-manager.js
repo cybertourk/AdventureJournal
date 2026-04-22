@@ -12,7 +12,8 @@ import {
     onSnapshot, 
     collection, 
     query, 
-    where 
+    where,
+    getDocs
 } from "./firebase-config.js";
 import { deleteUser } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
@@ -99,14 +100,45 @@ export async function deleteUserAccount() {
     }
 
     try {
-        // 1. Delete user profile document from Firestore
-        const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid);
+        const uid = user.uid;
+
+        // 1. DATA CLEANUP: Remove user from all campaigns they have joined
+        const campaignsRef = collection(db, 'artifacts', appId, 'campaigns');
+        const q = query(campaignsRef, where("activePlayers", "array-contains", uid));
+        const snapshot = await getDocs(q);
+
+        const updatePromises = [];
+        snapshot.forEach(docSnap => {
+            const campData = docSnap.data();
+            
+            // Filter the user out of the activePlayers array
+            const updatedPlayers = (campData.activePlayers || []).filter(id => id !== uid);
+            
+            // Delete the user from the playerNames dictionary
+            const updatedNames = { ...campData.playerNames };
+            delete updatedNames[uid];
+
+            const docRef = doc(db, 'artifacts', appId, 'campaigns', campData.id);
+            // We use merge: true so we don't accidentally overwrite DMs currently saving the campaign
+            updatePromises.push(setDoc(docRef, { 
+                activePlayers: updatedPlayers, 
+                playerNames: updatedNames 
+            }, { merge: true }));
+        });
+
+        // Wait for all campaign cleanups to finish before proceeding
+        if (updatePromises.length > 0) {
+            await Promise.all(updatePromises);
+        }
+
+        // 2. Delete user profile document from Firestore
+        const userDocRef = doc(db, 'artifacts', appId, 'users', uid);
         await deleteDoc(userDocRef);
 
-        // 2. Delete the user from Firebase Authentication
+        // 3. Delete the user from Firebase Authentication
         await deleteUser(user);
 
-        notify("Your account has been permanently deleted.", "success");
+        notify("Your account and data have been permanently deleted.", "success");
         return true;
     } catch (error) {
         console.error("Error deleting account:", error);
