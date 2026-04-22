@@ -54,14 +54,15 @@ export async function loginUser(email, password) {
     }
 }
 
-export async function registerUser(email, password, role = 'user') {
+export async function registerUser(email, password, displayName, role = 'user') {
     try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
         
-        // Every user is a generic 'user' now and has the capacity for a Personal Codex
+        // Every user is a generic 'user' now, and we save their Display Name
         await setDoc(doc(db, 'artifacts', appId, 'users', user.uid), {
             email: email,
+            displayName: displayName || "Nameless Hero",
             role: role,
             personalCodex: [], 
             created: new Date().toISOString()
@@ -192,17 +193,28 @@ export async function joinCampaign(campaignId) {
     }
 
     try {
+        // Fetch the user's display name from their profile
+        const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid);
+        const userSnap = await getDoc(userDocRef);
+        const displayName = userSnap.exists() && userSnap.data().displayName 
+            ? userSnap.data().displayName 
+            : "Unknown Player";
+
         const docRef = doc(db, 'artifacts', appId, 'campaigns', campaignId);
         const campSnap = await getDoc(docRef);
         
         if (campSnap.exists()) {
             const data = campSnap.data();
             const activePlayers = data.activePlayers || [];
+            const playerNames = data.playerNames || {};
             
+            // Prevent duplicate entries, but always ensure the name map is up to date
             if (!activePlayers.includes(user.uid)) {
                 activePlayers.push(user.uid);
-                await setDoc(docRef, { activePlayers: activePlayers }, { merge: true });
             }
+            playerNames[user.uid] = displayName;
+            
+            await setDoc(docRef, { activePlayers: activePlayers, playerNames: playerNames }, { merge: true });
             
             notify(`Successfully joined ${data.name}!`, "success");
             return true;
@@ -236,6 +248,11 @@ export async function saveCampaign(campaignData) {
         
         if (!cleanData.activePlayers) {
             cleanData.activePlayers = [];
+        }
+        
+        // Ensure playerNames map exists
+        if (!cleanData.playerNames) {
+            cleanData.playerNames = {};
         }
         
         const docRef = doc(db, 'artifacts', appId, 'campaigns', cleanData.id);
