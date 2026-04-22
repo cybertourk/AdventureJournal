@@ -1,25 +1,24 @@
-import { auth, db, appId, doc, getDoc, onAuthStateChanged } from './firebase-config.js';
+import { auth, db, appId, onAuthStateChanged } from './firebase-config.js';
 import { subscribeToCampaigns, subscribeToPlayerCampaigns, subscribeToPersonalData, logoutUser } from './firebase-manager.js';
 import { initAuthUI } from './ui-auth.js';
-import { renderApp } from './ui-core.js';
 import { setCampaignsData } from './data.js';
 
 // Ensure the global state is available
 if (!window.appData) {
     window.appData = {
-        campaigns: [],
+        campaigns: [], // We will store ALL combined campaigns here
         currentView: 'home',
         activeCampaignId: null,
         activeAdventureId: null,
         activeSessionId: null,
         activePcId: null,
-        userRole: null, // Tracks if the logged-in user is 'dm' or 'player'
         personalCodex: [], // Tracks the player's private codex entries
         tempPCs: [],
         tempAdvRoster: [],
         currentMarkdown: '',
         codexCache: [],
-        activeSmartTextarea: null
+        activeSmartTextarea: null,
+        currentUserUid: null // Critical for knowing our exact identity across the app
     };
 }
 
@@ -39,14 +38,40 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Temporary storage for our two separate data streams
+    let hostedCampaigns = [];
+    let playedCampaigns = [];
+
+    // Helper to merge both streams and update the UI
+    const mergeAndSetCampaigns = () => {
+        const mergedMap = new Map();
+        
+        // Add campaigns we play in
+        playedCampaigns.forEach(c => {
+            mergedMap.set(c.id, { ...c, _isPlayer: true });
+        });
+        
+        // Add/Overwrite with campaigns we run (DM status takes precedence)
+        hostedCampaigns.forEach(c => {
+            mergedMap.set(c.id, { ...c, _isDM: true });
+        });
+
+        // Pass the unified, deduplicated list to data.js to trigger a render
+        setCampaignsData(Array.from(mergedMap.values()));
+    };
+
     // Listen for authentication state changes
-    onAuthStateChanged(auth, async (user) => {
+    onAuthStateChanged(auth, (user) => {
         if (user) {
             // User is signed in.
             if (authScreen) authScreen.classList.add('hidden');
             if (appScreen) appScreen.classList.remove('hidden');
+            if (authStatusText) authStatusText.textContent = "Welcome to the Archives";
 
-            // Show the loading spinner while fetching the profile and campaigns
+            window.appData.currentUserUid = user.uid;
+            window.appData.currentView = 'home';
+
+            // Show the loading spinner while fetching
             const container = document.getElementById('app-container');
             if (container) {
                  container.innerHTML = `
@@ -57,53 +82,26 @@ document.addEventListener('DOMContentLoaded', () => {
                  `;
             }
 
-            try {
-                // Determine the user's role from their profile document
-                const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid);
-                const userDoc = await getDoc(userDocRef);
-                
-                let role = 'player'; // Default to player for safety
-                if (userDoc.exists() && userDoc.data().role) {
-                    role = userDoc.data().role;
-                }
+            // 1. Subscribe to campaigns I DM
+            subscribeToCampaigns(user, (campaigns) => {
+                hostedCampaigns = campaigns;
+                mergeAndSetCampaigns();
+            });
 
-                window.appData.userRole = role;
+            // 2. Subscribe to campaigns I Play In
+            subscribeToPlayerCampaigns(user, (campaigns) => {
+                playedCampaigns = campaigns;
+                mergeAndSetCampaigns();
+            });
 
-                if (role === 'dm') {
-                    if (authStatusText) authStatusText.textContent = "Dungeon Master Access";
-                    window.appData.currentView = 'home';
-                    
-                    // Subscribe to the DM's campaigns in Firestore
-                    subscribeToCampaigns(user, (campaigns) => {
-                        setCampaignsData(campaigns);
-                    });
+            // 3. Fetch Personal Data (Private Codex)
+            subscribeToPersonalData(user, (data) => {
+                if (data && data.personalCodex) {
+                    window.appData.personalCodex = data.personalCodex;
                 } else {
-                    if (authStatusText) authStatusText.textContent = "Player Access";
-                    window.appData.currentView = 'player-home';
-                    
-                    // Fetch Campaigns the Player has joined
-                    subscribeToPlayerCampaigns(user, (campaigns) => {
-                        setCampaignsData(campaigns);
-                    });
-
-                    // Fetch the Player's Personal Data (like their private Codex)
-                    subscribeToPersonalData(user, (data) => {
-                        if (data && data.personalCodex) {
-                            window.appData.personalCodex = data.personalCodex;
-                        } else {
-                            window.appData.personalCodex = [];
-                        }
-                    });
+                    window.appData.personalCodex = [];
                 }
-
-            } catch (error) {
-                console.error("Error fetching user profile:", error);
-                // Fallback safely to player on error
-                window.appData.userRole = 'player';
-                if (authStatusText) authStatusText.textContent = "Player Access";
-                window.appData.currentView = 'player-home';
-                setCampaignsData([]);
-            }
+            });
 
         } else {
             // User is signed out.
@@ -117,9 +115,12 @@ document.addEventListener('DOMContentLoaded', () => {
             window.appData.activeAdventureId = null;
             window.appData.activeSessionId = null;
             window.appData.activePcId = null;
-            window.appData.userRole = null;
             window.appData.personalCodex = [];
+            window.appData.currentUserUid = null;
             window.appData.currentView = 'home';
+            
+            hostedCampaigns = [];
+            playedCampaigns = [];
             
             // Unsubscribe listeners when logged out
             subscribeToCampaigns(null, () => {});
