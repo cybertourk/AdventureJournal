@@ -17,8 +17,8 @@ window.appData = {
     activeSession: null,
 
     // Codex & Smart Text State
-    codexCache: [], 
-    activeSmartTextarea: null, 
+    codexCache: [], // Array of strings (names of all codex entries in the active campaign)
+    activeSmartTextarea: null, // Tracks which textarea is currently being typed in
 
     // Temporary state
     tempPCs: [],
@@ -53,7 +53,9 @@ function updateDerivedState() {
     window.appData.activeCampaign = window.appData.campaigns.find(c => c.id === window.appData.activeCampaignId) || null;
     
     if (window.appData.activeCampaign) {
+        // Ensure Codex array exists
         if (!window.appData.activeCampaign.codex) window.appData.activeCampaign.codex = [];
+        // Build Autocomplete Cache
         window.appData.codexCache = window.appData.activeCampaign.codex.map(c => c.name);
         
         if (window.appData.activeAdventureId) {
@@ -93,6 +95,7 @@ window.appActions = {
     setView: (viewName) => {
         window.appData.currentView = viewName;
         
+        // Reset specific state based on navigation
         if (viewName === 'home') {
             window.appData.activeCampaignId = null;
             window.appData.activeAdventureId = null;
@@ -142,7 +145,7 @@ window.appActions = {
             name: name,
             playerCharacters: [],
             adventures: [],
-            codex: []
+            codex: [] // Initialize empty Codex
         };
 
         await saveCampaign(newCamp);
@@ -300,6 +303,7 @@ window.appActions = {
             return;
         }
 
+        // Read the hidden inputs updated by the universal editor
         const updatedPC = {
             ...existingPC,
             id: pcId,
@@ -461,7 +465,10 @@ window.appActions = {
         const md = generateSessionMarkdown(draft.sessionData, mockCampaign);
         
         const previewEl = document.getElementById('draft-preview-text');
-        if (previewEl) previewEl.value = md;
+        if (previewEl) {
+            // Apply the smart text formatting so the live preview renders beautifully
+            previewEl.innerHTML = window.appActions.parseSmartText(md);
+        }
     },
 
     saveSession: async () => {
@@ -674,17 +681,24 @@ window.appActions = {
         if (!text) return "";
         let safeText = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
         
-        safeText = safeText.replace(/^### (.*$)/gim, '<h3 class="text-lg font-serif font-bold text-amber-600 mt-3 mb-1">$1</h3>');
-        safeText = safeText.replace(/^## (.*$)/gim, '<h2 class="text-xl font-serif font-bold text-amber-500 mt-4 mb-2">$1</h2>');
-        safeText = safeText.replace(/^# (.*$)/gim, '<h1 class="text-2xl font-serif font-black text-amber-500 mt-5 mb-2">$1</h1>');
+        // --- 1. PARSE MARKDOWN FORMATTING ---
+        // Enhanced Headings and Dividers to perfectly support the markdown generator outputs
+        safeText = safeText.replace(/^#### (.*$)/gim, '<h4 class="text-base font-serif font-bold text-amber-700 mt-4 mb-1">$1</h4>');
+        safeText = safeText.replace(/^### (.*$)/gim, '<h3 class="text-lg font-serif font-bold text-amber-600 mt-5 mb-1 border-b border-[#d4c5a9] pb-1">$1</h3>');
+        safeText = safeText.replace(/^## (.*$)/gim, '<h2 class="text-xl font-serif font-bold text-amber-500 mt-6 mb-2 border-b border-amber-600/30 pb-1">$1</h2>');
+        safeText = safeText.replace(/^# (.*$)/gim, '<h1 class="text-2xl font-serif font-black text-amber-500 mt-6 mb-3 border-b-2 border-amber-500 pb-2">$1</h1>');
+        safeText = safeText.replace(/^---$/gim, '<hr class="border-t border-[#d4c5a9] my-6">');
         
-        safeText = safeText.replace(/^\- (.*$)/gim, '<li class="ml-4 list-disc marker:text-amber-600">$1</li>');
+        // Lists
+        safeText = safeText.replace(/^\- (.*$)/gim, '<li class="ml-6 list-disc marker:text-amber-600 py-0.5">$1</li>');
 
+        // Bold, Underline, Italic
         safeText = safeText.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-stone-900">$1</strong>');
         safeText = safeText.replace(/__(.*?)__/g, '<u class="underline decoration-stone-500 underline-offset-2">$1</u>');
         safeText = safeText.replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, '<em class="italic text-stone-700">$1</em>');
         safeText = safeText.replace(/\b_(.*?)_\b/g, '<em class="italic text-stone-700">$1</em>');
 
+        // --- 2. PARSE CODEX LINKS ---
         const sortedCache = [...window.appData.codexCache].sort((a,b) => b.length - a.length);
         
         sortedCache.forEach(name => {
@@ -699,12 +713,16 @@ window.appActions = {
             }
         });
         
+        // --- 3. LINE BREAKS ---
         safeText = safeText.replace(/\n/g, '<br>');
         
+        // Cleanup trailing <br> tags immediately following block elements
         safeText = safeText.replace(/<\/h1><br>/g, '</h1>');
         safeText = safeText.replace(/<\/h2><br>/g, '</h2>');
         safeText = safeText.replace(/<\/h3><br>/g, '</h3>');
+        safeText = safeText.replace(/<\/h4><br>/g, '</h4>');
         safeText = safeText.replace(/<\/li><br>/g, '</li>');
+        safeText = safeText.replace(/(<hr[^>]*>)<br>/g, '$1');
 
         return safeText;
     },
