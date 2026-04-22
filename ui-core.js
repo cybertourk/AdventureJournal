@@ -14,15 +14,17 @@ export function renderLevelOptions(selected) {
 // --- SMART TEXT FIELD GENERATOR (ZEN MODE) ---
 export function renderSmartField(id, labelHtml, value, placeholderText, rows, wrapperClass = '') {
     const hasText = value && value.trim().length > 0;
-    const viewContent = (hasText && window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(value) : `<span class="text-stone-400 italic font-sans">${placeholderText || "Tap to edit..."}</span>`;
+    const viewContent = (hasText && window.appActions && window.appActions.parseSmartText) 
+        ? window.appActions.parseSmartText(value) 
+        : `<span class="text-stone-400 italic font-sans">${placeholderText || "Tap to edit..."}</span>`;
 
-    // Strip HTML from label to pass as plain text to the editor modal title, and escape apostrophes!
+    // Strip HTML from label to pass as plain text to the editor modal title, and escape apostrophes safely
     const plainLabel = labelHtml.replace(/<[^>]*>?/gm, '').trim().replace(/'/g, "\\'");
 
     return `
     <div class="scene-row flex flex-col ${wrapperClass} group cursor-text" onclick="window.appActions.openUniversalEditor('input-${id}', '${plainLabel}')">
         <div class="flex justify-between items-baseline border-b border-[#d4c5a9] pb-1 mb-1 mt-1">
-            <label class="flex-grow text-xs sm:text-sm font-bold text-stone-800 font-serif flex items-center justify-between pr-4">${labelHtml}</label>
+            <label class="flex-grow text-xs sm:text-sm font-bold text-stone-800 font-serif flex items-center justify-between pr-4 pointer-events-none">${labelHtml}</label>
             <div class="flex gap-2 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button type="button" class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-600 hover:text-amber-500 transition" onclick="event.stopPropagation(); window.appActions.openUniversalEditor('input-${id}', '${plainLabel}')"><i class="fa-solid fa-pen"></i> Edit</button>
             </div>
@@ -813,7 +815,7 @@ function getSessionEditHTML(state) {
                         <i class="fa-solid fa-scroll mr-2 text-red-700"></i> Live Preview
                     </h3>
                 </div>
-                <textarea id="draft-preview-text" readonly class="w-full flex-grow p-4 sm:p-6 bg-[#fdfbf7] border border-[#d4c5a9] border-t-0 rounded-b-sm text-stone-900 font-mono text-[10px] sm:text-sm leading-relaxed resize-none outline-none shadow-inner h-[50vh] sm:h-[60vh] min-h-[300px] sm:min-h-[400px] custom-scrollbar"></textarea>
+                <div id="draft-preview-text" class="w-full flex-grow p-4 sm:p-6 bg-[#fdfbf7] border border-[#d4c5a9] border-t-0 rounded-b-sm text-stone-900 font-serif text-[10px] sm:text-sm leading-relaxed shadow-inner h-[50vh] sm:h-[60vh] min-h-[300px] sm:min-h-[400px] overflow-y-auto custom-scrollbar"></div>
             </div>
 
         </div>
@@ -824,6 +826,11 @@ function getSessionEditHTML(state) {
 
 function getJournalHTML(state) {
     const markdownContent = window.appData?.currentMarkdown || '';
+    
+    // Pass the raw markdown through our parser to convert it to beautiful HTML
+    const formattedContent = (window.appActions && window.appActions.parseSmartText)
+        ? window.appActions.parseSmartText(markdownContent)
+        : markdownContent;
     
     let title = 'Tome';
     if (state.activeSession) title = `Scroll: ${state.activeSession.name}`;
@@ -848,7 +855,9 @@ function getJournalHTML(state) {
         </div>
         
         <div class="flex-grow p-0 bg-[#fdfbf7] overflow-hidden relative">
-            <textarea id="journal-textarea" readonly class="w-full h-full p-4 sm:p-8 bg-transparent text-stone-900 font-mono text-[10px] sm:text-sm leading-relaxed resize-none outline-none focus:ring-inset focus:ring-2 focus:ring-red-900 border-none custom-scrollbar">${markdownContent}</textarea>
+            <div id="journal-textarea" class="w-full h-full p-4 sm:p-8 bg-transparent text-stone-900 font-serif text-[10px] sm:text-sm leading-relaxed overflow-y-auto custom-scrollbar">
+                ${formattedContent}
+            </div>
         </div>
     </div>
     `;
