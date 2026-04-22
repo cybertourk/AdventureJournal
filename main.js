@@ -42,21 +42,33 @@ document.addEventListener('DOMContentLoaded', () => {
     let hostedCampaigns = [];
     let playedCampaigns = [];
 
-    // Helper to merge both streams and update the UI
+    // Helper to merge both streams and update the UI safely
     const mergeAndSetCampaigns = () => {
         const mergedMap = new Map();
         
         // Add campaigns we play in
         playedCampaigns.forEach(c => {
-            mergedMap.set(c.id, { ...c, _isPlayer: true });
+            // SECURITY SCRUB: Remove any leaked flags from the database
+            const cleanData = { ...c };
+            delete cleanData._isDM;
+            delete cleanData._isPlayer;
+            
+            mergedMap.set(cleanData.id, { ...cleanData, _isPlayer: true });
         });
         
         // Add/Overwrite with campaigns we run (DM status takes precedence)
         hostedCampaigns.forEach(c => {
-            mergedMap.set(c.id, { ...c, _isDM: true });
+            // SECURITY SCRUB: Remove any leaked flags from the database
+            const cleanData = { ...c };
+            delete cleanData._isDM;
+            delete cleanData._isPlayer;
+            
+            // Retain the _isPlayer flag if we are somehow both
+            const existing = mergedMap.get(cleanData.id);
+            mergedMap.set(cleanData.id, { ...cleanData, _isDM: true, _isPlayer: existing ? true : false });
         });
 
-        // Pass the unified, deduplicated list to data.js to trigger a render
+        // Pass the unified, deduplicated, and securely flagged list to data.js
         setCampaignsData(Array.from(mergedMap.values()));
     };
 
