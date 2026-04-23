@@ -287,7 +287,29 @@ export function getAdventureHTML(state) {
             const showNotes = isVisible(session.notesVisibility);
             
             const lootHtml = showLoot ? `<span class="mx-1">•</span> <span class="text-red-900">${session.lootValue.toLocaleString()} gp</span> discovered` : '';
-            const notesHtml = (showNotes && session.notes) ? `<p class="text-xs sm:text-sm text-stone-700 mt-2 sm:mt-3 italic border-l-2 border-stone-400 pl-2 sm:pl-3 line-clamp-3">"${session.notes}"</p>` : '';
+            
+            // Extract the best available preview text (Notes -> Scenes)
+            let previewText = '';
+            if (showNotes && session.notes && session.notes.trim()) {
+                previewText = session.notes;
+            } else if (session.scenes && session.scenes.length > 0) {
+                const firstScene = session.scenes.find(s => isVisible(s.visibility) && s.text && s.text.trim());
+                if (firstScene) previewText = firstScene.text;
+            }
+
+            // Strip markdown formatting for a clean plain-text card preview
+            let cleanPreview = '';
+            if (previewText) {
+                cleanPreview = previewText
+                    .replace(/^#+\s+/gm, '') // Strip headings
+                    .replace(/(\*\*|__|\*|_)/g, '') // Strip bold/italic
+                    .replace(/^\-\s+/gm, '') // Strip list markers
+                    .replace(/\n/g, ' ') // Flatten newlines into spaces
+                    .replace(/</g, "&lt;").replace(/>/g, "&gt;") // Escape HTML
+                    .trim();
+            }
+
+            const notesHtml = cleanPreview ? `<p class="text-xs sm:text-sm text-stone-700 mt-2 sm:mt-3 italic border-l-2 border-stone-400 pl-2 sm:pl-3 line-clamp-3">${cleanPreview}</p>` : '';
 
             html += `
             <li class="p-4 sm:p-5 hover:bg-[#fbf4e6] transition flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 group">
