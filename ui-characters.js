@@ -5,6 +5,7 @@ export function getPCManagerHTML(state) {
     if (!camp) return '';
     const pcs = camp.playerCharacters || [];
     const isDM = camp._isDM;
+    const myUid = state.currentUserUid;
 
     let html = `
     <div class="animate-in fade-in duration-300">
@@ -36,19 +37,29 @@ export function getPCManagerHTML(state) {
         pcs.forEach(pc => {
             const classLevel = pc.classLevel || "Unknown Class";
             const race = pc.race || "Unknown Race";
+            
+            // Determine permissions
+            const isOwner = pc.playerId === myUid;
+            const canEdit = isDM || isOwner;
+
             html += `
-            <div class="bg-[#fdfbf7] p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-sm flex flex-col justify-between group relative overflow-hidden hover:shadow-md transition cursor-pointer" onclick="window.appActions.openPCEdit('${pc.id}')">
-                <div class="absolute top-0 left-0 w-1 h-full bg-stone-500"></div>
+            <div class="bg-[#fdfbf7] p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-sm flex flex-col justify-between group relative overflow-hidden hover:shadow-md transition">
+                <div class="absolute top-0 left-0 w-1 h-full ${canEdit ? 'bg-red-900 group-hover:bg-red-700' : 'bg-stone-400 group-hover:bg-amber-600'} transition-colors"></div>
                 <div class="pl-2">
                     <h3 class="font-serif font-bold text-lg sm:text-xl text-stone-900 truncate">${pc.name}</h3>
                     <p class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-stone-500 mt-1 sm:mt-2">
                         ${race} <span class="mx-1">•</span> ${classLevel}
                     </p>
                 </div>
-                <div class="mt-4 sm:mt-5 pt-3 sm:pt-4 border-t border-[#d4c5a9]/50 pl-2">
-                    <span class="text-stone-700 group-hover:text-red-900 text-[10px] sm:text-xs font-bold uppercase tracking-wider flex items-center transition">
-                        Open Journal <i class="fa-solid fa-arrow-right ml-2"></i>
-                    </span>
+                <div class="mt-4 sm:mt-5 pt-3 sm:pt-4 border-t border-[#d4c5a9]/50 pl-2 flex flex-wrap gap-4">
+                    ${canEdit ? `
+                    <button onclick="window.appActions.openPCEdit('${pc.id}')" class="text-stone-700 hover:text-red-900 text-[10px] sm:text-xs font-bold uppercase tracking-wider flex items-center transition">
+                        <i class="fa-solid fa-book-open mr-1.5"></i> Private Journal
+                    </button>
+                    ` : ''}
+                    <button onclick="window.appActions.viewCodex('${pc.id}')" class="text-stone-700 hover:text-amber-600 text-[10px] sm:text-xs font-bold uppercase tracking-wider flex items-center transition">
+                        <i class="fa-solid fa-address-card mr-1.5"></i> Public Profile
+                    </button>
                 </div>
             </div>
             `;
@@ -108,20 +119,27 @@ export function getPCEditHTML(state) {
         ? camp.playerCharacters.find(p => p.id === state.activePcId) 
         : { name: '', race: '', classLevel: '', background: '', alignment: '', faith: '', gender: '', age: '', size: '', height: '', weight: '', eyes: '', hair: '', skin: '', traits: '', ideals: '', bonds: '', flaws: '', appearance: '', backstory: '', dmNotes: '', playerId: '' };
 
-    if (!pc && !isNew) return `<div class="text-center text-red-500 p-8">Hero not found.</div>`;
+    if (!pc && !isNew) return `<div class="text-center text-red-500 p-8 font-serif font-bold text-xl">Hero not found in the archives.</div>`;
 
     const isDM = camp._isDM;
     const isOwner = pc.playerId === state.currentUserUid;
     const canEdit = isDM || isOwner;
 
-    // If player doesn't own it and isn't DM, hide the save buttons entirely (Read Only Mode)
-    const readOnlyMode = !canEdit; 
+    // HARD SECURITY BLOCK: If you are neither the DM nor the owner, you cannot see this screen at all.
+    if (!isNew && !canEdit) {
+        return `
+        <div class="animate-in fade-in flex flex-col items-center justify-center min-h-[50vh] text-center">
+            <i class="fa-solid fa-shield-halved text-6xl text-red-900 mb-4 drop-shadow-md"></i>
+            <h2 class="text-3xl font-serif font-black text-stone-900 mb-2">Access Denied</h2>
+            <p class="text-stone-600 font-sans max-w-md">The contents of this private hero journal are sealed. Only the Dungeon Master and the player controlling this hero may view or edit it. Please view their Public Profile in the Codex instead.</p>
+            <button onclick="window.appActions.setView('pc-manager')" class="mt-6 px-6 py-2 bg-stone-900 text-amber-50 font-bold uppercase tracking-wider text-xs rounded-sm hover:bg-stone-800 transition shadow-md">Return to Party Manifest</button>
+        </div>`;
+    }
 
-    // DM has full power. Player owner can edit roleplay fields, but NOT core fields (name/class)
     const coreReadonlyAttr = !isDM ? 'readonly disabled' : '';
     const coreClass = !isDM ? 'opacity-70 bg-[#e8dec7] cursor-not-allowed' : 'bg-white focus:border-red-900';
 
-    const title = isNew ? "Enroll New Hero" : `Hero Journal: ${pc.name}`;
+    const title = isNew ? "Enroll New Hero" : `Private Journal: ${pc.name}`;
 
     // DM assigns the hero to a player UID, fetching Display Names from the campaign map
     let playerAssignHTML = '';
@@ -161,7 +179,6 @@ export function getPCEditHTML(state) {
             <h2 class="text-xl sm:text-2xl font-serif font-bold z-10 flex items-center">
                 <i class="fa-solid fa-user-pen mr-3 text-red-700"></i> ${title}
             </h2>
-            ${readOnlyMode ? `<span class="bg-stone-700 text-amber-100 text-[10px] px-2 py-1 rounded font-bold uppercase tracking-widest z-10 border border-stone-500">Read Only</span>` : ''}
             <div class="absolute right-0 top-0 bottom-0 w-24 sm:w-32 opacity-10 pointer-events-none overflow-hidden flex items-center justify-end pr-4">
                 <i class="fa-solid fa-shield-halved text-5xl sm:text-6xl text-amber-50"></i>
             </div>
@@ -170,6 +187,10 @@ export function getPCEditHTML(state) {
         <!-- Form Content -->
         <div class="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
             
+            <div class="bg-blue-900/10 border-l-4 border-blue-600 p-4 rounded-sm text-sm text-stone-800 italic">
+                <i class="fa-solid fa-circle-info text-blue-600 mr-2"></i> When you save this journal, a <strong>Public Profile</strong> will automatically be generated (or updated) in the Codex so the rest of the party can read what your hero looks like!
+            </div>
+
             <!-- Basic Info Grid -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 bg-[#fdfbf7] p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-inner">
                 ${playerAssignHTML}
@@ -240,16 +261,16 @@ export function getPCEditHTML(state) {
 
             <!-- Roleplay Grid (Universal Editor Linked) -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                ${renderSmartField('pc-edit-traits', 'Personality Traits', pc.traits || '', 'What are their unique quirks?', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', readOnlyMode)}
-                ${renderSmartField('pc-edit-ideals', 'Ideals', pc.ideals || '', 'What drives them?', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', readOnlyMode)}
-                ${renderSmartField('pc-edit-bonds', 'Bonds', pc.bonds || '', 'Who or what do they care about?', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', readOnlyMode)}
-                ${renderSmartField('pc-edit-flaws', 'Flaws', pc.flaws || '', 'What are their weaknesses?', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', readOnlyMode)}
+                ${renderSmartField('pc-edit-traits', 'Personality Traits', pc.traits || '', 'What are their unique quirks?', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', false)}
+                ${renderSmartField('pc-edit-ideals', 'Ideals', pc.ideals || '', 'What drives them?', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', false)}
+                ${renderSmartField('pc-edit-bonds', 'Bonds', pc.bonds || '', 'Who or what do they care about?', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', false)}
+                ${renderSmartField('pc-edit-flaws', 'Flaws', pc.flaws || '', 'What are their weaknesses?', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', false)}
             </div>
 
             <!-- Detailed Notes (Universal Editor Linked) -->
             <div class="space-y-4 sm:space-y-6">
-                ${renderSmartField('pc-edit-appearance', `<i class="fa-solid fa-user text-stone-500 mr-2"></i> Appearance`, pc.appearance || '', "Detailed physical description, scars, tattoos, clothing...", 4, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', readOnlyMode)}
-                ${renderSmartField('pc-edit-backstory', `<i class="fa-solid fa-book-open text-stone-500 mr-2"></i> Backstory`, pc.backstory || '', "The hero's origins...", 5, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', readOnlyMode)}
+                ${renderSmartField('pc-edit-appearance', `<i class="fa-solid fa-user text-stone-500 mr-2"></i> Appearance`, pc.appearance || '', "Detailed physical description, scars, tattoos, clothing...", 4, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', false)}
+                ${renderSmartField('pc-edit-backstory', `<i class="fa-solid fa-book-open text-stone-500 mr-2"></i> Backstory`, pc.backstory || '', "The hero's origins...", 5, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', false)}
                 
                 <!-- DM ONLY -->
                 ${isDM ? renderSmartField('pc-edit-dmnotes', `<i class="fa-solid fa-eye text-red-900 mr-2"></i> DM's Secret Notes`, pc.dmNotes || '', 'Hooks, secrets, curses, or background ties...', 4, 'bg-stone-200 border border-[#d4c5a9] shadow-inner border-l-4 border-l-red-900', false) : ''}
@@ -263,12 +284,10 @@ export function getPCEditHTML(state) {
                 ${(!isNew && isDM) ? `<button onclick="window.appActions.deletePC('${pc.id}')" class="px-4 py-2 text-stone-500 hover:text-red-700 hover:bg-red-900/10 rounded-sm transition font-bold uppercase tracking-wider text-[10px] sm:text-xs flex items-center"><i class="fa-solid fa-skull mr-2"></i> Remove Hero</button>` : '<div></div>'}
             </div>
             <div class="flex gap-2 w-full sm:w-auto justify-end">
-                <button onclick="window.appActions.setView('pc-manager')" class="flex-1 sm:flex-none px-4 sm:px-6 py-2 bg-[#fdfbf7] text-stone-700 border border-[#d4c5a9] rounded-sm hover:bg-white transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-sm">${readOnlyMode ? 'Back' : 'Cancel'}</button>
-                ${!readOnlyMode ? `
+                <button onclick="window.appActions.setView('pc-manager')" class="flex-1 sm:flex-none px-4 sm:px-6 py-2 bg-[#fdfbf7] text-stone-700 border border-[#d4c5a9] rounded-sm hover:bg-white transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-sm">Cancel</button>
                 <button onclick="window.appActions.savePCEdit()" class="flex-1 sm:flex-none px-4 sm:px-6 py-2 bg-stone-900 text-amber-50 border border-stone-950 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider flex items-center justify-center text-[10px] sm:text-xs shadow-md">
                     <i class="fa-solid fa-floppy-disk mr-2"></i> Inscribe
                 </button>
-                ` : ''}
             </div>
         </div>
     </div>
