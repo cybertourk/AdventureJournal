@@ -547,6 +547,14 @@ window.appActions = {
             if (autoEl) pc.automaticSuccess = autoEl.checked;
         });
 
+        // Helper to grab visibility from the DOM rows
+        const grabVisibility = (row) => {
+            const mode = row.querySelector('.vis-mode-input')?.value || 'public';
+            const playersStr = row.querySelector('.vis-players-input')?.value || '';
+            const players = playersStr ? playersStr.split(',') : [];
+            return { mode: mode, visibleTo: players };
+        };
+
         return {
             sessionData: {
                 id: session?.id || generateId(),
@@ -557,11 +565,13 @@ window.appActions = {
                 
                 scenes: window.appActions._readDynamicList('container-scenes', (row, idx) => ({
                     id: idx + 1,
-                    text: row.querySelector('.scene-hidden-input')?.value || ''
+                    text: row.querySelector('.scene-hidden-input')?.value || '',
+                    visibility: grabVisibility(row)
                 })),
                 clues: window.appActions._readDynamicList('container-clues', (row, idx) => ({
                     id: idx + 1,
-                    text: row.querySelector('.clue-input')?.value || ''
+                    text: row.querySelector('.clue-input')?.value || '',
+                    visibility: grabVisibility(row)
                 })),
                 
                 events: document.getElementById('input-draft-events')?.value || '',
@@ -897,74 +907,6 @@ window.appActions = {
     _saveCampaignHelper: async (campData) => {
         const { saveCampaign } = await import('./firebase-manager.js');
         await saveCampaign(campData);
-    },
-
-    addLogClue: () => {
-    _gatherSessionDraft: () => {
-        updateDerivedState();
-        const camp = window.appData.activeCampaign;
-        const adv = window.appData.activeAdventure;
-        const session = window.appData.activeSession;
-
-        const lootText = document.getElementById('input-draft-loot')?.value || '';
-        const pcNotes = {};
-        
-        // Filter PCs down to ONLY the ones active in this specific adventure
-        const activePcIds = adv?.activePcIds || camp?.playerCharacters?.map(p => p.id) || [];
-        const draftPCs = JSON.parse(JSON.stringify(camp?.playerCharacters || [])).filter(pc => activePcIds.includes(pc.id));
-        
-        draftPCs.forEach(pc => {
-            const noteEl = document.getElementById(`input-pc-note-${pc.id}`);
-            if (noteEl && noteEl.value.trim()) pcNotes[pc.id] = noteEl.value.trim();
-            
-            const inspEl = document.getElementById(`pc-insp-${pc.id}`);
-            if (inspEl) pc.inspiration = inspEl.checked;
-            
-            const autoEl = document.getElementById(`pc-auto-${pc.id}`);
-            if (autoEl) pc.automaticSuccess = autoEl.checked;
-        });
-
-        // Helper to grab visibility from the DOM rows
-        const grabVisibility = (row) => {
-            const mode = row.querySelector('.vis-mode-input')?.value || 'public';
-            const playersStr = row.querySelector('.vis-players-input')?.value || '';
-            const players = playersStr ? playersStr.split(',') : [];
-            return { mode: mode, visibleTo: players };
-        };
-
-        return {
-            sessionData: {
-                id: session?.id || generateId(),
-                name: document.getElementById('draft-name')?.value || `Log from ${new Date().toLocaleDateString()}`,
-                timestamp: session?.timestamp || Date.now(),
-                lootText: lootText,
-                lootValue: calculateLootValue(lootText),
-                
-                scenes: window.appActions._readDynamicList('container-scenes', (row, idx) => ({
-                    id: idx + 1,
-                    text: row.querySelector('.scene-hidden-input')?.value || '',
-                    visibility: grabVisibility(row)
-                })),
-                clues: window.appActions._readDynamicList('container-clues', (row, idx) => ({
-                    id: idx + 1,
-                    text: row.querySelector('.clue-input')?.value || '',
-                    visibility: grabVisibility(row)
-                })),
-                
-                events: document.getElementById('input-draft-events')?.value || '',
-                npcs: document.getElementById('input-draft-npcs')?.value || '',
-                locations: document.getElementById('input-draft-locations')?.value || '',
-                notes: document.getElementById('input-draft-notes')?.value || '',
-                
-                pcNotes: pcNotes
-            },
-            updatedPCs: draftPCs, // Only updates the states for PCs in this draft
-            advSettings: {
-                startLevel: parseInt(document.getElementById('draft-start-level')?.value || 1),
-                endLevel: parseInt(document.getElementById('draft-end-level')?.value || 2),
-                numPlayers: parseInt(document.getElementById('draft-num-players')?.value || 1)
-            }
-        };
     },
 
     // --- UNIVERSAL EDITOR ACTIONS ---
