@@ -1,5 +1,6 @@
 import { generateId, updateDerivedState, reRender } from './state.js';
 import { saveCampaign, deleteCampaign as dbDeleteCampaign, notify, joinCampaign as dbJoinCampaign } from './firebase-manager.js';
+import { buildSheetUpdatesHTML } from './ui-characters.js';
 
 // --- Navigation ---
 export const setView = (viewName) => {
@@ -263,7 +264,78 @@ export const saveAdvRoster = async () => {
     notify("Arc roster inscribed.", "success");
 };
 
-// --- PC Manager (Hero Profiles) ---
+// --- PC Manager & Sheet Updates Helpers ---
+
+const getUpdatesFromDOM = () => {
+    const raw = document.getElementById('pc-edit-sheet-updates')?.value;
+    if (!raw) return [];
+    return JSON.parse(decodeURIComponent(raw));
+};
+
+const setUpdatesToDOM = (updates) => {
+    const el = document.getElementById('pc-edit-sheet-updates');
+    if (el) el.value = encodeURIComponent(JSON.stringify(updates));
+    
+    const listEl = document.getElementById('pc-sheet-updates-list');
+    if (listEl) {
+        updateDerivedState();
+        const camp = window.appData.activeCampaign;
+        const isDM = camp?._isDM || false;
+        const pc = camp?.playerCharacters?.find(p => p.id === window.appData.activePcId);
+        const isOwner = pc ? pc.playerId === window.appData.currentUserUid : false;
+        
+        listEl.innerHTML = buildSheetUpdatesHTML(updates, isDM, isOwner);
+    }
+};
+
+export const addSheetUpdate = () => {
+    const input = document.getElementById('new-sheet-update-text');
+    if (!input) return;
+    
+    const text = input.value.trim();
+    if (!text) return;
+    
+    updateDerivedState();
+    const isDM = window.appData.activeCampaign?._isDM || false;
+    
+    const updates = getUpdatesFromDOM();
+    updates.push({
+        id: generateId(),
+        text: text,
+        isResolved: false,
+        isHidden: isDM, // Hidden by default if the DM adds it, visible by default if player adds it
+        timestamp: Date.now()
+    });
+    
+    setUpdatesToDOM(updates);
+    input.value = '';
+};
+
+export const toggleSheetUpdateResolved = (id) => {
+    const updates = getUpdatesFromDOM();
+    const target = updates.find(u => u.id === id);
+    if (target) {
+        target.isResolved = !target.isResolved;
+    }
+    setUpdatesToDOM(updates);
+};
+
+export const toggleSheetUpdateVis = (id) => {
+    const updates = getUpdatesFromDOM();
+    const target = updates.find(u => u.id === id);
+    if (target) {
+        target.isHidden = !target.isHidden;
+    }
+    setUpdatesToDOM(updates);
+};
+
+export const deleteSheetUpdate = (id) => {
+    if (!confirm("Are you sure you want to permanently delete this task?")) return;
+    const updates = getUpdatesFromDOM();
+    setUpdatesToDOM(updates.filter(u => u.id !== id));
+};
+
+// --- PC Manager (Hero Profiles) Core ---
 export const openPCEdit = (pcId = null) => {
     window.appData.activePcId = pcId;
     window.appActions.setView('pc-edit');
@@ -276,7 +348,7 @@ export const savePCEdit = async () => {
 
     const isDM = camp._isDM;
     const pcId = window.appData.activePcId || generateId();
-    const existingPC = camp.playerCharacters?.find(p => p.id === pcId) || { inspiration: false, automaticSuccess: false, playerId: '' };
+    const existingPC = camp.playerCharacters?.find(p => p.id === pcId) || { inspiration: false, automaticSuccess: false, playerId: '', sheetUpdates: [] };
 
     const isOwner = existingPC.playerId === window.appData.currentUserUid;
 
@@ -291,10 +363,15 @@ export const savePCEdit = async () => {
         return;
     }
 
+    // Pull the latest sheet updates state from our hidden DOM input
+    const updatesRaw = document.getElementById('pc-edit-sheet-updates')?.value;
+    const sheetUpdates = updatesRaw ? JSON.parse(decodeURIComponent(updatesRaw)) : (existingPC.sheetUpdates || []);
+
     // Gather Inputs safely based on access level
     const updatedPC = {
         ...existingPC,
         id: pcId,
+        sheetUpdates: sheetUpdates, // Apply the freshly parsed checklist
         
         // Core Identity (DM only can edit these, Players retain existing)
         name: isDM ? nameInput : existingPC.name,
