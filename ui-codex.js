@@ -1,4 +1,3 @@
-```javascript
 export function getCodexHTML(state) {
     const camp = state.activeCampaign;
     if (!camp) return '';
@@ -159,6 +158,3 @@ export function getJournalHTML(state) {
     `;
     return html;
 }
-
-
-```
