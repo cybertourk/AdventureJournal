@@ -429,13 +429,13 @@ window.appActions = {
         const existingCodexEntry = updatedCodexArray.find(c => c.id === pcId);
         
         if (!existingCodexEntry) {
-            // Generate entirely new public codex entry
+            // Generate entirely new public codex entry with updated default description
             updatedCodexArray.push({
                 id: pcId,
                 name: updatedPC.name,
                 type: 'NPC', // Use NPC category for visual cohesion, tagged as Hero
                 tags: ['Hero', updatedPC.race, updatedPC.classLevel].filter(Boolean),
-                desc: updatedPC.appearance || 'A hero of the realm.',
+                desc: 'Rumors and public knowledge surrounding this hero are yet to be penned.',
                 visibility: { mode: 'public' }
             });
         } else {
@@ -1210,7 +1210,7 @@ window.appActions = {
                 name: pc.name,
                 type: 'NPC',
                 tags: ['Hero', pc.race, pc.classLevel].filter(Boolean),
-                desc: pc.appearance || 'A hero of the realm.',
+                desc: 'Rumors and public knowledge surrounding this hero are yet to be penned.',
                 visibility: { mode: 'public' }
             };
         }
@@ -1239,11 +1239,11 @@ window.appActions = {
         // Check editing permissions
         const isDM = camp._isDM;
         const myUid = window.appData.currentUserUid;
-        const isHeroOwner = camp.playerCharacters?.some(p => p.id === id && p.playerId === myUid);
-        const isHeroCodex = camp.playerCharacters?.some(p => p.id === id);
+        const linkedPC = camp.playerCharacters?.find(p => p.id === id);
+        const isHeroOwner = linkedPC && linkedPC.playerId === myUid;
         
         const canEdit = isDM || isHeroOwner;
-        const canDelete = isDM && !isHeroCodex; // Core Hero profiles can only be deleted via the PC manager
+        const canDelete = isDM && !linkedPC; // Core Hero profiles can only be deleted via the PC manager
 
         const viewHidden = isNew ? "hidden" : "";
         const editHidden = isNew ? "" : "hidden";
@@ -1253,7 +1253,34 @@ window.appActions = {
             tagsHTML += entry.tags.map(t => `<span class="codex-tag">${t}</span>`).join('');
         }
         
-        const parsedDesc = desc ? window.appActions.parseSmartText(desc) : "No description provided.";
+        // --- DYNAMIC HERO INJECTION ---
+        let pcDataHTML = '';
+        if (linkedPC) {
+            const parsedApp = linkedPC.appearance ? window.appActions.parseSmartText(linkedPC.appearance) : '<span class="italic text-stone-400 font-sans text-xs">No appearance recorded...</span>';
+            pcDataHTML = `
+                <div class="mb-5">
+                    <h4 class="font-serif font-bold text-amber-600 border-b border-stone-300 pb-1 mb-3 text-base flex items-center"><i class="fa-solid fa-clipboard-user mr-2 text-stone-400"></i> Characteristics</h4>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5 bg-[#fdfbf7] p-3 border border-[#d4c5a9] rounded-sm shadow-inner text-xs">
+                        <div><span class="font-bold text-stone-500 uppercase tracking-widest text-[9px] block mb-0.5">Gender</span> <span class="text-stone-800">${linkedPC.gender || '--'}</span></div>
+                        <div><span class="font-bold text-stone-500 uppercase tracking-widest text-[9px] block mb-0.5">Age</span> <span class="text-stone-800">${linkedPC.age || '--'}</span></div>
+                        <div><span class="font-bold text-stone-500 uppercase tracking-widest text-[9px] block mb-0.5">Size</span> <span class="text-stone-800">${linkedPC.size || '--'}</span></div>
+                        <div><span class="font-bold text-stone-500 uppercase tracking-widest text-[9px] block mb-0.5">Height</span> <span class="text-stone-800">${linkedPC.height || '--'}</span></div>
+                        <div><span class="font-bold text-stone-500 uppercase tracking-widest text-[9px] block mb-0.5">Weight</span> <span class="text-stone-800">${linkedPC.weight || '--'}</span></div>
+                        <div><span class="font-bold text-stone-500 uppercase tracking-widest text-[9px] block mb-0.5">Eyes</span> <span class="text-stone-800">${linkedPC.eyes || '--'}</span></div>
+                        <div><span class="font-bold text-stone-500 uppercase tracking-widest text-[9px] block mb-0.5">Hair</span> <span class="text-stone-800">${linkedPC.hair || '--'}</span></div>
+                        <div><span class="font-bold text-stone-500 uppercase tracking-widest text-[9px] block mb-0.5">Skin</span> <span class="text-stone-800">${linkedPC.skin || '--'}</span></div>
+                    </div>
+                    
+                    <h4 class="font-serif font-bold text-amber-600 border-b border-stone-300 pb-1 mb-2 text-base flex items-center"><i class="fa-solid fa-eye mr-2 text-stone-400"></i> Appearance</h4>
+                    <div class="text-sm text-stone-800 font-serif leading-relaxed whitespace-pre-wrap bg-[#fdfbf7] p-3 border border-[#d4c5a9] rounded-sm shadow-inner mb-2">${parsedApp}</div>
+                </div>
+            `;
+        }
+
+        const parsedDesc = desc ? window.appActions.parseSmartText(desc) : '<span class="italic text-stone-400 font-sans text-xs">No entries found...</span>';
+        
+        const descLabel = linkedPC ? "Public Knowledge (Rumors & Repute)" : "Description";
+        const descPlaceholder = linkedPC ? "What do people know about this hero? Scribe their rumors, repute, and public knowledge..." : "Description... Use @ to link other entries.";
 
         container.innerHTML = `
             <div id="codex-popup" class="fixed inset-0 bg-stone-950/90 z-[12000] flex items-center justify-center p-4 backdrop-blur-sm animate-in">
@@ -1263,7 +1290,11 @@ window.appActions = {
                     <!-- VIEW MODE -->
                     <div id="codex-popup-view" class="${viewHidden}">
                         <h3 class="text-2xl text-stone-900 font-serif font-bold mb-2 border-b-2 border-stone-300 pb-2">${name}</h3>
-                        <div class="flex gap-2 mb-4 flex-wrap">${tagsHTML}</div>
+                        <div class="flex gap-2 mb-5 flex-wrap">${tagsHTML}</div>
+                        
+                        ${pcDataHTML}
+
+                        <h4 class="font-serif font-bold text-amber-600 border-b border-stone-300 pb-1 mb-2 text-base flex items-center"><i class="fa-solid ${linkedPC ? 'fa-comment-dots' : 'fa-scroll'} mr-2 text-stone-400"></i> ${linkedPC ? 'Public Knowledge' : 'Description'}</h4>
                         <div class="text-sm text-stone-700 leading-relaxed font-sans whitespace-pre-wrap bg-[#fdfbf7] p-4 border border-[#d4c5a9] rounded-sm shadow-inner min-h-[100px]">${parsedDesc}</div>
                         
                         ${canEdit ? `
@@ -1280,13 +1311,13 @@ window.appActions = {
                         
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Name (Auto-Link Trigger)</label>
-                            <input type="text" id="cx-modal-name" value="${name}" ${isHeroCodex ? 'readonly disabled' : ''} class="w-full ${isHeroCodex ? 'bg-stone-200 text-stone-500' : 'bg-[#fdfbf7] text-stone-900 focus:border-red-900'} border border-[#d4c5a9] p-2 text-sm font-bold outline-none rounded-sm shadow-inner">
+                            <input type="text" id="cx-modal-name" value="${name}" ${linkedPC ? 'readonly disabled' : ''} class="w-full ${linkedPC ? 'bg-stone-200 text-stone-500' : 'bg-[#fdfbf7] text-stone-900 focus:border-red-900'} border border-[#d4c5a9] p-2 text-sm font-bold outline-none rounded-sm shadow-inner">
                         </div>
                         
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Type</label>
-                                <select id="cx-modal-type" ${isHeroCodex ? 'disabled' : ''} class="w-full ${isHeroCodex ? 'bg-stone-200 text-stone-500' : 'bg-[#fdfbf7] text-stone-900'} border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner">
+                                <select id="cx-modal-type" ${linkedPC ? 'disabled' : ''} class="w-full ${linkedPC ? 'bg-stone-200 text-stone-500' : 'bg-[#fdfbf7] text-stone-900'} border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner">
                                     <option value="NPC" ${type==='NPC'?'selected':''}>NPC</option>
                                     <option value="Location" ${type==='Location'?'selected':''}>Location</option>
                                     <option value="Faction" ${type==='Faction'?'selected':''}>Faction</option>
@@ -1296,12 +1327,12 @@ window.appActions = {
                             </div>
                             <div>
                                 <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Tags (Comma Separated)</label>
-                                <input type="text" id="cx-modal-tags" value="${tags}" ${isHeroCodex ? 'readonly disabled' : ''} class="w-full ${isHeroCodex ? 'bg-stone-200 text-stone-500' : 'bg-[#fdfbf7] text-stone-900 focus:border-red-900'} border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner" placeholder="e.g. Ally, Vendor">
+                                <input type="text" id="cx-modal-tags" value="${tags}" ${linkedPC ? 'readonly disabled' : ''} class="w-full ${linkedPC ? 'bg-stone-200 text-stone-500' : 'bg-[#fdfbf7] text-stone-900 focus:border-red-900'} border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner" placeholder="e.g. Ally, Vendor">
                             </div>
                         </div>
                         
                         <div>
-                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Description</label>
+                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">${descLabel}</label>
                             
                             <div class="format-toolbar flex gap-1 bg-[#e8dec7] border border-b-0 border-[#d4c5a9] p-1 rounded-t-sm mt-1">
                                 <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'bold')" class="w-6 h-6 flex items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bold"><i class="fa-solid fa-bold"></i></button>
@@ -1313,11 +1344,11 @@ window.appActions = {
                                 <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'list')" class="w-6 h-6 flex items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
                             </div>
 
-                            <textarea id="cx-modal-desc" class="w-full h-40 bg-[#fdfbf7] border border-[#d4c5a9] text-stone-900 p-3 text-sm focus:border-red-900 outline-none resize-none rounded-b-sm shadow-inner custom-scrollbar" placeholder="Description... Use @ to link other entries.">${desc}</textarea>
+                            <textarea id="cx-modal-desc" class="w-full h-40 bg-[#fdfbf7] border border-[#d4c5a9] text-stone-900 p-3 text-sm focus:border-red-900 outline-none resize-none rounded-b-sm shadow-inner custom-scrollbar" placeholder="${descPlaceholder}">${desc}</textarea>
                         </div>
                         
                         <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-[#d4c5a9]">
-                            ${(!isNew && canDelete) ? `<button onclick="window.appActions.deleteCodexEntry('${id}')" class="text-red-700 hover:text-red-900 text-[10px] uppercase font-bold mr-auto tracking-widest px-2">Delete</button>` : (isHeroCodex ? '<div class="mr-auto text-[10px] text-stone-400 font-bold uppercase tracking-widest px-2 flex items-center"><i class="fa-solid fa-shield-halved mr-1"></i> Core Hero Profile</div>' : '<div></div>')}
+                            ${(!isNew && canDelete) ? `<button onclick="window.appActions.deleteCodexEntry('${id}')" class="text-red-700 hover:text-red-900 text-[10px] uppercase font-bold mr-auto tracking-widest px-2">Delete</button>` : (linkedPC ? '<div class="mr-auto text-[10px] text-stone-400 font-bold uppercase tracking-widest px-2 flex items-center"><i class="fa-solid fa-shield-halved mr-1"></i> Core Hero Profile</div>' : '<div></div>')}
                             <button onclick="document.getElementById('global-popup-container').innerHTML=''" class="border border-stone-400 text-stone-600 px-4 py-2 text-xs uppercase font-bold hover:bg-stone-200 rounded-sm tracking-widest">Cancel</button>
                             <button onclick="window.appActions.saveCodexEntry()" class="bg-stone-900 text-amber-50 px-5 py-2 text-xs uppercase font-bold hover:bg-stone-800 shadow-md rounded-sm tracking-widest">Save</button>
                         </div>
