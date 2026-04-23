@@ -547,12 +547,23 @@ window.appActions = {
             if (autoEl) pc.automaticSuccess = autoEl.checked;
         });
 
-        // Helper to grab visibility from the DOM rows
-        const grabVisibility = (row) => {
-            const mode = row.querySelector('.vis-mode-input')?.value || 'public';
-            const playersStr = row.querySelector('.vis-players-input')?.value || '';
+        // Helper to grab visibility from a DOM container
+        const grabVisibility = (container) => {
+            if (!container) return { mode: 'public', visibleTo: [] };
+            const modeInput = container.querySelector('.vis-mode-input');
+            const playersInput = container.querySelector('.vis-players-input');
+            const mode = modeInput ? modeInput.value : 'public';
+            const playersStr = playersInput ? playersInput.value : '';
             const players = playersStr ? playersStr.split(',') : [];
             return { mode: mode, visibleTo: players };
+        };
+
+        // Helper to grab visibility from static elements like Loot/Notes
+        const getStaticVis = (inputId) => {
+            const inputEl = document.getElementById(inputId);
+            if (!inputEl) return { mode: 'public', visibleTo: [] };
+            const container = inputEl.closest('.scene-row') || inputEl.closest('.vis-container') || inputEl.parentElement;
+            return grabVisibility(container);
         };
 
         return {
@@ -560,8 +571,10 @@ window.appActions = {
                 id: session?.id || generateId(),
                 name: document.getElementById('draft-name')?.value || `Log from ${new Date().toLocaleDateString()}`,
                 timestamp: session?.timestamp || Date.now(),
+                
                 lootText: lootText,
                 lootValue: calculateLootValue(lootText),
+                lootVisibility: getStaticVis('input-draft-loot'),
                 
                 scenes: window.appActions._readDynamicList('container-scenes', (row, idx) => ({
                     id: idx + 1,
@@ -574,10 +587,18 @@ window.appActions = {
                     visibility: grabVisibility(row)
                 })),
                 
+                // Legacy / Static Elements
                 events: document.getElementById('input-draft-events')?.value || '',
+                eventsVisibility: getStaticVis('input-draft-events'),
+                
                 npcs: document.getElementById('input-draft-npcs')?.value || '',
+                npcsVisibility: getStaticVis('input-draft-npcs'),
+                
                 locations: document.getElementById('input-draft-locations')?.value || '',
+                locationsVisibility: getStaticVis('input-draft-locations'),
+                
                 notes: document.getElementById('input-draft-notes')?.value || '',
+                notesVisibility: getStaticVis('input-draft-notes'),
                 
                 pcNotes: pcNotes
             },
@@ -688,7 +709,7 @@ window.appActions = {
         const inputId = `scene-input-${idx}`;
         
         const html = `
-            <div class="mb-4 scene-row bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm shadow-sm flex flex-col group cursor-text" onclick="window.appActions.openUniversalEditor('${inputId}', 'Scene ${idx + 1}')">
+            <div class="mb-4 scene-row vis-container bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm shadow-sm flex flex-col group cursor-text" onclick="window.appActions.openUniversalEditor('${inputId}', 'Scene ${idx + 1}')">
                 <div class="flex justify-between items-center bg-[#f4ebd8] px-3 py-1.5 border-b border-[#d4c5a9] rounded-t-sm">
                     <span class="text-[10px] text-stone-500 font-bold uppercase tracking-widest">Scene ${idx + 1}</span>
                     <div class="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity items-center">
@@ -714,7 +735,7 @@ window.appActions = {
         const container = document.getElementById('container-clues');
         if(!container) return;
         const html = `
-            <div class="mb-2 flex gap-2 items-center clue-row bg-[#fdfbf7] border border-[#d4c5a9] p-1.5 rounded-sm shadow-sm group">
+            <div class="mb-2 flex gap-2 items-center clue-row vis-container bg-[#fdfbf7] border border-[#d4c5a9] p-1.5 rounded-sm shadow-sm group">
                 <i class="fa-solid fa-magnifying-glass text-stone-400 ml-1"></i>
                 <input type="hidden" class="vis-mode-input" value="hidden">
                 <input type="hidden" class="vis-players-input" value="">
@@ -749,9 +770,9 @@ window.appActions = {
         let currentMode = 'public';
         let currentPlayers = [];
         
-        // Mode A: DOM Elements (Scenes and Clues living entirely in the HTML string before being saved)
+        // Mode A: DOM Elements (Scenes, Clues, and Static Containers living entirely in the HTML string before being saved)
         if (type === 'dom') {
-            const container = btnElement.closest('.scene-row') || btnElement.closest('.clue-row');
+            const container = btnElement.closest('.scene-row') || btnElement.closest('.clue-row') || btnElement.closest('.vis-container');
             if (!container) return;
             
             const modeInput = container.querySelector('.vis-mode-input');
@@ -849,7 +870,7 @@ window.appActions = {
             const btn = window.appActions._activeVisBtn;
             if (!btn) return;
 
-            const container = btn.closest('.scene-row') || btn.closest('.clue-row');
+            const container = btn.closest('.scene-row') || btn.closest('.clue-row') || btn.closest('.vis-container');
             if (container) {
                 const modeInput = container.querySelector('.vis-mode-input');
                 const playersInput = container.querySelector('.vis-players-input');
@@ -858,7 +879,7 @@ window.appActions = {
                 if (playersInput) playersInput.value = selectedPlayers.join(',');
 
                 // Update the Button UI so the DM instantly sees the change
-                if (container.classList.contains('scene-row')) {
+                if (container.classList.contains('scene-row') || container.classList.contains('vis-container')) {
                     if (finalMode === 'hidden') btn.innerHTML = `<i class="fa-solid fa-eye-slash mr-1"></i> Hidden`;
                     else if (finalMode === 'specific') btn.innerHTML = `<i class="fa-solid fa-user-lock mr-1"></i> Shared`;
                     else btn.innerHTML = `<i class="fa-solid fa-eye mr-1"></i> Public`;
