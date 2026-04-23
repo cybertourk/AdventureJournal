@@ -78,6 +78,11 @@ export function renderApp(state) {
     // Post-render UI adjustments
     if (state.currentView === 'session-edit') {
         updateSessionTabUI('session');
+        
+        // Ensure the budget UI initializes its values immediately upon loading the editor
+        if (window.appActions && window.appActions.updateSessionBudget) {
+            window.appActions.updateSessionBudget();
+        }
     }
 }
 
