@@ -20,7 +20,13 @@ function isVisible(entity, campaign) {
 
 export function generateSessionMarkdown(session, campaign) {
     let md = `### ${session.name}\n`;
-    md += `*Logged on ${new Date(session.timestamp).toLocaleDateString()}*\n\n`;
+    
+    const dateStr = new Date(session.timestamp).toLocaleDateString();
+    if (session.inGameDate && session.inGameDate.trim()) {
+        md += `*Logged on ${dateStr} (${session.inGameDate.trim()})*\n\n`;
+    } else {
+        md += `*Logged on ${dateStr}*\n\n`;
+    }
 
     // 1. SCENES (Dynamic Format)
     if (session.scenes && session.scenes.length > 0) {
