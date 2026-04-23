@@ -105,6 +105,10 @@
                 </div>
             </div>
             <div class="flex items-center gap-2">
+                <button id="header-checklist-btn" onclick="window.appActions.openChecklistMenu()" class="relative px-4 py-2 border border-amber-700/50 bg-amber-900/10 text-amber-500 hover:bg-amber-900/30 hover:text-amber-400 hover:border-amber-600 rounded-sm transition font-bold uppercase tracking-wider text-xs flex items-center gap-2 hidden shadow-sm">
+                    <i class="fa-solid fa-list-check"></i> <span class="hidden sm:inline">Tasks</span>
+                    <span id="header-checklist-badge" class="hidden absolute -top-2 -right-2 bg-red-600 text-white text-[9px] px-1.5 py-0.5 rounded-full shadow-md border border-red-800 animate-pulse">0</span>
+                </button>
                 <button id="settings-btn" class="px-4 py-2 border border-stone-700 text-stone-400 hover:text-amber-50 hover:border-stone-500 rounded-sm transition font-bold uppercase tracking-wider text-xs flex items-center gap-2">
                     <i class="fa-solid fa-gear"></i> <span class="hidden sm:inline">Settings</span>
                 </button>
@@ -160,6 +164,23 @@
         </div>
     </div>
 
+    <!-- GLOBAL CHECKLIST MODAL -->
+    <div id="checklist-modal" class="hidden fixed inset-0 bg-stone-950/90 z-[14000] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-300">
+        <div class="bg-[#f4ebd8] p-6 sm:p-8 rounded-sm border-2 border-amber-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] max-w-2xl w-full relative overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="absolute top-0 left-0 w-full h-2 bg-amber-600"></div>
+            <button onclick="window.appActions.closeChecklistMenu()" class="absolute top-4 right-4 text-stone-500 hover:text-red-900 transition text-2xl"><i class="fa-solid fa-xmark"></i></button>
+            
+            <h2 class="text-2xl font-serif font-bold text-amber-900 mb-2 flex items-center shrink-0">
+                <i class="fa-solid fa-list-check mr-3 text-amber-700"></i> Sheet Updates
+            </h2>
+            <p class="text-[10px] sm:text-xs text-stone-600 italic mb-4 leading-snug border-b border-[#d4c5a9] pb-3 shrink-0">Track loot, feats, or stats that need to be manually added to the official character sheet.</p>
+            
+            <div id="checklist-content-container" class="overflow-y-auto custom-scrollbar pr-2 flex-grow min-h-[200px]">
+                <!-- Populated dynamically via JS -->
+            </div>
+        </div>
+    </div>
+
     <!-- UNIVERSAL VISIBILITY MODAL (FOG OF WAR) -->
     <div id="visibility-modal" class="hidden fixed inset-0 bg-stone-950/90 z-[16000] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-300">
         <div class="bg-[#f4ebd8] p-5 sm:p-6 rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.8)] max-w-sm w-full relative overflow-hidden">
@@ -168,7 +189,7 @@
                 <i class="fa-solid fa-eye mr-2 text-stone-700" id="vis-modal-icon"></i> <span id="vis-modal-title">Visibility Settings</span>
             </h2>
 
-            <input type="hidden" id="vis-target-type"> <!-- 'scene', 'clue', 'codex' -->
+            <input type="hidden" id="vis-target-type"> <!-- 'scene', 'clue', 'codex', 'checklist' -->
             <input type="hidden" id="vis-target-idx"> <!-- array index or ID -->
 
             <div class="space-y-3 mb-6">
