@@ -252,16 +252,6 @@ export function getSessionEditHTML(state) {
                     <!-- DM's Personal Notes Section -->
                     ${renderSmartFieldWithVis(`player-note-${myUid}`, `<i class="fa-solid fa-feather mr-2 text-stone-500"></i> My Personal Notes`, myNoteData.text, myNoteData.visibility, 'Record your private DM/player thoughts here...', 4)}
                 </div>
-                
-                <!-- Legacy Block -->
-                <div class="border-t-2 border-stone-300 pt-6 mt-10">
-                    <h3 class="text-xs font-bold text-stone-500 uppercase tracking-widest mb-4"><i class="fa-solid fa-box-archive mr-2"></i> Legacy Format Logs</h3>
-                    <div class="space-y-4 opacity-80 hover:opacity-100 transition-opacity">
-                        ${renderSmartFieldWithVis('draft-events', 'Events', session.events, session.eventsVisibility, 'Legacy events...', 3)}
-                        ${renderSmartFieldWithVis('draft-npcs', 'NPCs', session.npcs, session.npcsVisibility, 'Legacy NPCs...', 3)}
-                        ${renderSmartFieldWithVis('draft-locations', 'Locations', session.locations, session.locationsVisibility, 'Legacy Locations...', 3)}
-                    </div>
-                </div>
             </div>
         </div>
 
