@@ -1,4 +1,3 @@
-```javascript
 import { saveCampaign, deleteCampaign, notify, joinCampaign } from './firebase-manager.js';
 import { renderApp, BUDGET_BY_LEVEL, updateBudgetUI, updateSessionTabUI } from './ui-core.js';
 import { generateSessionMarkdown, generateAdventureMarkdown, generateCampaignMarkdown } from './markdown.js';
@@ -1385,8 +1384,3 @@ window.appActions = {
         }
     }
 };
-
-
-
-
-```
