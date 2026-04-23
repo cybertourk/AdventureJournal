@@ -600,6 +600,8 @@ window.appActions = {
                 notes: document.getElementById('input-draft-notes')?.value || '',
                 notesVisibility: getStaticVis('input-draft-notes'),
                 
+                playerNotes: session?.playerNotes || {}, // Preserves existing player notes when DM saves
+                
                 pcNotes: pcNotes
             },
             updatedPCs: draftPCs, // Only updates the states for PCs in this draft
@@ -614,7 +616,9 @@ window.appActions = {
     updateSessionPreview: () => {
         updateDerivedState();
         const camp = window.appData.activeCampaign;
-        if (!camp) return;
+        
+        // Players don't use the live preview mechanism the same way, return early
+        if (!camp || !camp._isDM) return;
 
         const draft = window.appActions._gatherSessionDraft();
         const mockCampaign = { ...camp, playerCharacters: draft.updatedPCs };
@@ -631,13 +635,48 @@ window.appActions = {
         updateDerivedState();
         const camp = window.appData.activeCampaign;
         const adv = window.appData.activeAdventure;
+        const session = window.appData.activeSession;
         if (!camp || !adv) return;
         
         if (!camp._isDM) {
-            notify("Only the DM can alter the core Session Record.", "error");
+            // PLAYER SAVE MODE - Only modify personal notes
+            const myUid = window.appData.currentUserUid;
+            if (!session) return; // Players can only edit existing sessions
+
+            const noteInput = document.getElementById(`input-player-note-${myUid}`);
+            if (!noteInput) {
+                window.appActions.setView('adventure');
+                return;
+            }
+
+            const container = noteInput.closest('.vis-container') || noteInput.parentElement;
+            const modeInput = container ? container.querySelector('.vis-mode-input') : null;
+            const playersInput = container ? container.querySelector('.vis-players-input') : null;
+
+            const vis = {
+                mode: modeInput ? modeInput.value : 'hidden', // Default hidden (only DM + author)
+                visibleTo: playersInput && playersInput.value ? playersInput.value.split(',') : []
+            };
+
+            const updatedAdventures = camp.adventures.map(a => {
+                if (a.id !== adv.id) return a;
+                const updatedSessions = a.sessions.map(s => {
+                    if (s.id !== session.id) return s;
+                    const pNotes = s.playerNotes ? JSON.parse(JSON.stringify(s.playerNotes)) : {};
+                    pNotes[myUid] = { text: noteInput.value, visibility: vis };
+                    return { ...s, playerNotes: pNotes };
+                });
+                return { ...a, sessions: updatedSessions };
+            });
+
+            const updatedCamp = { ...camp, adventures: updatedAdventures };
+            await saveCampaign(updatedCamp);
+            window.appActions.setView('adventure');
+            notify("Personal notes inscribed.", "success");
             return;
         }
 
+        // DM SAVE MODE - Standard Full Save
         const draft = window.appActions._gatherSessionDraft();
 
         const newAdventures = camp.adventures.map(a => {
@@ -762,6 +801,7 @@ window.appActions = {
     openVisibilityMenu: (btnElement, type = 'dom', explicitId = null) => {
         updateDerivedState();
         const camp = window.appData.activeCampaign;
+        const myUid = window.appData.currentUserUid;
         if (!camp) return;
 
         window.appActions._activeVisBtn = btnElement;
@@ -806,7 +846,8 @@ window.appActions = {
         const activePlayers = camp.activePlayers || [];
         const playerNames = camp.playerNames || {};
         
-        const validPlayers = activePlayers.filter(uid => uid !== camp.dmId);
+        // Filter out the DM and the Author (they don't need to be in the "Specific Players" list, they already have access)
+        const validPlayers = activePlayers.filter(uid => uid !== camp.dmId && uid !== myUid);
         
         if (validPlayers.length === 0) {
             specificList.innerHTML = `<p class="text-xs text-stone-500 italic">No players available to share with.</p>`;
