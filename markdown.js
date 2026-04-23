@@ -22,7 +22,7 @@ export function generateSessionMarkdown(session, campaign) {
     let md = `### ${session.name}\n`;
     md += `*Logged on ${new Date(session.timestamp).toLocaleDateString()}*\n\n`;
 
-    // 1. SCENES (New Dynamic Format)
+    // 1. SCENES (Dynamic Format)
     if (session.scenes && session.scenes.length > 0) {
         const activeScenes = session.scenes.filter(s => s.text && s.text.trim() !== '' && isVisible(s, campaign));
         if (activeScenes.length > 0) {
@@ -32,12 +32,7 @@ export function generateSessionMarkdown(session, campaign) {
         }
     } 
     
-    // Legacy Support (Old Format)
-    if (session.events && session.events.trim() && isVisible({visibility: session.eventsVisibility}, campaign)) md += `#### Events\n${session.events}\n\n`;
-    if (session.npcs && session.npcs.trim() && isVisible({visibility: session.npcsVisibility}, campaign)) md += `#### NPCs\n${session.npcs}\n\n`;
-    if (session.locations && session.locations.trim() && isVisible({visibility: session.locationsVisibility}, campaign)) md += `#### Locations\n${session.locations}\n\n`;
-    
-    // 2. CLUES (New Dynamic Format)
+    // 2. CLUES (Dynamic Format)
     if (session.clues && session.clues.length > 0) {
         const activeClues = session.clues.filter(c => c.text && c.text.trim() !== '' && isVisible(c, campaign));
         if (activeClues.length > 0) {
@@ -59,9 +54,11 @@ export function generateSessionMarkdown(session, campaign) {
     }
 
     // 4. NOTES
-    if (session.notes && session.notes.trim() && isVisible({visibility: session.notesVisibility}, campaign)) md += `#### General Notes\n${session.notes}\n\n`;
+    if (session.notes && session.notes.trim() && isVisible({visibility: session.notesVisibility}, campaign)) {
+        md += `#### General Notes\n${session.notes}\n\n`;
+    }
 
-    // 5. PLAYER NOTES (New Feature)
+    // 5. PLAYER NOTES
     if (session.playerNotes && Object.keys(session.playerNotes).length > 0) {
         let playerNotesOutput = `#### Player Notes\n`;
         let hasVisiblePlayerNotes = false;
