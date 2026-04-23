@@ -5,7 +5,8 @@ import {
     setView, openCampaign, openAdventure, toggleNewCampaignForm, createCampaign,
     deleteCampaignAction, copyCampaignId, toggleJoinCampaignForm, joinCampaignAction,
     toggleNewAdventureForm, createAdventure, deleteAdventure, openAdvRoster,
-    toggleAdvRosterPc, saveAdvRoster, openPCEdit, savePCEdit, deletePC, kickPlayer
+    toggleAdvRosterPc, saveAdvRoster, openPCEdit, savePCEdit, deletePC, kickPlayer,
+    addSheetUpdate, toggleSheetUpdateResolved, toggleSheetUpdateVis, deleteSheetUpdate
 } from './actions-campaign.js';
 
 // Import Session, Narrative, & Visibility Controls
@@ -48,11 +49,15 @@ window.appActions = {
     toggleAdvRosterPc,
     saveAdvRoster,
     
-    // PC Manager
+    // PC Manager & Sheet Updates
     openPCEdit,
     savePCEdit,
     deletePC,
     kickPlayer,
+    addSheetUpdate,
+    toggleSheetUpdateResolved,
+    toggleSheetUpdateVis,
+    deleteSheetUpdate,
     
     // Session Editing
     openSessionEdit,
