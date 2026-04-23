@@ -288,6 +288,10 @@ export function getAdventureHTML(state) {
             
             const lootHtml = showLoot ? `<span class="mx-1">•</span> <span class="text-red-900">${session.lootValue.toLocaleString()} gp</span> discovered` : '';
             
+            // Format the dates
+            const dateStr = new Date(session.timestamp).toLocaleDateString();
+            const inGameStr = session.inGameDate ? `<span class="text-stone-400 normal-case ml-1 font-serif italic">(${session.inGameDate})</span>` : '';
+            
             // Extract the best available preview text (Intelligent Fallback)
             let previewText = '';
             
@@ -334,8 +338,8 @@ export function getAdventureHTML(state) {
             <li class="p-4 sm:p-5 hover:bg-[#fbf4e6] transition flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 group">
                 <div class="flex-grow w-full">
                     <h4 class="font-serif font-bold text-lg sm:text-xl text-stone-900 leading-tight">${session.name}</h4>
-                    <p class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-stone-500 mt-1">
-                        ${new Date(session.timestamp).toLocaleDateString()} ${lootHtml}
+                    <p class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-stone-500 mt-1 flex items-center flex-wrap gap-1">
+                        <span>${dateStr}</span> ${inGameStr} ${lootHtml}
                     </p>
                     ${notesHtml}
                 </div>
