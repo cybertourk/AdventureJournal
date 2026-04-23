@@ -61,32 +61,51 @@ export function generateSessionMarkdown(session, campaign) {
     // 4. NOTES
     if (session.notes && session.notes.trim() && isVisible({visibility: session.notesVisibility}, campaign)) md += `#### General Notes\n${session.notes}\n\n`;
 
-    // 5. PC NOTES
-    const pcNotesKeys = Object.keys(session.pcNotes || {});
-    if (pcNotesKeys.length > 0 && campaign && campaign.playerCharacters && campaign.playerCharacters.length > 0) {
-        let hasAnyNotes = false;
-        let pcNotesOutput = `#### Hero Status\n`;
+    // 5. PLAYER NOTES (New Feature)
+    if (session.playerNotes && Object.keys(session.playerNotes).length > 0) {
+        let playerNotesOutput = `#### Player Notes\n`;
+        let hasVisiblePlayerNotes = false;
         
-        campaign.playerCharacters.forEach(pc => {
-            const note = session.pcNotes[pc.id];
-            const hasNote = note && note.trim() !== '';
-            const statuses = [];
-            if (pc.inspiration) statuses.push('Inspiration');
-            if (pc.automaticSuccess) statuses.push('Auto-Success');
-            
-            if (hasNote || statuses.length > 0) {
-                hasAnyNotes = true;
-                let statusStr = statuses.length > 0 ? ` [${statuses.join(' | ')}]` : '';
-                pcNotesOutput += `- **${pc.name}${statusStr}:** ${hasNote ? note : '*No specific notes this session.*'}\n`;
-            }
-        });
-        
-        if (hasAnyNotes) {
-        md += pcNotesOutput + `\n`;
-    }
-}
+        const myUid = window.appData?.currentUserUid;
 
-return md;
+        for (const [uid, noteData] of Object.entries(session.playerNotes)) {
+            if (noteData && noteData.text && noteData.text.trim() !== '') {
+                // Players can ALWAYS see their own notes. Otherwise, check visibility.
+                const isAuthor = myUid === uid;
+                if (isAuthor || isVisible(noteData, campaign)) {
+                    const playerName = (campaign && campaign.playerNames && campaign.playerNames[uid]) ? campaign.playerNames[uid] : "Unknown Player";
+                    playerNotesOutput += `**${playerName}:**\n${noteData.text}\n\n`;
+                    hasVisiblePlayerNotes = true;
+                }
+            }
+        }
+        
+        if (hasVisiblePlayerNotes) {
+            md += playerNotesOutput;
+        }
+    }
+
+    // 6. PC NOTES (DM Specific Notes)
+    if (session.pcNotes && Object.keys(session.pcNotes).length > 0) {
+        // PC Notes are implicitly DM only (Legacy/Core design)
+        if (campaign && campaign._isDM) {
+            let pcNotesOutput = `#### Hero Specific Notes\n`;
+            let hasAnyNotes = false;
+            
+            campaign.playerCharacters?.forEach(pc => {
+                if (session.pcNotes[pc.id] && session.pcNotes[pc.id].trim() !== '') {
+                    pcNotesOutput += `**${pc.name}:** ${session.pcNotes[pc.id]}\n\n`;
+                    hasAnyNotes = true;
+                }
+            });
+            
+            if (hasAnyNotes) {
+                md += pcNotesOutput + `\n`;
+            }
+        }
+    }
+
+    return md;
 }
 
 export function generateAdventureMarkdown(adventure, campaign) {
@@ -101,14 +120,14 @@ export function generateAdventureMarkdown(adventure, campaign) {
     const sortedSessions = adventure.sessions ? [...adventure.sessions].sort((a, b) => a.timestamp - b.timestamp) : [];
     
     if (sortedSessions.length === 0) {
-        md += `*No sessions logged in this arc yet.*\n\n`;
+        md += `*No sessions have been recorded for this adventure yet.*\n\n`;
     } else {
         sortedSessions.forEach(session => {
             md += generateSessionMarkdown(session, campaign);
             md += `---\n\n`;
         });
     }
-
+    
     return md;
 }
 
@@ -123,12 +142,12 @@ export function generateCampaignMarkdown(campaign) {
     }
 
     if (!campaign.adventures || campaign.adventures.length === 0) {
-        md += `*No adventures recorded yet.*\n`;
+        md += `*No adventures have been recorded for this campaign yet.*\n\n`;
     } else {
         campaign.adventures.forEach(adv => {
             md += generateAdventureMarkdown(adv, campaign);
         });
     }
-
+    
     return md;
 }
