@@ -17,7 +17,7 @@ window.appData = {
     activeSession: null,
 
     // Codex & Smart Text State
-    codexCache: [], // Array of strings (names of all codex entries in the active campaign)
+    codexCache: [], // Array of objects { text: "Alias/Name", id: "TargetID" }
     activeSmartTextarea: null, // Tracks which textarea is currently being typed in
 
     // Temporary state
@@ -58,12 +58,28 @@ function updateDerivedState() {
         if (!window.appData.activeCampaign.codex) window.appData.activeCampaign.codex = [];
         
         // Build Autocomplete Cache: Combine Codex entries + any legacy/unassigned PCs without codex entries
-        const codexNames = window.appData.activeCampaign.codex.map(c => c.name);
-        const legacyPcNames = (window.appData.activeCampaign.playerCharacters || [])
-            .filter(pc => !window.appData.activeCampaign.codex.some(c => c.id === pc.id))
-            .map(pc => pc.name);
-            
-        window.appData.codexCache = [...codexNames, ...legacyPcNames];
+        const aliasMap = new Map();
+        
+        const addAlias = (name, id) => {
+            if(!name) return;
+            const cleanName = name.trim();
+            // Store the full name
+            if(!aliasMap.has(cleanName.toLowerCase())) {
+                aliasMap.set(cleanName.toLowerCase(), { text: cleanName, id: id });
+            }
+            // Automatically deduce a short name (first word) for seamless linking (e.g. Corval Shaedmokker -> Corval)
+            const firstWord = cleanName.split(' ')[0];
+            if(firstWord.length > 2 && firstWord !== cleanName) {
+                if(!aliasMap.has(firstWord.toLowerCase())) {
+                    aliasMap.set(firstWord.toLowerCase(), { text: firstWord, id: id });
+                }
+            }
+        };
+
+        (window.appData.activeCampaign.codex || []).forEach(c => addAlias(c.name, c.id));
+        (window.appData.activeCampaign.playerCharacters || []).forEach(pc => addAlias(pc.name, pc.id));
+        
+        window.appData.codexCache = Array.from(aliasMap.values());
         
         if (window.appData.activeAdventureId) {
             window.appData.activeAdventure = window.appData.activeCampaign.adventures.find(a => a.id === window.appData.activeAdventureId) || null;
@@ -1125,41 +1141,32 @@ window.appActions = {
         safeText = safeText.replace(/(^|[^\*])\*([^\*]+)\*(?!\*)/g, '$1<em class="italic text-stone-700">$2</em>');
         safeText = safeText.replace(/\b_(.*?)_\b/g, '<em class="italic text-stone-700">$1</em>');
 
-        // --- 2. PARSE CODEX LINKS (SAFARI COMPATIBLE) ---
-        const sortedCache = [...window.appData.codexCache].sort((a,b) => b.length - a.length);
+        // --- 2. PARSE CODEX LINKS (SAFARI COMPATIBLE & ALIAS SUPPORT) ---
+        // We sort by length descending. This guarantees we match "Corval Shaedmokker" before matching just "Corval" 
+        // to prevent nesting links incorrectly!
+        const sortedCache = [...window.appData.codexCache].sort((a,b) => b.text.length - a.text.length);
         
-        // Split by HTML tags to safely only replace text nodes without lookbehinds
-        let parts = safeText.split(/(<[^>]*>)/g);
-        
-        for (let i = 0; i < parts.length; i++) {
-            // If the part is an HTML tag, skip it
-            if (parts[i].startsWith('<') && parts[i].endsWith('>')) continue;
+        if (sortedCache.length > 0) {
+            // Build one massive regex pattern that matches ANY of our known aliases or full names
+            const escapedNames = sortedCache.map(e => e.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+            const massiveRegex = new RegExp(`\\b(${escapedNames.join('|')})\\b`, 'gi');
             
-            let textPart = parts[i];
-            sortedCache.forEach(name => {
-                const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const regex = new RegExp(`\\b${escapedName}\\b`, 'gi');
+            // Split the text by HTML tags to safely ONLY run our Regex replacement on plain text nodes
+            let parts = safeText.split(/(<[^>]*>)/g);
+            
+            for (let i = 0; i < parts.length; i++) {
+                if (parts[i].startsWith('<') && parts[i].endsWith('>')) continue;
                 
-                let targetId = null;
-                const codexEntry = (window.appData.activeCampaign?.codex || []).find(c => c.name.toLowerCase() === name.toLowerCase());
-                
-                if (codexEntry) {
-                    targetId = codexEntry.id;
-                } else {
-                    const pcEntry = (window.appData.activeCampaign?.playerCharacters || []).find(p => p.name.toLowerCase() === name.toLowerCase());
-                    if (pcEntry) targetId = pcEntry.id;
-                }
-
-                if (targetId) {
-                    textPart = textPart.replace(regex, (match) => {
-                        return `<span class="codex-link" onclick="event.stopPropagation(); window.appActions.viewCodex('${targetId}')">${match}</span>`;
-                    });
-                }
-            });
-            parts[i] = textPart;
+                parts[i] = parts[i].replace(massiveRegex, (match) => {
+                    const entry = sortedCache.find(e => e.text.toLowerCase() === match.toLowerCase());
+                    if (entry) {
+                        return `<span class="codex-link" onclick="event.stopPropagation(); window.appActions.viewCodex('${entry.id}')">${match}</span>`;
+                    }
+                    return match;
+                });
+            }
+            safeText = parts.join('');
         }
-        
-        safeText = parts.join('');
         
         // --- 3. LINE BREAKS ---
         safeText = safeText.replace(/\n/g, '<br>');
@@ -1186,13 +1193,13 @@ window.appActions = {
         let bestMatches = [];
         let matchLength = 0;
         
-        const sortedCache = [...window.appData.codexCache].sort((a,b) => b.length - a.length);
+        const sortedCache = [...window.appData.codexCache].sort((a,b) => b.text.length - a.text.length);
         
-        for (let name of sortedCache) {
-            const lowerName = name.toLowerCase();
+        for (let entry of sortedCache) {
+            const lowerName = entry.text.toLowerCase();
             
             // Check substrings from 3 chars up to the full length of the codex name
-            for (let i = 3; i <= name.length; i++) {
+            for (let i = 3; i <= entry.text.length; i++) {
                 const prefix = lowerName.substring(0, i);
                 
                 if (textBefore.toLowerCase().endsWith(prefix)) {
@@ -1201,9 +1208,9 @@ window.appActions = {
                     if (textBefore.length === i || /[ \n\t]/.test(charBeforeMatch)) {
                         if (i > matchLength) {
                             matchLength = i;
-                            bestMatches = [name];
-                        } else if (i === matchLength && !bestMatches.includes(name)) {
-                            bestMatches.push(name);
+                            bestMatches = [entry.text];
+                        } else if (i === matchLength && !bestMatches.includes(entry.text)) {
+                            bestMatches.push(entry.text);
                         }
                     }
                 }
@@ -1211,8 +1218,11 @@ window.appActions = {
         }
         
         if (bestMatches.length > 0 && bestMatches.length <= 5) {
-            // If it's a single exact match, don't show the suggestion box (they already typed it, and it will auto-link anyway!)
-            if (bestMatches.length === 1 && bestMatches[0].length === matchLength) {
+            const typedWord = textBefore.substring(textBefore.length - matchLength).toLowerCase();
+            const isExactAliasMatch = window.appData.codexCache.some(c => c.text.toLowerCase() === typedWord);
+            
+            // If what they typed perfectly matches an existing alias/short name (e.g. "Corval"), hide the annoying box!
+            if (isExactAliasMatch) {
                 document.getElementById('autocomplete-suggestions').style.display = 'none';
                 return;
             }
