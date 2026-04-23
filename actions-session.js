@@ -360,6 +360,16 @@ export const openVisibilityMenu = (btnElement, type = 'dom', explicitId = null) 
         document.getElementById('vis-target-type').value = type;
         document.getElementById('vis-target-idx').value = explicitId;
     }
+    // Mode C: Global Checklist Tasks
+    else if (type === 'checklist') {
+        const entry = (camp.sheetUpdates || []).find(u => u.id === explicitId);
+        if (entry && entry.visibility) {
+            currentMode = entry.visibility.mode || 'public';
+            currentPlayers = entry.visibility.visibleTo || [];
+        }
+        document.getElementById('vis-target-type').value = type;
+        document.getElementById('vis-target-idx').value = explicitId;
+    }
 
     // 2. Setup the Radio Buttons
     const modal = document.getElementById('visibility-modal');
@@ -486,6 +496,25 @@ export const saveVisibility = async () => {
         });
 
         await window.appActions._saveCampaignHelper({ ...camp, codex: newCodexArray });
+    }
+    // MODE C: Database Update (For Global Checklist Tasks)
+    else if (targetType === 'checklist') {
+        const explicitId = document.getElementById('vis-target-idx').value;
+        updateDerivedState();
+        const camp = window.appData.activeCampaign;
+        if (!camp) return;
+
+        const newUpdatesArray = (camp.sheetUpdates || []).map(u => {
+            if (u.id === explicitId) {
+                return {
+                    ...u,
+                    visibility: { mode: finalMode, visibleTo: selectedPlayers }
+                };
+            }
+            return u;
+        });
+
+        await window.appActions._saveCampaignHelper({ ...camp, sheetUpdates: newUpdatesArray });
     }
 
     // Clean up
