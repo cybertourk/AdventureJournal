@@ -52,15 +52,25 @@ export function renderSmartField(id, labelHtml, value, placeholderText, rows, wr
     `;
 }
 
-// --- GLOBAL CHECKLIST GENERATOR ---
-export function renderGlobalChecklist(state) {
+// --- GLOBAL CHECKLIST GENERATOR (MODAL UI) ---
+export function updateChecklistUI(state) {
+    const btn = document.getElementById('header-checklist-btn');
+    const badge = document.getElementById('header-checklist-badge');
+    const container = document.getElementById('checklist-content-container');
+    
+    if (!btn || !badge || !container) return;
+
     const camp = state.activeCampaign;
-    if (!camp) return '';
+    if (!camp || state.currentView === 'home') {
+        btn.classList.add('hidden');
+        return;
+    }
+
     const isDM = camp._isDM;
     const myUid = state.currentUserUid;
     const updates = camp.sheetUpdates || [];
 
-    // Filter updates: DMs see everything. Players only see Public OR Specific tasks assigned to them.
+    // Filter for this user
     const visibleUpdates = updates.filter(item => {
         if (isDM) return true;
         const vis = item.visibility || { mode: 'public' };
@@ -69,10 +79,28 @@ export function renderGlobalChecklist(state) {
         return false;
     });
 
-    // If a player has no tasks assigned to them, completely hide the checklist so it doesn't clutter the UI
-    if (!isDM && visibleUpdates.length === 0) return '';
+    // Hide button for players if no tasks
+    if (!isDM && visibleUpdates.length === 0) {
+        btn.classList.add('hidden');
+        return;
+    }
+    
+    btn.classList.remove('hidden');
 
-    // Sort: Tasks I haven't resolved yet float to the top. Then sort by newest.
+    // Badge logic for players
+    if (!isDM) {
+        const pendingCount = visibleUpdates.filter(u => !(u.resolvedBy || []).includes(myUid)).length;
+        if (pendingCount > 0) {
+            badge.textContent = pendingCount;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    } else {
+        badge.classList.add('hidden'); // DM doesn't need the red pulse badge
+    }
+
+    // Sort: Tasks I haven't resolved float to top. Then sort by newest.
     const sorted = [...visibleUpdates].sort((a, b) => {
         const aRes = (a.resolvedBy || []).includes(myUid);
         const bRes = (b.resolvedBy || []).includes(myUid);
@@ -82,7 +110,7 @@ export function renderGlobalChecklist(state) {
 
     let listHtml = '';
     if (sorted.length === 0 && isDM) {
-        listHtml = `<div class="text-xs text-amber-800/60 italic mb-2 px-2">No active tasks assigned to the party.</div>`;
+        listHtml = `<div class="text-xs text-stone-500 italic mb-2 text-center py-6">No active tasks assigned to the party.</div>`;
     } else {
         sorted.forEach(item => {
             const isResolvedByMe = (item.resolvedBy || []).includes(myUid);
@@ -99,36 +127,42 @@ export function renderGlobalChecklist(state) {
                 if (vis.mode === 'hidden') { eyeIcon = 'fa-eye-slash text-red-700'; visLabel = 'Hidden'; }
                 if (vis.mode === 'specific') { eyeIcon = 'fa-user-lock text-blue-600'; visLabel = 'Shared'; }
                 
-                const resolvedCount = (item.resolvedBy || []).length;
-                const totalTargetCount = vis.mode === 'specific' ? (vis.visibleTo || []).length : (camp.activePlayers?.length - 1 || 0); // -1 to exclude DM
-                const countHtml = `<span class="text-[9px] text-stone-500 mr-3 uppercase tracking-widest font-bold" title="${resolvedCount} out of ${totalTargetCount} players have completed this">${resolvedCount}/${totalTargetCount} Done</span>`;
+                const resolvedUids = item.resolvedBy || [];
+                const playerNames = camp.playerNames || {};
+                const resolvedNames = resolvedUids.map(uid => playerNames[uid] || 'Unknown Player').join(', ');
                 
+                const resolvedText = resolvedNames 
+                    ? `<span class="text-[9px] text-emerald-700 font-bold bg-emerald-100 px-1.5 py-0.5 rounded mr-auto truncate max-w-[140px] sm:max-w-[200px]" title="Completed by: ${resolvedNames}"><i class="fa-solid fa-check-double mr-1"></i> ${resolvedNames}</span>` 
+                    : `<span class="text-[9px] text-stone-400 italic mr-auto">No completions yet</span>`;
+
                 dmControls = `
-                    ${countHtml}
-                    <button type="button" onclick="window.appActions.openVisibilityMenu(this, 'checklist', '${item.id}')" class="text-[10px] flex items-center justify-center hover:bg-stone-200 px-2 py-1 rounded transition text-stone-600 font-bold uppercase tracking-widest mr-1 border border-transparent hover:border-stone-300" title="Visibility Settings"><i class="fa-solid ${eyeIcon} mr-1"></i> ${visLabel}</button>
-                    <button type="button" onclick="window.appActions.deleteSheetUpdate('${item.id}')" class="text-[10px] w-6 h-6 flex items-center justify-center text-stone-400 hover:text-red-700 hover:bg-red-50 rounded transition" title="Delete Task"><i class="fa-solid fa-trash"></i></button>
+                    ${resolvedText}
+                    <div class="flex items-center gap-1">
+                        <button type="button" onclick="window.appActions.openVisibilityMenu(this, 'checklist', '${item.id}')" class="text-[10px] flex items-center justify-center hover:bg-stone-200 px-2 py-1 rounded transition text-stone-600 font-bold uppercase tracking-widest border border-transparent hover:border-stone-300" title="Visibility Settings"><i class="fa-solid ${eyeIcon} sm:mr-1"></i> <span class="hidden sm:inline">${visLabel}</span></button>
+                        <button type="button" onclick="window.appActions.deleteSheetUpdate('${item.id}')" class="text-[10px] w-6 h-6 flex items-center justify-center text-stone-400 hover:text-red-700 hover:bg-red-50 rounded transition" title="Delete Task"><i class="fa-solid fa-trash"></i></button>
+                    </div>
                 `;
             }
 
-            // Players (and the DM if they really want to test it) get the "Mark as Added" button
-            let playerControls = `
-                <button type="button" onclick="window.appActions.toggleSheetUpdateResolved('${item.id}')" class="text-[10px] font-bold uppercase tracking-wider border px-2 py-1 rounded-sm transition shadow-sm whitespace-nowrap ${isResolvedByMe ? 'bg-emerald-100 border-emerald-300 text-emerald-800 hover:bg-emerald-200' : 'bg-white border-amber-300/50 text-stone-600 hover:bg-stone-100 hover:text-stone-900'}">
-                    ${isResolvedByMe ? '<i class="fa-solid fa-check mr-1"></i> Added' : 'Mark as Added'}
-                </button>
-            `;
+            let playerControls = '';
+            if (!isDM) {
+                playerControls = `
+                    <button type="button" onclick="window.appActions.toggleSheetUpdateResolved('${item.id}')" class="text-[10px] font-bold uppercase tracking-wider border px-3 py-1.5 rounded-sm transition shadow-sm whitespace-nowrap ml-auto ${isResolvedByMe ? 'bg-emerald-100 border-emerald-300 text-emerald-800 hover:bg-emerald-200' : 'bg-white border-amber-300/50 text-stone-600 hover:bg-stone-100 hover:text-stone-900'}">
+                        ${isResolvedByMe ? '<i class="fa-solid fa-check mr-1"></i> Added' : 'Mark as Added'}
+                    </button>
+                `;
+            }
 
             const safeText = item.text.replace(/"/g, '&quot;');
 
             listHtml += `
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between bg-[#fdfbf7] p-2 sm:p-2.5 border border-amber-600/20 rounded-sm shadow-sm gap-2 mb-2 hover:border-amber-400/50 transition-colors">
-                <div class="flex items-start sm:items-center gap-3 overflow-hidden pl-1">
-                    <div class="flex-shrink-0 text-sm mt-0.5 sm:mt-0">${statusIcon}</div>
-                    <span class="text-xs sm:text-sm ${statusTextClass} break-words">${safeText}</span>
+            <div class="flex flex-col bg-[#fdfbf7] p-3 border border-amber-600/20 rounded-sm shadow-sm gap-2 mb-3 hover:border-amber-400/50 transition-colors">
+                <div class="flex items-start sm:items-center gap-3">
+                    <div class="flex-shrink-0 text-base mt-0.5 sm:mt-0">${statusIcon}</div>
+                    <span class="text-sm ${statusTextClass} break-words">${safeText}</span>
                 </div>
-                <div class="flex items-center justify-end gap-1 sm:gap-2 flex-shrink-0 border-t sm:border-none border-stone-200 mt-2 sm:mt-0 pt-2 sm:pt-0">
-                    ${!isDM ? playerControls : ''}
-                    ${dmControls ? `<div class="w-px h-4 bg-stone-300 mx-1 hidden sm:block"></div>` : ''}
-                    ${dmControls}
+                <div class="flex items-center justify-between w-full pt-2 border-t border-stone-200 mt-1 min-h-[28px]">
+                    ${isDM ? dmControls : playerControls}
                 </div>
             </div>
             `;
@@ -138,23 +172,14 @@ export function renderGlobalChecklist(state) {
     let addHtml = '';
     if (isDM) {
         addHtml = `
-        <div class="flex gap-2 mt-3 pt-3 border-t border-amber-700/20">
-            <input type="text" id="new-sheet-update-text" class="flex-grow p-2 border border-amber-600/30 rounded-sm text-xs sm:text-sm focus:border-red-900 outline-none shadow-inner bg-white font-sans placeholder:text-stone-400 placeholder:italic" placeholder="Assign a task (e.g. Add 50gp, Add Healing Potion to inventory)..." onkeydown="if(event.key === 'Enter') { event.preventDefault(); window.appActions.addSheetUpdate(); }">
-            <button type="button" onclick="window.appActions.addSheetUpdate()" class="px-4 py-2 bg-amber-700 text-amber-50 text-[10px] sm:text-xs font-bold uppercase tracking-wider rounded-sm shadow-md hover:bg-amber-600 transition whitespace-nowrap"><i class="fa-solid fa-plus sm:mr-1"></i> <span class="hidden sm:inline">Assign Task</span></button>
+        <div class="flex gap-2 mt-4 pt-4 border-t border-amber-700/20 sticky bottom-0 bg-[#f4ebd8] pb-2 z-10">
+            <input type="text" id="new-sheet-update-text" class="flex-grow p-2 border border-amber-600/30 rounded-sm text-xs sm:text-sm focus:border-red-900 outline-none shadow-inner bg-white font-sans placeholder:text-stone-400 placeholder:italic" placeholder="Assign a task (e.g. Add 50gp)..." onkeydown="if(event.key === 'Enter') { event.preventDefault(); window.appActions.addSheetUpdate(); }">
+            <button type="button" onclick="window.appActions.addSheetUpdate()" class="px-4 py-2 bg-amber-700 text-amber-50 text-[10px] sm:text-xs font-bold uppercase tracking-wider rounded-sm shadow-md hover:bg-amber-600 transition whitespace-nowrap"><i class="fa-solid fa-plus sm:mr-1"></i> <span class="hidden sm:inline">Assign</span></button>
         </div>
         `;
     }
 
-    return `
-    <div class="mb-6 bg-gradient-to-r from-[#f4ebd8] to-[#fdfbf7] border-2 border-amber-600/30 rounded-sm p-4 shadow-sm relative overflow-hidden">
-        <div class="absolute left-0 top-0 bottom-0 w-1 bg-amber-500"></div>
-        <h3 class="font-serif font-bold text-amber-800 text-sm uppercase tracking-widest mb-3 flex items-center justify-between">
-            <span><i class="fa-solid fa-list-check mr-2 text-amber-600"></i> Character Sheet Updates</span>
-        </h3>
-        ${listHtml}
-        ${addHtml}
-    </div>
-    `;
+    container.innerHTML = listHtml + addHtml;
 }
 
 // --- MAIN RENDERER ---
@@ -163,11 +188,6 @@ export function renderApp(state) {
     if (!container) return;
 
     renderBreadcrumbs(state);
-
-    let checklistHtml = '';
-    if (state.activeCampaign && state.currentView !== 'home') {
-        checklistHtml = renderGlobalChecklist(state);
-    }
 
     let html = '';
     switch (state.currentView) {
@@ -183,9 +203,11 @@ export function renderApp(state) {
         default: html = `<div class="text-center text-red-500">Unknown View: ${state.currentView}</div>`;
     }
 
-    container.innerHTML = checklistHtml + html;
+    container.innerHTML = html;
 
     // Post-render UI adjustments
+    updateChecklistUI(state);
+
     if (state.currentView === 'session-edit') {
         updateSessionTabUI('session');
         
