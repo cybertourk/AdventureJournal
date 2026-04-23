@@ -4,7 +4,7 @@ import { renderLevelOptions, renderSmartField } from './ui-core.js';
 
 // Helper to generate the visibility toggle button
 function renderVisToggle(visObj) {
-    const mode = visObj?.mode || 'public';
+    const mode = visObj?.mode || 'hidden'; // Default to hidden for new notes so they are private between author and DM
     const players = (visObj?.visibleTo || []).join(',');
     
     let icon = 'fa-eye';
@@ -74,14 +74,58 @@ export function getSessionEditHTML(state) {
     const adv = state.activeAdventure;
     const session = state.activeSession || {};
     const isNew = !state.activeSessionId;
+    const myUid = state.currentUserUid;
 
     if (!camp || !adv) return '';
     const isDM = camp._isDM;
     
+    // Setup the user's specific player note data
+    const myNoteData = (session.playerNotes && session.playerNotes[myUid]) ? session.playerNotes[myUid] : { text: '', visibility: { mode: 'hidden', visibleTo: [] } };
+
+    // ==========================================
+    // PLAYER VIEW (Streamlined Personal Notes)
+    // ==========================================
     if (!isDM) {
-        return `<div class="text-center text-red-500 p-8 font-serif font-bold text-xl">Only the DM can alter the core Session Record.</div>`;
+        if (isNew) {
+            return `<div class="text-center text-red-500 p-8 font-serif font-bold text-xl">Only the DM can initiate new sessions.</div>`;
+        }
+
+        return `
+        <div class="animate-in slide-in-from-bottom-4 duration-300 bg-[#fdfbf7] rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col max-w-3xl mx-auto h-[calc(100vh-100px)] sm:h-[calc(100vh-120px)] relative">
+            
+            <!-- Header -->
+            <div class="bg-stone-900 p-4 border-b-4 border-blue-900 text-amber-500 flex justify-between items-center shrink-0 shadow-md z-10">
+                <h2 class="text-xl sm:text-2xl font-serif font-bold flex items-center">
+                    <i class="fa-solid fa-feather-pointed mr-3 text-blue-500"></i> Personal Notes
+                </h2>
+                <div class="flex items-center gap-2">
+                    <span class="bg-stone-800 text-amber-200 text-[10px] px-2 py-1 rounded border border-stone-600 uppercase tracking-widest shadow-inner hidden sm:inline-block">${adv.name}</span>
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div class="flex-grow overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 bg-[#fdfbf7]">
+                <div class="max-w-2xl mx-auto">
+                    <h3 class="w-full pb-4 mb-6 text-stone-900 font-serif font-bold text-2xl border-b-2 border-stone-300">${session.name || 'Session'}</h3>
+                    
+                    <p class="text-stone-500 text-xs sm:text-sm mb-6 italic border-l-2 border-blue-500 pl-3">Record your private thoughts, inventory updates, or quest notes for this session. By default, these are only visible to you and the Dungeon Master.</p>
+                    
+                    ${renderSmartFieldWithVis(`player-note-${myUid}`, `<i class="fa-solid fa-book-open mr-2 text-stone-500"></i> My Hero's Journal`, myNoteData.text, myNoteData.visibility, 'Scribe your personal notes here... Use @ to link Codex entries.', 10, false)}
+                </div>
+            </div>
+
+            <!-- Footer Actions -->
+            <div class="bg-[#e8dec7] p-3 sm:p-4 border-t border-stone-400 flex justify-end gap-2 shrink-0 z-10 shadow-[0_-4px_10px_rgba(0,0,0,0.1)]">
+                <button onclick="window.appActions.setView('adventure')" class="px-4 py-2 text-stone-600 border border-stone-400 rounded-sm hover:bg-stone-300 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs">Discard</button>
+                <button onclick="window.appActions.saveSession()" class="px-5 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs flex items-center shadow-md"><i class="fa-solid fa-floppy-disk mr-2"></i> Inscribe Notes</button>
+            </div>
+        </div>
+        `;
     }
 
+    // ==========================================
+    // DM VIEW (Full Narrative Editor)
+    // ==========================================
     const title = isNew ? "Log New Session" : "Amend Session Record";
     const defaultName = isNew ? `Log from ${new Date().toLocaleDateString()}` : (session.name || '');
 
@@ -204,6 +248,9 @@ export function getSessionEditHTML(state) {
                 <div class="space-y-6">
                     ${renderSmartFieldWithVis('draft-loot', `<i class="fa-solid fa-coins mr-2 text-stone-500"></i> Loot & Rewards`, session.lootText, session.lootVisibility, 'Describe the treasure found...', 4)}
                     ${renderSmartFieldWithVis('draft-notes', `<i class="fa-solid fa-book mr-2 text-stone-500"></i> General Notes`, session.notes, session.notesVisibility, 'Any general notes or lore...', 4)}
+                    
+                    <!-- DM's Personal Notes Section -->
+                    ${renderSmartFieldWithVis(`player-note-${myUid}`, `<i class="fa-solid fa-feather mr-2 text-stone-500"></i> My Personal Notes`, myNoteData.text, myNoteData.visibility, 'Record your private DM/player thoughts here...', 4)}
                 </div>
                 
                 <!-- Legacy Block -->
