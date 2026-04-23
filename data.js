@@ -56,8 +56,14 @@ function updateDerivedState() {
     if (window.appData.activeCampaign) {
         // Ensure Codex array exists
         if (!window.appData.activeCampaign.codex) window.appData.activeCampaign.codex = [];
-        // Build Autocomplete Cache
-        window.appData.codexCache = window.appData.activeCampaign.codex.map(c => c.name);
+        
+        // Build Autocomplete Cache: Combine Codex entries + any legacy/unassigned PCs without codex entries
+        const codexNames = window.appData.activeCampaign.codex.map(c => c.name);
+        const legacyPcNames = (window.appData.activeCampaign.playerCharacters || [])
+            .filter(pc => !window.appData.activeCampaign.codex.some(c => c.id === pc.id))
+            .map(pc => pc.name);
+            
+        window.appData.codexCache = [...codexNames, ...legacyPcNames];
         
         if (window.appData.activeAdventureId) {
             window.appData.activeAdventure = window.appData.activeCampaign.adventures.find(a => a.id === window.appData.activeAdventureId) || null;
@@ -1127,10 +1133,20 @@ window.appActions = {
             // Safely look for word boundaries but ignore matches that happen inside HTML tags
             const regex = new RegExp(`(?<!<[^>]*)\\b${escapedName}\\b(?![^<]*>)`, 'gi');
             
-            const entry = (window.appData.activeCampaign?.codex || []).find(c => c.name.toLowerCase() === name.toLowerCase());
-            if (entry) {
+            let targetId = null;
+            const codexEntry = (window.appData.activeCampaign?.codex || []).find(c => c.name.toLowerCase() === name.toLowerCase());
+            
+            if (codexEntry) {
+                targetId = codexEntry.id;
+            } else {
+                // Fallback for legacy PCs or unassigned heroes not yet formally saved to the codex array
+                const pcEntry = (window.appData.activeCampaign?.playerCharacters || []).find(p => p.name.toLowerCase() === name.toLowerCase());
+                if (pcEntry) targetId = pcEntry.id;
+            }
+
+            if (targetId) {
                 safeText = safeText.replace(regex, (match) => {
-                    return `<span class="codex-link" onclick="event.stopPropagation(); window.appActions.viewCodex('${entry.id}')">${match}</span>`;
+                    return `<span class="codex-link" onclick="event.stopPropagation(); window.appActions.viewCodex('${targetId}')">${match}</span>`;
                 });
             }
         });
@@ -1364,30 +1380,16 @@ window.appActions = {
         if (!camp) return;
 
         const id = document.getElementById('cx-modal-id').value;
-        
-        // Verify Editing Permissions
-        const isDM = camp._isDM;
-        const myUid = window.appData.currentUserUid;
-        const ownsPC = camp.playerCharacters?.some(p => p.id === id && p.playerId === myUid);
-        
-        if (!isDM && !ownsPC) {
-            notify("Only the DM or the Hero's owner can amend this record.", "error");
-            return;
-        }
-
         const name = document.getElementById('cx-modal-name').value.trim();
         if (!name) {
             notify("A name is required for Codex auto-linking.", "error");
             return;
         }
 
-        const isHeroCodex = camp.playerCharacters?.some(p => p.id === id);
-
         const newEntry = {
             id: id || generateId(),
             name: name,
-            // If it is a Hero codex entry, force the type to NPC so players can't change it to Item/Lore
-            type: isHeroCodex ? 'NPC' : document.getElementById('cx-modal-type').value,
+            type: document.getElementById('cx-modal-type').value,
             tags: document.getElementById('cx-modal-tags').value.split(',').map(t=>t.trim()).filter(t=>t),
             desc: document.getElementById('cx-modal-desc').value
         };
@@ -1405,23 +1407,11 @@ window.appActions = {
     },
 
     deleteCodexEntry: async (id) => {
+        if (!confirm("Destroy this Codex entry? Auto-links using this name will no longer function.")) return;
+        
         updateDerivedState();
         const camp = window.appData.activeCampaign;
         if (!camp) return;
-
-        const isDM = camp._isDM;
-        if (!isDM) {
-            notify("Only the DM can delete Codex entries.", "error");
-            return;
-        }
-
-        const isHeroCodex = camp.playerCharacters?.some(p => p.id === id);
-        if (isHeroCodex) {
-            notify("Hero profiles must be removed via the Party Manifest.", "error");
-            return;
-        }
-
-        if (!confirm("Destroy this Codex entry? Auto-links using this name will no longer function.")) return;
 
         const updatedCamp = {
             ...camp,
