@@ -129,6 +129,21 @@ export function getSessionEditHTML(state) {
     const title = isNew ? "Log New Session" : "Amend Session Record";
     const defaultName = isNew ? `Log from ${new Date().toLocaleDateString()}` : (session.name || '');
 
+    // Format the date strings for the input fields
+    // If we have an existing timestamp, format it for the date picker (YYYY-MM-DD). Otherwise, use today.
+    let defaultRealDate = '';
+    try {
+        const dateObj = session.timestamp ? new Date(session.timestamp) : new Date();
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        defaultRealDate = `${year}-${month}-${day}`;
+    } catch (e) {
+        defaultRealDate = new Date().toISOString().split('T')[0];
+    }
+    
+    const defaultInGameDate = session.inGameDate || '';
+
     // Gather PCs active in this adventure
     const activePcIds = adv.activePcIds || camp.playerCharacters?.map(p => p.id) || [];
     const rosterPCs = (camp.playerCharacters || []).filter(pc => activePcIds.includes(pc.id));
@@ -216,7 +231,19 @@ export function getSessionEditHTML(state) {
         <!-- Tab Content: Session Narrative -->
         <div id="tab-content-session" class="flex-grow overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 bg-[#fdfbf7]">
             <div class="max-w-3xl mx-auto">
-                <input type="text" id="draft-name" value="${defaultName}" class="w-full p-2 bg-transparent border-b-2 border-stone-400 text-stone-900 font-serif font-bold text-2xl outline-none focus:border-red-900 mb-8 transition-colors" placeholder="Session Title...">
+                <input type="text" id="draft-name" value="${defaultName}" class="w-full p-2 bg-transparent border-b-2 border-stone-400 text-stone-900 font-serif font-bold text-2xl outline-none focus:border-red-900 mb-4 transition-colors" placeholder="Session Title...">
+
+                <!-- Dates Configuration -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                    <div>
+                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1"><i class="fa-regular fa-calendar text-stone-400 mr-1"></i> Real-World Date</label>
+                        <input type="date" id="draft-real-date" value="${defaultRealDate}" class="w-full p-2 bg-transparent border-b-2 border-stone-400 text-stone-900 font-serif text-sm outline-none focus:border-red-900 transition-colors">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1"><i class="fa-solid fa-moon text-stone-400 mr-1"></i> In-Game Date <span class="text-stone-400 normal-case font-normal">(Optional)</span></label>
+                        <input type="text" id="draft-ingame-date" value="${defaultInGameDate.replace(/"/g, '&quot;')}" placeholder="e.g. 14th of Kythorn, 1492 DR" class="w-full p-2 bg-transparent border-b-2 border-stone-400 text-stone-900 font-serif text-sm outline-none focus:border-red-900 transition-colors">
+                    </div>
+                </div>
 
                 <!-- Dynamic Scenes -->
                 <div class="mb-8">
