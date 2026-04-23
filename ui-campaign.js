@@ -138,7 +138,7 @@ export function getCampaignHTML(state) {
                     <span class="bg-stone-900 px-2 py-1 rounded border border-stone-700 shadow-inner">${advCount} Adventures</span>
                     <span class="bg-stone-900 px-2 py-1 rounded border border-stone-700 shadow-inner">${pcCount} Heroes</span>
                     <span class="bg-stone-900 px-2 py-1 rounded border border-stone-700 shadow-inner">${codexCount} Codex Entries</span>
-                    <span class="bg-stone-900 px-2 py-1 rounded border border-stone-700 shadow-inner font-bold text-amber-600">${totalCampLoot.toLocaleString(undefined, {minimumFractionDigits: 2})} gp Total</span>
+                    ${isDM ? `<span class="bg-stone-900 px-2 py-1 rounded border border-stone-700 shadow-inner font-bold text-amber-600">${totalCampLoot.toLocaleString(undefined, {minimumFractionDigits: 2})} gp Total</span>` : ''}
                 </div>
             </div>
             <div class="flex flex-wrap gap-2 w-full md:w-auto">
@@ -169,7 +169,7 @@ export function getCampaignHTML(state) {
                 <div class="pl-2">
                     <h3 class="font-serif font-bold text-base sm:text-lg text-stone-900 truncate" title="${adv.name}">${adv.name}</h3>
                     <p class="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-stone-500 mt-1 sm:mt-2">
-                        Lvl ${adv.startLevel}-${adv.endLevel} <span class="mx-1">•</span> ${adv.numPlayers} Players <span class="mx-1">•</span> ${adv.totalLootGP.toLocaleString()} gp
+                        Lvl ${adv.startLevel}-${adv.endLevel} <span class="mx-1">•</span> ${adv.numPlayers} Players ${isDM ? `<span class="mx-1">•</span> ${adv.totalLootGP.toLocaleString()} gp` : ''}
                     </p>
                     <p class="text-xs sm:text-sm text-stone-700 italic mt-1">${adv.sessions ? adv.sessions.length : 0} sessions logged</p>
                 </div>
@@ -229,6 +229,17 @@ export function getAdventureHTML(state) {
     if (!adv || !camp) return '';
 
     const isDM = camp._isDM;
+    const myUid = state.currentUserUid;
+
+    // Local fog of war helper for the session loop
+    const isVisible = (visObj) => {
+        if (isDM) return true; // DM sees all
+        const mode = visObj?.mode || 'public';
+        if (mode === 'public') return true;
+        if (mode === 'hidden') return false;
+        if (mode === 'specific' && visObj?.visibleTo?.includes(myUid)) return true;
+        return false;
+    };
 
     let html = `
     <div class="animate-in fade-in duration-300">
@@ -238,7 +249,7 @@ export function getAdventureHTML(state) {
                 <div class="flex flex-wrap items-center gap-2 sm:gap-3 text-stone-400 text-xs sm:text-sm font-sans mt-2">
                     <span class="bg-stone-900 px-2 py-1 rounded border border-stone-700 shadow-inner">Level ${adv.startLevel}-${adv.endLevel}</span>
                     <span class="bg-stone-900 px-2 py-1 rounded border border-stone-700 shadow-inner">${adv.numPlayers} Heroes Active</span>
-                    <span class="bg-stone-900 px-2 py-1 rounded border border-stone-700 shadow-inner font-bold text-amber-600">${adv.totalLootGP.toLocaleString(undefined, {minimumFractionDigits: 2})} gp Arc Loot</span>
+                    ${isDM ? `<span class="bg-stone-900 px-2 py-1 rounded border border-stone-700 shadow-inner font-bold text-amber-600">${adv.totalLootGP.toLocaleString(undefined, {minimumFractionDigits: 2})} gp Arc Loot</span>` : ''}
                 </div>
             </div>
             <div class="flex flex-wrap gap-2 w-full md:w-auto">
@@ -272,14 +283,20 @@ export function getAdventureHTML(state) {
         const sortedSessions = [...adv.sessions].sort((a, b) => b.timestamp - a.timestamp);
         
         sortedSessions.forEach(session => {
+            const showLoot = isVisible(session.lootVisibility);
+            const showNotes = isVisible(session.notesVisibility);
+            
+            const lootHtml = showLoot ? `<span class="mx-1">•</span> <span class="text-red-900">${session.lootValue.toLocaleString()} gp</span> discovered` : '';
+            const notesHtml = (showNotes && session.notes) ? `<p class="text-xs sm:text-sm text-stone-700 mt-2 sm:mt-3 italic border-l-2 border-stone-400 pl-2 sm:pl-3 line-clamp-3">"${session.notes}"</p>` : '';
+
             html += `
             <li class="p-4 sm:p-5 hover:bg-[#fbf4e6] transition flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 group">
                 <div class="flex-grow w-full">
                     <h4 class="font-serif font-bold text-lg sm:text-xl text-stone-900 leading-tight">${session.name}</h4>
                     <p class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-stone-500 mt-1">
-                        ${new Date(session.timestamp).toLocaleDateString()} <span class="mx-1">•</span> <span class="text-red-900">${session.lootValue.toLocaleString()} gp</span> discovered
+                        ${new Date(session.timestamp).toLocaleDateString()} ${lootHtml}
                     </p>
-                    ${session.notes ? `<p class="text-xs sm:text-sm text-stone-700 mt-2 sm:mt-3 italic border-l-2 border-stone-400 pl-2 sm:pl-3 line-clamp-3">"${session.notes}"</p>` : ''}
+                    ${notesHtml}
                 </div>
                 <div class="flex flex-wrap gap-2 flex-shrink-0 w-full sm:w-auto mt-2 sm:mt-0 opacity-100 sm:opacity-50 group-hover:opacity-100 transition-opacity">
                     <button onclick="window.appActions.openJournal('session', '${session.id}')" class="flex-1 sm:flex-none px-3 py-1.5 sm:py-2 text-stone-800 bg-stone-300 rounded-sm hover:bg-stone-400 border border-stone-400 transition text-[10px] sm:text-xs font-bold uppercase tracking-wider justify-center flex items-center shadow-sm" title="Read Entry">
