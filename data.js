@@ -610,12 +610,23 @@ window.appActions = {
             if (autoEl) pc.automaticSuccess = autoEl.checked;
         });
 
-        // Helper to grab visibility from the DOM rows
-        const grabVisibility = (row) => {
-            const mode = row.querySelector('.vis-mode-input')?.value || 'public';
-            const playersStr = row.querySelector('.vis-players-input')?.value || '';
+        // Helper to grab visibility from a DOM container
+        const grabVisibility = (container) => {
+            if (!container) return { mode: 'public', visibleTo: [] };
+            const modeInput = container.querySelector('.vis-mode-input');
+            const playersInput = container.querySelector('.vis-players-input');
+            const mode = modeInput ? modeInput.value : 'public';
+            const playersStr = playersInput ? playersInput.value : '';
             const players = playersStr ? playersStr.split(',') : [];
             return { mode: mode, visibleTo: players };
+        };
+
+        // Helper to grab visibility from static elements like Loot/Notes
+        const getStaticVis = (inputId) => {
+            const inputEl = document.getElementById(inputId);
+            if (!inputEl) return { mode: 'public', visibleTo: [] };
+            const container = inputEl.closest('.scene-row') || inputEl.closest('.vis-container') || inputEl.parentElement;
+            return grabVisibility(container);
         };
 
         return {
@@ -623,8 +634,10 @@ window.appActions = {
                 id: session?.id || generateId(),
                 name: document.getElementById('draft-name')?.value || `Log from ${new Date().toLocaleDateString()}`,
                 timestamp: session?.timestamp || Date.now(),
+                
                 lootText: lootText,
                 lootValue: calculateLootValue(lootText),
+                lootVisibility: getStaticVis('input-draft-loot'),
                 
                 scenes: window.appActions._readDynamicList('container-scenes', (row, idx) => ({
                     id: idx + 1,
@@ -637,10 +650,20 @@ window.appActions = {
                     visibility: grabVisibility(row)
                 })),
                 
+                // Legacy / Static Elements
                 events: document.getElementById('input-draft-events')?.value || '',
+                eventsVisibility: getStaticVis('input-draft-events'),
+                
                 npcs: document.getElementById('input-draft-npcs')?.value || '',
+                npcsVisibility: getStaticVis('input-draft-npcs'),
+                
                 locations: document.getElementById('input-draft-locations')?.value || '',
+                locationsVisibility: getStaticVis('input-draft-locations'),
+                
                 notes: document.getElementById('input-draft-notes')?.value || '',
+                notesVisibility: getStaticVis('input-draft-notes'),
+                
+                playerNotes: session?.playerNotes || {}, // Preserves existing player notes when DM saves
                 
                 pcNotes: pcNotes
             },
@@ -656,7 +679,9 @@ window.appActions = {
     updateSessionPreview: () => {
         updateDerivedState();
         const camp = window.appData.activeCampaign;
-        if (!camp) return;
+        
+        // Players don't use the live preview mechanism the same way, return early
+        if (!camp || !camp._isDM) return;
 
         const draft = window.appActions._gatherSessionDraft();
         const mockCampaign = { ...camp, playerCharacters: draft.updatedPCs };
@@ -673,13 +698,48 @@ window.appActions = {
         updateDerivedState();
         const camp = window.appData.activeCampaign;
         const adv = window.appData.activeAdventure;
+        const session = window.appData.activeSession;
         if (!camp || !adv) return;
         
         if (!camp._isDM) {
-            notify("Only the DM can alter the core Session Record.", "error");
+            // PLAYER SAVE MODE - Only modify personal notes
+            const myUid = window.appData.currentUserUid;
+            if (!session) return; // Players can only edit existing sessions
+
+            const noteInput = document.getElementById(`input-player-note-${myUid}`);
+            if (!noteInput) {
+                window.appActions.setView('adventure');
+                return;
+            }
+
+            const container = noteInput.closest('.vis-container') || noteInput.parentElement;
+            const modeInput = container ? container.querySelector('.vis-mode-input') : null;
+            const playersInput = container ? container.querySelector('.vis-players-input') : null;
+
+            const vis = {
+                mode: modeInput ? modeInput.value : 'hidden', // Default hidden (only DM + author)
+                visibleTo: playersInput && playersInput.value ? playersInput.value.split(',') : []
+            };
+
+            const updatedAdventures = camp.adventures.map(a => {
+                if (a.id !== adv.id) return a;
+                const updatedSessions = a.sessions.map(s => {
+                    if (s.id !== session.id) return s;
+                    const pNotes = s.playerNotes ? JSON.parse(JSON.stringify(s.playerNotes)) : {};
+                    pNotes[myUid] = { text: noteInput.value, visibility: vis };
+                    return { ...s, playerNotes: pNotes };
+                });
+                return { ...a, sessions: updatedSessions };
+            });
+
+            const updatedCamp = { ...camp, adventures: updatedAdventures };
+            await saveCampaign(updatedCamp);
+            window.appActions.setView('adventure');
+            notify("Personal notes inscribed.", "success");
             return;
         }
 
+        // DM SAVE MODE - Standard Full Save
         const draft = window.appActions._gatherSessionDraft();
 
         const newAdventures = camp.adventures.map(a => {
@@ -751,11 +811,11 @@ window.appActions = {
         const inputId = `scene-input-${idx}`;
         
         const html = `
-            <div class="mb-4 scene-row bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm shadow-sm flex flex-col group cursor-text" onclick="window.appActions.openUniversalEditor('${inputId}', 'Scene ${idx + 1}')">
+            <div class="mb-4 scene-row vis-container bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm shadow-sm flex flex-col group cursor-text" onclick="window.appActions.openUniversalEditor('${inputId}', 'Scene ${idx + 1}')">
                 <div class="flex justify-between items-center bg-[#f4ebd8] px-3 py-1.5 border-b border-[#d4c5a9] rounded-t-sm">
                     <span class="text-[10px] text-stone-500 font-bold uppercase tracking-widest">Scene ${idx + 1}</span>
                     <div class="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity items-center">
-                        <button class="text-red-700 hover:text-red-600 font-bold px-2 py-1 text-[10px] uppercase tracking-widest transition flex items-center" onclick="event.stopPropagation(); window.appActions.openVisibilityMenu(this)">
+                        <button class="text-red-700 hover:text-red-600 font-bold px-2 py-1 text-[10px] uppercase tracking-widest transition flex items-center" onclick="event.stopPropagation(); window.appActions.openVisibilityMenu(this, 'dom')">
                             <i class="fa-solid fa-eye-slash mr-1"></i> Hidden
                         </button>
                         <div class="w-px h-3 bg-stone-300"></div>
@@ -777,7 +837,7 @@ window.appActions = {
         const container = document.getElementById('container-clues');
         if(!container) return;
         const html = `
-            <div class="mb-2 flex gap-2 items-center clue-row bg-[#fdfbf7] border border-[#d4c5a9] p-1.5 rounded-sm shadow-sm group">
+            <div class="mb-2 flex gap-2 items-center clue-row vis-container bg-[#fdfbf7] border border-[#d4c5a9] p-1.5 rounded-sm shadow-sm group">
                 <i class="fa-solid fa-magnifying-glass text-stone-400 ml-1"></i>
                 <input type="hidden" class="vis-mode-input" value="hidden">
                 <input type="hidden" class="vis-players-input" value="">
@@ -785,7 +845,7 @@ window.appActions = {
                 <input type="text" class="clue-input flex-1 bg-transparent border-none text-stone-900 px-1 text-xs sm:text-sm outline-none placeholder:italic placeholder:text-stone-400" placeholder="Quest update, clue, or objective...">
                 
                 <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button class="text-red-700 hover:text-red-600 font-bold px-2 py-1 text-[10px] uppercase tracking-widest transition flex items-center" onclick="window.appActions.openVisibilityMenu(this)">
+                    <button class="text-red-700 hover:text-red-600 font-bold px-2 py-1 text-[10px] uppercase tracking-widest transition flex items-center" onclick="window.appActions.openVisibilityMenu(this, 'dom')">
                         <i class="fa-solid fa-eye-slash"></i>
                     </button>
                     <button class="text-stone-400 hover:text-red-700 font-bold px-2 transition" onclick="this.closest('.clue-row').remove()">
@@ -804,6 +864,7 @@ window.appActions = {
     openVisibilityMenu: (btnElement, type = 'dom', explicitId = null) => {
         updateDerivedState();
         const camp = window.appData.activeCampaign;
+        const myUid = window.appData.currentUserUid;
         if (!camp) return;
 
         window.appActions._activeVisBtn = btnElement;
@@ -812,9 +873,9 @@ window.appActions = {
         let currentMode = 'public';
         let currentPlayers = [];
         
-        // Mode A: DOM Elements (Scenes and Clues living entirely in the HTML string before being saved)
+        // Mode A: DOM Elements (Scenes, Clues, and Static Containers living entirely in the HTML string before being saved)
         if (type === 'dom') {
-            const container = btnElement.closest('.scene-row') || btnElement.closest('.clue-row');
+            const container = btnElement.closest('.scene-row') || btnElement.closest('.clue-row') || btnElement.closest('.vis-container');
             if (!container) return;
             
             const modeInput = container.querySelector('.vis-mode-input');
@@ -848,7 +909,8 @@ window.appActions = {
         const activePlayers = camp.activePlayers || [];
         const playerNames = camp.playerNames || {};
         
-        const validPlayers = activePlayers.filter(uid => uid !== camp.dmId);
+        // Filter out the DM and the Author (they don't need to be in the "Specific Players" list, they already have access)
+        const validPlayers = activePlayers.filter(uid => uid !== camp.dmId && uid !== myUid);
         
         if (validPlayers.length === 0) {
             specificList.innerHTML = `<p class="text-xs text-stone-500 italic">No players available to share with.</p>`;
@@ -912,7 +974,7 @@ window.appActions = {
             const btn = window.appActions._activeVisBtn;
             if (!btn) return;
 
-            const container = btn.closest('.scene-row') || btn.closest('.clue-row');
+            const container = btn.closest('.scene-row') || btn.closest('.clue-row') || btn.closest('.vis-container');
             if (container) {
                 const modeInput = container.querySelector('.vis-mode-input');
                 const playersInput = container.querySelector('.vis-players-input');
@@ -921,7 +983,7 @@ window.appActions = {
                 if (playersInput) playersInput.value = selectedPlayers.join(',');
 
                 // Update the Button UI so the DM instantly sees the change
-                if (container.classList.contains('scene-row')) {
+                if (container.classList.contains('scene-row') || container.classList.contains('vis-container')) {
                     if (finalMode === 'hidden') btn.innerHTML = `<i class="fa-solid fa-eye-slash mr-1"></i> Hidden`;
                     else if (finalMode === 'specific') btn.innerHTML = `<i class="fa-solid fa-user-lock mr-1"></i> Shared`;
                     else btn.innerHTML = `<i class="fa-solid fa-eye mr-1"></i> Public`;
