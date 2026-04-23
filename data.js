@@ -6,7 +6,8 @@ import {
     deleteCampaignAction, copyCampaignId, toggleJoinCampaignForm, joinCampaignAction,
     toggleNewAdventureForm, createAdventure, deleteAdventure, openAdvRoster,
     toggleAdvRosterPc, saveAdvRoster, openPCEdit, savePCEdit, deletePC, kickPlayer,
-    addSheetUpdate, toggleSheetUpdateResolved, toggleSheetUpdateVis, deleteSheetUpdate
+    openChecklistMenu, closeChecklistMenu, addSheetUpdate, toggleSheetUpdateResolved,
+    toggleSheetUpdateVis, deleteSheetUpdate
 } from './actions-campaign.js';
 
 // Import Session, Narrative, & Visibility Controls
@@ -54,6 +55,8 @@ window.appActions = {
     savePCEdit,
     deletePC,
     kickPlayer,
+    openChecklistMenu,
+    closeChecklistMenu,
     addSheetUpdate,
     toggleSheetUpdateResolved,
     toggleSheetUpdateVis,
