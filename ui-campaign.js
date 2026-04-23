@@ -9,7 +9,7 @@ export function getHomeHTML(state) {
     // --- SECTION 1: DM CAMPAIGNS ---
     html += `
         <h2 class="text-2xl sm:text-3xl font-serif font-bold text-amber-500 mb-4 sm:mb-6 border-b-2 border-stone-800 pb-2 sm:pb-3 flex items-center">
-            Tomes You Scribe
+            My Campaigns
         </h2>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-12">
     `;
@@ -68,7 +68,7 @@ export function getHomeHTML(state) {
     // --- SECTION 2: PLAYER CAMPAIGNS ---
     html += `
         <h2 class="text-2xl sm:text-3xl font-serif font-bold text-blue-500 mb-4 sm:mb-6 border-b-2 border-stone-800 pb-2 sm:pb-3 flex items-center">
-            Tomes You Play
+            Joined Campaigns
         </h2>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8">
     `;
