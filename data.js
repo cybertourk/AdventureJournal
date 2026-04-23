@@ -424,7 +424,36 @@ window.appActions = {
             ? [...(camp.playerCharacters || []), updatedPC]
             : camp.playerCharacters.map(p => p.id === pcId ? updatedPC : p);
 
-        const updatedCamp = { ...camp, playerCharacters: newPCs };
+        // --- Auto-Generate / Update Linked Codex Entry for the Hero ---
+        let updatedCodexArray = [...(camp.codex || [])];
+        const existingCodexEntry = updatedCodexArray.find(c => c.id === pcId);
+        
+        if (!existingCodexEntry) {
+            // Generate entirely new public codex entry
+            updatedCodexArray.push({
+                id: pcId,
+                name: updatedPC.name,
+                type: 'NPC', // Use NPC category for visual cohesion, tagged as Hero
+                tags: ['Hero', updatedPC.race, updatedPC.classLevel].filter(Boolean),
+                desc: updatedPC.appearance || 'A hero of the realm.',
+                visibility: { mode: 'public' }
+            });
+        } else {
+            // Update existing entry's name and tags to stay in sync, but leave desc alone
+            updatedCodexArray = updatedCodexArray.map(c => {
+                if (c.id === pcId) {
+                    return {
+                        ...c,
+                        name: updatedPC.name,
+                        tags: ['Hero', updatedPC.race, updatedPC.classLevel].filter(Boolean)
+                        // Desc and visibility are preserved so the player's custom edits remain intact
+                    };
+                }
+                return c;
+            });
+        }
+
+        const updatedCamp = { ...camp, playerCharacters: newPCs, codex: updatedCodexArray };
 
         await saveCampaign(updatedCamp);
         window.appActions.setView('pc-manager');
@@ -443,7 +472,8 @@ window.appActions = {
 
         const updatedCamp = {
             ...camp,
-            playerCharacters: camp.playerCharacters.filter(pc => pc.id !== pcId)
+            playerCharacters: camp.playerCharacters.filter(pc => pc.id !== pcId),
+            codex: (camp.codex || []).filter(c => c.id !== pcId) // Clean up the linked public codex entry
         };
 
         await saveCampaign(updatedCamp);
@@ -1169,14 +1199,35 @@ window.appActions = {
 
     viewCodex: (id) => {
         updateDerivedState();
-        const entry = (window.appData.activeCampaign?.codex || []).find(c => c.id === id);
-        if (!entry) return;
+        const camp = window.appData.activeCampaign;
+        let entry = (camp?.codex || []).find(c => c.id === id);
+        
+        // Fallback for Legacy PCs that don't have a generated codex entry yet
+        if (!entry && camp?.playerCharacters?.some(p => p.id === id)) {
+            const pc = camp.playerCharacters.find(p => p.id === id);
+            entry = {
+                id: pc.id,
+                name: pc.name,
+                type: 'NPC',
+                tags: ['Hero', pc.race, pc.classLevel].filter(Boolean),
+                desc: pc.appearance || 'A hero of the realm.',
+                visibility: { mode: 'public' }
+            };
+        }
+
+        if (!entry) {
+            notify("Codex entry not found.", "error");
+            return;
+        }
+
         window.appActions._openCodexModal(entry);
     },
 
     _openCodexModal: (entry) => {
+        updateDerivedState();
+        const camp = window.appData.activeCampaign;
         const container = document.getElementById('global-popup-container');
-        if (!container) return;
+        if (!container || !camp) return;
 
         const isNew = entry.isNew || !entry.id;
         const id = entry.id || "";
@@ -1185,6 +1236,15 @@ window.appActions = {
         const desc = entry.desc || "";
         const tags = entry.tags ? entry.tags.join(', ') : "";
         
+        // Check editing permissions
+        const isDM = camp._isDM;
+        const myUid = window.appData.currentUserUid;
+        const isHeroOwner = camp.playerCharacters?.some(p => p.id === id && p.playerId === myUid);
+        const isHeroCodex = camp.playerCharacters?.some(p => p.id === id);
+        
+        const canEdit = isDM || isHeroOwner;
+        const canDelete = isDM && !isHeroCodex; // Core Hero profiles can only be deleted via the PC manager
+
         const viewHidden = isNew ? "hidden" : "";
         const editHidden = isNew ? "" : "hidden";
 
@@ -1205,9 +1265,12 @@ window.appActions = {
                         <h3 class="text-2xl text-stone-900 font-serif font-bold mb-2 border-b-2 border-stone-300 pb-2">${name}</h3>
                         <div class="flex gap-2 mb-4 flex-wrap">${tagsHTML}</div>
                         <div class="text-sm text-stone-700 leading-relaxed font-sans whitespace-pre-wrap bg-[#fdfbf7] p-4 border border-[#d4c5a9] rounded-sm shadow-inner min-h-[100px]">${parsedDesc}</div>
+                        
+                        ${canEdit ? `
                         <div class="mt-6 pt-4 border-t border-[#d4c5a9] text-right">
                             <button onclick="document.getElementById('codex-popup-view').classList.add('hidden'); document.getElementById('codex-popup-edit').classList.remove('hidden');" class="text-xs text-stone-600 hover:text-amber-600 font-bold uppercase tracking-widest flex items-center justify-end w-full"><i class="fa-solid fa-pen mr-2"></i> Amend Record</button>
                         </div>
+                        ` : ''}
                     </div>
 
                     <!-- EDIT MODE -->
@@ -1217,13 +1280,13 @@ window.appActions = {
                         
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Name (Auto-Link Trigger)</label>
-                            <input type="text" id="cx-modal-name" value="${name}" class="w-full bg-[#fdfbf7] border border-[#d4c5a9] text-stone-900 p-2 text-sm font-bold focus:border-red-900 outline-none rounded-sm shadow-inner">
+                            <input type="text" id="cx-modal-name" value="${name}" ${isHeroCodex ? 'readonly disabled' : ''} class="w-full ${isHeroCodex ? 'bg-stone-200 text-stone-500' : 'bg-[#fdfbf7] text-stone-900 focus:border-red-900'} border border-[#d4c5a9] p-2 text-sm font-bold outline-none rounded-sm shadow-inner">
                         </div>
                         
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Type</label>
-                                <select id="cx-modal-type" class="w-full bg-[#fdfbf7] border border-[#d4c5a9] text-stone-900 p-2 text-xs outline-none rounded-sm shadow-inner">
+                                <select id="cx-modal-type" ${isHeroCodex ? 'disabled' : ''} class="w-full ${isHeroCodex ? 'bg-stone-200 text-stone-500' : 'bg-[#fdfbf7] text-stone-900'} border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner">
                                     <option value="NPC" ${type==='NPC'?'selected':''}>NPC</option>
                                     <option value="Location" ${type==='Location'?'selected':''}>Location</option>
                                     <option value="Faction" ${type==='Faction'?'selected':''}>Faction</option>
@@ -1233,7 +1296,7 @@ window.appActions = {
                             </div>
                             <div>
                                 <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Tags (Comma Separated)</label>
-                                <input type="text" id="cx-modal-tags" value="${tags}" class="w-full bg-[#fdfbf7] border border-[#d4c5a9] text-stone-900 p-2 text-xs focus:border-red-900 outline-none rounded-sm shadow-inner" placeholder="e.g. Ally, Vendor">
+                                <input type="text" id="cx-modal-tags" value="${tags}" ${isHeroCodex ? 'readonly disabled' : ''} class="w-full ${isHeroCodex ? 'bg-stone-200 text-stone-500' : 'bg-[#fdfbf7] text-stone-900 focus:border-red-900'} border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner" placeholder="e.g. Ally, Vendor">
                             </div>
                         </div>
                         
@@ -1254,7 +1317,7 @@ window.appActions = {
                         </div>
                         
                         <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-[#d4c5a9]">
-                            ${!isNew ? `<button onclick="window.appActions.deleteCodexEntry('${id}')" class="text-red-700 hover:text-red-900 text-[10px] uppercase font-bold mr-auto tracking-widest px-2">Delete</button>` : ''}
+                            ${(!isNew && canDelete) ? `<button onclick="window.appActions.deleteCodexEntry('${id}')" class="text-red-700 hover:text-red-900 text-[10px] uppercase font-bold mr-auto tracking-widest px-2">Delete</button>` : (isHeroCodex ? '<div class="mr-auto text-[10px] text-stone-400 font-bold uppercase tracking-widest px-2 flex items-center"><i class="fa-solid fa-shield-halved mr-1"></i> Core Hero Profile</div>' : '<div></div>')}
                             <button onclick="document.getElementById('global-popup-container').innerHTML=''" class="border border-stone-400 text-stone-600 px-4 py-2 text-xs uppercase font-bold hover:bg-stone-200 rounded-sm tracking-widest">Cancel</button>
                             <button onclick="window.appActions.saveCodexEntry()" class="bg-stone-900 text-amber-50 px-5 py-2 text-xs uppercase font-bold hover:bg-stone-800 shadow-md rounded-sm tracking-widest">Save</button>
                         </div>
@@ -1270,16 +1333,30 @@ window.appActions = {
         if (!camp) return;
 
         const id = document.getElementById('cx-modal-id').value;
+        
+        // Verify Editing Permissions
+        const isDM = camp._isDM;
+        const myUid = window.appData.currentUserUid;
+        const ownsPC = camp.playerCharacters?.some(p => p.id === id && p.playerId === myUid);
+        
+        if (!isDM && !ownsPC) {
+            notify("Only the DM or the Hero's owner can amend this record.", "error");
+            return;
+        }
+
         const name = document.getElementById('cx-modal-name').value.trim();
         if (!name) {
             notify("A name is required for Codex auto-linking.", "error");
             return;
         }
 
+        const isHeroCodex = camp.playerCharacters?.some(p => p.id === id);
+
         const newEntry = {
             id: id || generateId(),
             name: name,
-            type: document.getElementById('cx-modal-type').value,
+            // If it is a Hero codex entry, force the type to NPC so players can't change it to Item/Lore
+            type: isHeroCodex ? 'NPC' : document.getElementById('cx-modal-type').value,
             tags: document.getElementById('cx-modal-tags').value.split(',').map(t=>t.trim()).filter(t=>t),
             desc: document.getElementById('cx-modal-desc').value
         };
@@ -1297,11 +1374,23 @@ window.appActions = {
     },
 
     deleteCodexEntry: async (id) => {
-        if (!confirm("Destroy this Codex entry? Auto-links using this name will no longer function.")) return;
-        
         updateDerivedState();
         const camp = window.appData.activeCampaign;
         if (!camp) return;
+
+        const isDM = camp._isDM;
+        if (!isDM) {
+            notify("Only the DM can delete Codex entries.", "error");
+            return;
+        }
+
+        const isHeroCodex = camp.playerCharacters?.some(p => p.id === id);
+        if (isHeroCodex) {
+            notify("Hero profiles must be removed via the Party Manifest.", "error");
+            return;
+        }
+
+        if (!confirm("Destroy this Codex entry? Auto-links using this name will no longer function.")) return;
 
         const updatedCamp = {
             ...camp,
