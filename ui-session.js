@@ -1,4 +1,3 @@
-```javascript
 import { renderSmartField, renderLevelOptions } from './ui-core.js';
 
 export function getSessionEditHTML(state) {
@@ -331,6 +330,3 @@ export function updateBudgetUI(totalBudget, totalLoot, remaining, calculatedLoot
         liveCalcEl.textContent = `Calc: ${calculatedLootVal.toLocaleString()} gp`;
     }
 }
-
-
-```
