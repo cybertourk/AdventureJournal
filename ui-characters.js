@@ -1,67 +1,5 @@
 import { renderSmartField } from './ui-core.js';
 
-// --- Helper to build the Sheet Updates HTML ---
-export function buildSheetUpdatesHTML(updatesArray, isDM, isOwner) {
-    if (!updatesArray || updatesArray.length === 0) {
-        return `<li class="text-xs text-stone-400 italic py-3 text-center">No pending updates.</li>`;
-    }
-
-    let html = '';
-    
-    // Sort: unresolved first, then by timestamp (newest first)
-    const sorted = [...updatesArray].sort((a, b) => {
-        if (a.isResolved === b.isResolved) {
-            return (b.timestamp || 0) - (a.timestamp || 0);
-        }
-        return a.isResolved ? 1 : -1;
-    });
-
-    sorted.forEach(item => {
-        if (!isDM && item.isHidden) return; // Player doesn't see hidden items
-        
-        const statusIcon = item.isResolved 
-            ? '<i class="fa-solid fa-circle-check text-emerald-600"></i>' 
-            : '<i class="fa-regular fa-circle text-stone-400"></i>';
-        const statusTextClass = item.isResolved ? 'text-stone-400 line-through' : 'text-stone-800 font-bold';
-        
-        let dmControls = '';
-        if (isDM) {
-            const eyeIcon = item.isHidden ? 'fa-eye-slash text-red-700' : 'fa-eye text-emerald-600';
-            dmControls = `
-                <button type="button" onclick="window.appActions.toggleSheetUpdateVis('${item.id}')" class="text-[10px] w-6 h-6 flex items-center justify-center hover:bg-stone-200 rounded transition text-stone-600" title="Toggle Visibility"><i class="fa-solid ${eyeIcon}"></i></button>
-                <button type="button" onclick="window.appActions.deleteSheetUpdate('${item.id}')" class="text-[10px] w-6 h-6 flex items-center justify-center text-stone-400 hover:text-red-700 hover:bg-red-50 rounded transition" title="Delete"><i class="fa-solid fa-trash"></i></button>
-            `;
-        }
-
-        let playerControls = '';
-        if (isOwner || isDM) {
-            playerControls = `
-                <button type="button" onclick="window.appActions.toggleSheetUpdateResolved('${item.id}')" class="text-[10px] font-bold uppercase tracking-wider border px-2 py-1 rounded-sm transition shadow-sm whitespace-nowrap ${item.isResolved ? 'bg-emerald-100 border-emerald-300 text-emerald-800 hover:bg-emerald-200' : 'bg-white border-[#d4c5a9] text-stone-600 hover:bg-stone-100 hover:text-stone-900'}">
-                    ${item.isResolved ? 'Added' : 'Mark as Added'}
-                </button>
-            `;
-        }
-
-        const safeText = item.text.replace(/"/g, '&quot;');
-
-        html += `
-        <li class="flex flex-col sm:flex-row sm:items-center justify-between bg-[#fdfbf7] p-2 sm:p-3 border border-[#d4c5a9] rounded-sm shadow-sm gap-3 ${item.isHidden ? 'border-dashed border-red-300 bg-red-50/30' : ''}">
-            <div class="flex items-start sm:items-center gap-3 overflow-hidden">
-                <div class="flex-shrink-0 text-sm sm:text-base mt-0.5 sm:mt-0">${statusIcon}</div>
-                <span class="text-xs sm:text-sm ${statusTextClass} break-words" title="${safeText}">${safeText}</span>
-                ${item.isHidden ? `<span class="text-[9px] font-bold uppercase text-red-700 bg-red-100 px-1 rounded border border-red-200 flex-shrink-0 mt-0.5 sm:mt-0">Hidden</span>` : ''}
-            </div>
-            <div class="flex items-center justify-end gap-2 flex-shrink-0 mt-1 sm:mt-0 pt-2 sm:pt-0 border-t sm:border-none border-[#d4c5a9]/50 w-full sm:w-auto">
-                ${playerControls}
-                ${dmControls ? `<div class="w-px h-4 bg-stone-300 mx-1 hidden sm:block"></div>` : ''}
-                ${dmControls}
-            </div>
-        </li>
-        `;
-    });
-    return html;
-}
-
 export function getPCManagerHTML(state) {
     const camp = state.activeCampaign;
     if (!camp) return '';
@@ -103,19 +41,9 @@ export function getPCManagerHTML(state) {
             // Determine permissions
             const isOwner = pc.playerId === myUid;
             const canEdit = isDM || isOwner;
-            
-            // Notification Badge for Players: Count unresolved & visible sheet updates
-            let badgeHtml = '';
-            if (isOwner && !isDM && pc.sheetUpdates) {
-                const pendingCount = pc.sheetUpdates.filter(u => !u.isResolved && !u.isHidden).length;
-                if (pendingCount > 0) {
-                    badgeHtml = `<span class="absolute -top-2 -right-2 bg-red-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-md z-10 border border-red-800 animate-pulse">${pendingCount} Tasks</span>`;
-                }
-            }
 
             html += `
             <div class="bg-[#fdfbf7] p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-sm flex flex-col justify-between group relative overflow-visible hover:shadow-md transition">
-                ${badgeHtml}
                 <div class="absolute top-0 left-0 w-1 h-full ${canEdit ? 'bg-red-900 group-hover:bg-red-700' : 'bg-stone-400 group-hover:bg-amber-600'} transition-colors rounded-l-sm"></div>
                 <div class="pl-2">
                     <h3 class="font-serif font-bold text-lg sm:text-xl text-stone-900 truncate">${pc.name}</h3>
@@ -189,7 +117,7 @@ export function getPCEditHTML(state) {
     
     const pc = !isNew && camp?.playerCharacters 
         ? camp.playerCharacters.find(p => p.id === state.activePcId) 
-        : { name: '', race: '', classLevel: '', background: '', alignment: '', faith: '', gender: '', age: '', size: '', height: '', weight: '', eyes: '', hair: '', skin: '', traits: '', ideals: '', bonds: '', flaws: '', appearance: '', backstory: '', dmNotes: '', playerId: '', sheetUpdates: [] };
+        : { name: '', race: '', classLevel: '', background: '', alignment: '', faith: '', gender: '', age: '', size: '', height: '', weight: '', eyes: '', hair: '', skin: '', traits: '', ideals: '', bonds: '', flaws: '', appearance: '', backstory: '', dmNotes: '', playerId: '' };
 
     if (!pc && !isNew) return `<div class="text-center text-red-500 p-8 font-serif font-bold text-xl">Hero not found in the archives.</div>`;
 
@@ -242,38 +170,6 @@ export function getPCEditHTML(state) {
     } else {
         playerAssignHTML = `<input type="hidden" id="pc-edit-player-id" value="${pc.playerId || ''}">`;
     }
-
-    // --- SHEET UPDATES TRACKER GENERATION ---
-    const updatesJson = encodeURIComponent(JSON.stringify(pc.sheetUpdates || []));
-    const initialListHTML = buildSheetUpdatesHTML(pc.sheetUpdates || [], isDM, isOwner);
-    
-    let addUpdateHtml = '';
-    if (canEdit) {
-        addUpdateHtml = `
-        <div class="flex gap-2 mt-4 pt-4 border-t border-[#d4c5a9]/50">
-            <input type="text" id="new-sheet-update-text" class="flex-grow p-2 border border-[#d4c5a9] rounded-sm text-xs sm:text-sm focus:border-red-900 outline-none shadow-inner bg-white font-serif" placeholder="${isDM ? 'Prep an update (e.g. Add 50gp, Learn Mobile feat)...' : 'Add a personal sheet reminder...'}" onkeydown="if(event.key === 'Enter') { event.preventDefault(); window.appActions.addSheetUpdate(); }">
-            <button type="button" onclick="window.appActions.addSheetUpdate()" class="px-4 py-2 bg-stone-800 text-amber-50 text-[10px] sm:text-xs font-bold uppercase tracking-wider rounded-sm shadow-md hover:bg-stone-700 transition whitespace-nowrap"><i class="fa-solid fa-plus sm:mr-1"></i> <span class="hidden sm:inline">Add Task</span></button>
-        </div>`;
-    }
-
-    const sheetUpdatesHtml = `
-    <!-- Hidden input to store state before final save -->
-    <input type="hidden" id="pc-edit-sheet-updates" value="${updatesJson}">
-    
-    <div class="bg-[#f4ebd8] p-4 sm:p-5 lg:p-6 rounded-sm border border-[#d4c5a9] shadow-inner">
-        <h3 class="text-sm font-bold text-stone-800 uppercase tracking-widest mb-2 border-b border-[#d4c5a9] pb-1 flex flex-wrap gap-2 items-center justify-between">
-            <span><i class="fa-solid fa-list-check mr-2 text-amber-700"></i> Sheet Updates Checklist</span>
-            ${isDM ? `<span class="text-[9px] text-stone-600 font-normal normal-case italic bg-stone-200 border border-stone-300 px-1.5 py-0.5 rounded shadow-sm"><i class="fa-solid fa-user-secret mr-1"></i> DM Prep Mode Active</span>` : ''}
-        </h3>
-        <p class="text-[10px] sm:text-xs text-stone-600 italic mb-5 leading-snug">Track loot, feats, or stats that need to be manually added to the official character sheet. ${isDM ? 'Items added by the DM are <strong class="text-red-800">Hidden</strong> by default until manually revealed.' : ''}</p>
-        
-        <ul id="pc-sheet-updates-list" class="space-y-2 mb-2">
-            ${initialListHTML}
-        </ul>
-
-        ${addUpdateHtml}
-    </div>
-    `;
 
     return `
     <div class="animate-in slide-in-from-bottom-4 duration-300 bg-[#f4ebd8] rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col max-w-4xl mx-auto mb-8">
@@ -376,8 +272,6 @@ export function getPCEditHTML(state) {
                 ${renderSmartField('pc-edit-appearance', `<i class="fa-solid fa-user text-stone-500 mr-2"></i> Appearance`, pc.appearance || '', "Detailed physical description, scars, tattoos, clothing...", 4, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', false)}
                 ${renderSmartField('pc-edit-backstory', `<i class="fa-solid fa-book-open text-stone-500 mr-2"></i> Backstory`, pc.backstory || '', "The hero's origins...", 5, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', false)}
                 
-                ${sheetUpdatesHtml}
-
                 <!-- DM ONLY -->
                 ${isDM ? renderSmartField('pc-edit-dmnotes', `<i class="fa-solid fa-eye text-red-900 mr-2"></i> DM's Secret Notes`, pc.dmNotes || '', 'Hooks, secrets, curses, or background ties...', 4, 'bg-stone-200 border border-[#d4c5a9] shadow-inner border-l-4 border-l-red-900', false) : ''}
             </div>
