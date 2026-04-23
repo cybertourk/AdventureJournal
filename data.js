@@ -631,6 +631,7 @@ window.appActions = {
                 id: session?.id || generateId(),
                 name: document.getElementById('draft-name')?.value || `Log from ${new Date().toLocaleDateString()}`,
                 timestamp: session?.timestamp || Date.now(),
+                
                 lootText: lootText,
                 lootValue: calculateLootValue(lootText),
                 lootVisibility: getStaticVis('input-draft-loot'),
@@ -665,7 +666,9 @@ window.appActions = {
     updateSessionPreview: () => {
         updateDerivedState();
         const camp = window.appData.activeCampaign;
-        if (!camp) return;
+        
+        // Players don't use the live preview mechanism the same way, return early
+        if (!camp || !camp._isDM) return;
 
         const draft = window.appActions._gatherSessionDraft();
         const mockCampaign = { ...camp, playerCharacters: draft.updatedPCs };
@@ -1115,38 +1118,58 @@ window.appActions = {
 
     // --- Smart Text & Codex Interactions ---
     
+    // Core security helper to ensure players only link/see what they are allowed to see
+    _canViewCodex: (id) => {
+        const camp = window.appData.activeCampaign;
+        if (!camp) return false;
+        if (camp._isDM) return true; // DM sees everything
+        
+        const myUid = window.appData.currentUserUid;
+        
+        // 1. Is it a PC owned by the player?
+        const isHeroOwner = camp.playerCharacters?.some(p => p.id === id && p.playerId === myUid);
+        if (isHeroOwner) return true;
+        
+        // 2. Look for formal codex entry
+        const entry = camp.codex?.find(c => c.id === id);
+        
+        // 3. If there is no formal codex entry but it is a PC, default to public
+        if (!entry && camp.playerCharacters?.some(p => p.id === id)) return true;
+        
+        if (entry) {
+            const vis = entry.visibility || { mode: 'public' };
+            if (vis.mode === 'public') return true;
+            if (vis.mode === 'specific' && vis.visibleTo?.includes(myUid)) return true;
+        }
+        
+        return false; // Otherwise, locked down!
+    },
+
     parseSmartText: (text) => {
         if (!text) return "";
         let safeText = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
         
         // --- 1. PARSE MARKDOWN FORMATTING ---
-        // Enhanced Headings and Dividers to perfectly support the markdown generator outputs
         safeText = safeText.replace(/^#### (.*$)/gim, '<h4 class="text-base font-serif font-bold text-amber-700 mt-4 mb-1">$1</h4>');
         safeText = safeText.replace(/^### (.*$)/gim, '<h3 class="text-lg font-serif font-bold text-amber-600 mt-5 mb-1 border-b border-[#d4c5a9] pb-1">$1</h3>');
         safeText = safeText.replace(/^## (.*$)/gim, '<h2 class="text-xl font-serif font-bold text-amber-500 mt-6 mb-2 border-b border-amber-600/30 pb-1">$1</h2>');
         safeText = safeText.replace(/^# (.*$)/gim, '<h1 class="text-2xl font-serif font-black text-amber-500 mt-6 mb-3 border-b-2 border-amber-500 pb-2">$1</h1>');
         safeText = safeText.replace(/^---$/gim, '<hr class="border-t border-[#d4c5a9] my-6">');
         
-        // Lists
         safeText = safeText.replace(/^\- (.*$)/gim, '<li class="ml-6 list-disc marker:text-amber-600 py-0.5">$1</li>');
 
-        // Bold, Underline, Italic (Safari Safe)
         safeText = safeText.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-stone-900">$1</strong>');
         safeText = safeText.replace(/__(.*?)__/g, '<u class="underline decoration-stone-500 underline-offset-2">$1</u>');
         safeText = safeText.replace(/(^|[^\*])\*([^\*]+)\*(?!\*)/g, '$1<em class="italic text-stone-700">$2</em>');
         safeText = safeText.replace(/\b_(.*?)_\b/g, '<em class="italic text-stone-700">$1</em>');
 
-        // --- 2. PARSE CODEX LINKS (SAFARI COMPATIBLE & ALIAS SUPPORT) ---
-        // We sort by length descending. This guarantees we match "Corval Shaedmokker" before matching just "Corval" 
-        // to prevent nesting links incorrectly!
+        // --- 2. PARSE CODEX LINKS (SAFARI COMPATIBLE, ALIAS SUPPORT & FOG OF WAR PROTECTED) ---
         const sortedCache = [...window.appData.codexCache].sort((a,b) => b.text.length - a.text.length);
         
         if (sortedCache.length > 0) {
-            // Build one massive regex pattern that matches ANY of our known aliases or full names
             const escapedNames = sortedCache.map(e => e.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
             const massiveRegex = new RegExp(`\\b(${escapedNames.join('|')})\\b`, 'gi');
             
-            // Split the text by HTML tags to safely ONLY run our Regex replacement on plain text nodes
             let parts = safeText.split(/(<[^>]*>)/g);
             
             for (let i = 0; i < parts.length; i++) {
@@ -1154,10 +1177,11 @@ window.appActions = {
                 
                 parts[i] = parts[i].replace(massiveRegex, (match) => {
                     const entry = sortedCache.find(e => e.text.toLowerCase() === match.toLowerCase());
-                    if (entry) {
+                    // SECURITY CHECK: Only generate a link if the current user has permission to see the entry!
+                    if (entry && window.appActions._canViewCodex(entry.id)) {
                         return `<span class="codex-link" onclick="event.stopPropagation(); window.appActions.viewCodex('${entry.id}')">${match}</span>`;
                     }
-                    return match;
+                    return match; // If hidden, return plain unclickable text
                 });
             }
             safeText = parts.join('');
@@ -1166,7 +1190,6 @@ window.appActions = {
         // --- 3. LINE BREAKS ---
         safeText = safeText.replace(/\n/g, '<br>');
         
-        // Cleanup trailing <br> tags immediately following block elements
         safeText = safeText.replace(/<\/h1><br>/g, '</h1>');
         safeText = safeText.replace(/<\/h2><br>/g, '</h2>');
         safeText = safeText.replace(/<\/h3><br>/g, '</h3>');
@@ -1182,7 +1205,6 @@ window.appActions = {
         const text = textarea.value;
         const cursorPos = textarea.selectionStart;
         
-        // Extract the last 40 characters before cursor to process auto-complete
         const textBefore = text.substring(Math.max(0, cursorPos - 40), cursorPos);
         
         let bestMatches = [];
@@ -1191,14 +1213,15 @@ window.appActions = {
         const sortedCache = [...window.appData.codexCache].sort((a,b) => b.text.length - a.text.length);
         
         for (let entry of sortedCache) {
+            // SECURITY CHECK: Do not suggest hidden codex entries in the autocomplete box
+            if (!window.appActions._canViewCodex(entry.id)) continue;
+
             const lowerName = entry.text.toLowerCase();
             
-            // Check substrings from 3 chars up to the full length of the codex name
             for (let i = 3; i <= entry.text.length; i++) {
                 const prefix = lowerName.substring(0, i);
                 
                 if (textBefore.toLowerCase().endsWith(prefix)) {
-                    // Ensure we are matching from the start of a word to prevent spam
                     const charBeforeMatch = textBefore.charAt(textBefore.length - i - 1);
                     if (textBefore.length === i || /[ \n\t]/.test(charBeforeMatch)) {
                         if (i > matchLength) {
@@ -1216,7 +1239,6 @@ window.appActions = {
             const typedWord = textBefore.substring(textBefore.length - matchLength).toLowerCase();
             const isExactAliasMatch = window.appData.codexCache.some(c => c.text.toLowerCase() === typedWord);
             
-            // If what they typed perfectly matches an existing alias/short name (e.g. "Corval"), hide the annoying box!
             if (isExactAliasMatch) {
                 document.getElementById('autocomplete-suggestions').style.display = 'none';
                 return;
@@ -1257,6 +1279,12 @@ window.appActions = {
     },
 
     viewCodex: (id) => {
+        // SECURITY CHECK: Final hard block if someone explicitly triggers viewCodex on a hidden ID
+        if (!window.appActions._canViewCodex(id)) {
+            notify("The contents of this entry are sealed.", "error");
+            return;
+        }
+
         updateDerivedState();
         const camp = window.appData.activeCampaign;
         let entry = (camp?.codex || []).find(c => c.id === id);
