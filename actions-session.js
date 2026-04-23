@@ -89,11 +89,28 @@ export const _gatherSessionDraft = () => {
         return grabVisibility(container);
     };
 
+    // Parse Dates
+    const realDateInput = document.getElementById('draft-real-date')?.value;
+    let timestamp = session?.timestamp || Date.now();
+    let displayDateObj = new Date();
+    
+    if (realDateInput) {
+        // Appending T12:00:00 ensures timezone shifts don't accidentally bump the date back a day
+        const parsedDate = new Date(realDateInput + 'T12:00:00');
+        if (!isNaN(parsedDate.getTime())) {
+            timestamp = parsedDate.getTime();
+            displayDateObj = parsedDate;
+        }
+    }
+    
+    const inGameDateInput = document.getElementById('draft-ingame-date')?.value || '';
+
     return {
         sessionData: {
             id: session?.id || generateId(),
-            name: document.getElementById('draft-name')?.value || `Log from ${new Date().toLocaleDateString()}`,
-            timestamp: session?.timestamp || Date.now(),
+            name: document.getElementById('draft-name')?.value || `Log from ${displayDateObj.toLocaleDateString()}`,
+            timestamp: timestamp,
+            inGameDate: inGameDateInput,
             lootText: lootText,
             lootValue: calculateLootValue(lootText),
             lootVisibility: getStaticVis('input-draft-loot'),
