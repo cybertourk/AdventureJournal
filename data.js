@@ -610,13 +610,10 @@ window.appActions = {
             if (autoEl) pc.automaticSuccess = autoEl.checked;
         });
 
-        // Helper to grab visibility from a DOM container
-        const grabVisibility = (container) => {
-            if (!container) return { mode: 'public', visibleTo: [] };
-            const modeInput = container.querySelector('.vis-mode-input');
-            const playersInput = container.querySelector('.vis-players-input');
-            const mode = modeInput ? modeInput.value : 'public';
-            const playersStr = playersInput ? playersInput.value : '';
+        // Helper to grab visibility from the DOM rows
+        const grabVisibility = (row) => {
+            const mode = row.querySelector('.vis-mode-input')?.value || 'public';
+            const playersStr = row.querySelector('.vis-players-input')?.value || '';
             const players = playersStr ? playersStr.split(',') : [];
             return { mode: mode, visibleTo: players };
         };
@@ -634,7 +631,6 @@ window.appActions = {
                 id: session?.id || generateId(),
                 name: document.getElementById('draft-name')?.value || `Log from ${new Date().toLocaleDateString()}`,
                 timestamp: session?.timestamp || Date.now(),
-                
                 lootText: lootText,
                 lootValue: calculateLootValue(lootText),
                 lootVisibility: getStaticVis('input-draft-loot'),
@@ -649,16 +645,6 @@ window.appActions = {
                     text: row.querySelector('.clue-input')?.value || '',
                     visibility: grabVisibility(row)
                 })),
-                
-                // Legacy / Static Elements
-                events: document.getElementById('input-draft-events')?.value || '',
-                eventsVisibility: getStaticVis('input-draft-events'),
-                
-                npcs: document.getElementById('input-draft-npcs')?.value || '',
-                npcsVisibility: getStaticVis('input-draft-npcs'),
-                
-                locations: document.getElementById('input-draft-locations')?.value || '',
-                locationsVisibility: getStaticVis('input-draft-locations'),
                 
                 notes: document.getElementById('input-draft-notes')?.value || '',
                 notesVisibility: getStaticVis('input-draft-notes'),
@@ -679,9 +665,7 @@ window.appActions = {
     updateSessionPreview: () => {
         updateDerivedState();
         const camp = window.appData.activeCampaign;
-        
-        // Players don't use the live preview mechanism the same way, return early
-        if (!camp || !camp._isDM) return;
+        if (!camp) return;
 
         const draft = window.appActions._gatherSessionDraft();
         const mockCampaign = { ...camp, playerCharacters: draft.updatedPCs };
