@@ -266,6 +266,20 @@ export const saveAdvRoster = async () => {
 
 // --- GLOBAL SHEET UPDATES CHECKLIST ---
 
+export const openChecklistMenu = () => {
+    const modal = document.getElementById('checklist-modal');
+    if (modal) {
+        // Ensure UI is fully up to date before revealing
+        reRender();
+        modal.classList.remove('hidden');
+    }
+};
+
+export const closeChecklistMenu = () => {
+    const modal = document.getElementById('checklist-modal');
+    if (modal) modal.classList.add('hidden');
+};
+
 export const addSheetUpdate = async () => {
     const input = document.getElementById('new-sheet-update-text');
     if (!input) return;
