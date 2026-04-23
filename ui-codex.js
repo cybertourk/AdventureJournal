@@ -9,6 +9,11 @@ export function getCodexHTML(state) {
     // --- FOG OF WAR FILTER ---
     const isVisibleToPlayer = (item) => {
         if (isDM) return true; // DM sees all
+        
+        // If the item is a Hero Codex Entry owned by the current user, they can always see it
+        const isHeroOwner = camp.playerCharacters?.some(p => p.id === item.id && p.playerId === myUid);
+        if (isHeroOwner) return true;
+
         const vis = item.visibility || { mode: 'public' }; // Default to public for older legacy data
         if (vis.mode === 'public') return true;
         if (vis.mode === 'hidden') return false;
@@ -71,6 +76,10 @@ export function getCodexHTML(state) {
     } else {
         const sorted = [...visibleCodex].sort((a,b) => a.name.localeCompare(b.name));
         sorted.forEach(c => {
+            // Determine if the current user is the owner of this specific hero's codex entry
+            const isHeroOwner = camp.playerCharacters?.some(p => p.id === c.id && p.playerId === myUid);
+            const canEdit = isDM || isHeroOwner;
+
             let typeColor = "text-stone-500";
             if (c.type === 'NPC') typeColor = "text-blue-600";
             if (c.type === 'Location') typeColor = "text-emerald-600";
@@ -82,7 +91,9 @@ export function getCodexHTML(state) {
             const hasImg = c.image ? `<i class="fa-solid fa-image text-stone-400 ml-2" title="Has Image"></i>` : '';
             
             const vis = getVisStatus(c);
-            const visBadge = isDM ? `
+            
+            // Only the DM and the owning player get the visibility toggle button
+            const visBadge = canEdit ? `
                 <div class="relative z-10 flex-shrink-0 ml-2" onclick="event.stopPropagation()">
                     <input type="hidden" class="vis-mode-input" value="${vis.mode}">
                     <input type="hidden" class="vis-players-input" value="${vis.players}">
