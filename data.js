@@ -1119,37 +1119,47 @@ window.appActions = {
         // Lists
         safeText = safeText.replace(/^\- (.*$)/gim, '<li class="ml-6 list-disc marker:text-amber-600 py-0.5">$1</li>');
 
-        // Bold, Underline, Italic
+        // Bold, Underline, Italic (Safari Safe)
         safeText = safeText.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-stone-900">$1</strong>');
         safeText = safeText.replace(/__(.*?)__/g, '<u class="underline decoration-stone-500 underline-offset-2">$1</u>');
-        safeText = safeText.replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, '<em class="italic text-stone-700">$1</em>');
+        safeText = safeText.replace(/(^|[^\*])\*([^\*]+)\*(?!\*)/g, '$1<em class="italic text-stone-700">$2</em>');
         safeText = safeText.replace(/\b_(.*?)_\b/g, '<em class="italic text-stone-700">$1</em>');
 
-        // --- 2. PARSE CODEX LINKS ---
+        // --- 2. PARSE CODEX LINKS (SAFARI COMPATIBLE) ---
         const sortedCache = [...window.appData.codexCache].sort((a,b) => b.length - a.length);
         
-        sortedCache.forEach(name => {
-            const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            // Safely look for word boundaries but ignore matches that happen inside HTML tags
-            const regex = new RegExp(`(?<!<[^>]*)\\b${escapedName}\\b(?![^<]*>)`, 'gi');
+        // Split by HTML tags to safely only replace text nodes without lookbehinds
+        let parts = safeText.split(/(<[^>]*>)/g);
+        
+        for (let i = 0; i < parts.length; i++) {
+            // If the part is an HTML tag, skip it
+            if (parts[i].startsWith('<') && parts[i].endsWith('>')) continue;
             
-            let targetId = null;
-            const codexEntry = (window.appData.activeCampaign?.codex || []).find(c => c.name.toLowerCase() === name.toLowerCase());
-            
-            if (codexEntry) {
-                targetId = codexEntry.id;
-            } else {
-                // Fallback for legacy PCs or unassigned heroes not yet formally saved to the codex array
-                const pcEntry = (window.appData.activeCampaign?.playerCharacters || []).find(p => p.name.toLowerCase() === name.toLowerCase());
-                if (pcEntry) targetId = pcEntry.id;
-            }
+            let textPart = parts[i];
+            sortedCache.forEach(name => {
+                const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp(`\\b${escapedName}\\b`, 'gi');
+                
+                let targetId = null;
+                const codexEntry = (window.appData.activeCampaign?.codex || []).find(c => c.name.toLowerCase() === name.toLowerCase());
+                
+                if (codexEntry) {
+                    targetId = codexEntry.id;
+                } else {
+                    const pcEntry = (window.appData.activeCampaign?.playerCharacters || []).find(p => p.name.toLowerCase() === name.toLowerCase());
+                    if (pcEntry) targetId = pcEntry.id;
+                }
 
-            if (targetId) {
-                safeText = safeText.replace(regex, (match) => {
-                    return `<span class="codex-link" onclick="event.stopPropagation(); window.appActions.viewCodex('${targetId}')">${match}</span>`;
-                });
-            }
-        });
+                if (targetId) {
+                    textPart = textPart.replace(regex, (match) => {
+                        return `<span class="codex-link" onclick="event.stopPropagation(); window.appActions.viewCodex('${targetId}')">${match}</span>`;
+                    });
+                }
+            });
+            parts[i] = textPart;
+        }
+        
+        safeText = parts.join('');
         
         // --- 3. LINE BREAKS ---
         safeText = safeText.replace(/\n/g, '<br>');
@@ -1170,20 +1180,48 @@ window.appActions = {
         const text = textarea.value;
         const cursorPos = textarea.selectionStart;
         
-        const match = text.substring(0, cursorPos).match(/@([\w\s]*)$/);
+        // Extract the last 40 characters before cursor to process auto-complete
+        const textBefore = text.substring(Math.max(0, cursorPos - 40), cursorPos);
         
-        if (match) {
-            const query = match[1].toLowerCase();
-            const matches = window.appData.codexCache.filter(name => name.toLowerCase().includes(query));
+        let bestMatches = [];
+        let matchLength = 0;
+        
+        const sortedCache = [...window.appData.codexCache].sort((a,b) => b.length - a.length);
+        
+        for (let name of sortedCache) {
+            const lowerName = name.toLowerCase();
             
-            if (matches.length > 0) {
-                window.appActions._showSuggestions(matches, textarea, cursorPos, match[0].length);
-            } else {
-                document.getElementById('autocomplete-suggestions').style.display = 'none';
+            // Check substrings from 3 chars up to the full length of the codex name
+            for (let i = 3; i <= name.length; i++) {
+                const prefix = lowerName.substring(0, i);
+                
+                if (textBefore.toLowerCase().endsWith(prefix)) {
+                    // Ensure we are matching from the start of a word to prevent spam
+                    const charBeforeMatch = textBefore.charAt(textBefore.length - i - 1);
+                    if (textBefore.length === i || /[ \n\t]/.test(charBeforeMatch)) {
+                        if (i > matchLength) {
+                            matchLength = i;
+                            bestMatches = [name];
+                        } else if (i === matchLength && !bestMatches.includes(name)) {
+                            bestMatches.push(name);
+                        }
+                    }
+                }
             }
-        } else {
-            document.getElementById('autocomplete-suggestions').style.display = 'none';
         }
+        
+        if (bestMatches.length > 0 && bestMatches.length <= 5) {
+            // If it's a single exact match, don't show the suggestion box (they already typed it, and it will auto-link anyway!)
+            if (bestMatches.length === 1 && bestMatches[0].length === matchLength) {
+                document.getElementById('autocomplete-suggestions').style.display = 'none';
+                return;
+            }
+            
+            window.appActions._showSuggestions(bestMatches, textarea, cursorPos, matchLength);
+            return;
+        }
+        
+        document.getElementById('autocomplete-suggestions').style.display = 'none';
     },
 
     _showSuggestions: (matches, inputEl, cursor, triggerLen) => {
@@ -1296,7 +1334,7 @@ window.appActions = {
         const parsedDesc = desc ? window.appActions.parseSmartText(desc) : '<span class="italic text-stone-400 font-sans text-xs">No entries found...</span>';
         
         const descLabel = linkedPC ? "Public Knowledge (Rumors & Repute)" : "Description";
-        const descPlaceholder = linkedPC ? "What do people know about this hero? Scribe their rumors, repute, and public knowledge..." : "Description... Use @ to link other entries.";
+        const descPlaceholder = linkedPC ? "What do people know about this hero? Scribe their rumors, repute, and public knowledge..." : "Description... Codex names link automatically.";
 
         container.innerHTML = `
             <div id="codex-popup" class="fixed inset-0 bg-stone-950/90 z-[12000] flex items-center justify-center p-4 backdrop-blur-sm animate-in">
