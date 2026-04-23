@@ -288,25 +288,44 @@ export function getAdventureHTML(state) {
             
             const lootHtml = showLoot ? `<span class="mx-1">•</span> <span class="text-red-900">${session.lootValue.toLocaleString()} gp</span> discovered` : '';
             
-            // Extract the best available preview text (Notes -> Scenes)
+            // Extract the best available preview text (Intelligent Fallback)
             let previewText = '';
+            
+            // 1. Try General Notes
             if (showNotes && session.notes && session.notes.trim()) {
                 previewText = session.notes;
-            } else if (session.scenes && session.scenes.length > 0) {
+            } 
+            // 2. Try Narrative Scenes
+            else if (session.scenes && session.scenes.length > 0) {
                 const firstScene = session.scenes.find(s => isVisible(s.visibility) && s.text && s.text.trim());
                 if (firstScene) previewText = firstScene.text;
             }
+            
+            // 3. Try the specific Player's Notes (if they exist and the DM hid everything else)
+            if (!previewText && !isDM && session.playerNotes && session.playerNotes[myUid] && session.playerNotes[myUid].text.trim()) {
+                previewText = session.playerNotes[myUid].text;
+            }
+            
+            // 4. Try Investigation Clues
+            if (!previewText && session.clues && session.clues.length > 0) {
+                const firstClue = session.clues.find(c => isVisible(c.visibility) && c.text && c.text.trim());
+                if (firstClue) previewText = firstClue.text;
+            }
 
-            // Strip markdown formatting for a clean plain-text card preview
+            // Bulletproof Markdown Stripper for a clean plain-text card preview
             let cleanPreview = '';
             if (previewText) {
                 cleanPreview = previewText
-                    .replace(/^#+\s+/gm, '') // Strip headings
-                    .replace(/(\*\*|__|\*|_)/g, '') // Strip bold/italic
-                    .replace(/^\-\s+/gm, '') // Strip list markers
+                    .replace(/(^|\n)\s*#{1,6}\s+/g, ' ') // Strip headings (even if indented or on newlines)
+                    .replace(/(\*\*|__|\*|_|`|~)/g, '') // Strip bold/italic/code/strikethrough
+                    .replace(/(^|\n)\s*[\-\*]\s+/g, ' ') // Strip list markers
+                    .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1') // Extract plain text from markdown links
                     .replace(/\n/g, ' ') // Flatten newlines into spaces
-                    .replace(/</g, "&lt;").replace(/>/g, "&gt;") // Escape HTML
+                    .replace(/\s+/g, ' ') // Collapse multiple spaces
+                    .replace(/</g, "&lt;").replace(/>/g, "&gt;") // Escape HTML safely
                     .trim();
+                    
+                cleanPreview = cleanPreview.replace(/^["']+|["']+$/g, ''); // Strip leading/trailing quotes if they got pasted in
             }
 
             const notesHtml = cleanPreview ? `<p class="text-xs sm:text-sm text-stone-700 mt-2 sm:mt-3 italic border-l-2 border-stone-400 pl-2 sm:pl-3 line-clamp-3">${cleanPreview}</p>` : '';
