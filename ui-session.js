@@ -110,7 +110,7 @@ export function getSessionEditHTML(state) {
                     
                     <p class="text-stone-500 text-xs sm:text-sm mb-6 italic border-l-2 border-blue-500 pl-3">Record your private thoughts, inventory updates, or quest notes for this session. By default, these are only visible to you and the Dungeon Master.</p>
                     
-                    ${renderSmartFieldWithVis(`player-note-${myUid}`, `<i class="fa-solid fa-book-open mr-2 text-stone-500"></i> My Hero's Journal`, myNoteData.text, myNoteData.visibility, 'Scribe your personal notes here... Use @ to link Codex entries.', 10, false)}
+                    ${renderSmartFieldWithVis(`player-note-${myUid}`, `<i class="fa-solid fa-book-open mr-2 text-stone-500"></i> My Hero's Journal`, myNoteData.text, myNoteData.visibility, 'Scribe your personal notes here... Codex names link automatically.', 10, false)}
                 </div>
             </div>
 
