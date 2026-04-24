@@ -103,6 +103,9 @@ export function getSessionEditHTML(state) {
                 </div>
             </div>
 
+            <!-- Banner Image -->
+            ${session.image ? `<div class="w-full h-32 sm:h-48 overflow-hidden bg-stone-200 shrink-0 z-0 relative"><img src="${session.image}" class="w-full h-full object-cover" alt="Session Banner" onerror="this.style.display='none'"></div>` : ''}
+
             <!-- Content Area -->
             <div class="flex-grow overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 bg-[#fdfbf7]">
                 <div class="max-w-2xl mx-auto">
@@ -221,8 +224,11 @@ export function getSessionEditHTML(state) {
             </div>
         </div>
 
+        <!-- Banner Image -->
+        ${session.image ? `<div class="w-full h-32 sm:h-48 overflow-hidden bg-stone-200 shrink-0 z-0 relative"><img src="${session.image}" class="w-full h-full object-cover" alt="Session Banner" onerror="this.style.display='none'"></div>` : ''}
+
         <!-- Tabs Navigation -->
-        <div class="flex bg-[#e8dec7] border-b-2 border-stone-800 shrink-0 px-2 sm:px-4 pt-2 gap-1 overflow-x-auto hide-scrollbar">
+        <div class="flex bg-[#e8dec7] border-b-2 border-stone-800 shrink-0 px-2 sm:px-4 pt-2 gap-1 overflow-x-auto hide-scrollbar z-10 relative">
             <button id="tab-btn-session" class="whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-900 bg-[#f4ebd8] border-t-2 border-l border-r border-[#d4c5a9] border-t-red-900" onclick="window.appActions.switchSessionTab('session')">The Narrative</button>
             <button id="tab-btn-pcs" class="whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-600 border-transparent hover:text-stone-800" onclick="window.appActions.switchSessionTab('pcs')">Hero Management</button>
             <button id="tab-btn-preview" class="whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-600 border-transparent hover:text-stone-800" onclick="window.appActions.switchSessionTab('preview')">Live Scroll Preview</button>
@@ -234,7 +240,7 @@ export function getSessionEditHTML(state) {
                 <input type="text" id="draft-name" value="${defaultName}" class="w-full p-2 bg-transparent border-b-2 border-stone-400 text-stone-900 font-serif font-bold text-2xl outline-none focus:border-red-900 mb-4 transition-colors" placeholder="Session Title...">
 
                 <!-- Dates Configuration -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                     <div>
                         <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1"><i class="fa-regular fa-calendar text-stone-400 mr-1"></i> Real-World Date</label>
                         <input type="date" id="draft-real-date" value="${defaultRealDate}" class="w-full p-2 bg-transparent border-b-2 border-stone-400 text-stone-900 font-serif text-sm outline-none focus:border-red-900 transition-colors">
@@ -243,6 +249,12 @@ export function getSessionEditHTML(state) {
                         <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1"><i class="fa-solid fa-moon text-stone-400 mr-1"></i> In-Game Date <span class="text-stone-400 normal-case font-normal">(Optional)</span></label>
                         <input type="text" id="draft-ingame-date" value="${defaultInGameDate.replace(/"/g, '&quot;')}" placeholder="e.g. 14th of Kythorn, 1492 DR" class="w-full p-2 bg-transparent border-b-2 border-stone-400 text-stone-900 font-serif text-sm outline-none focus:border-red-900 transition-colors">
                     </div>
+                </div>
+
+                <!-- Banner Image Configuration -->
+                <div class="mb-8">
+                    <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1"><i class="fa-solid fa-image text-stone-400 mr-1"></i> Banner Image URL <span class="text-stone-400 normal-case font-normal">(Optional)</span></label>
+                    <input type="text" id="draft-image" value="${(session.image || '').replace(/"/g, '&quot;')}" class="w-full p-2 bg-transparent border-b-2 border-stone-400 text-stone-900 font-serif text-sm outline-none focus:border-red-900 transition-colors" placeholder="https://example.com/session-banner.jpg">
                 </div>
 
                 <!-- Dynamic Scenes -->
