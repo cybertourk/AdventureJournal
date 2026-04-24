@@ -122,7 +122,7 @@ export async function deleteUserAccount() {
                 playerNames: updatedNames
             }));
 
-            // NEW: Must also scrub the user from the PlayerCharacters Subcollection!
+            // Scrub the user from the PlayerCharacters Subcollection!
             const cleanupPCs = async () => {
                 const pcsRef = collection(db, 'artifacts', appId, 'campaigns', campId, 'playerCharacters');
                 const pcsSnap = await getDocs(pcsRef);
@@ -164,8 +164,6 @@ export async function deleteUserAccount() {
 
 // --- DATABASE (FIRESTORE) REAL-TIME LISTENERS & CACHE ---
 
-// To prevent React/Vanilla JS state tearing, we build the campaign out of subcollections 
-// in memory here, and fire the callbacks exactly as the app expects them.
 const campaignCache = {};
 const subListeners = {}; 
 
@@ -179,12 +177,15 @@ let currentPlayerCampaignsListener = null;
 function getFullCampaign(id) {
     const c = campaignCache[id];
     if (!c || !c.base) return null;
+    
+    // LAZY MIGRATION: If the new subcollections are empty, gracefully fall back to the legacy arrays 
+    // stored on the main document. The next time the DM saves, it will auto-migrate them!
     return {
         ...c.base,
-        playerCharacters: c.pcs || [],
-        adventures: c.adventures || [],
-        codex: c.codex || [],
-        sheetUpdates: c.sheetUpdates || []
+        playerCharacters: (c.pcs && c.pcs.length > 0) ? c.pcs : (c.base.playerCharacters || []),
+        adventures: (c.adventures && c.adventures.length > 0) ? c.adventures : (c.base.adventures || []),
+        codex: (c.codex && c.codex.length > 0) ? c.codex : (c.base.codex || []),
+        sheetUpdates: (c.sheetUpdates && c.sheetUpdates.length > 0) ? c.sheetUpdates : (c.base.sheetUpdates || [])
     };
 }
 
@@ -418,6 +419,7 @@ export async function saveCampaign(campaignData) {
         const codex = cleanData.codex || [];
         const sheetUpdates = cleanData.sheetUpdates || [];
 
+        // Delete from the root document so they don't take up space in the 1MB limit
         delete cleanData.playerCharacters;
         delete cleanData.adventures;
         delete cleanData.codex;
