@@ -382,6 +382,7 @@ export const savePCEdit = async () => {
     race: isDM ? (document.getElementById('pc-edit-race')?.value.trim() || '') : existingPC.race,
     classLevel: isDM ? (document.getElementById('pc-edit-class')?.value.trim() || '') : existingPC.classLevel,
     background: isDM ? (document.getElementById('pc-edit-background')?.value.trim() || '') : existingPC.background,
+    image: isDM ? (document.getElementById('pc-edit-image')?.value.trim() || '') : (existingPC.image || ''),
     // Characteristics (DM only)
     alignment: isDM ? (document.getElementById('pc-edit-alignment')?.value.trim() || '') : existingPC.alignment,
     faith: isDM ? (document.getElementById('pc-edit-faith')?.value.trim() || '') : existingPC.faith,
@@ -417,20 +418,22 @@ export const savePCEdit = async () => {
     updatedCodexArray.push({
       id: pcId,
       name: updatedPC.name,
-      type: 'PC', // Switched to PC per user request
+      type: 'PC',
       tags: ['Hero', updatedPC.race, updatedPC.classLevel].filter(Boolean),
       desc: 'Rumors and public knowledge surrounding this hero are yet to be penned.',
-      visibility: { mode: 'public' }
+      visibility: { mode: 'public' },
+      image: updatedPC.image
     });
   } else {
-    // Update existing entry's name, type and tags to stay in sync, but leave desc alone
+    // Update existing entry's name, type, tags and image to stay in sync
     updatedCodexArray = updatedCodexArray.map(c => {
       if (c.id === pcId) {
         return {
           ...c,
           name: updatedPC.name,
-          type: 'PC', // Ensure existing heroes get correctly labeled when updated
-          tags: ['Hero', updatedPC.race, updatedPC.classLevel].filter(Boolean)
+          type: 'PC',
+          tags: ['Hero', updatedPC.race, updatedPC.classLevel].filter(Boolean),
+          image: updatedPC.image
           // Desc and visibility are preserved so the player's custom edits remain intact
         };
       }
