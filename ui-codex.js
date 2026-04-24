@@ -1,7 +1,21 @@
 export function getCodexHTML(state) {
     const camp = state.activeCampaign;
     if (!camp) return '';
-    const codex = camp.codex || [];
+    
+    const rawCodex = camp.codex || [];
+    
+    // --- LEGACY HERO INJECTION ---
+    // Inject Heroes that don't have explicit codex entries yet so they appear in the grid
+    const autoHeroes = (camp.playerCharacters || []).filter(pc => !rawCodex.some(c => c.id === pc.id)).map(pc => ({
+        id: pc.id,
+        name: pc.name,
+        type: 'PC',
+        tags: ['Hero', pc.race, pc.classLevel].filter(Boolean),
+        desc: 'Rumors and public knowledge surrounding this hero are yet to be penned.',
+        visibility: { mode: 'public' }
+    }));
+
+    const codex = [...rawCodex, ...autoHeroes];
     
     const isDM = camp._isDM;
     const myUid = state.currentUserUid;
@@ -81,6 +95,7 @@ export function getCodexHTML(state) {
             const canEdit = isDM || isHeroOwner;
 
             let typeColor = "text-stone-500";
+            if (c.type === 'PC') typeColor = "text-indigo-600";
             if (c.type === 'NPC') typeColor = "text-blue-600";
             if (c.type === 'Location') typeColor = "text-emerald-600";
             if (c.type === 'Item') typeColor = "text-amber-600";
