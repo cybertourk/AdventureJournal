@@ -104,7 +104,7 @@ export function getSessionEditHTML(state) {
             </div>
 
             <!-- Banner Image -->
-            ${session.image ? `<div class="w-full h-32 sm:h-48 overflow-hidden bg-stone-200 shrink-0 z-0 relative"><img src="${session.image}" class="w-full h-full object-cover" alt="Session Banner" onerror="this.style.display='none'"></div>` : ''}
+            ${session.image ? `<div class="w-full h-32 sm:h-48 overflow-hidden bg-stone-900 shrink-0 z-0 relative"><img src="${session.image}" class="w-full h-full object-contain" alt="Session Banner" onerror="this.style.display='none'"></div>` : ''}
 
             <!-- Content Area -->
             <div class="flex-grow overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 bg-[#fdfbf7]">
@@ -225,7 +225,7 @@ export function getSessionEditHTML(state) {
         </div>
 
         <!-- Banner Image -->
-        ${session.image ? `<div class="w-full h-32 sm:h-48 overflow-hidden bg-stone-200 shrink-0 z-0 relative"><img src="${session.image}" class="w-full h-full object-cover" alt="Session Banner" onerror="this.style.display='none'"></div>` : ''}
+        ${session.image ? `<div class="w-full h-32 sm:h-48 overflow-hidden bg-stone-900 shrink-0 z-0 relative"><img src="${session.image}" class="w-full h-full object-contain" alt="Session Banner" onerror="this.style.display='none'"></div>` : ''}
 
         <!-- Tabs Navigation -->
         <div class="flex bg-[#e8dec7] border-b-2 border-stone-800 shrink-0 px-2 sm:px-4 pt-2 gap-1 overflow-x-auto hide-scrollbar z-10 relative">
