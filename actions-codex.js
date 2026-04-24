@@ -233,7 +233,7 @@ export const _openCodexModal = (entry) => {
     }
 
     const resolvedImage = image || (linkedPC ? linkedPC.image : "");
-    const imgHTML = resolvedImage ? `<div class="mb-4 w-full h-48 sm:h-64 bg-stone-200 border border-[#d4c5a9] rounded-sm overflow-hidden shadow-inner"><img src="${resolvedImage}" class="w-full h-full object-cover" alt="${name}" onerror="this.style.display='none'"></div>` : '';
+    const imgHTML = resolvedImage ? `<div class="mb-4 w-full h-48 sm:h-64 bg-stone-900 border border-[#d4c5a9] rounded-sm overflow-hidden shadow-inner"><img src="${resolvedImage}" class="w-full h-full object-contain" alt="${name}" onerror="this.style.display='none'"></div>` : '';
 
     // --- DYNAMIC HERO INJECTION ---
     let pcDataHTML = '';
