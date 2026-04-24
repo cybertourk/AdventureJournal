@@ -2,7 +2,15 @@ export function getCodexHTML(state) {
     const camp = state.activeCampaign;
     if (!camp) return '';
     
-    const rawCodex = camp.codex || [];
+    // Intercept existing codex entries: if an entry is linked to a hero, force its type to 'PC'
+    // This fixes legacy heroes that are currently saved in the database as 'NPC'
+    const rawCodex = (camp.codex || []).map(c => {
+        const isHero = camp.playerCharacters?.some(pc => pc.id === c.id);
+        if (isHero) {
+            return { ...c, type: 'PC' };
+        }
+        return c;
+    });
     
     // --- LEGACY HERO INJECTION ---
     // Inject Heroes that don't have explicit codex entries yet so they appear in the grid
