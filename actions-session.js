@@ -111,6 +111,7 @@ export const _gatherSessionDraft = () => {
             name: document.getElementById('draft-name')?.value || `Log from ${displayDateObj.toLocaleDateString()}`,
             timestamp: timestamp,
             inGameDate: inGameDateInput,
+            image: document.getElementById('draft-image')?.value.trim() || '',
             lootText: lootText,
             lootValue: calculateLootValue(lootText),
             lootVisibility: getStaticVis('input-draft-loot'),
