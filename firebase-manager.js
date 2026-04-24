@@ -61,7 +61,6 @@ export async function registerUser(email, password, displayName, role = 'user') 
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
         
-        // Every user is a generic 'user' now, and we save their Display Name
         await setDoc(doc(db, 'artifacts', appId, 'users', user.uid), {
             email: email,
             displayName: displayName || "Nameless Hero",
@@ -110,33 +109,35 @@ export async function deleteUserAccount() {
         const updatePromises = [];
         snapshot.forEach(docSnap => {
             const campData = docSnap.data();
+            const campId = campData.id;
             
-            // Filter the user out of the activePlayers array
             const updatedPlayers = (campData.activePlayers || []).filter(id => id !== uid);
-            
-            // Delete the user from the playerNames dictionary
             const updatedNames = { ...campData.playerNames };
             delete updatedNames[uid];
             
-            // Also unassign the user from any PCs in the campaign
-            const updatedPCs = (campData.playerCharacters || []).map(pc => {
-                if (pc.playerId === uid) return { ...pc, playerId: '' };
-                return pc;
-            });
-
-            const docRef = doc(db, 'artifacts', appId, 'campaigns', campData.id);
-            
-            // BUG FIX: We must NOT use { merge: true } here, because merge ignores deleted keys in map objects!
-            // Instead, we spread the full campData to overwrite the document entirely with the clean data.
+            const docRef = doc(db, 'artifacts', appId, 'campaigns', campId);
             updatePromises.push(setDoc(docRef, { 
                 ...campData,
                 activePlayers: updatedPlayers, 
-                playerNames: updatedNames,
-                playerCharacters: updatedPCs
+                playerNames: updatedNames
             }));
+
+            // NEW: Must also scrub the user from the PlayerCharacters Subcollection!
+            const cleanupPCs = async () => {
+                const pcsRef = collection(db, 'artifacts', appId, 'campaigns', campId, 'playerCharacters');
+                const pcsSnap = await getDocs(pcsRef);
+                const batchPromises = [];
+                pcsSnap.forEach((pcDoc) => {
+                    const pcData = pcDoc.data();
+                    if (pcData.playerId === uid) {
+                        batchPromises.push(setDoc(pcDoc.ref, { ...pcData, playerId: '' }, { merge: true }));
+                    }
+                });
+                await Promise.all(batchPromises);
+            };
+            updatePromises.push(cleanupPCs());
         });
 
-        // Wait for all campaign cleanups to finish before proceeding
         if (updatePromises.length > 0) {
             await Promise.all(updatePromises);
         }
@@ -152,8 +153,6 @@ export async function deleteUserAccount() {
         return true;
     } catch (error) {
         console.error("Error deleting account:", error);
-        
-        // Firebase Security Requirement for sensitive actions
         if (error.code === 'auth/requires-recent-login') {
             notify("Security check: You must log out and log back in before deleting your account.", "error");
         } else {
@@ -163,19 +162,77 @@ export async function deleteUserAccount() {
     }
 }
 
-// --- DATABASE (FIRESTORE) ACTIONS ---
+// --- DATABASE (FIRESTORE) REAL-TIME LISTENERS & CACHE ---
+
+// To prevent React/Vanilla JS state tearing, we build the campaign out of subcollections 
+// in memory here, and fire the callbacks exactly as the app expects them.
+const campaignCache = {};
+const subListeners = {}; 
+
+let dmCallback = null;
+let playerCallback = null;
+let dmCampaignIds = [];
+let playerCampaignIds = [];
+let currentCampaignsListener = null;
+let currentPlayerCampaignsListener = null;
+
+function getFullCampaign(id) {
+    const c = campaignCache[id];
+    if (!c || !c.base) return null;
+    return {
+        ...c.base,
+        playerCharacters: c.pcs || [],
+        adventures: c.adventures || [],
+        codex: c.codex || [],
+        sheetUpdates: c.sheetUpdates || []
+    };
+}
+
+function fireCallbacks() {
+    if (dmCallback) dmCallback(dmCampaignIds.map(getFullCampaign).filter(Boolean));
+    if (playerCallback) playerCallback(playerCampaignIds.map(getFullCampaign).filter(Boolean));
+}
+
+function setupSubListeners(campId) {
+    if (subListeners[campId]) return; 
+    subListeners[campId] = [];
+
+    const attach = (subName, cacheKey) => {
+        const subRef = collection(db, 'artifacts', appId, 'campaigns', campId, subName);
+        const unsub = onSnapshot(subRef, snap => {
+            if (campaignCache[campId]) {
+                campaignCache[campId][cacheKey] = snap.docs.map(d => d.data());
+                fireCallbacks();
+            }
+        }, err => console.error(`Error syncing ${subName}:`, err));
+        subListeners[campId].push(unsub);
+    };
+
+    attach('playerCharacters', 'pcs');
+    attach('adventures', 'adventures');
+    attach('codex', 'codex');
+    attach('sheetUpdates', 'sheetUpdates');
+}
+
+function cleanupSubListeners(campId) {
+    if (subListeners[campId]) {
+        subListeners[campId].forEach(unsub => unsub());
+        delete subListeners[campId];
+    }
+    delete campaignCache[campId];
+}
 
 // DM Listener: Campaigns I created
-let currentCampaignsListener = null;
-
 export function subscribeToCampaigns(user, callback) {
+    dmCallback = callback;
     if (currentCampaignsListener) {
         currentCampaignsListener();
         currentCampaignsListener = null;
     }
     
     if (!user) {
-        callback([]);
+        dmCampaignIds = [];
+        fireCallbacks();
         return;
     }
 
@@ -183,11 +240,28 @@ export function subscribeToCampaigns(user, callback) {
     const q = query(campaignsRef, where("dmId", "==", user.uid));
 
     currentCampaignsListener = onSnapshot(q, (snapshot) => {
-        const campaigns = [];
+        const newIds = [];
         snapshot.forEach(docSnap => {
-            campaigns.push(docSnap.data());
+            const data = docSnap.data();
+            newIds.push(data.id);
+
+            if (!campaignCache[data.id]) {
+                campaignCache[data.id] = { base: data, pcs: [], adventures: [], codex: [], sheetUpdates: [] };
+                setupSubListeners(data.id);
+            } else {
+                campaignCache[data.id].base = data;
+            }
         });
-        callback(campaigns);
+
+        // Cleanup orphaned listeners
+        dmCampaignIds.forEach(id => {
+            if (!newIds.includes(id) && !playerCampaignIds.includes(id)) {
+                cleanupSubListeners(id);
+            }
+        });
+
+        dmCampaignIds = newIds;
+        fireCallbacks();
     }, (error) => {
         console.error("Error fetching DM campaigns:", error);
         notify("Failed to load your GM campaigns.", "error");
@@ -195,16 +269,16 @@ export function subscribeToCampaigns(user, callback) {
 }
 
 // Player Listener: Campaigns I joined
-let currentPlayerCampaignsListener = null;
-
 export function subscribeToPlayerCampaigns(user, callback) {
+    playerCallback = callback;
     if (currentPlayerCampaignsListener) {
         currentPlayerCampaignsListener();
         currentPlayerCampaignsListener = null;
     }
     
     if (!user) {
-        callback([]);
+        playerCampaignIds = [];
+        fireCallbacks();
         return;
     }
 
@@ -212,11 +286,28 @@ export function subscribeToPlayerCampaigns(user, callback) {
     const q = query(campaignsRef, where("activePlayers", "array-contains", user.uid));
 
     currentPlayerCampaignsListener = onSnapshot(q, (snapshot) => {
-        const campaigns = [];
+        const newIds = [];
         snapshot.forEach(docSnap => {
-            campaigns.push(docSnap.data());
+            const data = docSnap.data();
+            newIds.push(data.id);
+
+            if (!campaignCache[data.id]) {
+                campaignCache[data.id] = { base: data, pcs: [], adventures: [], codex: [], sheetUpdates: [] };
+                setupSubListeners(data.id);
+            } else {
+                campaignCache[data.id].base = data;
+            }
         });
-        callback(campaigns);
+
+        // Cleanup orphaned listeners
+        playerCampaignIds.forEach(id => {
+            if (!newIds.includes(id) && !dmCampaignIds.includes(id)) {
+                cleanupSubListeners(id);
+            }
+        });
+
+        playerCampaignIds = newIds;
+        fireCallbacks();
     }, (error) => {
         console.error("Error fetching player campaigns:", error);
         notify("Failed to load joined campaigns.", "error");
@@ -270,7 +361,6 @@ export async function joinCampaign(campaignId) {
     }
 
     try {
-        // Fetch the user's display name from their profile
         const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid);
         const userSnap = await getDoc(userDocRef);
         const displayName = userSnap.exists() && userSnap.data().displayName 
@@ -285,7 +375,6 @@ export async function joinCampaign(campaignId) {
             const activePlayers = data.activePlayers || [];
             const playerNames = data.playerNames || {};
             
-            // Prevent duplicate entries, but always ensure the name map is up to date
             if (!activePlayers.includes(user.uid)) {
                 activePlayers.push(user.uid);
             }
@@ -314,26 +403,59 @@ export async function saveCampaign(campaignData) {
     }
 
     try {
-        // SECURITY SCRUB: Ensure we never save local UI flags to the database
+        // SECURITY SCRUB
         const cleanData = { ...campaignData };
         delete cleanData._isDM;
         delete cleanData._isPlayer;
 
-        if (!cleanData.dmId) {
-            cleanData.dmId = user.uid;
-        }
+        if (!cleanData.dmId) cleanData.dmId = user.uid;
+        if (!cleanData.activePlayers) cleanData.activePlayers = [];
+        if (!cleanData.playerNames) cleanData.playerNames = {};
+
+        // EXTRACT ARRAYS FOR SUBCOLLECTIONS
+        const pcs = cleanData.playerCharacters || [];
+        const advs = cleanData.adventures || [];
+        const codex = cleanData.codex || [];
+        const sheetUpdates = cleanData.sheetUpdates || [];
+
+        delete cleanData.playerCharacters;
+        delete cleanData.adventures;
+        delete cleanData.codex;
+        delete cleanData.sheetUpdates;
         
-        if (!cleanData.activePlayers) {
-            cleanData.activePlayers = [];
-        }
-        
-        // Ensure playerNames map exists
-        if (!cleanData.playerNames) {
-            cleanData.playerNames = {};
-        }
-        
+        // 1. Save Base Campaign Document
         const docRef = doc(db, 'artifacts', appId, 'campaigns', cleanData.id);
         await setDoc(docRef, cleanData);
+
+        // 2. Helper to cleanly sync an array to a Firestore Subcollection
+        const syncSubcollection = async (subName, newArray) => {
+            const subRef = collection(db, 'artifacts', appId, 'campaigns', cleanData.id, subName);
+            
+            // Diff checking: Fetch current items in the DB to see if any were deleted
+            const currentSnap = await getDocs(subRef);
+            const currentIds = currentSnap.docs.map(d => d.id);
+            const newIds = newArray.map(item => item.id);
+
+            // Delete orphaned documents (Handles deleting a PC, Session, etc.)
+            for (const oldId of currentIds) {
+                if (!newIds.includes(oldId)) {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'campaigns', cleanData.id, subName, oldId));
+                }
+            }
+
+            // Upsert remaining documents individually
+            for (const item of newArray) {
+                if (!item.id) continue;
+                await setDoc(doc(db, 'artifacts', appId, 'campaigns', cleanData.id, subName, item.id), item);
+            }
+        };
+
+        // 3. Fire Subcollection Syncs (Race condition safe!)
+        await syncSubcollection('playerCharacters', pcs);
+        await syncSubcollection('adventures', advs);
+        await syncSubcollection('codex', codex);
+        await syncSubcollection('sheetUpdates', sheetUpdates);
+
     } catch (error) {
         console.error("Error saving campaign:", error);
         notify("Failed to save campaign to the vault.", "error");
@@ -352,8 +474,24 @@ export async function deleteCampaign(campaignId) {
     }
 
     try {
+        // Deep cleanup: Delete all documents in all subcollections first
+        const deleteSubcollection = async (subName) => {
+            const subRef = collection(db, 'artifacts', appId, 'campaigns', campaignId, subName);
+            const snap = await getDocs(subRef);
+            const batchPromises = [];
+            snap.forEach(d => batchPromises.push(deleteDoc(d.ref)));
+            await Promise.all(batchPromises);
+        };
+
+        await deleteSubcollection('playerCharacters');
+        await deleteSubcollection('adventures');
+        await deleteSubcollection('codex');
+        await deleteSubcollection('sheetUpdates');
+
+        // Finally, delete the base Campaign Document
         const docRef = doc(db, 'artifacts', appId, 'campaigns', campaignId);
         await deleteDoc(docRef);
+        
         notify("Campaign tome reduced to ashes.", "success");
         return true;
     } catch (error) {
