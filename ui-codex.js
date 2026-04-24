@@ -5,9 +5,10 @@ export function getCodexHTML(state) {
     // Intercept existing codex entries: if an entry is linked to a hero, force its type to 'PC'
     // This fixes legacy heroes that are currently saved in the database as 'NPC'
     const rawCodex = (camp.codex || []).map(c => {
-        const isHero = camp.playerCharacters?.some(pc => pc.id === c.id);
-        if (isHero) {
-            return { ...c, type: 'PC' };
+        const linkedPC = camp.playerCharacters?.find(pc => pc.id === c.id);
+        if (linkedPC) {
+            // Also grab the hero's image if the codex entry lacks its own!
+            return { ...c, type: 'PC', image: c.image || linkedPC.image };
         }
         return c;
     });
@@ -20,7 +21,8 @@ export function getCodexHTML(state) {
         type: 'PC',
         tags: ['Hero', pc.race, pc.classLevel].filter(Boolean),
         desc: 'Rumors and public knowledge surrounding this hero are yet to be penned.',
-        visibility: { mode: 'public' }
+        visibility: { mode: 'public' },
+        image: pc.image // Feed the hero's image into the codex
     }));
 
     const codex = [...rawCodex, ...autoHeroes];
@@ -111,7 +113,6 @@ export function getCodexHTML(state) {
             if (c.type === 'Lore') typeColor = "text-red-800";
             
             const tagsStr = (c.tags || []).join(', ');
-            const hasImg = c.image ? `<i class="fa-solid fa-image text-stone-400 ml-2" title="Has Image"></i>` : '';
             
             const vis = getVisStatus(c);
             
@@ -127,19 +128,24 @@ export function getCodexHTML(state) {
             ` : '';
             
             html += `
-            <div class="codex-card bg-[#fdfbf7] p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-sm flex flex-col group relative overflow-hidden hover:shadow-md transition cursor-pointer" onclick="window.appActions.viewCodex('${c.id}')" data-search="${c.name.toLowerCase()} ${c.type.toLowerCase()} ${tagsStr.toLowerCase()}">
-                <div class="absolute top-0 left-0 w-1 h-full bg-stone-400 group-hover:bg-amber-500 transition-colors"></div>
-                <div class="pl-2 flex justify-between items-start mb-2">
-                    <h3 class="font-serif font-bold text-lg text-stone-900 leading-tight truncate pr-2">${c.name} ${hasImg}</h3>
-                    ${visBadge}
-                </div>
-                <div class="pl-2 flex items-center gap-2 mb-3 flex-wrap">
-                    <span class="text-[9px] font-bold uppercase tracking-wider ${typeColor} border border-current px-1.5 py-0.5 rounded-sm">${c.type}</span>
-                    ${(c.tags || []).slice(0,2).map(t => `<span class="text-[9px] font-bold uppercase tracking-wider text-stone-500 bg-stone-200 px-1.5 py-0.5 rounded-sm">${t}</span>`).join('')}
-                    ${(c.tags && c.tags.length > 2) ? `<span class="text-[9px] font-bold text-stone-400">+${c.tags.length - 2}</span>` : ''}
-                </div>
-                <div class="pl-2 mt-auto pt-3 border-t border-[#d4c5a9]/50">
-                    <p class="text-xs text-stone-600 font-sans line-clamp-2 italic">"${c.desc || 'No description...'}"</p>
+            <div class="codex-card bg-[#fdfbf7] p-0 sm:p-0 rounded-sm border border-[#d4c5a9] shadow-sm flex flex-col group relative overflow-hidden hover:shadow-md transition cursor-pointer" onclick="window.appActions.viewCodex('${c.id}')" data-search="${c.name.toLowerCase()} ${c.type.toLowerCase()} ${tagsStr.toLowerCase()}">
+                <div class="absolute top-0 left-0 w-1 h-full bg-stone-400 group-hover:bg-amber-500 transition-colors z-20"></div>
+                
+                ${c.image ? `<div class="h-32 sm:h-40 w-full overflow-hidden border-b border-[#d4c5a9] bg-stone-200"><img src="${c.image}" alt="${c.name}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" onerror="this.style.display='none'"></div>` : ''}
+                
+                <div class="p-4 sm:p-5 flex-grow flex flex-col relative z-10 bg-[#fdfbf7]">
+                    <div class="pl-2 flex justify-between items-start mb-2">
+                        <h3 class="font-serif font-bold text-lg text-stone-900 leading-tight truncate pr-2">${c.name}</h3>
+                        ${visBadge}
+                    </div>
+                    <div class="pl-2 flex items-center gap-2 mb-3 flex-wrap">
+                        <span class="text-[9px] font-bold uppercase tracking-wider ${typeColor} border border-current px-1.5 py-0.5 rounded-sm">${c.type}</span>
+                        ${(c.tags || []).slice(0,2).map(t => `<span class="text-[9px] font-bold uppercase tracking-wider text-stone-500 bg-stone-200 px-1.5 py-0.5 rounded-sm">${t}</span>`).join('')}
+                        ${(c.tags && c.tags.length > 2) ? `<span class="text-[9px] font-bold text-stone-400">+${c.tags.length - 2}</span>` : ''}
+                    </div>
+                    <div class="pl-2 mt-auto pt-3 border-t border-[#d4c5a9]/50">
+                        <p class="text-xs text-stone-600 font-sans line-clamp-2 italic">"${c.desc || 'No description...'}"</p>
+                    </div>
                 </div>
             </div>
             `;
