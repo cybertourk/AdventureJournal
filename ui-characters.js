@@ -46,7 +46,7 @@ export function getPCManagerHTML(state) {
             <div class="bg-[#fdfbf7] p-0 sm:p-0 rounded-sm border border-[#d4c5a9] shadow-sm flex flex-col group relative overflow-hidden hover:shadow-md transition">
                 <div class="absolute top-0 left-0 w-1 h-full ${canEdit ? 'bg-red-900 group-hover:bg-red-700' : 'bg-stone-400 group-hover:bg-amber-600'} transition-colors z-20"></div>
                 
-                ${pc.image ? `<div class="h-32 sm:h-48 w-full overflow-hidden border-b border-[#d4c5a9] bg-stone-200"><img src="${pc.image}" alt="${pc.name}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" onerror="this.style.display='none'"></div>` : ''}
+                ${pc.image ? `<div class="h-32 sm:h-48 w-full overflow-hidden border-b border-[#d4c5a9] bg-stone-900"><img src="${pc.image}" alt="${pc.name}" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105" onerror="this.style.display='none'"></div>` : ''}
                 
                 <div class="p-4 sm:p-5 pl-5 sm:pl-6 flex flex-col justify-between flex-grow">
                     <div>
