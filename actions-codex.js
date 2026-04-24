@@ -190,7 +190,8 @@ export const viewCodex = (id) => {
             type: 'PC',
             tags: ['Hero', pc.race, pc.classLevel].filter(Boolean),
             desc: 'Rumors and public knowledge surrounding this hero are yet to be penned.',
-            visibility: { mode: 'public' }
+            visibility: { mode: 'public' },
+            image: pc.image || ""
         };
     }
 
@@ -213,6 +214,7 @@ export const _openCodexModal = (entry) => {
     const type = entry.type || "NPC";
     const desc = entry.desc || "";
     const tags = entry.tags ? entry.tags.join(', ') : "";
+    const image = entry.image || "";
 
     // Check editing permissions
     const isDM = camp._isDM;
@@ -229,6 +231,9 @@ export const _openCodexModal = (entry) => {
     if (entry.tags) {
         tagsHTML += entry.tags.map(t => `<span class="codex-tag">${t}</span>`).join('');
     }
+
+    const resolvedImage = image || (linkedPC ? linkedPC.image : "");
+    const imgHTML = resolvedImage ? `<div class="mb-4 w-full h-48 sm:h-64 bg-stone-200 border border-[#d4c5a9] rounded-sm overflow-hidden shadow-inner"><img src="${resolvedImage}" class="w-full h-full object-cover" alt="${name}" onerror="this.style.display='none'"></div>` : '';
 
     // --- DYNAMIC HERO INJECTION ---
     let pcDataHTML = '';
@@ -278,6 +283,7 @@ export const _openCodexModal = (entry) => {
 
                 <!-- View Mode -->
                 <div id="cx-view-mode" class="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-grow bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] ${viewHidden}">
+                    ${imgHTML}
                     <div class="mb-4">
                         <h3 class="text-2xl font-serif font-bold text-stone-900">${name}</h3>
                         <div class="mt-2">${tagsHTML}</div>
@@ -314,6 +320,11 @@ export const _openCodexModal = (entry) => {
                     <div class="mb-4">
                         <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Tags (Comma Separated)</label>
                         <input type="text" id="cx-modal-tags" value="${tags}" ${linkedPC ? 'readonly disabled' : ''} class="w-full ${linkedPC ? 'bg-stone-200 text-stone-500' : 'bg-[#fdfbf7] text-stone-900 focus:border-red-900'} border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner" placeholder="e.g. Ally, Vendor">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Image URL</label>
+                        <input type="text" id="cx-modal-image" value="${image}" ${linkedPC ? 'readonly disabled title="Edit this hero\'s image in the PC Manager"' : ''} class="w-full ${linkedPC ? 'bg-stone-200 text-stone-500' : 'bg-[#fdfbf7] text-stone-900 focus:border-red-900'} border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner" placeholder="https://example.com/image.jpg">
                     </div>
 
                     <div class="mb-4">
@@ -374,7 +385,8 @@ export const saveCodexEntry = async () => {
         name: name,
         type: document.getElementById('cx-modal-type').value,
         tags: document.getElementById('cx-modal-tags').value.split(',').map(t=>t.trim()).filter(t=>t),
-        desc: document.getElementById('cx-modal-desc').value
+        desc: document.getElementById('cx-modal-desc').value,
+        image: document.getElementById('cx-modal-image').value.trim()
     };
 
     const isNew = !id;
