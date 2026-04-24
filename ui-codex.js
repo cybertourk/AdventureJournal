@@ -131,7 +131,7 @@ export function getCodexHTML(state) {
             <div class="codex-card bg-[#fdfbf7] p-0 sm:p-0 rounded-sm border border-[#d4c5a9] shadow-sm flex flex-col group relative overflow-hidden hover:shadow-md transition cursor-pointer" onclick="window.appActions.viewCodex('${c.id}')" data-search="${c.name.toLowerCase()} ${c.type.toLowerCase()} ${tagsStr.toLowerCase()}">
                 <div class="absolute top-0 left-0 w-1 h-full bg-stone-400 group-hover:bg-amber-500 transition-colors z-20"></div>
                 
-                ${c.image ? `<div class="h-32 sm:h-40 w-full overflow-hidden border-b border-[#d4c5a9] bg-stone-200"><img src="${c.image}" alt="${c.name}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" onerror="this.style.display='none'"></div>` : ''}
+                ${c.image ? `<div class="h-32 sm:h-40 w-full overflow-hidden border-b border-[#d4c5a9] bg-stone-900"><img src="${c.image}" alt="${c.name}" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105" onerror="this.style.display='none'"></div>` : ''}
                 
                 <div class="p-4 sm:p-5 flex-grow flex flex-col relative z-10 bg-[#fdfbf7]">
                     <div class="pl-2 flex justify-between items-start mb-2">
