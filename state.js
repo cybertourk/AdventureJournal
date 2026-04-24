@@ -23,7 +23,11 @@ if (!window.appData) {
         tempPCs: [],
         tempAdvRoster: [], // Tracks which PC IDs are selected for an adventure
         currentMarkdown: '',
-        currentUserUid: null // Set from main.js
+        currentUserUid: null, // Set from main.js
+
+        // --- NEW: UI Protection Flags ---
+        isEditing: false, // Locks the renderer when a user is actively typing
+        hasPendingUpdate: false // Flags that new data arrived while locked
     };
 }
 
@@ -50,6 +54,15 @@ export function calculateLootValue(text) {
 }
 
 // --- STATE MANAGEMENT ---
+
+export function setEditingState(isEditing) {
+    window.appData.isEditing = isEditing;
+    // If the user just stopped editing (e.g., closed a modal or saved), and data arrived while they were locked, render it now!
+    if (!isEditing && window.appData.hasPendingUpdate) {
+        window.appData.hasPendingUpdate = false;
+        reRender(true);
+    }
+}
 
 // Ensures derived state is accurate before rendering
 export function updateDerivedState() {
@@ -111,7 +124,15 @@ export function updateDerivedState() {
     }
 }
 
-export function reRender() {
+export function reRender(force = false) {
+    // SECURITY BLOCK: If the user is actively typing, DO NOT erase their screen!
+    if (window.appData.isEditing && !force) {
+        window.appData.hasPendingUpdate = true;
+        console.log("Real-time update intercepted and paused to prevent erasing user input.");
+        return;
+    }
+
+    window.appData.hasPendingUpdate = false;
     updateDerivedState();
     renderApp(window.appData);
 }
@@ -119,5 +140,5 @@ export function reRender() {
 // Global initialization entry point called from main.js
 export function setCampaignsData(campaignsArray) {
     window.appData.campaigns = campaignsArray;
-    reRender();
+    reRender(); // The initial load can safely force a render
 }
