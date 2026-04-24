@@ -43,23 +43,28 @@ export function getPCManagerHTML(state) {
             const canEdit = isDM || isOwner;
 
             html += `
-            <div class="bg-[#fdfbf7] p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-sm flex flex-col justify-between group relative overflow-visible hover:shadow-md transition">
-                <div class="absolute top-0 left-0 w-1 h-full ${canEdit ? 'bg-red-900 group-hover:bg-red-700' : 'bg-stone-400 group-hover:bg-amber-600'} transition-colors rounded-l-sm"></div>
-                <div class="pl-2">
-                    <h3 class="font-serif font-bold text-lg sm:text-xl text-stone-900 truncate">${pc.name}</h3>
-                    <p class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-stone-500 mt-1 sm:mt-2">
-                        ${race} <span class="mx-1">•</span> ${classLevel}
-                    </p>
-                </div>
-                <div class="mt-4 sm:mt-5 pt-3 sm:pt-4 border-t border-[#d4c5a9]/50 pl-2 flex flex-wrap gap-4">
-                    ${canEdit ? `
-                    <button onclick="window.appActions.openPCEdit('${pc.id}')" class="text-stone-700 hover:text-red-900 text-[10px] sm:text-xs font-bold uppercase tracking-wider flex items-center transition relative">
-                        <i class="fa-solid fa-book-open mr-1.5"></i> Private Journal
-                    </button>
-                    ` : ''}
-                    <button onclick="window.appActions.viewCodex('${pc.id}')" class="text-stone-700 hover:text-amber-600 text-[10px] sm:text-xs font-bold uppercase tracking-wider flex items-center transition">
-                        <i class="fa-solid fa-address-card mr-1.5"></i> Public Profile
-                    </button>
+            <div class="bg-[#fdfbf7] p-0 sm:p-0 rounded-sm border border-[#d4c5a9] shadow-sm flex flex-col group relative overflow-hidden hover:shadow-md transition">
+                <div class="absolute top-0 left-0 w-1 h-full ${canEdit ? 'bg-red-900 group-hover:bg-red-700' : 'bg-stone-400 group-hover:bg-amber-600'} transition-colors z-20"></div>
+                
+                ${pc.image ? `<div class="h-32 sm:h-48 w-full overflow-hidden border-b border-[#d4c5a9] bg-stone-200"><img src="${pc.image}" alt="${pc.name}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" onerror="this.style.display='none'"></div>` : ''}
+                
+                <div class="p-4 sm:p-5 pl-5 sm:pl-6 flex flex-col justify-between flex-grow">
+                    <div>
+                        <h3 class="font-serif font-bold text-lg sm:text-xl text-stone-900 truncate">${pc.name}</h3>
+                        <p class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-stone-500 mt-1 sm:mt-2">
+                            ${race} <span class="mx-1">•</span> ${classLevel}
+                        </p>
+                    </div>
+                    <div class="mt-4 sm:mt-5 pt-3 sm:pt-4 border-t border-[#d4c5a9]/50 flex flex-wrap gap-4">
+                        ${canEdit ? `
+                        <button onclick="window.appActions.openPCEdit('${pc.id}')" class="text-stone-700 hover:text-red-900 text-[10px] sm:text-xs font-bold uppercase tracking-wider flex items-center transition relative">
+                            <i class="fa-solid fa-book-open mr-1.5"></i> Private Journal
+                        </button>
+                        ` : ''}
+                        <button onclick="window.appActions.viewCodex('${pc.id}')" class="text-stone-700 hover:text-amber-600 text-[10px] sm:text-xs font-bold uppercase tracking-wider flex items-center transition">
+                            <i class="fa-solid fa-address-card mr-1.5"></i> Public Profile
+                        </button>
+                    </div>
                 </div>
             </div>
             `;
@@ -117,7 +122,7 @@ export function getPCEditHTML(state) {
     
     const pc = !isNew && camp?.playerCharacters 
         ? camp.playerCharacters.find(p => p.id === state.activePcId) 
-        : { name: '', race: '', classLevel: '', background: '', alignment: '', faith: '', gender: '', age: '', size: '', height: '', weight: '', eyes: '', hair: '', skin: '', traits: '', ideals: '', bonds: '', flaws: '', appearance: '', backstory: '', dmNotes: '', playerId: '' };
+        : { name: '', race: '', classLevel: '', background: '', alignment: '', faith: '', gender: '', age: '', size: '', height: '', weight: '', eyes: '', hair: '', skin: '', traits: '', ideals: '', bonds: '', flaws: '', appearance: '', backstory: '', dmNotes: '', playerId: '', image: '' };
 
     if (!pc && !isNew) return `<div class="text-center text-red-500 p-8 font-serif font-bold text-xl">Hero not found in the archives.</div>`;
 
@@ -217,6 +222,10 @@ export function getPCEditHTML(state) {
                 <div>
                     <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Faith / Deity</label>
                     <input type="text" id="pc-edit-faith" value="${pc.faith || ''}" ${coreReadonlyAttr} class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. Corellon Larethian">
+                </div>
+                <div class="col-span-1 sm:col-span-2 lg:col-span-3 mt-2 border-t border-[#d4c5a9] pt-4">
+                    <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Portrait Image URL</label>
+                    <input type="text" id="pc-edit-image" value="${pc.image || ''}" ${coreReadonlyAttr} class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="https://example.com/portrait.jpg">
                 </div>
             </div>
 
