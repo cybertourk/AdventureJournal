@@ -14,13 +14,17 @@ export function getCalendarHTML(state) {
     const safeMonthIdx = Math.max(0, Math.min(viewMonthIdx, cal.months.length - 1));
     const activeMonth = cal.months[safeMonthIdx] || { name: "Unknown", days: 0 };
     
-    // Parse the month name to separate the primary name from the seasonal title (in parentheses)
+    // Clean Month Name & Tooltip Extractor
     let displayMonthName = activeMonth.name;
-    let monthTooltip = "";
-    const parenMatch = displayMonthName.match(/(.*?)\s*\((.*?)\)/);
-    if (parenMatch) {
-        displayMonthName = parenMatch[1].trim();
-        monthTooltip = parenMatch[2].trim();
+    let monthTooltip = activeMonth.lore !== undefined ? activeMonth.lore : "";
+
+    // Backward compatibility for old format "Hammer (Deepwinter)"
+    if (activeMonth.lore === undefined) {
+        const parenMatch = displayMonthName.match(/(.*?)\s*\((.*?)\)/);
+        if (parenMatch) {
+            displayMonthName = parenMatch[1].trim();
+            monthTooltip = parenMatch[2].trim();
+        }
     }
 
     // --- Visibility Helper ---
@@ -110,7 +114,7 @@ export function getCalendarHTML(state) {
                     <select id="jump-month" class="flex-grow sm:w-32 p-1.5 sm:p-2 bg-stone-800 text-amber-50 text-xs sm:text-sm border border-stone-600 rounded-sm outline-none focus:border-amber-600 font-bold">
                         ${cal.months.map((m, idx) => {
                             let mName = m.name;
-                            if (mName.includes('(')) mName = mName.split('(')[0].trim();
+                            if (m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
                             return `<option value="${idx}" ${idx === safeMonthIdx ? 'selected' : ''}>${mName}</option>`;
                         }).join('')}
                     </select>
@@ -246,7 +250,9 @@ export function getCalendarHTML(state) {
         const isCurrent = cal.currentYear === year && cal.currentMonth === monthIndex && cal.currentDay === day;
         
         let modalMonthName = cal.months[monthIndex]?.name || "Unknown";
-        if (modalMonthName.includes('(')) modalMonthName = modalMonthName.split('(')[0].trim();
+        if (cal.months[monthIndex]?.lore === undefined && modalMonthName.includes('(')) {
+            modalMonthName = modalMonthName.split('(')[0].trim();
+        }
 
         let dayNotes = cal.notes ? cal.notes[dateKey] : null;
         if (dayNotes && !Array.isArray(dayNotes)) {
@@ -355,7 +361,7 @@ export function getCalendarHTML(state) {
     if (isDM && state.showCalendarSettings) {
         html += `
         <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-50 backdrop-blur-sm animate-in">
-            <div class="bg-[#f4ebd8] rounded-sm shadow-2xl w-full max-w-3xl border border-[#d4c5a9] overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="bg-[#f4ebd8] rounded-sm shadow-2xl w-full max-w-4xl border border-[#d4c5a9] overflow-hidden flex flex-col max-h-[90vh]">
                 
                 <div class="bg-stone-900 p-4 border-b-4 border-amber-700 text-amber-500 flex justify-between items-center shrink-0">
                     <h2 class="text-xl font-serif font-bold flex items-center"><i class="fa-solid fa-gear mr-3"></i> Calendar Configuration</h2>
@@ -387,16 +393,31 @@ export function getCalendarHTML(state) {
                         </div>
                         
                         <div id="cal-months-container" class="space-y-2">
-                            ${cal.months.map((m, idx) => `
-                                <div class="flex gap-2 items-center mb-2 cal-month-row group">
-                                    <i class="fa-solid fa-bars text-stone-300 cursor-grab hover:text-stone-500"></i>
-                                    <input type="text" value="${m.name}" class="flex-grow p-2 border border-[#d4c5a9] rounded-sm text-sm outline-none focus:border-red-900 bg-white font-bold text-stone-900" placeholder="Month Name">
-                                    <input type="number" min="0" value="${m.days}" class="w-24 p-2 border border-[#d4c5a9] rounded-sm text-sm outline-none focus:border-red-900 bg-white text-stone-700" placeholder="Days">
-                                    <button type="button" class="px-3 py-2 text-stone-400 hover:text-red-700 hover:bg-red-100 rounded-sm transition" onclick="this.parentElement.remove()" title="Remove Month"><i class="fa-solid fa-trash"></i></button>
-                                </div>
-                            `).join('')}
+                            ${cal.months.map((m) => {
+                                let mName = m.name;
+                                let mLore = m.lore !== undefined ? m.lore : "";
+                                // Extract legacy lore into the new explicit input field during edit
+                                if (m.lore === undefined && mName.includes('(')) {
+                                    const parenMatch = mName.match(/(.*?)\s*\((.*?)\)/);
+                                    if (parenMatch) {
+                                        mName = parenMatch[1].trim();
+                                        mLore = parenMatch[2].trim();
+                                    }
+                                }
+                                return `
+                                    <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center mb-2 cal-month-row group bg-stone-100 p-2 border border-[#d4c5a9] rounded-sm shadow-sm">
+                                        <i class="fa-solid fa-bars text-stone-400 cursor-grab hover:text-stone-600 hidden sm:block px-2"></i>
+                                        <div class="flex-grow flex flex-col sm:flex-row gap-2 w-full">
+                                            <input type="text" value="${mName.replace(/"/g, '&quot;')}" class="cal-month-name w-full sm:w-1/3 p-2 border border-[#d4c5a9] rounded-sm text-sm outline-none focus:border-red-900 bg-white font-bold text-stone-900" placeholder="Month Name">
+                                            <input type="text" value="${mLore.replace(/"/g, '&quot;')}" class="cal-month-lore w-full sm:w-1/2 p-2 border border-[#d4c5a9] rounded-sm text-sm outline-none focus:border-red-900 bg-white text-stone-700 placeholder:text-stone-400 placeholder:italic" placeholder="Lore, Season, or Nickname...">
+                                            <input type="number" min="0" value="${m.days}" class="cal-month-days w-full sm:w-1/6 p-2 border border-[#d4c5a9] rounded-sm text-sm outline-none focus:border-red-900 bg-white text-stone-900 font-mono" placeholder="Days">
+                                        </div>
+                                        <button type="button" class="w-full sm:w-auto px-4 py-2 text-stone-400 hover:text-red-700 hover:bg-red-100 rounded-sm transition flex justify-center border border-transparent hover:border-red-200" onclick="this.closest('.cal-month-row').remove()" title="Remove Month"><i class="fa-solid fa-trash"></i></button>
+                                    </div>
+                                `;
+                            }).join('')}
                         </div>
-                        <p class="text-[10px] text-stone-500 italic mt-2">Hint: Set a month's days to 0 if it is a leap day that does not occur this year. Add seasonal details in parentheses like "Hammer (Deepwinter)".</p>
+                        <p class="text-[10px] text-stone-500 italic mt-3">Hint: Set a month's days to 0 if it is a leap day that does not occur this year. The Lore box acts as a tooltip on the calendar.</p>
                     </div>
 
                     <!-- External Data Importer -->
