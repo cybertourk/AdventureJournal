@@ -383,11 +383,14 @@ export const addCalendarMonthRow = () => {
     if (!container) return;
     
     const html = `
-        <div class="flex gap-2 items-center mb-2 cal-month-row group">
-            <i class="fa-solid fa-bars text-stone-300 cursor-grab hover:text-stone-500"></i>
-            <input type="text" class="flex-grow p-2 border border-[#d4c5a9] rounded-sm text-sm outline-none focus:border-red-900 bg-white font-bold text-stone-900" placeholder="Month Name">
-            <input type="number" min="0" class="w-24 p-2 border border-[#d4c5a9] rounded-sm text-sm outline-none focus:border-red-900 bg-white text-stone-700" placeholder="Days" value="30">
-            <button type="button" class="px-3 py-2 text-stone-400 hover:text-red-700 hover:bg-red-100 rounded-sm transition" onclick="this.parentElement.remove()" title="Remove Month"><i class="fa-solid fa-trash"></i></button>
+        <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center mb-2 cal-month-row group bg-stone-100 p-2 border border-[#d4c5a9] rounded-sm shadow-sm">
+            <i class="fa-solid fa-bars text-stone-400 cursor-grab hover:text-stone-600 hidden sm:block px-2"></i>
+            <div class="flex-grow flex flex-col sm:flex-row gap-2 w-full">
+                <input type="text" class="cal-month-name w-full sm:w-1/3 p-2 border border-[#d4c5a9] rounded-sm text-sm outline-none focus:border-red-900 bg-white font-bold text-stone-900" placeholder="Month Name">
+                <input type="text" class="cal-month-lore w-full sm:w-1/2 p-2 border border-[#d4c5a9] rounded-sm text-sm outline-none focus:border-red-900 bg-white text-stone-700 placeholder:text-stone-400 placeholder:italic" placeholder="Lore, Season, or Nickname...">
+                <input type="number" min="0" value="30" class="cal-month-days w-full sm:w-1/6 p-2 border border-[#d4c5a9] rounded-sm text-sm outline-none focus:border-red-900 bg-white text-stone-900 font-mono" placeholder="Days">
+            </div>
+            <button type="button" class="w-full sm:w-auto px-4 py-2 text-stone-400 hover:text-red-700 hover:bg-red-100 rounded-sm transition flex justify-center border border-transparent hover:border-red-200" onclick="this.closest('.cal-month-row').remove()" title="Remove Month"><i class="fa-solid fa-trash"></i></button>
         </div>
     `;
     container.insertAdjacentHTML('beforeend', html);
@@ -405,11 +408,14 @@ export const saveCalendarSettings = async () => {
     const newMonths = [];
     
     rows.forEach(row => {
-        const nameEl = row.querySelector('input[type="text"]');
-        const daysEl = row.querySelector('input[type="number"]');
+        const nameEl = row.querySelector('.cal-month-name');
+        const loreEl = row.querySelector('.cal-month-lore');
+        const daysEl = row.querySelector('.cal-month-days');
+        
         if (nameEl && daysEl && nameEl.value.trim()) {
             newMonths.push({
                 name: nameEl.value.trim(),
+                lore: loreEl ? loreEl.value.trim() : "",
                 days: parseInt(daysEl.value) || 0
             });
         }
