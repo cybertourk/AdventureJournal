@@ -13,7 +13,7 @@ import { _canViewCodex, parseSmartText, handleSmartInput, _showSuggestions, view
 import { openCalendar, navCalendarMonth, jumpToCurrentDate, jumpToSpecificDate, openCalendarDay, closeCalendarDay, setCurrentCampaignDate, saveCalendarNote, editCalendarNote, deleteCalendarNote, openCalendarSettings, closeCalendarSettings, addCalendarMonthRow, saveCalendarSettings, resetCalendarToDefault } from './actions-calendar.js';
 
 // Import Rules Glossary Functionality
-import { openRulesGlossary, openRuleModal, saveRule, deleteRule } from './actions-rules.js';
+import { openRulesGlossary, viewRule, openRuleModal, saveRule, deleteRule } from './actions-rules.js';
 
 // --- APP ACTIONS HUB --- 
 // We bind all our imported modular functions back to the global window.appActions 
@@ -108,6 +108,7 @@ window.appActions = {
 
   // Rules Glossary
   openRulesGlossary,
+  viewRule,
   openRuleModal,
   saveRule,
   deleteRule
