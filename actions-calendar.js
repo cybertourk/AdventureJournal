@@ -57,6 +57,25 @@ export const jumpToCurrentDate = () => {
     reRender();
 };
 
+export const jumpToSpecificDate = () => {
+    const yearInput = document.getElementById('jump-year');
+    const monthSelect = document.getElementById('jump-month');
+    const daySelect = document.getElementById('jump-day');
+
+    if (yearInput && monthSelect) {
+        window.appData.calendarViewYear = parseInt(yearInput.value) || 1492;
+        window.appData.calendarViewMonth = parseInt(monthSelect.value) || 0;
+    }
+
+    // If they selected a specific day, open that day's modal directly
+    if (daySelect && daySelect.value) {
+        const day = parseInt(daySelect.value);
+        window.appActions.openCalendarDay(window.appData.calendarViewYear, window.appData.calendarViewMonth, day);
+    } else {
+        reRender();
+    }
+};
+
 // --- Day Actions ---
 export const openCalendarDay = (year, monthIndex, day) => {
     window.appData.activeCalendarDate = { year, monthIndex, day };
@@ -86,6 +105,7 @@ export const setCurrentCampaignDate = async (year, monthIndex, day) => {
 export const saveCalendarNote = async () => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
+    const myUid = window.appData.currentUserUid;
     if (!camp || !camp.calendar) return;
 
     const date = window.appData.activeCalendarDate;
@@ -93,36 +113,106 @@ export const saveCalendarNote = async () => {
 
     const container = document.getElementById('cal-note-editor');
     const textInput = document.getElementById('cal-note-text');
+    const noteIdInput = document.getElementById('cal-note-id');
     
     // Grab visibility from the hidden DOM inputs controlled by the global Fog of War menu
     const modeInput = container?.querySelector('.vis-mode-input');
     const playersInput = container?.querySelector('.vis-players-input');
 
-    if (!textInput) return;
+    if (!textInput || textInput.value.trim() === '') return;
 
     const dateKey = `${date.year}-${date.monthIndex}-${date.day}`;
     const text = textInput.value.trim();
+    const noteId = noteIdInput?.value || generateId();
 
     if (!camp.calendar.notes) camp.calendar.notes = {};
 
-    if (text === '') {
-        delete camp.calendar.notes[dateKey];
+    // Backward compatibility: Convert legacy single-note object to an array
+    let dayNotes = camp.calendar.notes[dateKey];
+    if (dayNotes && !Array.isArray(dayNotes)) {
+        dayNotes = [{ id: generateId(), text: dayNotes.text, visibility: dayNotes.visibility, authorId: camp.dmId }];
+    }
+    if (!dayNotes) dayNotes = [];
+
+    const existingNoteIndex = dayNotes.findIndex(n => n.id === noteId);
+
+    const newNote = {
+        id: noteId,
+        text: text,
+        authorId: myUid,
+        visibility: {
+            mode: modeInput ? modeInput.value : 'public',
+            visibleTo: playersInput && playersInput.value ? playersInput.value.split(',') : []
+        },
+        timestamp: Date.now()
+    };
+
+    if (existingNoteIndex >= 0) {
+        // Preserve original author if just editing
+        newNote.authorId = dayNotes[existingNoteIndex].authorId || myUid;
+        dayNotes[existingNoteIndex] = newNote;
     } else {
-        camp.calendar.notes[dateKey] = {
-            text: text,
-            visibility: {
-                mode: modeInput ? modeInput.value : 'public',
-                visibleTo: playersInput && playersInput.value ? playersInput.value.split(',') : []
-            }
-        };
+        dayNotes.push(newNote);
     }
 
+    camp.calendar.notes[dateKey] = dayNotes;
+
+    // Clear the editor inputs to allow adding another note immediately
+    if (textInput) textInput.value = '';
+    if (noteIdInput) noteIdInput.value = '';
+    
     await saveCampaign(camp);
-    window.appActions.closeCalendarDay();
     notify("Chronicle inscribed.", "success");
+    reRender(); // Re-render to show the newly added note in the modal list
 };
 
-export const deleteCalendarNote = async (year, monthIndex, day) => {
+export const editCalendarNote = (noteId) => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    const date = window.appData.activeCalendarDate;
+    if (!camp || !date) return;
+
+    const dateKey = `${date.year}-${date.monthIndex}-${date.day}`;
+    const dayNotes = camp.calendar.notes[dateKey] || [];
+    
+    // Backward compatibility
+    let targetNote = null;
+    if (!Array.isArray(dayNotes)) {
+        targetNote = { id: noteId, text: dayNotes.text, visibility: dayNotes.visibility };
+    } else {
+        targetNote = dayNotes.find(n => n.id === noteId);
+    }
+
+    if (!targetNote) return;
+
+    const container = document.getElementById('cal-note-editor');
+    const textInput = document.getElementById('cal-note-text');
+    const noteIdInput = document.getElementById('cal-note-id');
+    const modeInput = container?.querySelector('.vis-mode-input');
+    const playersInput = container?.querySelector('.vis-players-input');
+
+    if (textInput) textInput.value = targetNote.text;
+    if (noteIdInput) noteIdInput.value = targetNote.id || 'legacy';
+    if (modeInput) modeInput.value = targetNote.visibility?.mode || 'public';
+    if (playersInput) playersInput.value = (targetNote.visibility?.visibleTo || []).join(',');
+
+    // Visually update the visibility button to match the note's state
+    const visBtn = container?.querySelector('button');
+    if (visBtn) {
+        const mode = targetNote.visibility?.mode || 'public';
+        let icon = 'fa-eye'; let text = 'Public'; let color = 'text-emerald-600 hover:text-emerald-500';
+        if (mode === 'hidden') { icon = 'fa-eye-slash'; text = 'Hidden'; color = 'text-red-700 hover:text-red-600'; }
+        else if (mode === 'specific') { icon = 'fa-user-lock'; text = 'Shared'; color = 'text-blue-600 hover:text-blue-500'; }
+
+        visBtn.className = `${color} font-bold px-2 py-1 text-[10px] uppercase tracking-widest transition flex items-center bg-stone-200 border border-[#d4c5a9] rounded-sm shadow-sm`;
+        visBtn.innerHTML = `<i class="fa-solid ${icon} mr-1"></i> ${text}`;
+    }
+
+    // Scroll down to the editor so the user sees it's ready to edit
+    container?.scrollIntoView({ behavior: 'smooth' });
+};
+
+export const deleteCalendarNote = async (year, monthIndex, day, noteId) => {
     if (!confirm("Are you sure you want to delete this historical note?")) return;
     
     updateDerivedState();
@@ -130,11 +220,23 @@ export const deleteCalendarNote = async (year, monthIndex, day) => {
     if (!camp || !camp.calendar || !camp.calendar.notes) return;
 
     const dateKey = `${year}-${monthIndex}-${day}`;
-    delete camp.calendar.notes[dateKey];
+    let dayNotes = camp.calendar.notes[dateKey];
+
+    // Backward compatibility & array filtering
+    if (dayNotes && !Array.isArray(dayNotes)) {
+        delete camp.calendar.notes[dateKey];
+    } else if (Array.isArray(dayNotes)) {
+        dayNotes = dayNotes.filter(n => n.id !== noteId);
+        if (dayNotes.length === 0) {
+            delete camp.calendar.notes[dateKey];
+        } else {
+            camp.calendar.notes[dateKey] = dayNotes;
+        }
+    }
 
     await saveCampaign(camp);
-    window.appActions.closeCalendarDay();
     notify("Note erased.", "success");
+    reRender();
 };
 
 // --- DM Settings ---
