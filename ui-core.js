@@ -3,6 +3,7 @@ import { getPCManagerHTML, getPCEditHTML } from './ui-characters.js';
 import { getSessionEditHTML } from './ui-session.js';
 import { getCodexHTML, getJournalHTML } from './ui-codex.js';
 import { getCalendarHTML } from './ui-calendar.js';
+import { getRulesHTML } from './ui-rules.js';
 
 // --- CONSTANTS & HELPERS ---
 export const BUDGET_BY_LEVEL = { 
@@ -202,6 +203,7 @@ export function renderApp(state) {
         case 'journal': html = getJournalHTML(state); break;
         case 'codex': html = getCodexHTML(state); break;
         case 'calendar': html = getCalendarHTML(state); break;
+        case 'rules': html = getRulesHTML(state); break;
         default: html = `<div class="text-center text-red-500">Unknown View: ${state.currentView}</div>`;
     }
 
@@ -242,7 +244,7 @@ export function renderBreadcrumbs(state) {
         `;
     }
 
-    if ((state.activeAdventure || state.currentView === 'pc-manager' || state.currentView === 'pc-edit' || state.currentView === 'codex' || state.currentView === 'adv-roster' || state.currentView === 'calendar') && state.activeCampaign && state.currentView !== 'campaign') {
+    if ((state.activeAdventure || state.currentView === 'pc-manager' || state.currentView === 'pc-edit' || state.currentView === 'codex' || state.currentView === 'adv-roster' || state.currentView === 'calendar' || state.currentView === 'rules') && state.activeCampaign && state.currentView !== 'campaign') {
         html += `<i class="fa-solid fa-chevron-right mx-1 sm:mx-2 text-stone-600 flex-shrink-0 text-[8px] sm:text-xs"></i>`;
         if (state.currentView === 'pc-manager' || state.currentView === 'pc-edit') {
             html += `<button onclick="window.appActions.setView('pc-manager')" class="hover:text-amber-400 uppercase tracking-wider font-bold transition flex-shrink-0 ${state.currentView === 'pc-manager' ? 'text-amber-500' : ''}">Party Manifest</button>`;
@@ -250,6 +252,8 @@ export function renderBreadcrumbs(state) {
             html += `<span class="uppercase tracking-wider font-bold text-amber-500 flex-shrink-0">Campaign Codex</span>`;
         } else if (state.currentView === 'calendar') {
             html += `<span class="uppercase tracking-wider font-bold text-amber-500 flex-shrink-0">Chronicle</span>`;
+        } else if (state.currentView === 'rules') {
+            html += `<span class="uppercase tracking-wider font-bold text-amber-500 flex-shrink-0">Rules Glossary</span>`;
         } else {
             html += `
                 <button onclick="window.appActions.setView('adventure')" class="hover:text-amber-400 uppercase tracking-wider font-bold truncate max-w-[100px] sm:max-w-xs transition flex-shrink-0 ${state.currentView === 'adventure' ? 'text-amber-500' : ''}">
