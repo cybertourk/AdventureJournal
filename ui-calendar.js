@@ -5,6 +5,7 @@ export function getCalendarHTML(state) {
     const isDM = camp._isDM;
     const myUid = state.currentUserUid;
     const cal = camp.calendar;
+    const playerNames = camp.playerNames || {};
     
     const viewYear = state.calendarViewYear !== undefined ? state.calendarViewYear : cal.currentYear;
     const viewMonthIdx = state.calendarViewMonth !== undefined ? state.calendarViewMonth : cal.currentMonth;
@@ -15,7 +16,7 @@ export function getCalendarHTML(state) {
     
     // --- Visibility Helper ---
     const getVisStatus = (visObj) => {
-        const mode = visObj?.mode || 'hidden'; // Default hidden for new notes
+        const mode = visObj?.mode || 'public'; // Default public for player convenience, though DM defaults to hidden if missing
         const players = (visObj?.visibleTo || []).join(',');
         let icon = 'fa-eye'; let text = 'Public'; let color = 'text-emerald-600 hover:text-emerald-500';
         if (mode === 'hidden') { icon = 'fa-eye-slash'; text = 'Hidden'; color = 'text-red-700 hover:text-red-600'; }
@@ -23,37 +24,112 @@ export function getCalendarHTML(state) {
         return { mode, players, icon, text, color };
     };
 
+    const canViewNote = (note) => {
+        if (isDM || note.authorId === myUid) return true;
+        if (note.visibility) {
+            if (note.visibility.mode === 'public') return true;
+            if (note.visibility.mode === 'specific' && note.visibility.visibleTo.includes(myUid)) return true;
+        }
+        return false;
+    };
+
+    // --- Chronological Monthly Notes Builder ---
+    let monthlyNotesHtml = '';
+    let monthlyNotesCount = 0;
+    
+    for (let d = 1; d <= activeMonth.days; d++) {
+        const dateKey = `${viewYear}-${safeMonthIdx}-${d}`;
+        let rawNotes = cal.notes ? cal.notes[dateKey] : null;
+        
+        if (rawNotes) {
+            // Backward compatibility
+            if (!Array.isArray(rawNotes)) rawNotes = [{ id: 'legacy', text: rawNotes.text, visibility: rawNotes.visibility, authorId: camp.dmId }];
+            
+            rawNotes.forEach(note => {
+                if (canViewNote(note)) {
+                    monthlyNotesCount++;
+                    const parsed = window.appActions.parseSmartText(note.text);
+                    const isAuthorDM = note.authorId === camp.dmId || !note.authorId;
+                    const authorName = isAuthorDM ? 'Dungeon Master' : (playerNames[note.authorId] || 'Unknown Player');
+                    const authorIcon = isAuthorDM ? '<i class="fa-solid fa-crown text-amber-500 mr-1"></i>' : '<i class="fa-solid fa-feather-pointed text-stone-400 mr-1"></i>';
+                    
+                    monthlyNotesHtml += `
+                        <div class="mb-4 bg-white border border-[#d4c5a9] rounded-sm shadow-sm overflow-hidden">
+                            <div class="bg-[#f4ebd8] px-3 py-2 border-b border-[#d4c5a9] flex justify-between items-center">
+                                <span class="font-serif font-bold text-amber-900 cursor-pointer hover:underline" onclick="window.appActions.openCalendarDay(${viewYear}, ${safeMonthIdx}, ${d})">
+                                    ${activeMonth.name} ${d}, ${viewYear}
+                                </span>
+                                <span class="text-[10px] uppercase font-bold text-stone-500 tracking-wider flex items-center">
+                                    ${authorIcon} Scribed by ${authorName}
+                                </span>
+                            </div>
+                            <div class="p-4 text-sm text-stone-800 font-serif leading-relaxed">
+                                ${parsed}
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+        }
+    }
+
+    if (monthlyNotesCount === 0) {
+        monthlyNotesHtml = `
+            <div class="text-center p-8 bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm shadow-sm">
+                <i class="fa-solid fa-wind text-3xl text-stone-300 mb-3"></i>
+                <p class="text-stone-500 italic text-sm font-serif">The winds of time hold no records for this month.</p>
+            </div>
+        `;
+    }
+
     // --- MAIN CALENDAR VIEW ---
     let html = `
     <div class="animate-in fade-in duration-300 max-w-5xl mx-auto pb-20">
         <!-- Header -->
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 sm:mb-8 gap-4 border-b-2 border-stone-800 pb-4">
-            <div class="w-full md:w-auto">
+        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-6 sm:mb-8 gap-4 border-b-2 border-stone-800 pb-4">
+            <div class="w-full lg:w-auto">
                 <h2 class="text-2xl sm:text-3xl md:text-4xl font-serif font-bold text-amber-500 leading-tight">Chronicle</h2>
                 <p class="text-stone-400 text-xs sm:text-sm font-sans mt-2 flex items-center">
                     <i class="fa-solid fa-calendar-days mr-2"></i> ${cal.name}
                 </p>
             </div>
-            <div class="flex flex-wrap gap-2 w-full md:w-auto items-center">
-                <button onclick="window.appActions.jumpToCurrentDate()" class="flex-1 md:flex-none px-4 py-2 bg-stone-800 text-stone-300 border border-stone-600 rounded-sm hover:text-amber-400 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md">
-                    <i class="fa-solid fa-location-crosshairs mr-2"></i> Current Date
-                </button>
-                ${isDM ? `
-                <button onclick="window.appActions.openCalendarSettings()" class="flex-1 md:flex-none px-4 py-2 bg-stone-800 text-stone-300 border border-stone-600 rounded-sm hover:text-white transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md">
-                    <i class="fa-solid fa-gear mr-2"></i> Configure
-                </button>
-                ` : ''}
+
+            <!-- Global Dropdown Navigation -->
+            <div class="flex flex-wrap gap-2 w-full lg:w-auto items-center bg-stone-900 p-2 sm:p-3 rounded-sm border border-stone-700 shadow-inner">
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <input type="number" id="jump-year" value="${viewYear}" class="w-20 p-1.5 sm:p-2 bg-stone-800 text-amber-50 text-xs sm:text-sm border border-stone-600 rounded-sm outline-none focus:border-amber-600 font-bold text-center">
+                    <select id="jump-month" class="flex-grow sm:w-32 p-1.5 sm:p-2 bg-stone-800 text-amber-50 text-xs sm:text-sm border border-stone-600 rounded-sm outline-none focus:border-amber-600 font-bold">
+                        ${cal.months.map((m, idx) => `<option value="${idx}" ${idx === safeMonthIdx ? 'selected' : ''}>${m.name}</option>`).join('')}
+                    </select>
+                    <select id="jump-day" class="w-20 p-1.5 sm:p-2 bg-stone-800 text-amber-50 text-xs sm:text-sm border border-stone-600 rounded-sm outline-none focus:border-amber-600 font-bold text-center">
+                        <option value="">Day...</option>
+                        ${Array.from({ length: activeMonth.days }).map((_, i) => `<option value="${i+1}">${i+1}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+                    <button onclick="window.appActions.jumpToSpecificDate()" class="flex-1 sm:flex-none px-4 py-1.5 sm:py-2 bg-amber-700 text-amber-50 rounded-sm hover:bg-amber-600 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md">
+                        Go
+                    </button>
+                    <button onclick="window.appActions.jumpToCurrentDate()" class="flex-1 sm:flex-none px-4 py-1.5 sm:py-2 bg-stone-800 text-stone-300 border border-stone-600 rounded-sm hover:text-amber-400 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md" title="Jump to Current Campaign Date">
+                        <i class="fa-solid fa-location-crosshairs"></i>
+                    </button>
+                    ${isDM ? `
+                    <button onclick="window.appActions.openCalendarSettings()" class="px-4 py-1.5 sm:py-2 bg-stone-800 text-stone-300 border border-stone-600 rounded-sm hover:text-white transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md" title="Configure Calendar">
+                        <i class="fa-solid fa-gear"></i>
+                    </button>
+                    ` : ''}
+                </div>
             </div>
         </div>
 
         <!-- Navigation & Month Display -->
-        <div class="bg-[#f4ebd8] border-2 border-stone-700 rounded-sm shadow-[0_10px_30px_rgba(0,0,0,0.5)] overflow-hidden">
+        <div class="bg-[#f4ebd8] border-2 border-stone-700 rounded-sm shadow-[0_10px_30px_rgba(0,0,0,0.5)] overflow-hidden mb-8">
             <div class="bg-stone-900 p-4 border-b-4 border-amber-700 text-amber-500 flex justify-between items-center">
                 <button onclick="window.appActions.navCalendarMonth(-1)" class="w-10 h-10 flex justify-center items-center rounded-sm bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-amber-400 transition shadow-inner">
                     <i class="fa-solid fa-chevron-left"></i>
                 </button>
                 
-                <div class="text-center">
+                <div class="text-center cursor-pointer hover:opacity-80 transition" title="Scroll to Monthly Summary" onclick="document.getElementById('chronological-summary').scrollIntoView({behavior:'smooth'})">
                     <h3 class="text-2xl sm:text-3xl font-serif font-bold text-amber-50 mb-1">${activeMonth.name}</h3>
                     <div class="text-stone-400 text-xs sm:text-sm font-bold uppercase tracking-widest">Year ${viewYear}</div>
                 </div>
@@ -70,24 +146,27 @@ export function getCalendarHTML(state) {
                         <i class="fa-solid fa-moon text-5xl text-stone-300 mb-4"></i>
                         <h4 class="font-serif text-xl font-bold text-stone-600 mb-2">Intercalary Observance</h4>
                         <p class="text-sm text-stone-500 italic">This special event or leap day does not occur in the year ${viewYear}.</p>
+                        <button onclick="window.appActions.openCalendarDay(${viewYear}, ${safeMonthIdx}, 1)" class="mt-4 px-4 py-2 border border-stone-400 text-stone-600 rounded-sm text-xs font-bold uppercase tracking-wider hover:bg-stone-200 transition">View / Add Notes</button>
                     </div>
                 ` : `
-                    <div style="display: grid; grid-template-columns: repeat(${cal.daysInWeek}, minmax(0, 1fr)); gap: 0.5rem sm:gap-1rem;">
+                    <div style="display: grid; grid-template-columns: repeat(${cal.daysInWeek}, minmax(0, 1fr)); gap: 0.5rem;">
                         ${Array.from({ length: activeMonth.days }).map((_, i) => {
                             const d = i + 1;
                             const dateKey = `${viewYear}-${safeMonthIdx}-${d}`;
                             const isCurrent = cal.currentYear === viewYear && cal.currentMonth === safeMonthIdx && cal.currentDay === d;
-                            const note = (cal.notes && cal.notes[dateKey]) ? cal.notes[dateKey] : null;
                             
-                            // Check visibility
-                            let canViewNote = false;
-                            if (isDM && note) canViewNote = true;
-                            else if (note && note.visibility) {
-                                if (note.visibility.mode === 'public') canViewNote = true;
-                                if (note.visibility.mode === 'specific' && note.visibility.visibleTo.includes(myUid)) canViewNote = true;
+                            let rawNotes = cal.notes ? cal.notes[dateKey] : null;
+                            if (rawNotes && !Array.isArray(rawNotes)) rawNotes = [rawNotes];
+                            
+                            let visibleCount = 0;
+                            let hasHidden = false;
+                            
+                            if (rawNotes) {
+                                rawNotes.forEach(n => {
+                                    if (canViewNote(n)) visibleCount++;
+                                    else if (isDM) hasHidden = true;
+                                });
                             }
-
-                            const hasVisibleNote = note && canViewNote;
                             
                             // Styling
                             let bgClass = "bg-white";
@@ -99,7 +178,7 @@ export function getCalendarHTML(state) {
                                 bgClass = "bg-amber-100";
                                 borderClass = "border-amber-500 border-2";
                                 textClass = "text-amber-900 font-bold";
-                                currentBadge = `<div class="absolute -top-2 -right-2 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center shadow-sm text-white text-[10px]"><i class="fa-solid fa-star"></i></div>`;
+                                currentBadge = `<div class="absolute -top-2 -right-2 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center shadow-sm text-white text-[10px] z-10"><i class="fa-solid fa-star"></i></div>`;
                             }
 
                             return `
@@ -107,17 +186,20 @@ export function getCalendarHTML(state) {
                                      class="relative flex flex-col aspect-square p-1 sm:p-2 cursor-pointer transition shadow-sm hover:shadow-md hover:-translate-y-0.5 rounded-sm ${bgClass} ${borderClass}">
                                     ${currentBadge}
                                     <span class="text-sm sm:text-lg font-serif ${textClass}">${d}</span>
-                                    ${hasVisibleNote ? `
-                                        <div class="mt-auto self-end sm:self-center bg-blue-100 text-blue-700 w-full text-center py-0.5 rounded-[2px] border border-blue-200">
-                                            <i class="fa-solid fa-scroll text-[10px] sm:text-xs"></i>
-                                            <span class="hidden sm:inline-block text-[9px] font-bold uppercase ml-1">Note</span>
-                                        </div>
-                                    ` : ''}
-                                    ${(isDM && note && !canViewNote) ? `
-                                        <div class="mt-auto self-end sm:self-center bg-red-100 text-red-700 w-full text-center py-0.5 rounded-[2px] border border-red-200" title="Hidden Note">
-                                            <i class="fa-solid fa-eye-slash text-[10px] sm:text-xs"></i>
-                                        </div>
-                                    ` : ''}
+                                    
+                                    <div class="mt-auto flex flex-col gap-1 w-full">
+                                        ${visibleCount > 0 ? `
+                                            <div class="self-end sm:self-center bg-blue-100 text-blue-700 w-full text-center py-0.5 rounded-[2px] border border-blue-200" title="${visibleCount} Note(s)">
+                                                <i class="fa-solid fa-scroll text-[10px] sm:text-xs"></i>
+                                                ${visibleCount > 1 ? `<span class="text-[9px] font-bold ml-0.5">${visibleCount}</span>` : ''}
+                                            </div>
+                                        ` : ''}
+                                        ${hasHidden ? `
+                                            <div class="self-end sm:self-center bg-red-100 text-red-700 w-full text-center py-0.5 rounded-[2px] border border-red-200" title="Hidden Note(s)">
+                                                <i class="fa-solid fa-eye-slash text-[10px] sm:text-xs"></i>
+                                            </div>
+                                        ` : ''}
+                                    </div>
                                 </div>
                             `;
                         }).join('')}
@@ -125,27 +207,71 @@ export function getCalendarHTML(state) {
                 `}
             </div>
         </div>
+
+        <!-- Chronological Monthly Summary -->
+        <div id="chronological-summary" class="mt-12">
+            <h3 class="text-xl font-serif font-bold text-amber-500 mb-6 flex items-center border-b border-stone-700 pb-3">
+                <i class="fa-solid fa-book-open mr-3 text-stone-500"></i> Records for ${activeMonth.name}, ${viewYear}
+            </h3>
+            <div class="space-y-4">
+                ${monthlyNotesHtml}
+            </div>
+        </div>
     </div>
     `;
 
-    // --- DAY INSPECTOR MODAL ---
+    // --- DAY INSPECTOR MODAL (MULTIPLE NOTES SUPPORT) ---
     if (state.activeCalendarDate) {
         const { year, monthIndex, day } = state.activeCalendarDate;
         const dateKey = `${year}-${monthIndex}-${day}`;
-        const note = (cal.notes && cal.notes[dateKey]) ? cal.notes[dateKey] : null;
         const isCurrent = cal.currentYear === year && cal.currentMonth === monthIndex && cal.currentDay === day;
-        
-        // FOW Filter
-        let canViewNote = false;
-        if (isDM) canViewNote = true; // DM can always view (and edit)
-        else if (note && note.visibility) {
-            if (note.visibility.mode === 'public') canViewNote = true;
-            if (note.visibility.mode === 'specific' && note.visibility.visibleTo.includes(myUid)) canViewNote = true;
-        }
-
-        const visStatus = getVisStatus(note?.visibility);
-        const parsedNoteText = (note && note.text) ? window.appActions.parseSmartText(note.text) : '';
         const modalMonthName = cal.months[monthIndex]?.name || "Unknown";
+
+        let dayNotes = cal.notes ? cal.notes[dateKey] : null;
+        if (dayNotes && !Array.isArray(dayNotes)) {
+            // Hotfix legacy format on display
+            dayNotes = [{ id: 'legacy', text: dayNotes.text, visibility: dayNotes.visibility, authorId: camp.dmId }];
+        }
+        if (!dayNotes) dayNotes = [];
+
+        // Build list of existing visible notes
+        let existingNotesHtml = '';
+        dayNotes.forEach(note => {
+            if (canViewNote(note)) {
+                const parsedText = window.appActions.parseSmartText(note.text);
+                const isAuthorDM = note.authorId === camp.dmId || !note.authorId;
+                const authorName = isAuthorDM ? 'Dungeon Master' : (playerNames[note.authorId] || 'Unknown Player');
+                const isMyNote = isDM || note.authorId === myUid;
+                
+                const vis = getVisStatus(note.visibility);
+                let badgeHtml = `<span class="text-[9px] uppercase tracking-wider font-bold text-stone-400 bg-stone-200 px-1.5 py-0.5 rounded-sm"><i class="fa-solid fa-feather-pointed mr-1"></i> ${authorName}</span>`;
+                if (isAuthorDM) badgeHtml = `<span class="text-[9px] uppercase tracking-wider font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-sm"><i class="fa-solid fa-crown mr-1"></i> ${authorName}</span>`;
+
+                existingNotesHtml += `
+                    <div class="mb-4 bg-white border border-[#d4c5a9] rounded-sm shadow-sm overflow-hidden relative group">
+                        <div class="bg-[#f4ebd8] px-3 py-1.5 border-b border-[#d4c5a9] flex justify-between items-center">
+                            <div class="flex items-center gap-2">
+                                ${badgeHtml}
+                                ${isMyNote ? `<span class="text-[9px] uppercase font-bold tracking-widest ${vis.color}" title="${vis.text}"><i class="fa-solid ${vis.icon}"></i></span>` : ''}
+                            </div>
+                            ${isMyNote ? `
+                                <div class="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                                    <button onclick="window.appActions.editCalendarNote('${note.id}')" class="text-[10px] uppercase font-bold tracking-wider text-blue-600 hover:text-blue-800 transition"><i class="fa-solid fa-pen mr-1"></i> Edit</button>
+                                    <button onclick="window.appActions.deleteCalendarNote(${year}, ${monthIndex}, ${day}, '${note.id}')" class="text-[10px] uppercase font-bold tracking-wider text-red-600 hover:text-red-800 transition"><i class="fa-solid fa-trash"></i></button>
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div class="p-3 text-sm text-stone-800 font-serif leading-relaxed">
+                            ${parsedText}
+                        </div>
+                    </div>
+                `;
+            }
+        });
+
+        if (existingNotesHtml === '') {
+            existingNotesHtml = `<p class="text-stone-400 italic font-sans text-sm mb-4">No public records exist for this day.</p>`;
+        }
 
         html += `
         <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-50 backdrop-blur-sm animate-in">
@@ -165,30 +291,31 @@ export function getCalendarHTML(state) {
 
                 <div class="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-grow bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-[#fdfbf7]">
                     
-                    ${isDM ? `
-                        <!-- DM Edit Mode -->
-                        <div id="cal-note-editor">
-                            <div class="flex justify-between items-end mb-2">
-                                <label class="block text-[10px] uppercase text-stone-500 font-bold tracking-widest">Day's Events & Notes</label>
-                                <div class="flex items-center">
-                                    <input type="hidden" class="vis-mode-input" value="${visStatus.mode}">
-                                    <input type="hidden" class="vis-players-input" value="${visStatus.players}">
-                                    <button type="button" class="${visStatus.color} font-bold px-2 py-1 text-[10px] uppercase tracking-widest transition flex items-center bg-stone-200 border border-[#d4c5a9] rounded-sm shadow-sm" onclick="window.appActions.openVisibilityMenu(this, 'dom')">
-                                        <i class="fa-solid ${visStatus.icon} mr-1"></i> ${visStatus.text}
-                                    </button>
-                                </div>
-                            </div>
-                            <textarea id="cal-note-text" class="w-full h-48 bg-white border border-[#d4c5a9] text-stone-900 p-3 text-sm focus:border-amber-600 outline-none resize-none rounded-sm shadow-inner custom-scrollbar font-serif" placeholder="Scribe the events of this day... Codex names link automatically.">${note ? note.text : ''}</textarea>
-                        </div>
-                    ` : `
-                        <!-- Player Read Mode -->
-                        <div>
-                            <h3 class="text-[10px] uppercase text-stone-500 font-bold tracking-widest mb-3 border-b border-[#d4c5a9] pb-1">Day's Events</h3>
-                            <div class="text-stone-800 text-sm leading-relaxed font-serif min-h-[10rem]">
-                                ${canViewNote ? parsedNoteText : '<span class="text-stone-400 italic font-sans">No public records exist for this day.</span>'}
+                    <!-- Existing Notes -->
+                    <h3 class="text-[10px] uppercase text-stone-500 font-bold tracking-widest mb-3 border-b border-[#d4c5a9] pb-1">Day's Events</h3>
+                    <div class="mb-6">
+                        ${existingNotesHtml}
+                    </div>
+
+                    <!-- Add / Edit Note Editor -->
+                    <div id="cal-note-editor" class="border-t-2 border-stone-300 pt-6 mt-4">
+                        <input type="hidden" id="cal-note-id" value="">
+                        <div class="flex justify-between items-end mb-2">
+                            <label class="block text-[10px] uppercase text-amber-700 font-bold tracking-widest"><i class="fa-solid fa-feather-pointed mr-1"></i> Scribe a New Note</label>
+                            <div class="flex items-center">
+                                <input type="hidden" class="vis-mode-input" value="public"> <!-- Default public for convenience -->
+                                <input type="hidden" class="vis-players-input" value="">
+                                <button type="button" class="text-emerald-600 hover:text-emerald-500 font-bold px-2 py-1 text-[10px] uppercase tracking-widest transition flex items-center bg-stone-200 border border-[#d4c5a9] rounded-sm shadow-sm" onclick="window.appActions.openVisibilityMenu(this, 'dom')">
+                                    <i class="fa-solid fa-eye mr-1"></i> Public
+                                </button>
                             </div>
                         </div>
-                    `}
+                        <textarea id="cal-note-text" class="w-full h-32 bg-white border border-[#d4c5a9] text-stone-900 p-3 text-sm focus:border-amber-600 outline-none resize-none rounded-sm shadow-inner custom-scrollbar font-serif" placeholder="Add your perspective... Codex names link automatically."></textarea>
+                        
+                        <div class="mt-3 flex justify-end">
+                            <button onclick="window.appActions.saveCalendarNote()" class="px-5 py-2 bg-stone-800 text-amber-50 rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-stone-700 transition">Save Note</button>
+                        </div>
+                    </div>
 
                     ${(isDM && !isCurrent) ? `
                         <div class="mt-8 pt-4 border-t border-[#d4c5a9] flex justify-center">
@@ -198,18 +325,6 @@ export function getCalendarHTML(state) {
                         </div>
                     ` : ''}
                 </div>
-
-                ${isDM ? `
-                <div class="p-4 bg-stone-200 border-t border-[#d4c5a9] flex justify-between gap-3">
-                    <div>
-                        ${note ? `<button onclick="window.appActions.deleteCalendarNote(${year}, ${monthIndex}, ${day})" class="px-4 py-2 text-stone-500 hover:text-red-700 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-sm transition flex items-center"><i class="fa-solid fa-trash mr-1"></i> Erase</button>` : ''}
-                    </div>
-                    <div class="flex gap-2">
-                        <button onclick="window.appActions.closeCalendarDay()" class="px-4 py-2 border border-stone-400 text-stone-600 rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-stone-300 transition">Cancel</button>
-                        <button onclick="window.appActions.saveCalendarNote()" class="px-5 py-2 bg-stone-800 text-amber-50 rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-stone-700 transition">Inscribe</button>
-                    </div>
-                </div>
-                ` : ''}
             </div>
         </div>
         `;
