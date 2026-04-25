@@ -12,6 +12,9 @@ import { _canViewCodex, parseSmartText, handleSmartInput, _showSuggestions, view
 // Import Calendar Functionality
 import { openCalendar, navCalendarMonth, jumpToCurrentDate, jumpToSpecificDate, openCalendarDay, closeCalendarDay, setCurrentCampaignDate, saveCalendarNote, editCalendarNote, deleteCalendarNote, openCalendarSettings, closeCalendarSettings, addCalendarMonthRow, saveCalendarSettings, resetCalendarToDefault } from './actions-calendar.js';
 
+// Import Rules Glossary Functionality
+import { openRulesGlossary, openRuleModal, saveRule, deleteRule } from './actions-rules.js';
+
 // --- APP ACTIONS HUB --- 
 // We bind all our imported modular functions back to the global window.appActions 
 // object so that the UI's inline onclick handlers can still reach them! 
@@ -101,7 +104,13 @@ window.appActions = {
   closeCalendarSettings,
   addCalendarMonthRow,
   saveCalendarSettings,
-  resetCalendarToDefault
+  resetCalendarToDefault,
+
+  // Rules Glossary
+  openRulesGlossary,
+  openRuleModal,
+  saveRule,
+  deleteRule
 }; 
 
 // Export the core initialization function so main.js can use it to boot the app 
