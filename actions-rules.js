@@ -22,6 +22,54 @@ export const openRulesGlossary = async () => {
     window.appActions.setView('rules');
 };
 
+export const viewRule = (ruleId) => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    if (!camp) return;
+
+    const rule = (camp.rulesGlossary || []).find(r => r.id === ruleId);
+    if (!rule) {
+        notify("Rule not found.", "error");
+        return;
+    }
+
+    const isDM = camp._isDM;
+    const myUid = window.appData.currentUserUid;
+    const canEdit = isDM || rule.authorId === myUid;
+    
+    // Parse formatting and auto-links for the reading view
+    const parsedText = window.appActions.parseSmartText(rule.text);
+
+    const container = document.getElementById('global-popup-container');
+    if (!container) return;
+
+    container.innerHTML = `
+        <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[13000] backdrop-blur-sm animate-in">
+            <div class="bg-[#f4ebd8] rounded-sm shadow-2xl w-full max-w-2xl border border-[#d4c5a9] overflow-hidden flex flex-col max-h-[90vh]">
+                
+                <!-- Header -->
+                <div class="bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-[#292524] p-4 flex justify-between items-center border-b-2 border-amber-600 shadow-md">
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-scale-balanced text-amber-500 text-xl"></i>
+                        <h2 class="text-lg font-serif font-bold text-amber-50 leading-tight">${rule.name}</h2>
+                    </div>
+                    <div class="flex gap-2">
+                        ${canEdit ? `<button onclick="window.appActions.openRuleModal('${rule.id}')" class="w-8 h-8 rounded bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 transition flex items-center justify-center" title="Amend Rule"><i class="fa-solid fa-pen-nib"></i></button>` : ''}
+                        <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="w-8 h-8 rounded bg-stone-800 text-stone-300 hover:text-red-400 hover:bg-stone-700 transition flex items-center justify-center"><i class="fa-solid fa-times"></i></button>
+                    </div>
+                </div>
+
+                <!-- Body View -->
+                <div class="p-6 sm:p-8 overflow-y-auto custom-scrollbar flex-grow bg-[#fdfbf7] bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')]">
+                    <div class="text-stone-800 text-base font-serif leading-relaxed">
+                        ${parsedText}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+};
+
 export const openRuleModal = (ruleId = null) => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
