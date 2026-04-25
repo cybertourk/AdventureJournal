@@ -239,6 +239,99 @@ export const deleteCalendarNote = async (year, monthIndex, day, noteId) => {
     reRender();
 };
 
+// --- Foundry VTT Exporter Integration ---
+export const importFoundryCalendarNotes = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        try {
+            const data = JSON.parse(e.target.result);
+            // Simple Calendar exports notes either as a root array or wrapped in a 'notes' array
+            let rawNotes = Array.isArray(data) ? data : (data.notes || []);
+
+            if (!Array.isArray(rawNotes) || rawNotes.length === 0) {
+                notify("No notes found in this JSON file.", "error");
+                return;
+            }
+
+            updateDerivedState();
+            const camp = window.appData.activeCampaign;
+            if (!camp || !camp._isDM) return;
+
+            // Check if Foundry exported 0-indexed days (Simple Calendar often does)
+            const isDayZeroIndexed = rawNotes.some(n => (n.day === 0 || n.date?.day === 0));
+            // Note: Simple Calendar months are almost always 0-indexed, mapping perfectly to our system.
+
+            let importCount = 0;
+
+            rawNotes.forEach(fn => {
+                // Determine date from different possible Foundry export formats
+                let y = fn.year ?? fn.date?.year;
+                let m = fn.month ?? fn.date?.month;
+                let d = fn.day ?? fn.date?.day;
+
+                if (y === undefined || m === undefined || d === undefined) return;
+
+                // Adjust zero-indexed days up by 1 if detected
+                if (isDayZeroIndexed) d += 1;
+
+                // Strip HTML formatting from Foundry's TinyMCE editor, preserving line breaks
+                let title = fn.title || fn.name || '';
+                let rawContent = fn.content || fn.details || '';
+                
+                // Convert <br> and <p> tags to newlines before stripping the rest
+                let processedContent = rawContent.replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n\n');
+                let strippedContent = processedContent.replace(/<[^>]*>?/gm, '').trim();
+                
+                let combinedText = title;
+                if (title && strippedContent) {
+                    combinedText = `**${title}**\n\n${strippedContent}`;
+                } else if (!title) {
+                    combinedText = strippedContent;
+                }
+
+                if (!combinedText) return;
+
+                const dateKey = `${y}-${m}-${d}`;
+                
+                if (!camp.calendar.notes) camp.calendar.notes = {};
+                
+                let dayNotes = camp.calendar.notes[dateKey];
+                if (dayNotes && !Array.isArray(dayNotes)) {
+                    dayNotes = [{ id: generateId(), text: dayNotes.text, visibility: dayNotes.visibility, authorId: camp.dmId }];
+                }
+                if (!dayNotes) dayNotes = [];
+
+                dayNotes.push({
+                    id: generateId(),
+                    text: combinedText,
+                    authorId: camp.dmId,
+                    visibility: { mode: 'public' }, // Imported notes default to public
+                    timestamp: Date.now()
+                });
+
+                camp.calendar.notes[dateKey] = dayNotes;
+                importCount++;
+            });
+
+            await saveCampaign(camp);
+            notify(`Successfully imported ${importCount} historical records!`, "success");
+            window.appActions.closeCalendarSettings();
+            reRender();
+
+        } catch (err) {
+            console.error(err);
+            notify("Failed to parse Foundry VTT JSON file. Ensure it is a valid Simple Calendar export.", "error");
+        }
+    };
+    reader.readAsText(file);
+    
+    // Reset the input so the same file can be selected again if needed
+    event.target.value = '';
+};
+
 // --- DM Settings ---
 export const openCalendarSettings = () => {
     updateDerivedState();
