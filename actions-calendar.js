@@ -248,10 +248,25 @@ export const importFoundryCalendarNotes = async (event) => {
     reader.onload = async (e) => {
         try {
             const data = JSON.parse(e.target.result);
-            // Simple Calendar exports notes either as a root array or wrapped in a 'notes' array
-            let rawNotes = Array.isArray(data) ? data : (data.notes || []);
+            
+            // 1. Flatten all notes gracefully depending on the export format
+            let rawNotes = [];
+            if (Array.isArray(data)) {
+                // Older flat array
+                rawNotes = data;
+            } else if (data.notes) {
+                if (Array.isArray(data.notes)) {
+                    // Wrapped array
+                    rawNotes = data.notes;
+                } else if (typeof data.notes === 'object') {
+                    // Foundry V11/12 Journal V2 dictionary format (keyed by calendar ID)
+                    Object.values(data.notes).forEach(arr => {
+                        if (Array.isArray(arr)) rawNotes.push(...arr);
+                    });
+                }
+            }
 
-            if (!Array.isArray(rawNotes) || rawNotes.length === 0) {
+            if (rawNotes.length === 0) {
                 notify("No notes found in this JSON file.", "error");
                 return;
             }
@@ -260,30 +275,47 @@ export const importFoundryCalendarNotes = async (event) => {
             const camp = window.appData.activeCampaign;
             if (!camp || !camp._isDM) return;
 
-            // Check if Foundry exported 0-indexed days (Simple Calendar often does)
-            const isDayZeroIndexed = rawNotes.some(n => (n.day === 0 || n.date?.day === 0));
-            // Note: Simple Calendar months are almost always 0-indexed, mapping perfectly to our system.
-
             let importCount = 0;
 
             rawNotes.forEach(fn => {
-                // Determine date from different possible Foundry export formats
-                let y = fn.year ?? fn.date?.year;
-                let m = fn.month ?? fn.date?.month;
-                let d = fn.day ?? fn.date?.day;
+                // 2. Extract Date (Foundry hides this inside flags)
+                const scFlags = fn.flags?.["foundryvtt-simple-calendar-reborn"] || fn.flags?.["foundryvtt-simple-calendar"];
+                const startDate = scFlags?.noteData?.startDate || fn.date;
+                
+                if (!startDate) return;
+
+                let y = startDate.year;
+                let m = startDate.month;
+                let d = startDate.day;
 
                 if (y === undefined || m === undefined || d === undefined) return;
 
-                // Adjust zero-indexed days up by 1 if detected
-                if (isDayZeroIndexed) d += 1;
+                // Simple Calendar days are 0-indexed internally. 
+                // Simple Calendar months perfectly align with our monthIndex handling of intercalary days!
+                d += 1;
 
-                // Strip HTML formatting from Foundry's TinyMCE editor, preserving line breaks
+                // 3. Extract Title
                 let title = fn.title || fn.name || '';
-                let rawContent = fn.content || fn.details || '';
-                
-                // Convert <br> and <p> tags to newlines before stripping the rest
+
+                // 4. Extract Content (Journal V2 uses the pages array)
+                let rawContent = '';
+                if (fn.pages && Array.isArray(fn.pages)) {
+                    fn.pages.forEach(page => {
+                        if (page.text && page.text.content) {
+                            rawContent += page.text.content + '\n\n';
+                        }
+                    });
+                } else {
+                    // Fallback for Journal V1
+                    rawContent = fn.content || fn.details || '';
+                }
+
+                // 5. Clean up HTML and proprietary Foundry tags
                 let processedContent = rawContent.replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n\n');
                 let strippedContent = processedContent.replace(/<[^>]*>?/gm, '').trim();
+                
+                // Scrub out UUID tags like @UUID[JournalEntry.TkjqfkZ6w8WBe1Lh]{Session 42!} -> Session 42!
+                strippedContent = strippedContent.replace(/@UUID\[.*?\]\{(.*?)\}/g, '$1');
                 
                 let combinedText = title;
                 if (title && strippedContent) {
