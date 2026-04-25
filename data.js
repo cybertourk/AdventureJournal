@@ -9,6 +9,9 @@ import { openSessionEdit, switchSessionTab, updateSessionBudget, _readDynamicLis
 // Import Codex, Smart-Text, & Journal Functionality 
 import { _canViewCodex, parseSmartText, handleSmartInput, _showSuggestions, viewCodex, _openCodexModal, saveCodexEntry, deleteCodexEntry, openJournal, closeJournal, copyJournal } from './actions-codex.js'; 
 
+// Import Calendar Functionality
+import { openCalendar, navCalendarMonth, jumpToCurrentDate, openCalendarDay, closeCalendarDay, setCurrentCampaignDate, saveCalendarNote, deleteCalendarNote, openCalendarSettings, closeCalendarSettings, addCalendarMonthRow, saveCalendarSettings, resetCalendarToDefault } from './actions-calendar.js';
+
 // --- APP ACTIONS HUB --- 
 // We bind all our imported modular functions back to the global window.appActions 
 // object so that the UI's inline onclick handlers can still reach them! 
@@ -81,7 +84,22 @@ window.appActions = {
   deleteCodexEntry, 
   openJournal, 
   closeJournal, 
-  copyJournal 
+  copyJournal,
+
+  // Calendar System
+  openCalendar,
+  navCalendarMonth,
+  jumpToCurrentDate,
+  openCalendarDay,
+  closeCalendarDay,
+  setCurrentCampaignDate,
+  saveCalendarNote,
+  deleteCalendarNote,
+  openCalendarSettings,
+  closeCalendarSettings,
+  addCalendarMonthRow,
+  saveCalendarSettings,
+  resetCalendarToDefault
 }; 
 
 // Export the core initialization function so main.js can use it to boot the app 
