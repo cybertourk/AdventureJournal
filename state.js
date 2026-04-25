@@ -4,11 +4,12 @@ import { renderApp } from './ui-core.js';
 if (!window.appData) {
     window.appData = {
         campaigns: [],
-        currentView: 'home', // home, campaign, adventure, adv-roster, session-edit, pc-manager, pc-edit, journal, codex
+        currentView: 'home', // home, campaign, adventure, adv-roster, session-edit, pc-manager, pc-edit, journal, codex, calendar
         activeCampaignId: null,
         activeAdventureId: null,
         activeSessionId: null,
-        activePcId: null, 
+        activePcId: null,
+        activeCalendarDate: null, // Tracks the currently clicked { year, monthIndex, day }
         
         // Derived Active Entities
         activeCampaign: null,
@@ -25,7 +26,7 @@ if (!window.appData) {
         currentMarkdown: '',
         currentUserUid: null, // Set from main.js
 
-        // --- NEW: UI Protection Flags ---
+        // --- UI Protection Flags ---
         isEditing: false, // Locks the renderer when a user is actively typing
         hasPendingUpdate: false // Flags that new data arrived while locked
     };
@@ -142,3 +143,31 @@ export function setCampaignsData(campaignsArray) {
     window.appData.campaigns = campaignsArray;
     reRender(); // The initial load can safely force a render
 }
+
+// --- DEFAULT CALENDAR SYSTEM (Harptos) ---
+export const DEFAULT_CALENDAR = {
+    name: "Calendar of Harptos",
+    currentYear: 1492,
+    daysInWeek: 10,
+    months: [
+        { name: "Hammer (Deepwinter)", days: 30 },
+        { name: "Midwinter", days: 1 },
+        { name: "Alturiak (The Claw of Winter)", days: 30 },
+        { name: "Ches (Of the Sunsets)", days: 30 },
+        { name: "Tarsakh (Of the Storms)", days: 30 },
+        { name: "Greengrass", days: 1 },
+        { name: "Mirtul (The Melting)", days: 30 },
+        { name: "Kythorn (The Time of Flowers)", days: 30 },
+        { name: "Flamerule (Summertide)", days: 30 },
+        { name: "Midsummer", days: 1 },
+        { name: "Shieldmeet", days: 0 }, // Leap day, usually 0 unless manually incremented to 1 by the DM on a leap year
+        { name: "Eleasias (Highsun)", days: 30 },
+        { name: "Eleint (The Fading)", days: 30 },
+        { name: "Highharvestide", days: 1 },
+        { name: "Marpenoth (Leaffall)", days: 30 },
+        { name: "Uktar (The Rotting)", days: 30 },
+        { name: "The Feast of the Moon", days: 1 },
+        { name: "Nightal (The Drawing Down)", days: 30 }
+    ],
+    notes: {} // Format: "1492-0-1": { text: "...", visibility: { mode: "public", visibleTo: [] } }
+};
