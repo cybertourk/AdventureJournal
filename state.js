@@ -152,24 +152,24 @@ export const DEFAULT_CALENDAR = {
     currentYear: 1492,
     daysInWeek: 10,
     months: [
-        { name: "Hammer (Deepwinter)", days: 30 },
-        { name: "Midwinter", days: 1 },
-        { name: "Alturiak (The Claw of Winter)", days: 30 },
-        { name: "Ches (Of the Sunsets)", days: 30 },
-        { name: "Tarsakh (Of the Storms)", days: 30 },
-        { name: "Greengrass", days: 1 },
-        { name: "Mirtul (The Melting)", days: 30 },
-        { name: "Kythorn (The Time of Flowers)", days: 30 },
-        { name: "Flamerule (Summertide)", days: 30 },
-        { name: "Midsummer", days: 1 },
-        { name: "Shieldmeet", days: 0 }, // Leap day, usually 0 unless manually incremented
-        { name: "Eleasias (Highsun)", days: 30 },
-        { name: "Eleint (The Fading)", days: 30 },
-        { name: "Highharvestide", days: 1 },
-        { name: "Marpenoth (Leaffall)", days: 30 },
-        { name: "Uktar (The Rotting)", days: 30 },
-        { name: "The Feast of the Moon", days: 1 },
-        { name: "Nightal (The Drawing Down)", days: 30 }
+        { name: "Hammer", lore: "Deepwinter", days: 30 },
+        { name: "Midwinter", lore: "", days: 1 },
+        { name: "Alturiak", lore: "The Claw of Winter", days: 30 },
+        { name: "Ches", lore: "Of the Sunsets", days: 30 },
+        { name: "Tarsakh", lore: "Of the Storms", days: 30 },
+        { name: "Greengrass", lore: "", days: 1 },
+        { name: "Mirtul", lore: "The Melting", days: 30 },
+        { name: "Kythorn", lore: "The Time of Flowers", days: 30 },
+        { name: "Flamerule", lore: "Summertide", days: 30 },
+        { name: "Midsummer", lore: "", days: 1 },
+        { name: "Shieldmeet", lore: "", days: 0 }, // Leap day, usually 0 unless manually incremented
+        { name: "Eleasias", lore: "Highsun", days: 30 },
+        { name: "Eleint", lore: "The Fading", days: 30 },
+        { name: "Highharvestide", lore: "", days: 1 },
+        { name: "Marpenoth", lore: "Leaffall", days: 30 },
+        { name: "Uktar", lore: "The Rotting", days: 30 },
+        { name: "The Feast of the Moon", lore: "", days: 1 },
+        { name: "Nightal", lore: "The Drawing Down", days: 30 }
     ],
     notes: {}
 };
