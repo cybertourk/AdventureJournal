@@ -24,6 +24,12 @@ export const setView = (viewName) => {
     window.appData.activePcId = null;
     window.appData.activeCalendarDate = null;
     window.appData.showCalendarSettings = false;
+  } else if (viewName === 'rules') {
+    window.appData.activeAdventureId = null;
+    window.appData.activeSessionId = null;
+    window.appData.activePcId = null;
+    window.appData.activeCalendarDate = null;
+    window.appData.showCalendarSettings = false;
   }
   reRender();
 };
@@ -61,7 +67,8 @@ export const createCampaign = async () => {
     playerCharacters: [],
     adventures: [],
     sheetUpdates: [], // Initialize Global Checklist
-    codex: []
+    codex: [],
+    rulesGlossary: [] // Initialize Rules Glossary
   };
   await saveCampaign(newCamp);
   // The real-time listener handles injecting the new data into state!
