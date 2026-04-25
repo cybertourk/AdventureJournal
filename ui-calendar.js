@@ -14,6 +14,15 @@ export function getCalendarHTML(state) {
     const safeMonthIdx = Math.max(0, Math.min(viewMonthIdx, cal.months.length - 1));
     const activeMonth = cal.months[safeMonthIdx] || { name: "Unknown", days: 0 };
     
+    // Parse the month name to separate the primary name from the seasonal title (in parentheses)
+    let displayMonthName = activeMonth.name;
+    let monthTooltip = "";
+    const parenMatch = displayMonthName.match(/(.*?)\s*\((.*?)\)/);
+    if (parenMatch) {
+        displayMonthName = parenMatch[1].trim();
+        monthTooltip = parenMatch[2].trim();
+    }
+
     // --- Visibility Helper ---
     const getVisStatus = (visObj) => {
         const mode = visObj?.mode || 'public'; // Default public for player convenience, though DM defaults to hidden if missing
@@ -57,7 +66,7 @@ export function getCalendarHTML(state) {
                         <div class="mb-4 bg-white border border-[#d4c5a9] rounded-sm shadow-sm overflow-hidden">
                             <div class="bg-[#f4ebd8] px-3 py-2 border-b border-[#d4c5a9] flex justify-between items-center">
                                 <span class="font-serif font-bold text-amber-900 cursor-pointer hover:underline" onclick="window.appActions.openCalendarDay(${viewYear}, ${safeMonthIdx}, ${d})">
-                                    ${activeMonth.name} ${d}, ${viewYear}
+                                    ${displayMonthName} ${d}, ${viewYear}
                                 </span>
                                 <span class="text-[10px] uppercase font-bold text-stone-500 tracking-wider flex items-center">
                                     ${authorIcon} Scribed by ${authorName}
@@ -99,7 +108,11 @@ export function getCalendarHTML(state) {
                 <div class="flex items-center gap-2 w-full sm:w-auto">
                     <input type="number" id="jump-year" value="${viewYear}" class="w-20 p-1.5 sm:p-2 bg-stone-800 text-amber-50 text-xs sm:text-sm border border-stone-600 rounded-sm outline-none focus:border-amber-600 font-bold text-center">
                     <select id="jump-month" class="flex-grow sm:w-32 p-1.5 sm:p-2 bg-stone-800 text-amber-50 text-xs sm:text-sm border border-stone-600 rounded-sm outline-none focus:border-amber-600 font-bold">
-                        ${cal.months.map((m, idx) => `<option value="${idx}" ${idx === safeMonthIdx ? 'selected' : ''}>${m.name}</option>`).join('')}
+                        ${cal.months.map((m, idx) => {
+                            let mName = m.name;
+                            if (mName.includes('(')) mName = mName.split('(')[0].trim();
+                            return `<option value="${idx}" ${idx === safeMonthIdx ? 'selected' : ''}>${mName}</option>`;
+                        }).join('')}
                     </select>
                     <select id="jump-day" class="w-20 p-1.5 sm:p-2 bg-stone-800 text-amber-50 text-xs sm:text-sm border border-stone-600 rounded-sm outline-none focus:border-amber-600 font-bold text-center">
                         <option value="">Day...</option>
@@ -129,9 +142,12 @@ export function getCalendarHTML(state) {
                     <i class="fa-solid fa-chevron-left"></i>
                 </button>
                 
-                <div class="text-center cursor-pointer hover:opacity-80 transition" title="Scroll to Monthly Summary" onclick="document.getElementById('chronological-summary').scrollIntoView({behavior:'smooth'})">
-                    <h3 class="text-2xl sm:text-3xl font-serif font-bold text-amber-50 mb-1">${activeMonth.name}</h3>
-                    <div class="text-stone-400 text-xs sm:text-sm font-bold uppercase tracking-widest">Year ${viewYear}</div>
+                <div class="text-center">
+                    <h3 class="text-2xl sm:text-3xl font-serif font-bold text-amber-50 mb-1 flex items-center justify-center gap-2">
+                        ${displayMonthName}
+                        ${monthTooltip ? `<i class="fa-solid fa-circle-info text-base text-stone-400 hover:text-amber-400 cursor-help transition" title="${monthTooltip}"></i>` : ''}
+                    </h3>
+                    <div class="text-stone-400 text-xs sm:text-sm font-bold uppercase tracking-widest cursor-pointer hover:opacity-80 transition" title="Scroll to Monthly Summary" onclick="document.getElementById('chronological-summary').scrollIntoView({behavior:'smooth'})">Year ${viewYear}</div>
                 </div>
                 
                 <button onclick="window.appActions.navCalendarMonth(1)" class="w-10 h-10 flex justify-center items-center rounded-sm bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-amber-400 transition shadow-inner">
@@ -145,7 +161,10 @@ export function getCalendarHTML(state) {
                     <div class="text-center py-12">
                         <i class="fa-solid fa-moon text-5xl text-stone-300 mb-4"></i>
                         <h4 class="font-serif text-xl font-bold text-stone-600 mb-2">Intercalary Observance</h4>
-                        <p class="text-sm text-stone-500 italic">This special event or leap day does not occur in the year ${viewYear}.</p>
+                        <p class="text-sm text-stone-500 italic flex items-center justify-center gap-2">
+                            This special event or leap day does not occur in the year ${viewYear}.
+                            ${monthTooltip ? `<i class="fa-solid fa-circle-info text-stone-400 cursor-help" title="${monthTooltip}"></i>` : ''}
+                        </p>
                         <button onclick="window.appActions.openCalendarDay(${viewYear}, ${safeMonthIdx}, 1)" class="mt-4 px-4 py-2 border border-stone-400 text-stone-600 rounded-sm text-xs font-bold uppercase tracking-wider hover:bg-stone-200 transition">View / Add Notes</button>
                     </div>
                 ` : `
@@ -211,7 +230,7 @@ export function getCalendarHTML(state) {
         <!-- Chronological Monthly Summary -->
         <div id="chronological-summary" class="mt-12">
             <h3 class="text-xl font-serif font-bold text-amber-500 mb-6 flex items-center border-b border-stone-700 pb-3">
-                <i class="fa-solid fa-book-open mr-3 text-stone-500"></i> Records for ${activeMonth.name}, ${viewYear}
+                <i class="fa-solid fa-book-open mr-3 text-stone-500"></i> Records for ${displayMonthName}, ${viewYear}
             </h3>
             <div class="space-y-4">
                 ${monthlyNotesHtml}
@@ -225,7 +244,9 @@ export function getCalendarHTML(state) {
         const { year, monthIndex, day } = state.activeCalendarDate;
         const dateKey = `${year}-${monthIndex}-${day}`;
         const isCurrent = cal.currentYear === year && cal.currentMonth === monthIndex && cal.currentDay === day;
-        const modalMonthName = cal.months[monthIndex]?.name || "Unknown";
+        
+        let modalMonthName = cal.months[monthIndex]?.name || "Unknown";
+        if (modalMonthName.includes('(')) modalMonthName = modalMonthName.split('(')[0].trim();
 
         let dayNotes = cal.notes ? cal.notes[dateKey] : null;
         if (dayNotes && !Array.isArray(dayNotes)) {
@@ -375,7 +396,19 @@ export function getCalendarHTML(state) {
                                 </div>
                             `).join('')}
                         </div>
-                        <p class="text-[10px] text-stone-500 italic mt-2">Hint: Set a month's days to 0 if it is a leap day that does not occur this year.</p>
+                        <p class="text-[10px] text-stone-500 italic mt-2">Hint: Set a month's days to 0 if it is a leap day that does not occur this year. Add seasonal details in parentheses like "Hammer (Deepwinter)".</p>
+                    </div>
+
+                    <!-- External Data Importer -->
+                    <div class="border-t border-[#d4c5a9] pt-4 mt-6">
+                        <h3 class="text-[10px] uppercase text-stone-500 font-bold tracking-widest mb-3">Data Management</h3>
+                        <div class="flex items-center gap-4">
+                            <input type="file" id="foundry-import-file" class="hidden" accept=".json" onchange="window.appActions.importFoundryCalendarNotes(event)">
+                            <button onclick="document.getElementById('foundry-import-file').click()" class="px-4 py-2 border border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100 rounded-sm transition font-bold uppercase tracking-wider text-[10px] shadow-sm flex items-center">
+                                <i class="fa-solid fa-file-import mr-2"></i> Import Foundry VTT Notes (JSON)
+                            </button>
+                        </div>
+                        <p class="text-[10px] text-stone-500 italic mt-2">Imports notes exported from Foundry VTT (Simple Calendar format). Existing notes on matching dates will be safely kept alongside the imported ones.</p>
                     </div>
 
                 </div>
