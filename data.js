@@ -10,7 +10,7 @@ import { openSessionEdit, switchSessionTab, updateSessionBudget, _readDynamicLis
 import { _canViewCodex, parseSmartText, handleSmartInput, _showSuggestions, viewCodex, _openCodexModal, saveCodexEntry, deleteCodexEntry, openJournal, closeJournal, copyJournal } from './actions-codex.js'; 
 
 // Import Calendar Functionality
-import { openCalendar, navCalendarMonth, jumpToCurrentDate, openCalendarDay, closeCalendarDay, setCurrentCampaignDate, saveCalendarNote, deleteCalendarNote, openCalendarSettings, closeCalendarSettings, addCalendarMonthRow, saveCalendarSettings, resetCalendarToDefault } from './actions-calendar.js';
+import { openCalendar, navCalendarMonth, jumpToCurrentDate, jumpToSpecificDate, openCalendarDay, closeCalendarDay, setCurrentCampaignDate, saveCalendarNote, editCalendarNote, deleteCalendarNote, openCalendarSettings, closeCalendarSettings, addCalendarMonthRow, saveCalendarSettings, resetCalendarToDefault } from './actions-calendar.js';
 
 // --- APP ACTIONS HUB --- 
 // We bind all our imported modular functions back to the global window.appActions 
@@ -90,10 +90,12 @@ window.appActions = {
   openCalendar,
   navCalendarMonth,
   jumpToCurrentDate,
+  jumpToSpecificDate,
   openCalendarDay,
   closeCalendarDay,
   setCurrentCampaignDate,
   saveCalendarNote,
+  editCalendarNote,
   deleteCalendarNote,
   openCalendarSettings,
   closeCalendarSettings,
