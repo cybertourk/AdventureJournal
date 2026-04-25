@@ -10,12 +10,20 @@ export const setView = (viewName) => {
     window.appData.activeAdventureId = null;
     window.appData.activeSessionId = null;
     window.appData.activePcId = null;
+    window.appData.activeCalendarDate = null;
   } else if (viewName === 'campaign') {
     window.appData.activeAdventureId = null;
     window.appData.activeSessionId = null;
     window.appData.activePcId = null;
+    window.appData.activeCalendarDate = null;
   } else if (viewName === 'pc-manager') {
     window.appData.activePcId = null;
+  } else if (viewName === 'calendar') {
+    window.appData.activeAdventureId = null;
+    window.appData.activeSessionId = null;
+    window.appData.activePcId = null;
+    window.appData.activeCalendarDate = null;
+    window.appData.showCalendarSettings = false;
   }
   reRender();
 };
