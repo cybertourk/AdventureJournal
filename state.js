@@ -4,7 +4,7 @@ import { renderApp } from './ui-core.js';
 if (!window.appData) {
     window.appData = {
         campaigns: [],
-        currentView: 'home', // home, campaign, adventure, adv-roster, session-edit, pc-manager, pc-edit, journal, codex, calendar
+        currentView: 'home', // home, campaign, adventure, adv-roster, session-edit, pc-manager, pc-edit, journal, codex, calendar, rules
         activeCampaignId: null,
         activeAdventureId: null,
         activeSessionId: null,
@@ -70,10 +70,11 @@ export function updateDerivedState() {
     window.appData.activeCampaign = window.appData.campaigns.find(c => c.id === window.appData.activeCampaignId) || null;
     
     if (window.appData.activeCampaign) {
-        // Ensure Codex array exists
+        // Ensure arrays exist
         if (!window.appData.activeCampaign.codex) window.appData.activeCampaign.codex = [];
+        if (!window.appData.activeCampaign.rulesGlossary) window.appData.activeCampaign.rulesGlossary = [];
         
-        // Build Autocomplete Cache: Combine Codex entries + any legacy/unassigned PCs without codex entries
+        // Build Autocomplete Cache: Combine Codex entries, Heroes, and Rules Glossary!
         const aliasMap = new Map();
         const stopWords = ['the', 'a', 'an', 'and', 'of', 'in', 'to', 'for', 'with', 'on', 'at', 'by', 'from', 'is', 'it', 'that', 'this'];
         
@@ -90,12 +91,12 @@ export function updateDerivedState() {
             let words = cleanName.split(/\s+/);
             let targetShortWord = words[0];
             
-            // If the first word is an article/stopword, grab the second word instead (e.g. "The Candlekeep Library" -> "Candlekeep")
+            // If the first word is an article/stopword, grab the second word instead
             if (words.length > 1 && stopWords.includes(words[0].toLowerCase())) {
                 targetShortWord = words[1];
             }
             
-            // Ensure the short word is meaningful (>2 chars, not the full name itself, and not another stop word)
+            // Ensure the short word is meaningful
             if(targetShortWord && targetShortWord.length > 2 && targetShortWord !== cleanName && !stopWords.includes(targetShortWord.toLowerCase())) {
                 if(!aliasMap.has(targetShortWord.toLowerCase())) {
                     aliasMap.set(targetShortWord.toLowerCase(), { text: targetShortWord, id: id });
@@ -105,6 +106,7 @@ export function updateDerivedState() {
 
         (window.appData.activeCampaign.codex || []).forEach(c => addAlias(c.name, c.id));
         (window.appData.activeCampaign.playerCharacters || []).forEach(pc => addAlias(pc.name, pc.id));
+        (window.appData.activeCampaign.rulesGlossary || []).forEach(r => addAlias(r.name, r.id));
         
         window.appData.codexCache = Array.from(aliasMap.values());
         
@@ -160,7 +162,7 @@ export const DEFAULT_CALENDAR = {
         { name: "Kythorn (The Time of Flowers)", days: 30 },
         { name: "Flamerule (Summertide)", days: 30 },
         { name: "Midsummer", days: 1 },
-        { name: "Shieldmeet", days: 0 }, // Leap day, usually 0 unless manually incremented to 1 by the DM on a leap year
+        { name: "Shieldmeet", days: 0 }, // Leap day, usually 0 unless manually incremented
         { name: "Eleasias (Highsun)", days: 30 },
         { name: "Eleint (The Fading)", days: 30 },
         { name: "Highharvestide", days: 1 },
@@ -169,5 +171,5 @@ export const DEFAULT_CALENDAR = {
         { name: "The Feast of the Moon", days: 1 },
         { name: "Nightal (The Drawing Down)", days: 30 }
     ],
-    notes: {} // Format: "1492-0-1": { text: "...", visibility: { mode: "public", visibleTo: [] } }
+    notes: {}
 };
