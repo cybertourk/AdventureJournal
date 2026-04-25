@@ -2,8 +2,6 @@ export function getRulesHTML(state) {
     const camp = state.activeCampaign;
     if (!camp) return '';
     
-    const isDM = camp._isDM;
-    const myUid = state.currentUserUid;
     const rules = camp.rulesGlossary || [];
     
     // Sort rules alphabetically by name
@@ -30,7 +28,7 @@ export function getRulesHTML(state) {
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6" id="rules-grid">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4" id="rules-grid">
     `;
 
     if (sortedRules.length === 0) {
@@ -43,26 +41,13 @@ export function getRulesHTML(state) {
         `;
     } else {
         sortedRules.forEach(rule => {
-            // Only the DM or the player who originally created the rule can edit it
-            const canEdit = isDM || rule.authorId === myUid;
-            const parsedText = window.appActions.parseSmartText(rule.text);
-            
             html += `
-            <div class="rule-card bg-[#fdfbf7] rounded-sm border border-[#d4c5a9] shadow-sm flex flex-col hover:shadow-md transition relative group overflow-hidden" data-search="${rule.name.toLowerCase()}">
+            <div class="rule-card bg-[#fdfbf7] rounded-sm border border-[#d4c5a9] shadow-sm flex flex-col hover:shadow-md transition relative group overflow-hidden cursor-pointer" data-search="${rule.name.toLowerCase()}" onclick="window.appActions.viewRule('${rule.id}')">
                 <div class="absolute top-0 left-0 w-1 h-full bg-stone-400 group-hover:bg-amber-600 transition-colors z-20"></div>
                 
-                <div class="p-4 sm:p-5 pl-5 sm:pl-6 flex flex-col flex-grow">
-                    <div class="flex justify-between items-start mb-3 border-b border-[#d4c5a9] pb-2">
-                        <h3 class="font-serif font-bold text-lg text-amber-900">${rule.name}</h3>
-                        ${canEdit ? `
-                        <button onclick="window.appActions.openRuleModal('${rule.id}')" class="text-stone-400 hover:text-amber-600 transition p-1" title="Amend Rule">
-                            <i class="fa-solid fa-pen"></i>
-                        </button>
-                        ` : ''}
-                    </div>
-                    <div class="text-sm text-stone-800 font-serif leading-relaxed custom-scrollbar overflow-y-auto max-h-64 pr-2">
-                        ${parsedText}
-                    </div>
+                <div class="p-4 pl-5 sm:pl-6 flex items-center justify-between">
+                    <h3 class="font-serif font-bold text-base sm:text-lg text-amber-900 truncate pr-4">${rule.name}</h3>
+                    <i class="fa-solid fa-book-open text-stone-300 group-hover:text-amber-500 transition"></i>
                 </div>
             </div>
             `;
