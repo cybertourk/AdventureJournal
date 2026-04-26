@@ -54,6 +54,21 @@ export function renderSmartField(id, labelHtml, value, placeholderText, rows, wr
     `;
 }
 
+// --- GLOBAL HEADER NAVIGATION VISIBILITY ---
+export function updateHeaderUI(state) {
+    const camp = state.activeCampaign;
+    const calBtn = document.getElementById('header-calendar-btn');
+    const rulesBtn = document.getElementById('header-rules-btn');
+
+    if (!camp || state.currentView === 'home') {
+        if (calBtn) calBtn.classList.add('hidden');
+        if (rulesBtn) rulesBtn.classList.add('hidden');
+    } else {
+        if (calBtn) calBtn.classList.remove('hidden');
+        if (rulesBtn) rulesBtn.classList.remove('hidden');
+    }
+}
+
 // --- GLOBAL CHECKLIST GENERATOR (MODAL UI) ---
 export function updateChecklistUI(state) {
     const btn = document.getElementById('header-checklist-btn');
@@ -210,6 +225,7 @@ export function renderApp(state) {
     container.innerHTML = html;
 
     // Post-render UI adjustments
+    updateHeaderUI(state);
     updateChecklistUI(state);
 
     if (state.currentView === 'session-edit') {
