@@ -10,7 +10,7 @@ import { openSessionEdit, switchSessionTab, updateSessionBudget, _readDynamicLis
 import { _canViewCodex, parseSmartText, handleSmartInput, _showSuggestions, viewCodex, _openCodexModal, saveCodexEntry, deleteCodexEntry, openJournal, closeJournal, copyJournal } from './actions-codex.js'; 
 
 // Import Calendar Functionality
-import { openCalendar, navCalendarMonth, jumpToCurrentDate, jumpToSpecificDate, openCalendarDay, closeCalendarDay, setCurrentCampaignDate, saveCalendarNote, editCalendarNote, deleteCalendarNote, openCalendarSettings, closeCalendarSettings, addCalendarMonthRow, saveCalendarSettings, resetCalendarToDefault, importFoundryCalendarNotes } from './actions-calendar.js';
+import { openCalendar, navCalendarMonth, jumpToCurrentDate, jumpToSpecificDate, openMonthInfo, closeMonthInfo, openCalendarDay, closeCalendarDay, setCurrentCampaignDate, saveCalendarNote, editCalendarNote, deleteCalendarNote, openCalendarSettings, closeCalendarSettings, addCalendarMonthRow, saveCalendarSettings, resetCalendarToDefault, importFoundryCalendarNotes } from './actions-calendar.js';
 
 // Import Rules Glossary Functionality
 import { openRulesGlossary, viewRule, openRuleModal, saveRule, deleteRule } from './actions-rules.js';
@@ -94,6 +94,8 @@ window.appActions = {
   navCalendarMonth,
   jumpToCurrentDate,
   jumpToSpecificDate,
+  openMonthInfo,
+  closeMonthInfo,
   openCalendarDay,
   closeCalendarDay,
   setCurrentCampaignDate,
