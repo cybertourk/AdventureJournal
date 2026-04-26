@@ -14,18 +14,6 @@ export const openRulesGlossary = async () => {
                 name: "Grappling",
                 text: "When you want to grab a creature or wrestle with it, you can use the Attack action to make a Special melee attack, a grapple. If you're able to make multiple attacks with the Attack action, this attack replaces one of them.\n\nThe target of your grapple must be no more than one size larger than you and must be within your reach. Using at least one free hand, you try to seize the target by making a grapple check instead of an attack roll: a **Strength (Athletics)** check contested by the target's **Strength (Athletics)** or **Dexterity (Acrobatics)** check (the target chooses the ability to use).\n\nIf you succeed, you subject the target to the grappled condition.",
                 authorId: camp.dmId
-            },
-            {
-                id: generateId(),
-                name: "Keeping Time from Day to Day",
-                text: "Most people don't keep track of the time of day beyond notions such as \"mid-morning\" or \"nigh sunset.\" If people plan to meet at a particular time, they tend to base their arrangements around such expressions.\n\nThe concept of hours and minutes exists mainly where wealthy people use clocks, but mechanical clocks are often unreliable, and rarely are two set to the same time. If a local temple or civic structure has a clock that tolls out the passing of the hours, people refer to hours as \"bells,\" as in \"I'll meet you at seven bells.\"",
-                authorId: camp.dmId
-            },
-            {
-                id: generateId(),
-                name: "The Shifting of the Seasons",
-                text: "The worlds of Abeir and Toril drifted apart in 1487 and 1488 DR. In some places this change was accompanied by cataclysm, while in others the shift went without notice. Astronomers and navigators who closely watched the stars couldn't fail to see that there were nights when they seemed to hang in the sky. The winter of 1487–1488 lasted longer than normal. It was then noted that the solstices and equinoxes had somehow shifted, beginning with the spring equinox falling on Greengrass of 1488 DR. The seasons followed suit, with each starting later and ending later.\n\nThis shift in seasons has caused some sages, and the priests of Chauntea, to consider changing the marking of some of the annual feast days, but most folk counsel patience, believing that the seasons will fall back to their previous cycle over the coming years.",
-                authorId: camp.dmId
             }
         ];
         await saveCampaign(camp);
