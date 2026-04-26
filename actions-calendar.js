@@ -76,6 +76,17 @@ export const jumpToSpecificDate = () => {
     }
 };
 
+// --- Month Info Inspector ---
+export const openMonthInfo = (monthIndex) => {
+    window.appData.viewMonthInfoIdx = monthIndex;
+    reRender();
+};
+
+export const closeMonthInfo = () => {
+    window.appData.viewMonthInfoIdx = null;
+    reRender();
+};
+
 // --- Day Actions ---
 export const openCalendarDay = (year, monthIndex, day) => {
     window.appData.activeCalendarDate = { year, monthIndex, day };
@@ -383,14 +394,41 @@ export const addCalendarMonthRow = () => {
     if (!container) return;
     
     const html = `
-        <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center mb-2 cal-month-row group bg-stone-100 p-2 border border-[#d4c5a9] rounded-sm shadow-sm">
-            <i class="fa-solid fa-bars text-stone-400 cursor-grab hover:text-stone-600 hidden sm:block px-2"></i>
-            <div class="flex-grow flex flex-col sm:flex-row gap-2 w-full">
-                <input type="text" class="cal-month-name w-full sm:w-1/3 p-2 border border-[#d4c5a9] rounded-sm text-sm outline-none focus:border-red-900 bg-white font-bold text-stone-900" placeholder="Month Name">
-                <input type="text" class="cal-month-lore w-full sm:w-1/2 p-2 border border-[#d4c5a9] rounded-sm text-sm outline-none focus:border-red-900 bg-white text-stone-700 placeholder:text-stone-400 placeholder:italic" placeholder="Lore, Season, or Nickname...">
-                <input type="number" min="0" value="30" class="cal-month-days w-full sm:w-1/6 p-2 border border-[#d4c5a9] rounded-sm text-sm outline-none focus:border-red-900 bg-white text-stone-900 font-mono" placeholder="Days">
+        <div class="cal-month-row bg-stone-100 p-3 sm:p-4 border border-[#d4c5a9] rounded-sm shadow-sm relative group">
+            <div class="absolute right-3 top-3">
+                <button type="button" class="text-stone-400 hover:text-red-700 transition" onclick="this.closest('.cal-month-row').remove()" title="Remove Month"><i class="fa-solid fa-trash"></i></button>
             </div>
-            <button type="button" class="w-full sm:w-auto px-4 py-2 text-stone-400 hover:text-red-700 hover:bg-red-100 rounded-sm transition flex justify-center border border-transparent hover:border-red-200" onclick="this.closest('.cal-month-row').remove()" title="Remove Month"><i class="fa-solid fa-trash"></i></button>
+            <div class="flex items-center gap-2 mb-3 cursor-grab text-stone-400 hover:text-stone-600 w-max pr-8">
+                <i class="fa-solid fa-bars"></i> <span class="text-[10px] font-bold uppercase tracking-widest">Reorder Month</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                <div>
+                    <label class="block text-[9px] uppercase text-stone-500 font-bold tracking-widest mb-1">Name</label>
+                    <input type="text" class="cal-month-name w-full p-2 border border-[#d4c5a9] rounded-sm text-sm outline-none focus:border-red-900 bg-white font-bold text-stone-900 shadow-inner" placeholder="e.g. Hammer">
+                </div>
+                <div>
+                    <label class="block text-[9px] uppercase text-stone-500 font-bold tracking-widest mb-1">Nickname</label>
+                    <input type="text" class="cal-month-nickname w-full p-2 border border-[#d4c5a9] rounded-sm text-sm outline-none focus:border-red-900 bg-white text-stone-700 shadow-inner" placeholder="e.g. Deepwinter">
+                </div>
+                <div>
+                    <label class="block text-[9px] uppercase text-stone-500 font-bold tracking-widest mb-1">Season</label>
+                    <input type="text" class="cal-month-season w-full p-2 border border-[#d4c5a9] rounded-sm text-sm outline-none focus:border-red-900 bg-white text-stone-700 shadow-inner" placeholder="e.g. Winter">
+                </div>
+                <div>
+                    <label class="block text-[9px] uppercase text-stone-500 font-bold tracking-widest mb-1">Days</label>
+                    <input type="number" min="0" value="30" class="cal-month-days w-full p-2 border border-[#d4c5a9] rounded-sm text-sm outline-none focus:border-red-900 bg-white text-stone-900 font-mono shadow-inner" placeholder="Days">
+                </div>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-[9px] uppercase text-stone-500 font-bold tracking-widest mb-1">Lore & Traditions</label>
+                    <textarea class="cal-month-lore w-full p-2 border border-[#d4c5a9] rounded-sm text-xs sm:text-sm outline-none focus:border-red-900 bg-white text-stone-700 shadow-inner resize-y min-h-[60px]" placeholder="Festivals, celestial alignments, common traditions..."></textarea>
+                </div>
+                <div>
+                    <label class="block text-[9px] uppercase text-stone-500 font-bold tracking-widest mb-1">General Notes</label>
+                    <textarea class="cal-month-desc w-full p-2 border border-[#d4c5a9] rounded-sm text-xs sm:text-sm outline-none focus:border-red-900 bg-white text-stone-700 shadow-inner resize-y min-h-[60px]" placeholder="Additional info, weather patterns, DM secrets..."></textarea>
+                </div>
+            </div>
         </div>
     `;
     container.insertAdjacentHTML('beforeend', html);
@@ -409,13 +447,19 @@ export const saveCalendarSettings = async () => {
     
     rows.forEach(row => {
         const nameEl = row.querySelector('.cal-month-name');
+        const nickEl = row.querySelector('.cal-month-nickname');
+        const seasonEl = row.querySelector('.cal-month-season');
         const loreEl = row.querySelector('.cal-month-lore');
+        const descEl = row.querySelector('.cal-month-desc');
         const daysEl = row.querySelector('.cal-month-days');
         
         if (nameEl && daysEl && nameEl.value.trim()) {
             newMonths.push({
                 name: nameEl.value.trim(),
+                nickname: nickEl ? nickEl.value.trim() : "",
+                season: seasonEl ? seasonEl.value.trim() : "",
                 lore: loreEl ? loreEl.value.trim() : "",
+                description: descEl ? descEl.value.trim() : "",
                 days: parseInt(daysEl.value) || 0
             });
         }
