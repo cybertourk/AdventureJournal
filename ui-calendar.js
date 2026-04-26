@@ -102,9 +102,14 @@ export function getCalendarHTML(state) {
         <div class="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-6 sm:mb-8 gap-4 border-b-2 border-stone-800 pb-4">
             <div class="w-full lg:w-auto">
                 <h2 class="text-2xl sm:text-3xl md:text-4xl font-serif font-bold text-amber-500 leading-tight">Chronicle</h2>
-                <p class="text-stone-400 text-xs sm:text-sm font-sans mt-2 flex items-center">
-                    <i class="fa-solid fa-calendar-days mr-2"></i> ${cal.name}
-                </p>
+                <div class="flex items-center flex-wrap gap-3 mt-2">
+                    <p class="text-stone-400 text-xs sm:text-sm font-sans flex items-center">
+                        <i class="fa-solid fa-calendar-days mr-2"></i> ${cal.name}
+                    </p>
+                    <button onclick="window.appActions.openCalendarLore()" class="text-[10px] font-bold uppercase tracking-widest text-amber-600 hover:text-amber-500 transition border border-amber-700/50 bg-amber-900/20 px-2 py-0.5 rounded-sm flex items-center shadow-sm">
+                        <i class="fa-solid fa-book-journal-whills mr-1.5"></i> Lore
+                    </button>
+                </div>
             </div>
 
             <!-- Global Dropdown Navigation -->
@@ -243,6 +248,33 @@ export function getCalendarHTML(state) {
     </div>
     `;
 
+    // --- GLOBAL CALENDAR LORE MODAL ---
+    if (state.showCalendarLore) {
+        const parsedDesc = (window.appActions && window.appActions.parseSmartText)
+            ? window.appActions.parseSmartText(cal.description || '')
+            : (cal.description || '');
+
+        html += `
+        <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[5000] backdrop-blur-sm animate-in">
+            <div class="bg-[#f4ebd8] rounded-sm shadow-2xl w-full max-w-3xl border border-[#d4c5a9] overflow-hidden flex flex-col max-h-[90vh]">
+                <div class="bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-[#292524] p-4 flex justify-between items-center border-b-2 border-amber-600 shadow-md shrink-0">
+                    <div class="flex items-center gap-3 text-amber-500">
+                        <i class="fa-solid fa-book-journal-whills text-xl"></i>
+                        <div>
+                            <h2 class="text-lg font-serif font-bold text-amber-50 leading-tight">Calendar Lore & Mechanics</h2>
+                            <p class="text-stone-400 text-[10px] uppercase tracking-widest font-bold">${cal.name}</p>
+                        </div>
+                    </div>
+                    <button onclick="window.appActions.closeCalendarLore()" class="w-8 h-8 rounded bg-stone-800 text-stone-300 hover:text-red-400 hover:bg-stone-700 transition flex items-center justify-center"><i class="fa-solid fa-times"></i></button>
+                </div>
+                <div class="p-6 sm:p-8 overflow-y-auto custom-scrollbar flex-grow bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-[#fdfbf7] text-sm text-stone-800 font-serif leading-relaxed space-y-4">
+                    ${parsedDesc || '<p class="italic text-stone-500">No lore has been inscribed for this calendar.</p>'}
+                </div>
+            </div>
+        </div>
+        `;
+    }
+
     // --- MONTH INFO MODAL ---
     if (state.viewMonthInfoIdx !== null && state.viewMonthInfoIdx !== undefined) {
         const mInfo = cal.months[state.viewMonthInfoIdx];
@@ -262,8 +294,8 @@ export function getCalendarHTML(state) {
                 }
             }
 
-            const parsedLore = window.appActions.parseSmartText(mLore);
-            const parsedDesc = window.appActions.parseSmartText(mDesc);
+            const parsedLore = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(mLore) : mLore;
+            const parsedDesc = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(mDesc) : mDesc;
 
             html += `
             <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-50 backdrop-blur-sm animate-in">
@@ -445,7 +477,7 @@ export function getCalendarHTML(state) {
                         <p>Altering the fundamental structure of the calendar (like days in a week or removing months) will not delete your existing notes, but it may shift how historical dates align on the grid.</p>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Calendar Name</label>
                             <input type="text" id="cal-config-name" value="${cal.name}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white">
@@ -454,6 +486,11 @@ export function getCalendarHTML(state) {
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Days in a Week</label>
                             <input type="number" id="cal-config-week" value="${cal.daysInWeek}" min="1" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white" placeholder="e.g. 10 for Harptos">
                         </div>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Global Calendar Lore & Mechanics</label>
+                        <textarea id="cal-config-desc" class="w-full h-32 p-3 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-amber-600 bg-white text-stone-800 shadow-inner custom-scrollbar" placeholder="General mechanics, holidays, seasons...">${(cal.description || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
                     </div>
 
                     <div class="border-t border-[#d4c5a9] pt-4">
