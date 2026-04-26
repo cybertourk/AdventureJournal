@@ -76,6 +76,18 @@ export const jumpToSpecificDate = () => {
     }
 };
 
+// --- Global Calendar Lore Inspector ---
+export const openCalendarLore = () => {
+    updateDerivedState();
+    window.appData.showCalendarLore = true;
+    reRender();
+};
+
+export const closeCalendarLore = () => {
+    window.appData.showCalendarLore = false;
+    reRender();
+};
+
 // --- Month Info Inspector ---
 export const openMonthInfo = (monthIndex) => {
     window.appData.viewMonthInfoIdx = monthIndex;
@@ -441,6 +453,7 @@ export const saveCalendarSettings = async () => {
 
     const nameInput = document.getElementById('cal-config-name');
     const daysInWeekInput = document.getElementById('cal-config-week');
+    const descInput = document.getElementById('cal-config-desc');
     
     const rows = document.querySelectorAll('.cal-month-row');
     const newMonths = [];
@@ -471,6 +484,7 @@ export const saveCalendarSettings = async () => {
     }
 
     camp.calendar.name = nameInput ? nameInput.value.trim() : camp.calendar.name;
+    camp.calendar.description = descInput ? descInput.value.trim() : (camp.calendar.description || '');
     camp.calendar.daysInWeek = daysInWeekInput ? parseInt(daysInWeekInput.value) || 7 : 7;
     camp.calendar.months = newMonths;
 
@@ -491,6 +505,7 @@ export const resetCalendarToDefault = async () => {
 
     const defaults = JSON.parse(JSON.stringify(DEFAULT_CALENDAR));
     camp.calendar.name = defaults.name;
+    camp.calendar.description = defaults.description;
     camp.calendar.daysInWeek = defaults.daysInWeek;
     camp.calendar.months = defaults.months;
 
