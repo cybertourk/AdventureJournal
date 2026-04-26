@@ -14,16 +14,16 @@ export function getCalendarHTML(state) {
     const safeMonthIdx = Math.max(0, Math.min(viewMonthIdx, cal.months.length - 1));
     const activeMonth = cal.months[safeMonthIdx] || { name: "Unknown", days: 0 };
     
-    // Clean Month Name & Tooltip Extractor
+    // Clean Month Name
     let displayMonthName = activeMonth.name;
-    let monthTooltip = activeMonth.lore !== undefined ? activeMonth.lore : "";
+    let hasExtraInfo = activeMonth.nickname || activeMonth.lore || activeMonth.description || activeMonth.season;
 
     // Backward compatibility for old format "Hammer (Deepwinter)"
-    if (activeMonth.lore === undefined) {
+    if (activeMonth.lore === undefined && activeMonth.nickname === undefined) {
         const parenMatch = displayMonthName.match(/(.*?)\s*\((.*?)\)/);
         if (parenMatch) {
             displayMonthName = parenMatch[1].trim();
-            monthTooltip = parenMatch[2].trim();
+            hasExtraInfo = true;
         }
     }
 
@@ -114,7 +114,7 @@ export function getCalendarHTML(state) {
                     <select id="jump-month" class="flex-grow sm:w-32 p-1.5 sm:p-2 bg-stone-800 text-amber-50 text-xs sm:text-sm border border-stone-600 rounded-sm outline-none focus:border-amber-600 font-bold">
                         ${cal.months.map((m, idx) => {
                             let mName = m.name;
-                            if (m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
+                            if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
                             return `<option value="${idx}" ${idx === safeMonthIdx ? 'selected' : ''}>${mName}</option>`;
                         }).join('')}
                     </select>
@@ -149,7 +149,7 @@ export function getCalendarHTML(state) {
                 <div class="text-center">
                     <h3 class="text-2xl sm:text-3xl font-serif font-bold text-amber-50 mb-1 flex items-center justify-center gap-2">
                         ${displayMonthName}
-                        ${monthTooltip ? `<i class="fa-solid fa-circle-info text-base text-stone-400 hover:text-amber-400 cursor-help transition" title="${monthTooltip}"></i>` : ''}
+                        ${hasExtraInfo ? `<button onclick="window.appActions.openMonthInfo(${safeMonthIdx})" class="flex items-center justify-center text-stone-400 hover:text-amber-400 transition"><i class="fa-solid fa-circle-info text-base"></i></button>` : ''}
                     </h3>
                     <div class="text-stone-400 text-xs sm:text-sm font-bold uppercase tracking-widest cursor-pointer hover:opacity-80 transition" title="Scroll to Monthly Summary" onclick="document.getElementById('chronological-summary').scrollIntoView({behavior:'smooth'})">Year ${viewYear}</div>
                 </div>
@@ -167,7 +167,7 @@ export function getCalendarHTML(state) {
                         <h4 class="font-serif text-xl font-bold text-stone-600 mb-2">Intercalary Observance</h4>
                         <p class="text-sm text-stone-500 italic flex items-center justify-center gap-2">
                             This special event or leap day does not occur in the year ${viewYear}.
-                            ${monthTooltip ? `<i class="fa-solid fa-circle-info text-stone-400 cursor-help" title="${monthTooltip}"></i>` : ''}
+                            ${hasExtraInfo ? `<button onclick="window.appActions.openMonthInfo(${safeMonthIdx})" class="text-stone-400 hover:text-stone-600 transition"><i class="fa-solid fa-circle-info"></i></button>` : ''}
                         </p>
                         <button onclick="window.appActions.openCalendarDay(${viewYear}, ${safeMonthIdx}, 1)" class="mt-4 px-4 py-2 border border-stone-400 text-stone-600 rounded-sm text-xs font-bold uppercase tracking-wider hover:bg-stone-200 transition">View / Add Notes</button>
                     </div>
@@ -243,6 +243,76 @@ export function getCalendarHTML(state) {
     </div>
     `;
 
+    // --- MONTH INFO MODAL ---
+    if (state.viewMonthInfoIdx !== null && state.viewMonthInfoIdx !== undefined) {
+        const mInfo = cal.months[state.viewMonthInfoIdx];
+        if (mInfo) {
+            let mName = mInfo.name;
+            let mNick = mInfo.nickname || "";
+            let mSeason = mInfo.season || "";
+            let mLore = mInfo.lore || "";
+            let mDesc = mInfo.description || "";
+
+            // Fallback for legacy
+            if (!mNick && !mLore && mName.includes('(')) {
+                const pMatch = mName.match(/(.*?)\s*\((.*?)\)/);
+                if (pMatch) {
+                    mName = pMatch[1].trim();
+                    mNick = pMatch[2].trim();
+                }
+            }
+
+            const parsedLore = window.appActions.parseSmartText(mLore);
+            const parsedDesc = window.appActions.parseSmartText(mDesc);
+
+            html += `
+            <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-50 backdrop-blur-sm animate-in">
+                <div class="bg-[#f4ebd8] rounded-sm shadow-2xl w-full max-w-lg border border-[#d4c5a9] overflow-hidden flex flex-col max-h-[90vh]">
+                    
+                    <div class="bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-[#292524] p-4 flex justify-between items-center border-b-2 border-amber-600 shadow-md">
+                        <div class="flex items-center gap-3 text-amber-500">
+                            <i class="fa-solid fa-moon text-xl"></i>
+                            <div>
+                                <h2 class="text-lg font-serif font-bold text-amber-50 leading-tight">${mName}</h2>
+                                ${mNick ? `<p class="text-stone-400 text-[10px] uppercase tracking-widest font-bold">"${mNick}"</p>` : ''}
+                            </div>
+                        </div>
+                        <button onclick="window.appActions.closeMonthInfo()" class="w-8 h-8 rounded bg-stone-800 text-stone-300 hover:text-red-400 hover:bg-stone-700 transition flex items-center justify-center"><i class="fa-solid fa-times"></i></button>
+                    </div>
+
+                    <div class="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-grow bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-[#fdfbf7] space-y-4">
+                        ${mSeason ? `
+                            <div>
+                                <h3 class="text-[10px] uppercase text-amber-700 font-bold tracking-widest border-b border-[#d4c5a9] pb-1 mb-2"><i class="fa-solid fa-leaf mr-1"></i> Season</h3>
+                                <p class="text-sm font-sans text-stone-800 font-bold">${mSeason}</p>
+                            </div>
+                        ` : ''}
+                        
+                        ${mLore ? `
+                            <div>
+                                <h3 class="text-[10px] uppercase text-amber-700 font-bold tracking-widest border-b border-[#d4c5a9] pb-1 mb-2"><i class="fa-solid fa-book-journal-whills mr-1"></i> Lore & Traditions</h3>
+                                <div class="text-sm font-serif text-stone-800 leading-relaxed">${parsedLore}</div>
+                            </div>
+                        ` : ''}
+
+                        ${mDesc ? `
+                            <div>
+                                <h3 class="text-[10px] uppercase text-amber-700 font-bold tracking-widest border-b border-[#d4c5a9] pb-1 mb-2"><i class="fa-solid fa-feather mr-1"></i> General Notes</h3>
+                                <div class="text-sm font-serif text-stone-800 leading-relaxed">${parsedDesc}</div>
+                            </div>
+                        ` : ''}
+                        
+                        ${(!mSeason && !mLore && !mDesc) ? `
+                            <p class="text-sm text-stone-500 italic text-center py-4">No extensive records exist for this month.</p>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+            `;
+        }
+    }
+
+
     // --- DAY INSPECTOR MODAL (MULTIPLE NOTES SUPPORT) ---
     if (state.activeCalendarDate) {
         const { year, monthIndex, day } = state.activeCalendarDate;
@@ -250,7 +320,7 @@ export function getCalendarHTML(state) {
         const isCurrent = cal.currentYear === year && cal.currentMonth === monthIndex && cal.currentDay === day;
         
         let modalMonthName = cal.months[monthIndex]?.name || "Unknown";
-        if (cal.months[monthIndex]?.lore === undefined && modalMonthName.includes('(')) {
+        if (cal.months[monthIndex]?.nickname === undefined && cal.months[monthIndex]?.lore === undefined && modalMonthName.includes('(')) {
             modalMonthName = modalMonthName.split('(')[0].trim();
         }
 
@@ -360,7 +430,7 @@ export function getCalendarHTML(state) {
     // --- DM CALENDAR SETTINGS MODAL ---
     if (isDM && state.showCalendarSettings) {
         html += `
-        <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-50 backdrop-blur-sm animate-in">
+        <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[5000] backdrop-blur-sm animate-in">
             <div class="bg-[#f4ebd8] rounded-sm shadow-2xl w-full max-w-4xl border border-[#d4c5a9] overflow-hidden flex flex-col max-h-[90vh]">
                 
                 <div class="bg-stone-900 p-4 border-b-4 border-amber-700 text-amber-500 flex justify-between items-center shrink-0">
@@ -392,32 +462,62 @@ export function getCalendarHTML(state) {
                             <button onclick="window.appActions.addCalendarMonthRow()" class="text-[10px] font-bold uppercase tracking-wider text-blue-600 hover:text-blue-800 transition flex items-center"><i class="fa-solid fa-plus mr-1"></i> Add Month / Leap Day</button>
                         </div>
                         
-                        <div id="cal-months-container" class="space-y-2">
+                        <div id="cal-months-container" class="space-y-4">
                             ${cal.months.map((m) => {
                                 let mName = m.name;
+                                let mNick = m.nickname !== undefined ? m.nickname : "";
+                                let mSeason = m.season !== undefined ? m.season : "";
                                 let mLore = m.lore !== undefined ? m.lore : "";
-                                // Extract legacy lore into the new explicit input field during edit
-                                if (m.lore === undefined && mName.includes('(')) {
+                                let mDesc = m.description !== undefined ? m.description : "";
+
+                                // Extract legacy lore into the new explicit input fields during edit
+                                if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) {
                                     const parenMatch = mName.match(/(.*?)\s*\((.*?)\)/);
                                     if (parenMatch) {
                                         mName = parenMatch[1].trim();
-                                        mLore = parenMatch[2].trim();
+                                        mNick = parenMatch[2].trim();
                                     }
                                 }
                                 return `
-                                    <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center mb-2 cal-month-row group bg-stone-100 p-2 border border-[#d4c5a9] rounded-sm shadow-sm">
-                                        <i class="fa-solid fa-bars text-stone-400 cursor-grab hover:text-stone-600 hidden sm:block px-2"></i>
-                                        <div class="flex-grow flex flex-col sm:flex-row gap-2 w-full">
-                                            <input type="text" value="${mName.replace(/"/g, '&quot;')}" class="cal-month-name w-full sm:w-1/3 p-2 border border-[#d4c5a9] rounded-sm text-sm outline-none focus:border-red-900 bg-white font-bold text-stone-900" placeholder="Month Name">
-                                            <input type="text" value="${mLore.replace(/"/g, '&quot;')}" class="cal-month-lore w-full sm:w-1/2 p-2 border border-[#d4c5a9] rounded-sm text-sm outline-none focus:border-red-900 bg-white text-stone-700 placeholder:text-stone-400 placeholder:italic" placeholder="Lore, Season, or Nickname...">
-                                            <input type="number" min="0" value="${m.days}" class="cal-month-days w-full sm:w-1/6 p-2 border border-[#d4c5a9] rounded-sm text-sm outline-none focus:border-red-900 bg-white text-stone-900 font-mono" placeholder="Days">
+                                    <div class="cal-month-row bg-stone-100 p-3 sm:p-4 border border-[#d4c5a9] rounded-sm shadow-sm relative group">
+                                        <div class="absolute right-3 top-3">
+                                            <button type="button" class="text-stone-400 hover:text-red-700 transition" onclick="this.closest('.cal-month-row').remove()" title="Remove Month"><i class="fa-solid fa-trash"></i></button>
                                         </div>
-                                        <button type="button" class="w-full sm:w-auto px-4 py-2 text-stone-400 hover:text-red-700 hover:bg-red-100 rounded-sm transition flex justify-center border border-transparent hover:border-red-200" onclick="this.closest('.cal-month-row').remove()" title="Remove Month"><i class="fa-solid fa-trash"></i></button>
+                                        <div class="flex items-center gap-2 mb-3 cursor-grab text-stone-400 hover:text-stone-600 w-max pr-8">
+                                            <i class="fa-solid fa-bars"></i> <span class="text-[10px] font-bold uppercase tracking-widest">Reorder Month</span>
+                                        </div>
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                                            <div>
+                                                <label class="block text-[9px] uppercase text-stone-500 font-bold tracking-widest mb-1">Name</label>
+                                                <input type="text" value="${mName.replace(/"/g, '&quot;')}" class="cal-month-name w-full p-2 border border-[#d4c5a9] rounded-sm text-sm outline-none focus:border-red-900 bg-white font-bold text-stone-900 shadow-inner" placeholder="e.g. Hammer">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[9px] uppercase text-stone-500 font-bold tracking-widest mb-1">Nickname</label>
+                                                <input type="text" value="${mNick.replace(/"/g, '&quot;')}" class="cal-month-nickname w-full p-2 border border-[#d4c5a9] rounded-sm text-sm outline-none focus:border-red-900 bg-white text-stone-700 shadow-inner" placeholder="e.g. Deepwinter">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[9px] uppercase text-stone-500 font-bold tracking-widest mb-1">Season</label>
+                                                <input type="text" value="${mSeason.replace(/"/g, '&quot;')}" class="cal-month-season w-full p-2 border border-[#d4c5a9] rounded-sm text-sm outline-none focus:border-red-900 bg-white text-stone-700 shadow-inner" placeholder="e.g. Winter">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[9px] uppercase text-stone-500 font-bold tracking-widest mb-1">Days</label>
+                                                <input type="number" min="0" value="${m.days}" class="cal-month-days w-full p-2 border border-[#d4c5a9] rounded-sm text-sm outline-none focus:border-red-900 bg-white text-stone-900 font-mono shadow-inner" placeholder="Days">
+                                            </div>
+                                        </div>
+                                        <div class="space-y-3">
+                                            <div>
+                                                <label class="block text-[9px] uppercase text-stone-500 font-bold tracking-widest mb-1">Lore & Traditions</label>
+                                                <textarea class="cal-month-lore w-full p-2 border border-[#d4c5a9] rounded-sm text-xs sm:text-sm outline-none focus:border-red-900 bg-white text-stone-700 shadow-inner resize-y min-h-[60px]" placeholder="Festivals, celestial alignments, common traditions...">${mLore.replace(/"/g, '&quot;')}</textarea>
+                                            </div>
+                                            <div>
+                                                <label class="block text-[9px] uppercase text-stone-500 font-bold tracking-widest mb-1">General Notes</label>
+                                                <textarea class="cal-month-desc w-full p-2 border border-[#d4c5a9] rounded-sm text-xs sm:text-sm outline-none focus:border-red-900 bg-white text-stone-700 shadow-inner resize-y min-h-[60px]" placeholder="Additional info, weather patterns, DM secrets...">${mDesc.replace(/"/g, '&quot;')}</textarea>
+                                            </div>
+                                        </div>
                                     </div>
                                 `;
                             }).join('')}
                         </div>
-                        <p class="text-[10px] text-stone-500 italic mt-3">Hint: Set a month's days to 0 if it is a leap day that does not occur this year. The Lore box acts as a tooltip on the calendar.</p>
                     </div>
 
                     <!-- External Data Importer -->
