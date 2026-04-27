@@ -27,9 +27,59 @@ export function getCalendarHTML(state) {
         }
     }
 
+    // --- SPANNING & REPEATING CALENDAR MATH ENGINE ---
+    const totalDaysPerYear = cal.months.reduce((sum, m) => sum + (m.days || 0), 0);
+    const getDayOfYear = (mIdx, day) => {
+        let doy = 0;
+        for(let i=0; i<mIdx; i++) doy += (cal.months[i].days || 0);
+        return doy + day;
+    };
+
+    // Pre-flatten all notes to easily filter across year and month boundaries
+    const allNotes = [];
+    Object.entries(cal.notes || {}).forEach(([key, notesArr]) => {
+        if(!Array.isArray(notesArr)) notesArr = [notesArr]; // legacy safety
+        const [yStr, mStr, dStr] = key.split('-');
+        const sy = parseInt(yStr), sm = parseInt(mStr), sd = parseInt(dStr);
+        notesArr.forEach(n => {
+            allNotes.push({ ...n, sy, sm, sd });
+        });
+    });
+
+    const getActiveNotesForDay = (checkYear, checkMonthIdx, checkDay) => {
+        const targetDOY = getDayOfYear(checkMonthIdx, checkDay);
+        
+        return allNotes.filter(n => {
+            const duration = n.duration || 1;
+            const repeats = n.repeatsYearly || false;
+
+            // Simple exact match
+            if (!repeats && n.sy === checkYear && n.sm === checkMonthIdx && n.sd === checkDay) return true;
+
+            // Check math for spans and repeats
+            let startYearsToCheck = [n.sy];
+            if (repeats) {
+                // If it repeats yearly, we treat the current view year (and the previous year, in case it spans over New Year's Eve) as the start years
+                startYearsToCheck = [checkYear - 1, checkYear];
+            }
+
+            for (let checkY of startYearsToCheck) {
+                if (!repeats && checkY !== n.sy) continue;
+
+                const startDOY = getDayOfYear(n.sm, n.sd);
+                let daysDiff = (checkYear - checkY) * totalDaysPerYear + targetDOY - startDOY;
+                
+                if (daysDiff >= 0 && daysDiff < duration) {
+                    return true;
+                }
+            }
+            return false;
+        });
+    };
+
     // --- Visibility Helper ---
     const getVisStatus = (visObj) => {
-        const mode = visObj?.mode || 'public'; // Default public for player convenience, though DM defaults to hidden if missing
+        const mode = visObj?.mode || 'public'; 
         const players = (visObj?.visibleTo || []).join(',');
         let icon = 'fa-eye'; let text = 'Public'; let color = 'text-emerald-600 hover:text-emerald-500';
         if (mode === 'hidden') { icon = 'fa-eye-slash'; text = 'Hidden'; color = 'text-red-700 hover:text-red-600'; }
@@ -51,14 +101,10 @@ export function getCalendarHTML(state) {
     let monthlyNotesCount = 0;
     
     for (let d = 1; d <= activeMonth.days; d++) {
-        const dateKey = `${viewYear}-${safeMonthIdx}-${d}`;
-        let rawNotes = cal.notes ? cal.notes[dateKey] : null;
+        let dayNotes = getActiveNotesForDay(viewYear, safeMonthIdx, d);
         
-        if (rawNotes) {
-            // Backward compatibility
-            if (!Array.isArray(rawNotes)) rawNotes = [{ id: 'legacy', text: rawNotes.text, visibility: rawNotes.visibility, authorId: camp.dmId }];
-            
-            rawNotes.forEach(note => {
+        if (dayNotes.length > 0) {
+            dayNotes.forEach(note => {
                 if (canViewNote(note)) {
                     monthlyNotesCount++;
                     const parsed = window.appActions.parseSmartText(note.text);
@@ -66,12 +112,19 @@ export function getCalendarHTML(state) {
                     const authorName = isAuthorDM ? 'Dungeon Master' : (playerNames[note.authorId] || 'Unknown Player');
                     const authorIcon = isAuthorDM ? '<i class="fa-solid fa-crown text-amber-500 mr-1"></i>' : '<i class="fa-solid fa-feather-pointed text-stone-400 mr-1"></i>';
                     
+                    let badgesHtml = '';
+                    if (note.duration > 1) badgesHtml += `<span class="text-[9px] uppercase tracking-wider font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded-sm shadow-sm" title="Spans ${note.duration} days"><i class="fa-solid fa-arrows-left-right"></i> ${note.duration} Days</span>`;
+                    if (note.repeatsYearly) badgesHtml += `<span class="text-[9px] uppercase tracking-wider font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-sm shadow-sm"><i class="fa-solid fa-rotate-right"></i> Yearly</span>`;
+
                     monthlyNotesHtml += `
                         <div class="mb-4 bg-white border border-[#d4c5a9] rounded-sm shadow-sm overflow-hidden">
-                            <div class="bg-[#f4ebd8] px-3 py-2 border-b border-[#d4c5a9] flex justify-between items-center">
-                                <span class="font-serif font-bold text-amber-900 cursor-pointer hover:underline" onclick="window.appActions.openCalendarDay(${viewYear}, ${safeMonthIdx}, ${d})">
-                                    ${displayMonthName} ${d}, ${viewYear}
-                                </span>
+                            <div class="bg-[#f4ebd8] px-3 py-2 border-b border-[#d4c5a9] flex justify-between items-center flex-wrap gap-2">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-serif font-bold text-amber-900 cursor-pointer hover:underline" onclick="window.appActions.openCalendarDay(${viewYear}, ${safeMonthIdx}, ${d})">
+                                        ${displayMonthName} ${d}, ${viewYear}
+                                    </span>
+                                    ${badgesHtml}
+                                </div>
                                 <span class="text-[10px] uppercase font-bold text-stone-500 tracking-wider flex items-center">
                                     ${authorIcon} Scribed by ${authorName}
                                 </span>
@@ -180,21 +233,17 @@ export function getCalendarHTML(state) {
                     <div style="display: grid; grid-template-columns: repeat(${cal.daysInWeek}, minmax(0, 1fr)); gap: 0.5rem;">
                         ${Array.from({ length: activeMonth.days }).map((_, i) => {
                             const d = i + 1;
-                            const dateKey = `${viewYear}-${safeMonthIdx}-${d}`;
                             const isCurrent = cal.currentYear === viewYear && cal.currentMonth === safeMonthIdx && cal.currentDay === d;
                             
-                            let rawNotes = cal.notes ? cal.notes[dateKey] : null;
-                            if (rawNotes && !Array.isArray(rawNotes)) rawNotes = [rawNotes];
+                            let rawNotes = getActiveNotesForDay(viewYear, safeMonthIdx, d);
                             
                             let visibleCount = 0;
                             let hasHidden = false;
                             
-                            if (rawNotes) {
-                                rawNotes.forEach(n => {
-                                    if (canViewNote(n)) visibleCount++;
-                                    else if (isDM) hasHidden = true;
-                                });
-                            }
+                            rawNotes.forEach(n => {
+                                if (canViewNote(n)) visibleCount++;
+                                else if (isDM) hasHidden = true;
+                            });
                             
                             // Styling
                             let bgClass = "bg-white";
@@ -348,7 +397,6 @@ export function getCalendarHTML(state) {
     // --- DAY INSPECTOR MODAL (MULTIPLE NOTES SUPPORT) ---
     if (state.activeCalendarDate) {
         const { year, monthIndex, day } = state.activeCalendarDate;
-        const dateKey = `${year}-${monthIndex}-${day}`;
         const isCurrent = cal.currentYear === year && cal.currentMonth === monthIndex && cal.currentDay === day;
         
         let modalMonthName = cal.months[monthIndex]?.name || "Unknown";
@@ -356,12 +404,7 @@ export function getCalendarHTML(state) {
             modalMonthName = modalMonthName.split('(')[0].trim();
         }
 
-        let dayNotes = cal.notes ? cal.notes[dateKey] : null;
-        if (dayNotes && !Array.isArray(dayNotes)) {
-            // Hotfix legacy format on display
-            dayNotes = [{ id: 'legacy', text: dayNotes.text, visibility: dayNotes.visibility, authorId: camp.dmId }];
-        }
-        if (!dayNotes) dayNotes = [];
+        let dayNotes = getActiveNotesForDay(year, monthIndex, day);
 
         // Build list of existing visible notes
         let existingNotesHtml = '';
@@ -376,17 +419,25 @@ export function getCalendarHTML(state) {
                 let badgeHtml = `<span class="text-[9px] uppercase tracking-wider font-bold text-stone-400 bg-stone-200 px-1.5 py-0.5 rounded-sm"><i class="fa-solid fa-feather-pointed mr-1"></i> ${authorName}</span>`;
                 if (isAuthorDM) badgeHtml = `<span class="text-[9px] uppercase tracking-wider font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-sm"><i class="fa-solid fa-crown mr-1"></i> ${authorName}</span>`;
 
+                let sourceBadge = '';
+                if (note.sy !== year || note.sm !== monthIndex || note.sd !== day) {
+                    let origMName = cal.months[note.sm]?.name || "Unknown";
+                    if (origMName.includes('(')) origMName = origMName.split('(')[0].trim();
+                    sourceBadge = `<span class="text-[9px] uppercase tracking-wider font-bold text-stone-400 ml-2" title="Original Anchor Date">Anchored: ${origMName} ${note.sd}${!note.repeatsYearly ? `, ${note.sy}` : ''}</span>`;
+                }
+
                 existingNotesHtml += `
                     <div class="mb-4 bg-white border border-[#d4c5a9] rounded-sm shadow-sm overflow-hidden relative group">
                         <div class="bg-[#f4ebd8] px-3 py-1.5 border-b border-[#d4c5a9] flex justify-between items-center">
                             <div class="flex items-center gap-2">
                                 ${badgeHtml}
                                 ${isMyNote ? `<span class="text-[9px] uppercase font-bold tracking-widest ${vis.color}" title="${vis.text}"><i class="fa-solid ${vis.icon}"></i></span>` : ''}
+                                ${sourceBadge}
                             </div>
                             ${isMyNote ? `
                                 <div class="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                                    <button onclick="window.appActions.editCalendarNote('${note.id}')" class="text-[10px] uppercase font-bold tracking-wider text-blue-600 hover:text-blue-800 transition"><i class="fa-solid fa-pen mr-1"></i> Edit</button>
-                                    <button onclick="window.appActions.deleteCalendarNote(${year}, ${monthIndex}, ${day}, '${note.id}')" class="text-[10px] uppercase font-bold tracking-wider text-red-600 hover:text-red-800 transition"><i class="fa-solid fa-trash"></i></button>
+                                    <button onclick="window.appActions.editCalendarNote('${note.id}', ${note.sy}, ${note.sm}, ${note.sd})" class="text-[10px] uppercase font-bold tracking-wider text-blue-600 hover:text-blue-800 transition"><i class="fa-solid fa-pen mr-1"></i> Edit</button>
+                                    <button onclick="window.appActions.deleteCalendarNote(${note.sy}, ${note.sm}, ${note.sd}, '${note.id}')" class="text-[10px] uppercase font-bold tracking-wider text-red-600 hover:text-red-800 transition"><i class="fa-solid fa-trash"></i></button>
                                 </div>
                             ` : ''}
                         </div>
@@ -429,7 +480,11 @@ export function getCalendarHTML(state) {
                     <!-- Add / Edit Note Editor -->
                     <div id="cal-note-editor" class="border-t-2 border-stone-300 pt-6 mt-4">
                         <input type="hidden" id="cal-note-id" value="">
-                        <div class="flex justify-between items-end mb-2">
+                        <input type="hidden" id="cal-note-orig-y" value="">
+                        <input type="hidden" id="cal-note-orig-m" value="">
+                        <input type="hidden" id="cal-note-orig-d" value="">
+
+                        <div class="flex justify-between items-end mb-2 vis-container">
                             <label class="block text-[10px] uppercase text-amber-700 font-bold tracking-widest"><i class="fa-solid fa-feather-pointed mr-1"></i> Scribe a New Note</label>
                             <div class="flex items-center">
                                 <input type="hidden" class="vis-mode-input" value="public"> <!-- Default public for convenience -->
@@ -439,6 +494,50 @@ export function getCalendarHTML(state) {
                                 </button>
                             </div>
                         </div>
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3 border-b border-[#d4c5a9] pb-3 bg-white p-3 rounded-sm shadow-inner">
+                            
+                            <!-- Start Date -->
+                            <div>
+                                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Start Date</label>
+                                <div class="flex items-center gap-1">
+                                    <input type="number" id="cal-note-start-y" value="${year}" class="w-16 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm" title="Year">
+                                    <select id="cal-note-start-m" class="flex-grow p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 shadow-sm" title="Month">
+                                        ${cal.months.map((m, idx) => {
+                                            let mName = m.name;
+                                            if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
+                                            return `<option value="${idx}" ${idx === monthIndex ? 'selected' : ''}>${mName}</option>`;
+                                        }).join('')}
+                                    </select>
+                                    <input type="number" id="cal-note-start-d" value="${day}" class="w-12 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm" title="Day">
+                                </div>
+                            </div>
+
+                            <!-- End Date -->
+                            <div>
+                                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">End Date (Optional)</label>
+                                <div class="flex items-center gap-1">
+                                    <input type="number" id="cal-note-end-y" value="${year}" class="w-16 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm" title="Year">
+                                    <select id="cal-note-end-m" class="flex-grow p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 shadow-sm" title="Month">
+                                        ${cal.months.map((m, idx) => {
+                                            let mName = m.name;
+                                            if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
+                                            return `<option value="${idx}" ${idx === monthIndex ? 'selected' : ''}>${mName}</option>`;
+                                        }).join('')}
+                                    </select>
+                                    <input type="number" id="cal-note-end-d" value="${day}" class="w-12 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm" title="Day">
+                                </div>
+                            </div>
+
+                            <!-- Options -->
+                            <div class="col-span-1 sm:col-span-2 flex items-center justify-between pt-2 border-t border-stone-200 mt-1">
+                                <label class="flex items-center gap-2 cursor-pointer group">
+                                    <input type="checkbox" id="cal-note-repeats" class="w-4 h-4 text-amber-600 rounded-sm border-stone-400 focus:ring-amber-500 cursor-pointer">
+                                    <span class="text-[10px] uppercase text-stone-600 font-bold tracking-widest group-hover:text-amber-700 transition">Repeats Yearly (e.g. Birthdays)</span>
+                                </label>
+                            </div>
+                        </div>
+
                         <textarea id="cal-note-text" class="w-full h-32 bg-white border border-[#d4c5a9] text-stone-900 p-3 text-sm focus:border-amber-600 outline-none resize-none rounded-sm shadow-inner custom-scrollbar font-serif" placeholder="Add your perspective... Codex names link automatically."></textarea>
                         
                         <div class="mt-3 flex justify-end">
