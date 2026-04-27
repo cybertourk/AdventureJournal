@@ -347,14 +347,39 @@ export function updateBudgetUI(totalBudget, totalLoot, remaining, calculatedLoot
 window.filterCodex = function() {
     const input = document.getElementById('codex-search');
     if(!input) return;
-    const query = input.value.toLowerCase();
-    const cards = document.querySelectorAll('.codex-card');
-    cards.forEach(card => {
-        const searchData = card.getAttribute('data-search');
-        if (searchData.includes(query)) {
-            card.style.display = 'flex';
+    const query = input.value.toLowerCase().trim();
+    const folders = document.querySelectorAll('.codex-folder');
+    
+    folders.forEach(folder => {
+        const cards = folder.querySelectorAll('.codex-card');
+        const content = folder.querySelector('.folder-content');
+        const chevron = folder.querySelector('.folder-chevron');
+        const button = folder.querySelector('button');
+        let hasVisibleCard = false;
+
+        cards.forEach(card => {
+            const searchData = card.getAttribute('data-search') || '';
+            if (query === '' || searchData.includes(query)) {
+                card.style.display = 'flex';
+                hasVisibleCard = true;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+
+        if (query !== '') {
+            // If searching, hide empty folders, expand folders with results
+            if (hasVisibleCard) {
+                folder.style.display = 'block';
+                content.classList.remove('hidden');
+                chevron.classList.add('rotate-180');
+                button.classList.add('border-stone-700');
+            } else {
+                folder.style.display = 'none';
+            }
         } else {
-            card.style.display = 'none';
+            // If search is cleared, show all folders again
+            folder.style.display = 'block';
         }
     });
 };
