@@ -495,46 +495,58 @@ export function getCalendarHTML(state) {
                             </div>
                         </div>
                         
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3 border-b border-[#d4c5a9] pb-3 bg-white p-3 rounded-sm shadow-inner">
+                        <div class="grid grid-cols-1 gap-3 mb-3 border-b border-[#d4c5a9] pb-3 bg-white p-3 rounded-sm shadow-inner">
                             
                             <!-- Start Date -->
                             <div>
                                 <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Start Date</label>
                                 <div class="flex items-center gap-1">
-                                    <input type="number" id="cal-note-start-y" value="${year}" class="w-16 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm" title="Year">
-                                    <select id="cal-note-start-m" onchange="window.updateDayOptions(this.value, 'cal-note-start-d')" class="flex-grow p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 shadow-sm" title="Month">
+                                    <input type="number" id="cal-note-start-y" value="${year}" onchange="window.appActions.syncCalendarNoteDates('startdate')" class="w-16 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm" title="Year">
+                                    <select id="cal-note-start-m" onchange="window.updateDayOptions(this.value, 'cal-note-start-d'); window.appActions.syncCalendarNoteDates('startdate')" class="flex-grow p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 shadow-sm" title="Month">
                                         ${cal.months.map((m, idx) => {
                                             let mName = m.name;
                                             if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
                                             return `<option value="${idx}" ${idx === monthIndex ? 'selected' : ''}>${mName}</option>`;
                                         }).join('')}
                                     </select>
-                                    <select id="cal-note-start-d" class="w-14 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm" title="Day">
+                                    <select id="cal-note-start-d" onchange="window.appActions.syncCalendarNoteDates('startdate')" class="w-14 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm" title="Day">
                                         ${Array.from({ length: Math.max(1, cal.months[monthIndex].days) }).map((_, i) => `<option value="${i+1}" ${i+1 === day ? 'selected' : ''}>${i+1}</option>`).join('')}
                                     </select>
                                 </div>
                             </div>
 
-                            <!-- End Date -->
-                            <div>
-                                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">End Date (Optional)</label>
-                                <div class="flex items-center gap-1">
-                                    <input type="number" id="cal-note-end-y" value="${year}" class="w-16 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm" title="Year">
-                                    <select id="cal-note-end-m" onchange="window.updateDayOptions(this.value, 'cal-note-end-d')" class="flex-grow p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 shadow-sm" title="Month">
-                                        ${cal.months.map((m, idx) => {
-                                            let mName = m.name;
-                                            if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
-                                            return `<option value="${idx}" ${idx === monthIndex ? 'selected' : ''}>${mName}</option>`;
-                                        }).join('')}
-                                    </select>
-                                    <select id="cal-note-end-d" class="w-14 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm" title="Day">
-                                        ${Array.from({ length: Math.max(1, cal.months[monthIndex].days) }).map((_, i) => `<option value="${i+1}" ${i+1 === day ? 'selected' : ''}>${i+1}</option>`).join('')}
-                                    </select>
+                            <!-- Duration & End Date synced logic -->
+                            <div class="flex flex-col sm:flex-row gap-3 sm:items-end bg-stone-50 p-2 border border-stone-200 rounded-sm">
+                                <div>
+                                    <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Duration</label>
+                                    <div class="flex items-center gap-1">
+                                        <input type="number" id="cal-note-duration" value="1" min="1" oninput="window.appActions.syncCalendarNoteDates('duration')" class="w-16 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm" title="Days">
+                                        <span class="text-[10px] uppercase text-stone-500 font-bold tracking-widest ml-1">Days</span>
+                                    </div>
+                                </div>
+                                <div class="hidden sm:flex items-center pb-2 px-1">
+                                    <span class="text-[10px] uppercase text-stone-400 font-bold tracking-widest">OR</span>
+                                </div>
+                                <div class="flex-grow">
+                                    <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">End Date</label>
+                                    <div class="flex items-center gap-1">
+                                        <input type="number" id="cal-note-end-y" value="${year}" onchange="window.appActions.syncCalendarNoteDates('enddate')" class="w-16 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm" title="Year">
+                                        <select id="cal-note-end-m" onchange="window.updateDayOptions(this.value, 'cal-note-end-d'); window.appActions.syncCalendarNoteDates('enddate')" class="flex-grow p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 shadow-sm" title="Month">
+                                            ${cal.months.map((m, idx) => {
+                                                let mName = m.name;
+                                                if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
+                                                return `<option value="${idx}" ${idx === monthIndex ? 'selected' : ''}>${mName}</option>`;
+                                            }).join('')}
+                                        </select>
+                                        <select id="cal-note-end-d" onchange="window.appActions.syncCalendarNoteDates('enddate')" class="w-14 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm" title="Day">
+                                            ${Array.from({ length: Math.max(1, cal.months[monthIndex].days) }).map((_, i) => `<option value="${i+1}" ${i+1 === day ? 'selected' : ''}>${i+1}</option>`).join('')}
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
 
                             <!-- Options -->
-                            <div class="col-span-1 sm:col-span-2 flex items-center justify-between pt-2 border-t border-stone-200 mt-1">
+                            <div class="flex items-center justify-between pt-1 border-t border-stone-200">
                                 <label class="flex items-center gap-2 cursor-pointer group">
                                     <input type="checkbox" id="cal-note-repeats" class="w-4 h-4 text-amber-600 rounded-sm border-stone-400 focus:ring-amber-500 cursor-pointer">
                                     <span class="text-[10px] uppercase text-stone-600 font-bold tracking-widest group-hover:text-amber-700 transition">Repeats Yearly (e.g. Birthdays)</span>
