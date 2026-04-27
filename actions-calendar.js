@@ -137,6 +137,11 @@ export const saveCalendarNote = async () => {
     const container = document.getElementById('cal-note-editor');
     const textInput = document.getElementById('cal-note-text');
     const noteIdInput = document.getElementById('cal-note-id');
+    const origYInput = document.getElementById('cal-note-orig-y');
+    const origMInput = document.getElementById('cal-note-orig-m');
+    const origDInput = document.getElementById('cal-note-orig-d');
+    const durationInput = document.getElementById('cal-note-duration');
+    const repeatsInput = document.getElementById('cal-note-repeats');
     
     // Grab visibility from the hidden DOM inputs controlled by the global Fog of War menu
     const modeInput = container?.querySelector('.vis-mode-input');
@@ -144,7 +149,16 @@ export const saveCalendarNote = async () => {
 
     if (!textInput || textInput.value.trim() === '') return;
 
-    const dateKey = `${date.year}-${date.monthIndex}-${date.day}`;
+    // Determine the true anchor date (important for editing spanning/repeating notes)
+    let anchorY = date.year;
+    let anchorM = date.monthIndex;
+    let anchorD = date.day;
+
+    if (origYInput && origYInput.value !== '') anchorY = parseInt(origYInput.value);
+    if (origMInput && origMInput.value !== '') anchorM = parseInt(origMInput.value);
+    if (origDInput && origDInput.value !== '') anchorD = parseInt(origDInput.value);
+
+    const dateKey = `${anchorY}-${anchorM}-${anchorD}`;
     const text = textInput.value.trim();
     const noteId = noteIdInput?.value || generateId();
 
@@ -167,7 +181,9 @@ export const saveCalendarNote = async () => {
             mode: modeInput ? modeInput.value : 'public',
             visibleTo: playersInput && playersInput.value ? playersInput.value.split(',') : []
         },
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        duration: durationInput ? parseInt(durationInput.value) || 1 : 1,
+        repeatsYearly: repeatsInput ? repeatsInput.checked : false
     };
 
     if (existingNoteIndex >= 0) {
@@ -183,19 +199,29 @@ export const saveCalendarNote = async () => {
     // Clear the editor inputs to allow adding another note immediately
     if (textInput) textInput.value = '';
     if (noteIdInput) noteIdInput.value = '';
+    if (origYInput) origYInput.value = '';
+    if (origMInput) origMInput.value = '';
+    if (origDInput) origDInput.value = '';
+    if (durationInput) durationInput.value = '1';
+    if (repeatsInput) repeatsInput.checked = false;
     
     await saveCampaign(camp);
     notify("Chronicle inscribed.", "success");
     reRender(); // Re-render to show the newly added note in the modal list
 };
 
-export const editCalendarNote = (noteId) => {
+export const editCalendarNote = (noteId, anchorYear, anchorMonth, anchorDay) => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
-    const date = window.appData.activeCalendarDate;
+    const date = window.appData.activeCalendarDate; // The day currently being viewed
     if (!camp || !date) return;
 
-    const dateKey = `${date.year}-${date.monthIndex}-${date.day}`;
+    // Load from the anchor date (where the note actually lives), fallback to active date for legacy
+    let targetY = anchorYear !== undefined ? anchorYear : date.year;
+    let targetM = anchorMonth !== undefined ? anchorMonth : date.monthIndex;
+    let targetD = anchorDay !== undefined ? anchorDay : date.day;
+
+    const dateKey = `${targetY}-${targetM}-${targetD}`;
     const dayNotes = camp.calendar.notes[dateKey] || [];
     
     // Backward compatibility
@@ -211,11 +237,25 @@ export const editCalendarNote = (noteId) => {
     const container = document.getElementById('cal-note-editor');
     const textInput = document.getElementById('cal-note-text');
     const noteIdInput = document.getElementById('cal-note-id');
+    const origYInput = document.getElementById('cal-note-orig-y');
+    const origMInput = document.getElementById('cal-note-orig-m');
+    const origDInput = document.getElementById('cal-note-orig-d');
+    const durationInput = document.getElementById('cal-note-duration');
+    const repeatsInput = document.getElementById('cal-note-repeats');
+    
     const modeInput = container?.querySelector('.vis-mode-input');
     const playersInput = container?.querySelector('.vis-players-input');
 
     if (textInput) textInput.value = targetNote.text;
     if (noteIdInput) noteIdInput.value = targetNote.id || 'legacy';
+    
+    if (origYInput) origYInput.value = targetY;
+    if (origMInput) origMInput.value = targetM;
+    if (origDInput) origDInput.value = targetD;
+    
+    if (durationInput) durationInput.value = targetNote.duration || 1;
+    if (repeatsInput) repeatsInput.checked = targetNote.repeatsYearly || false;
+
     if (modeInput) modeInput.value = targetNote.visibility?.mode || 'public';
     if (playersInput) playersInput.value = (targetNote.visibility?.visibleTo || []).join(',');
 
@@ -235,14 +275,14 @@ export const editCalendarNote = (noteId) => {
     container?.scrollIntoView({ behavior: 'smooth' });
 };
 
-export const deleteCalendarNote = async (year, monthIndex, day, noteId) => {
+export const deleteCalendarNote = async (anchorYear, anchorMonth, anchorDay, noteId) => {
     if (!confirm("Are you sure you want to delete this historical note?")) return;
     
     updateDerivedState();
     const camp = window.appData.activeCampaign;
     if (!camp || !camp.calendar || !camp.calendar.notes) return;
 
-    const dateKey = `${year}-${monthIndex}-${day}`;
+    const dateKey = `${anchorYear}-${anchorMonth}-${anchorDay}`;
     let dayNotes = camp.calendar.notes[dateKey];
 
     // Backward compatibility & array filtering
@@ -364,7 +404,9 @@ export const importFoundryCalendarNotes = async (event) => {
                     text: combinedText,
                     authorId: camp.dmId,
                     visibility: { mode: 'public' }, // Imported notes default to public
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    duration: 1,
+                    repeatsYearly: false // Foundry simple calendar repeat mapping is too complex to parse safely here, so we default to false.
                 });
 
                 camp.calendar.notes[dateKey] = dayNotes;
