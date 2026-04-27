@@ -1,490 +1,657 @@
-import { generateId, updateDerivedState } from './state.js';
-import { saveCampaign, notify } from './firebase-manager.js';
-import { generateSessionMarkdown, generateAdventureMarkdown, generateCampaignMarkdown } from './markdown.js';
+export function getCalendarHTML(state) {
+    const camp = state.activeCampaign;
+    if (!camp || !camp.calendar) return '';
 
-// --- Smart Text & Codex Interactions ---
-
-// Core security helper to ensure players only link/see what they are allowed to see
-export const _canViewCodex = (id) => {
-    const camp = window.appData.activeCampaign;
-    if (!camp) return false;
-    if (camp._isDM) return true; // DM sees everything
-    const myUid = window.appData.currentUserUid;
-
-    // 1. Is it a PC owned by the player?
-    const isHeroOwner = camp.playerCharacters?.some(p => p.id === id && p.playerId === myUid);
-    if (isHeroOwner) return true;
-
-    // 2. Look for formal codex entry
-    const entry = camp.codex?.find(c => c.id === id);
-
-    // 3. If there is no formal codex entry but it is a PC, default to public
-    if (!entry && camp.playerCharacters?.some(p => p.id === id)) return true;
-
-    if (entry) {
-        const vis = entry.visibility || { mode: 'public' };
-        if (vis.mode === 'public') return true;
-        if (vis.mode === 'specific' && vis.visibleTo?.includes(myUid)) return true;
-    }
-
-    return false; // Otherwise, locked down!
-};
-
-export const parseSmartText = (text) => {
-    if (!text) return "";
-    let safeText = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-    // --- 1. PARSE MARKDOWN FORMATTING ---
-    // Enhanced Headings and Dividers to perfectly support the markdown generator outputs
-    safeText = safeText.replace(/^#### (.*?)$/gim, '<h4 class="text-sm font-bold mt-4 mb-1 text-stone-800">$1</h4>');
-    safeText = safeText.replace(/^### (.*?)$/gim, '<h3 class="text-base font-bold mt-5 mb-2 text-stone-900 border-b border-[#d4c5a9] pb-1">$1</h3>');
-    safeText = safeText.replace(/^## (.*?)$/gim, '<h2 class="text-lg font-bold mt-6 mb-2 text-stone-900 border-b-2 border-stone-400 pb-1">$1</h2>');
-    safeText = safeText.replace(/^# (.*?)$/gim, '<h1 class="text-xl font-bold mt-6 mb-3 text-red-900 uppercase tracking-wider border-b-2 border-red-900 pb-2">$1</h1>');
-    safeText = safeText.replace(/^---$/gim, '<hr class="my-4 border-[#d4c5a9]">');
-
-    // Lists
-    safeText = safeText.replace(/^- (.*?)$/gim, '<li class="ml-4 list-disc marker:text-stone-400">$1</li>');
-
-    // Bold, Underline, Italic (Safari Safe)
-    safeText = safeText.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-stone-900">$1</strong>');
-    safeText = safeText.replace(/__(.*?)__/g, '<u class="underline decoration-stone-400 underline-offset-2">$1</u>');
-    safeText = safeText.replace(/(^|[^\w])\*(.*?)\*(?!\w)/g, '$1<em class="italic text-stone-800">$2</em>');
-    safeText = safeText.replace(/\b_(.*?)_\b/g, '<em class="italic text-stone-800">$1</em>');
-
-    // --- 2. PARSE CODEX LINKS (SAFARI COMPATIBLE, ALIAS SUPPORT & FOG OF WAR PROTECTED) ---
-    // We sort by length descending. This guarantees we match "Corval Shaedmokker" before matching just "Corval"
-    // to prevent nesting links incorrectly!
-    const sortedCache = [...window.appData.codexCache].sort((a,b) => b.text.length - a.text.length);
-
-    if (sortedCache.length > 0) {
-        // Build one massive regex pattern that matches ANY of our known aliases or full names
-        const escapedNames = sortedCache.map(e => e.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-        const massiveRegex = new RegExp(`\\b(${escapedNames.join('|')})\\b`, 'gi');
-
-        // Split the text by HTML tags to safely ONLY run our Regex replacement on plain text nodes
-        let parts = safeText.split(/(<[^>]+>)/g);
-        for (let i = 0; i < parts.length; i++) {
-            if (parts[i].startsWith('<') && parts[i].endsWith('>')) continue;
-            parts[i] = parts[i].replace(massiveRegex, (match) => {
-                const entry = sortedCache.find(e => e.text.toLowerCase() === match.toLowerCase());
-                // SECURITY CHECK: Only generate a link if the current user has permission to see the entry!
-                if (entry && _canViewCodex(entry.id)) {
-                    return `<span class="codex-link" onclick="window.appActions.viewCodex('${entry.id}')">${match}</span>`;
-                }
-                return match; // If hidden, return plain unclickable text
-            });
-        }
-        safeText = parts.join('');
-    }
-
-    // --- 3. LINE BREAKS ---
-    safeText = safeText.replace(/\n/g, '<br>');
-
-    // Cleanup trailing tags immediately following block elements
-    safeText = safeText.replace(/<\/h1><br>/g, '</h1>');
-    safeText = safeText.replace(/<\/h2><br>/g, '</h2>');
-    safeText = safeText.replace(/<\/h3><br>/g, '</h3>');
-    safeText = safeText.replace(/<\/h4><br>/g, '</h4>');
-    safeText = safeText.replace(/<\/li><br>/g, '</li>');
-    safeText = safeText.replace(/(<hr[^>]*>)<br>/g, '$1');
-
-    return safeText;
-};
-
-export const handleSmartInput = (textarea) => {
-    window.appData.activeSmartTextarea = textarea;
-    const text = textarea.value;
-    const cursorPos = textarea.selectionStart;
-
-    // Extract the last 40 characters before cursor to process auto-complete
-    const textBefore = text.substring(Math.max(0, cursorPos - 40), cursorPos);
+    const isDM = camp._isDM;
+    const myUid = state.currentUserUid;
+    const cal = camp.calendar;
+    const playerNames = camp.playerNames || {};
     
-    let bestMatches = [];
-    let matchLength = 0;
+    const viewYear = state.calendarViewYear !== undefined ? state.calendarViewYear : cal.currentYear;
+    const viewMonthIdx = state.calendarViewMonth !== undefined ? state.calendarViewMonth : cal.currentMonth;
+    
+    // Safety fallback if months got deleted
+    const safeMonthIdx = Math.max(0, Math.min(viewMonthIdx, cal.months.length - 1));
+    const activeMonth = cal.months[safeMonthIdx] || { name: "Unknown", days: 0 };
+    
+    // Clean Month Name
+    let displayMonthName = activeMonth.name;
+    let hasExtraInfo = activeMonth.nickname || activeMonth.lore || activeMonth.description || activeMonth.season;
 
-    const sortedCache = [...window.appData.codexCache].sort((a,b) => b.text.length - a.text.length);
+    // Backward compatibility for old format "Hammer (Deepwinter)"
+    if (activeMonth.lore === undefined && activeMonth.nickname === undefined) {
+        const parenMatch = displayMonthName.match(/(.*?)\s*\((.*?)\)/);
+        if (parenMatch) {
+            displayMonthName = parenMatch[1].trim();
+            hasExtraInfo = true;
+        }
+    }
 
-    for (let entry of sortedCache) {
-        // SECURITY CHECK: Do not suggest hidden codex entries in the autocomplete box
-        if (!_canViewCodex(entry.id)) continue;
+    // --- SPANNING & REPEATING CALENDAR MATH ENGINE ---
+    const totalDaysPerYear = cal.months.reduce((sum, m) => sum + m.days, 0);
+    const getDayOfYear = (mIdx, day) => {
+        let doy = 0;
+        for(let i=0; i<mIdx; i++) doy += cal.months[i].days;
+        return doy + day;
+    };
 
-        const lowerName = entry.text.toLowerCase();
-        // Check substrings from 3 chars up to the full length of the codex name
-        for (let i = 3; i <= entry.text.length; i++) {
-            const prefix = lowerName.substring(0, i);
-            if (textBefore.toLowerCase().endsWith(prefix)) {
-                // Ensure we are matching from the start of a word to prevent spam
-                const charBeforeMatch = textBefore.charAt(textBefore.length - i - 1);
-                if (textBefore.length === i || /[ \n\t]/.test(charBeforeMatch)) {
-                    if (i > matchLength) {
-                        matchLength = i;
-                        bestMatches = [entry.text];
-                    } else if (i === matchLength && !bestMatches.includes(entry.text)) {
-                        bestMatches.push(entry.text);
-                    }
+    // Pre-flatten all notes to easily filter across year and month boundaries
+    const allNotes = [];
+    Object.entries(cal.notes || {}).forEach(([key, notesArr]) => {
+        if(!Array.isArray(notesArr)) notesArr = [notesArr]; // legacy safety
+        const [yStr, mStr, dStr] = key.split('-');
+        const sy = parseInt(yStr), sm = parseInt(mStr), sd = parseInt(dStr);
+        notesArr.forEach(n => {
+            allNotes.push({ ...n, sy, sm, sd });
+        });
+    });
+
+    const getActiveNotesForDay = (checkYear, checkMonthIdx, checkDay) => {
+        const targetDOY = getDayOfYear(checkMonthIdx, checkDay);
+        
+        return allNotes.filter(n => {
+            const duration = n.duration || 1;
+            const repeats = n.repeatsYearly || false;
+
+            // Simple exact match
+            if (!repeats && n.sy === checkYear && n.sm === checkMonthIdx && n.sd === checkDay) return true;
+
+            // Check math for spans and repeats
+            let startYearsToCheck = [n.sy];
+            if (repeats) {
+                // If it repeats yearly, we treat the current view year (and the previous year, in case it spans over New Year's Eve) as the start years
+                startYearsToCheck = [checkYear - 1, checkYear];
+            }
+
+            for (let checkY of startYearsToCheck) {
+                if (!repeats && checkY !== n.sy) continue;
+
+                const startDOY = getDayOfYear(n.sm, n.sd);
+                let daysDiff = (checkYear - checkY) * totalDaysPerYear + targetDOY - startDOY;
+                
+                if (daysDiff >= 0 && daysDiff < duration) {
+                    return true;
                 }
             }
+            return false;
+        });
+    };
+
+    // --- Visibility Helper ---
+    const getVisStatus = (visObj) => {
+        const mode = visObj?.mode || 'public'; 
+        const players = (visObj?.visibleTo || []).join(',');
+        let icon = 'fa-eye'; let text = 'Public'; let color = 'text-emerald-600 hover:text-emerald-500';
+        if (mode === 'hidden') { icon = 'fa-eye-slash'; text = 'Hidden'; color = 'text-red-700 hover:text-red-600'; }
+        else if (mode === 'specific') { icon = 'fa-user-lock'; text = 'Shared'; color = 'text-blue-600 hover:text-blue-500'; }
+        return { mode, players, icon, text, color };
+    };
+
+    const canViewNote = (note) => {
+        if (isDM || note.authorId === myUid) return true;
+        if (note.visibility) {
+            if (note.visibility.mode === 'public') return true;
+            if (note.visibility.mode === 'specific' && note.visibility.visibleTo.includes(myUid)) return true;
         }
-    }
+        return false;
+    };
 
-    if (bestMatches.length > 0 && bestMatches.length <= 5) {
-        const typedWord = textBefore.substring(textBefore.length - matchLength).toLowerCase();
-        const isExactAliasMatch = window.appData.codexCache.some(c => c.text.toLowerCase() === typedWord);
-        
-        // If what they typed perfectly matches an existing alias/short name (e.g. "Corval"), hide the annoying box!
-        if (isExactAliasMatch) {
-            document.getElementById('autocomplete-suggestions').style.display = 'none';
-            return;
-        }
-
-        _showSuggestions(bestMatches, textarea, cursorPos, matchLength);
-        return;
-    }
-
-    document.getElementById('autocomplete-suggestions').style.display = 'none';
-};
-
-export const _showSuggestions = (matches, inputEl, cursor, triggerLen) => {
-    const suggestions = document.getElementById('autocomplete-suggestions');
-    if(!suggestions) return;
+    // --- Chronological Monthly Notes Builder ---
+    let monthlyNotesHtml = '';
+    let monthlyNotesCount = 0;
     
-    suggestions.innerHTML = '';
-    const rect = inputEl.getBoundingClientRect();
-    suggestions.style.left = (rect.left + window.scrollX + 20) + 'px';
-    suggestions.style.top = (rect.top + window.scrollY + 30) + 'px';
-    suggestions.style.display = 'block';
+    for (let d = 1; d <= activeMonth.days; d++) {
+        let dayNotes = getActiveNotesForDay(viewYear, safeMonthIdx, d);
+        
+        if (dayNotes.length > 0) {
+            dayNotes.forEach(note => {
+                if (canViewNote(note)) {
+                    monthlyNotesCount++;
+                    const parsed = window.appActions.parseSmartText(note.text);
+                    const isAuthorDM = note.authorId === camp.dmId || !note.authorId;
+                    const authorName = isAuthorDM ? 'Dungeon Master' : (playerNames[note.authorId] || 'Unknown Player');
+                    const authorIcon = isAuthorDM ? '<i class="fa-solid fa-crown text-amber-500 mr-1"></i>' : '<i class="fa-solid fa-feather-pointed text-stone-400 mr-1"></i>';
+                    
+                    let badgesHtml = '';
+                    if (note.duration > 1) badgesHtml += `<span class="text-[9px] uppercase tracking-wider font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded-sm shadow-sm" title="Spans ${note.duration} days"><i class="fa-solid fa-arrows-left-right"></i> ${note.duration} Days</span>`;
+                    if (note.repeatsYearly) badgesHtml += `<span class="text-[9px] uppercase tracking-wider font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-sm shadow-sm"><i class="fa-solid fa-rotate-right"></i> Yearly</span>`;
 
-    matches.forEach(m => {
-        const div = document.createElement('div');
-        div.className = "autocomplete-item";
-        div.innerText = m;
-        div.onmousedown = (e) => {
-            e.preventDefault();
-            const text = inputEl.value;
-            const before = text.substring(0, cursor - triggerLen);
-            const after = text.substring(cursor);
-            inputEl.value = before + m + after;
-            suggestions.style.display = 'none';
-        };
-        suggestions.appendChild(div);
-    });
-};
-
-export const viewCodex = (id) => {
-    // SECURITY CHECK: Final hard block if someone explicitly triggers viewCodex on a hidden ID
-    if (!_canViewCodex(id)) {
-        notify("The contents of this entry are sealed.", "error");
-        return;
+                    monthlyNotesHtml += `
+                        <div class="mb-4 bg-white border border-[#d4c5a9] rounded-sm shadow-sm overflow-hidden">
+                            <div class="bg-[#f4ebd8] px-3 py-2 border-b border-[#d4c5a9] flex justify-between items-center flex-wrap gap-2">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-serif font-bold text-amber-900 cursor-pointer hover:underline" onclick="window.appActions.openCalendarDay(${viewYear}, ${safeMonthIdx}, ${d})">
+                                        ${displayMonthName} ${d}, ${viewYear}
+                                    </span>
+                                    ${badgesHtml}
+                                </div>
+                                <span class="text-[10px] uppercase font-bold text-stone-500 tracking-wider flex items-center">
+                                    ${authorIcon} Scribed by ${authorName}
+                                </span>
+                            </div>
+                            <div class="p-4 text-sm text-stone-800 font-serif leading-relaxed">
+                                ${parsed}
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+        }
     }
 
-    updateDerivedState();
-    const camp = window.appData.activeCampaign;
-    let entry = (camp?.codex || []).find(c => c.id === id);
-
-    // Fallback for Legacy PCs that don't have a generated codex entry yet
-    if (!entry && camp?.playerCharacters?.some(p => p.id === id)) {
-        const pc = camp.playerCharacters.find(p => p.id === id);
-        entry = {
-            id: pc.id,
-            name: pc.name,
-            type: 'PC',
-            tags: ['Hero', pc.race, pc.classLevel].filter(Boolean),
-            desc: 'Rumors and public knowledge surrounding this hero are yet to be penned.',
-            visibility: { mode: 'public' },
-            image: pc.image || ""
-        };
-    }
-
-    if (!entry) {
-        notify("Codex entry not found.", "error");
-        return;
-    }
-    _openCodexModal(entry);
-};
-
-export const _openCodexModal = (entry) => {
-    updateDerivedState();
-    const camp = window.appData.activeCampaign;
-    const container = document.getElementById('global-popup-container');
-    if (!container || !camp) return;
-
-    const isNew = entry.isNew || !entry.id;
-    const id = entry.id || "";
-    const name = entry.name || "";
-    const type = entry.type || "NPC";
-    const desc = entry.desc || "";
-    const tags = entry.tags ? entry.tags.join(', ') : "";
-    const image = entry.image || "";
-
-    // Check editing permissions
-    const isDM = camp._isDM;
-    const myUid = window.appData.currentUserUid;
-    const linkedPC = camp.playerCharacters?.find(p => p.id === id);
-    const isHeroOwner = linkedPC && linkedPC.playerId === myUid;
-    const canEdit = isDM || isHeroOwner;
-    const canDelete = isDM && !linkedPC; // Core Hero profiles can only be deleted via the PC manager
-
-    const viewHidden = isNew ? "hidden" : "";
-    const editHidden = isNew ? "" : "hidden";
-
-    let tagsHTML = `<span class="codex-tag">${type}</span>`;
-    if (entry.tags) {
-        tagsHTML += entry.tags.map(t => `<span class="codex-tag">${t}</span>`).join('');
-    }
-
-    const resolvedImage = image || (linkedPC ? linkedPC.image : "");
-    const imgHTML = resolvedImage ? `<div class="mb-4 w-full h-48 sm:h-64 bg-stone-900 border border-[#d4c5a9] rounded-sm overflow-hidden shadow-inner"><img src="${resolvedImage}" class="w-full h-full object-contain" alt="${name}" onerror="this.style.display='none'"></div>` : '';
-
-    // --- DYNAMIC HERO INJECTION ---
-    let pcDataHTML = '';
-    if (linkedPC) {
-        const parsedApp = linkedPC.appearance ? parseSmartText(linkedPC.appearance) : '<span class="text-stone-400 italic">No appearance recorded...</span>';
-        pcDataHTML = `
-            <div class="mb-4 bg-white border border-[#d4c5a9] p-3 rounded-sm shadow-inner text-sm">
-                <h4 class="font-bold text-red-900 border-b border-[#d4c5a9] pb-1 mb-2">Characteristics</h4>
-                <div class="grid grid-cols-2 gap-2 text-xs text-stone-700 mb-3">
-                    <div><span class="font-bold text-stone-900">Gender:</span> ${linkedPC.gender || '--'}</div>
-                    <div><span class="font-bold text-stone-900">Age:</span> ${linkedPC.age || '--'}</div>
-                    <div><span class="font-bold text-stone-900">Size:</span> ${linkedPC.size || '--'}</div>
-                    <div><span class="font-bold text-stone-900">Height:</span> ${linkedPC.height || '--'}</div>
-                    <div><span class="font-bold text-stone-900">Weight:</span> ${linkedPC.weight || '--'}</div>
-                    <div><span class="font-bold text-stone-900">Eyes:</span> ${linkedPC.eyes || '--'}</div>
-                    <div><span class="font-bold text-stone-900">Hair:</span> ${linkedPC.hair || '--'}</div>
-                    <div><span class="font-bold text-stone-900">Skin:</span> ${linkedPC.skin || '--'}</div>
-                </div>
-                <h4 class="font-bold text-red-900 border-b border-[#d4c5a9] pb-1 mb-2">Appearance</h4>
-                <div class="text-stone-800 text-sm leading-relaxed">${parsedApp}</div>
+    if (monthlyNotesCount === 0) {
+        monthlyNotesHtml = `
+            <div class="text-center p-8 bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm shadow-sm">
+                <i class="fa-solid fa-wind text-3xl text-stone-300 mb-3"></i>
+                <p class="text-stone-500 italic text-sm font-serif">The winds of time hold no records for this month.</p>
             </div>
         `;
     }
 
-    const parsedDesc = desc ? parseSmartText(desc) : '<span class="text-stone-400 italic">No entries found...</span>';
-    const descLabel = linkedPC ? "Public Knowledge (Rumors & Repute)" : "Description";
-    const descPlaceholder = linkedPC ? "What do people know about this hero? Scribe their rumors, repute, and public knowledge..." : "Description... Codex names link automatically.";
-
-    container.innerHTML = `
-        <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-50 backdrop-blur-sm animate-in">
-            <div class="bg-[#f4ebd8] rounded-sm shadow-2xl w-full max-w-lg border border-[#d4c5a9] overflow-hidden flex flex-col max-h-[90vh]">
-                
-                <!-- Header -->
-                <div class="bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-[#292524] p-4 flex justify-between items-center border-b-2 border-red-900 shadow-md">
-                    <div class="flex items-center gap-3">
-                        <i class="fa-solid fa-book-journal-whills text-amber-500 text-xl"></i>
-                        <div>
-                            <h2 class="text-lg font-serif font-bold text-amber-50 leading-tight">Codex Entry</h2>
-                            <p class="text-stone-400 text-[10px] uppercase tracking-widest font-bold">${linkedPC ? 'Hero Profile' : 'Knowledge Base'}</p>
-                        </div>
-                    </div>
-                    <div class="flex gap-2">
-                        ${(!isNew && canEdit) ? `<button id="cx-edit-btn" class="w-8 h-8 rounded bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 transition flex items-center justify-center" title="Edit Entry"><i class="fa-solid fa-pen-nib"></i></button>` : ''}
-                        <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="w-8 h-8 rounded bg-stone-800 text-stone-300 hover:text-red-400 hover:bg-stone-700 transition flex items-center justify-center"><i class="fa-solid fa-times"></i></button>
-                    </div>
+    // --- MAIN CALENDAR VIEW ---
+    let html = `
+    <div class="animate-in fade-in duration-300 max-w-5xl mx-auto pb-20">
+        <!-- Header -->
+        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-6 sm:mb-8 gap-4 border-b-2 border-stone-800 pb-4">
+            <div class="w-full lg:w-auto">
+                <h2 class="text-2xl sm:text-3xl md:text-4xl font-serif font-bold text-amber-500 leading-tight">Chronicle</h2>
+                <div class="flex items-center flex-wrap gap-3 mt-2">
+                    <p class="text-stone-400 text-xs sm:text-sm font-sans flex items-center">
+                        <i class="fa-solid fa-calendar-days mr-2"></i> ${cal.name}
+                    </p>
+                    <button onclick="window.appActions.openCalendarLore()" class="text-[10px] font-bold uppercase tracking-widest text-amber-600 hover:text-amber-500 transition border border-amber-700/50 bg-amber-900/20 px-2 py-0.5 rounded-sm flex items-center shadow-sm">
+                        <i class="fa-solid fa-book-journal-whills mr-1.5"></i> Lore
+                    </button>
                 </div>
+            </div>
 
-                <!-- View Mode -->
-                <div id="cx-view-mode" class="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-grow bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] ${viewHidden}">
-                    ${imgHTML}
-                    <div class="mb-4">
-                        <h3 class="text-2xl font-serif font-bold text-stone-900">${name}</h3>
-                        <div class="mt-2">${tagsHTML}</div>
-                    </div>
-                    ${pcDataHTML}
-                    <h4 class="font-bold text-red-900 border-b border-[#d4c5a9] pb-1 mb-2">${descLabel}</h4>
-                    <div class="text-stone-800 text-sm leading-relaxed">${parsedDesc}</div>
+            <!-- Global Dropdown Navigation -->
+            <div class="flex flex-wrap gap-2 w-full lg:w-auto items-center bg-stone-900 p-2 sm:p-3 rounded-sm border border-stone-700 shadow-inner">
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <input type="number" id="jump-year" value="${viewYear}" class="w-20 p-1.5 sm:p-2 bg-stone-800 text-amber-50 text-xs sm:text-sm border border-stone-600 rounded-sm outline-none focus:border-amber-600 font-bold text-center">
+                    <select id="jump-month" class="flex-grow sm:w-32 p-1.5 sm:p-2 bg-stone-800 text-amber-50 text-xs sm:text-sm border border-stone-600 rounded-sm outline-none focus:border-amber-600 font-bold">
+                        ${cal.months.map((m, idx) => {
+                            let mName = m.name;
+                            if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
+                            return `<option value="${idx}" ${idx === safeMonthIdx ? 'selected' : ''}>${mName}</option>`;
+                        }).join('')}
+                    </select>
+                    <select id="jump-day" class="w-20 p-1.5 sm:p-2 bg-stone-800 text-amber-50 text-xs sm:text-sm border border-stone-600 rounded-sm outline-none focus:border-amber-600 font-bold text-center">
+                        <option value="">Day...</option>
+                        ${Array.from({ length: activeMonth.days }).map((_, i) => `<option value="${i+1}">${i+1}</option>`).join('')}
+                    </select>
                 </div>
-
-                <!-- Edit Mode -->
-                <div id="cx-edit-mode" class="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-grow bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] ${editHidden}">
-                    <input type="hidden" id="cx-modal-id" value="${id}">
-                    <div class="bg-red-900 text-amber-50 text-xs font-bold uppercase tracking-wider py-1 px-3 inline-block rounded-sm mb-4 shadow-sm">
-                        ${isNew ? 'Define New Entity' : 'Amend Record'}
-                    </div>
-
-                    <div class="mb-4">
-                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Name (Auto-Link Trigger)</label>
-                        <input type="text" id="cx-modal-name" value="${name}" ${linkedPC ? 'readonly disabled' : ''} class="w-full ${linkedPC ? 'bg-stone-200 text-stone-500' : 'bg-[#fdfbf7] text-stone-900 focus:border-red-900'} border border-[#d4c5a9] p-2 text-sm font-bold outline-none rounded-sm shadow-inner">
-                    </div>
-
-                    <div class="mb-4">
-                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Type</label>
-                        <select id="cx-modal-type" ${linkedPC ? 'disabled' : ''} class="w-full ${linkedPC ? 'bg-stone-200 text-stone-500' : 'bg-[#fdfbf7] text-stone-900'} border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner">
-                            <option value="PC" ${type==='PC'?'selected':''}>PC</option>
-                            <option value="NPC" ${type==='NPC'?'selected':''}>NPC</option>
-                            <option value="Location" ${type==='Location'?'selected':''}>Location</option>
-                            <option value="Faction" ${type==='Faction'?'selected':''}>Faction</option>
-                            <option value="Item" ${type==='Item'?'selected':''}>Item</option>
-                            <option value="Lore" ${type==='Lore'?'selected':''}>Lore</option>
-                        </select>
-                    </div>
-
-                    <div class="mb-4">
-                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Tags (Comma Separated)</label>
-                        <input type="text" id="cx-modal-tags" value="${tags}" ${linkedPC ? 'readonly disabled' : ''} class="w-full ${linkedPC ? 'bg-stone-200 text-stone-500' : 'bg-[#fdfbf7] text-stone-900 focus:border-red-900'} border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner" placeholder="e.g. Ally, Vendor">
-                    </div>
-                    
-                    <div class="mb-4">
-                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Image URL</label>
-                        <input type="text" id="cx-modal-image" value="${image}" ${linkedPC ? 'readonly disabled title="Edit this hero\'s image in the PC Manager"' : ''} class="w-full ${linkedPC ? 'bg-stone-200 text-stone-500' : 'bg-[#fdfbf7] text-stone-900 focus:border-red-900'} border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner" placeholder="https://example.com/image.jpg">
-                    </div>
-
-                    <div class="mb-4">
-                        <div class="flex justify-between items-end mb-1">
-                            <label class="block text-[10px] uppercase text-stone-500 font-bold tracking-widest">${descLabel}</label>
-                            <div class="flex gap-1 bg-stone-200 p-1 rounded-sm border border-[#d4c5a9]">
-                                <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'bold')" class="w-6 h-6 flex items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bold"><i class="fa-solid fa-bold"></i></button>
-                                <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'italic')" class="w-6 h-6 flex items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Italic"><i class="fa-solid fa-italic"></i></button>
-                                <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'underline')" class="w-6 h-6 flex items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Underline"><i class="fa-solid fa-underline"></i></button>
-                                <div class="w-px bg-[#d4c5a9] mx-1"></div>
-                                <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'h1')" class="w-6 h-6 flex items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Heading 1">H1</button>
-                                <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'h2')" class="w-6 h-6 flex items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Heading 2">H2</button>
-                                <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'list')" class="w-6 h-6 flex items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
-                            </div>
-                        </div>
-                        <textarea id="cx-modal-desc" class="w-full h-40 bg-[#fdfbf7] border border-[#d4c5a9] text-stone-900 p-3 text-sm focus:border-red-900 outline-none resize-none rounded-b-sm shadow-inner custom-scrollbar" placeholder="${descPlaceholder}">${desc}</textarea>
-                    </div>
-                </div>
-
-                <!-- Actions -->
-                <div id="cx-edit-actions" class="p-4 bg-stone-200 border-t border-[#d4c5a9] flex justify-between gap-3 ${editHidden}">
-                    ${(!isNew && canDelete) ? `<button onclick="window.appActions.deleteCodexEntry('${id}')" class="px-4 py-2 bg-red-900 text-white rounded-sm text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-red-800 transition"><i class="fa-solid fa-trash mr-1"></i> Delete</button>` : `<div>${linkedPC ? '<span class="text-[10px] uppercase text-stone-500 font-bold"><i class="fa-solid fa-lock mr-1"></i> Core Hero Profile</span>' : ''}</div>`}
-                    <div class="flex gap-3">
-                        <button onclick="${isNew ? `document.getElementById('global-popup-container').innerHTML = '';` : `document.getElementById('cx-view-mode').classList.remove('hidden'); document.getElementById('cx-edit-mode').classList.add('hidden'); document.getElementById('cx-edit-actions').classList.add('hidden');`}" class="px-4 py-2 border border-stone-400 text-stone-600 rounded-sm text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-stone-300 transition">Cancel</button>
-                        <button onclick="window.appActions.saveCodexEntry()" class="px-5 py-2 bg-stone-800 text-amber-50 rounded-sm text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-stone-700 transition">Save</button>
-                    </div>
+                <div class="flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+                    <button onclick="window.appActions.jumpToSpecificDate()" class="flex-1 sm:flex-none px-4 py-1.5 sm:py-2 bg-amber-700 text-amber-50 rounded-sm hover:bg-amber-600 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md">
+                        Go
+                    </button>
+                    <button onclick="window.appActions.jumpToCurrentDate()" class="flex-1 sm:flex-none px-4 py-1.5 sm:py-2 bg-stone-800 text-stone-300 border border-stone-600 rounded-sm hover:text-amber-400 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md" title="Jump to Current Campaign Date">
+                        <i class="fa-solid fa-location-crosshairs"></i>
+                    </button>
+                    ${isDM ? `
+                    <button onclick="window.appActions.openCalendarSettings()" class="px-4 py-1.5 sm:py-2 bg-stone-800 text-stone-300 border border-stone-600 rounded-sm hover:text-white transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md" title="Configure Calendar">
+                        <i class="fa-solid fa-gear"></i>
+                    </button>
+                    ` : ''}
                 </div>
             </div>
         </div>
+
+        <!-- Navigation & Month Display -->
+        <div class="bg-[#f4ebd8] border-2 border-stone-700 rounded-sm shadow-[0_10px_30px_rgba(0,0,0,0.5)] overflow-hidden mb-8">
+            <div class="bg-stone-900 p-4 border-b-4 border-amber-700 text-amber-500 flex justify-between items-center">
+                <button onclick="window.appActions.navCalendarMonth(-1)" class="w-10 h-10 flex justify-center items-center rounded-sm bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-amber-400 transition shadow-inner">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                
+                <div class="text-center">
+                    <h3 class="text-2xl sm:text-3xl font-serif font-bold text-amber-50 mb-1 flex items-center justify-center gap-2">
+                        ${displayMonthName}
+                        ${hasExtraInfo ? `<button onclick="window.appActions.openMonthInfo(${safeMonthIdx})" class="flex items-center justify-center text-stone-400 hover:text-amber-400 transition"><i class="fa-solid fa-circle-info text-base"></i></button>` : ''}
+                    </h3>
+                    <div class="text-stone-400 text-xs sm:text-sm font-bold uppercase tracking-widest cursor-pointer hover:opacity-80 transition" title="Scroll to Monthly Summary" onclick="document.getElementById('chronological-summary').scrollIntoView({behavior:'smooth'})">Year ${viewYear}</div>
+                </div>
+                
+                <button onclick="window.appActions.navCalendarMonth(1)" class="w-10 h-10 flex justify-center items-center rounded-sm bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-amber-400 transition shadow-inner">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
+            </div>
+
+            <!-- Calendar Grid -->
+            <div class="p-4 sm:p-6 lg:p-8 bg-[#fdfbf7]">
+                ${activeMonth.days === 0 ? `
+                    <div class="text-center py-12">
+                        <i class="fa-solid fa-moon text-5xl text-stone-300 mb-4"></i>
+                        <h4 class="font-serif text-xl font-bold text-stone-600 mb-2">Intercalary Observance</h4>
+                        <p class="text-sm text-stone-500 italic flex items-center justify-center gap-2">
+                            This special event or leap day does not occur in the year ${viewYear}.
+                            ${hasExtraInfo ? `<button onclick="window.appActions.openMonthInfo(${safeMonthIdx})" class="text-stone-400 hover:text-stone-600 transition"><i class="fa-solid fa-circle-info"></i></button>` : ''}
+                        </p>
+                        <button onclick="window.appActions.openCalendarDay(${viewYear}, ${safeMonthIdx}, 1)" class="mt-4 px-4 py-2 border border-stone-400 text-stone-600 rounded-sm text-xs font-bold uppercase tracking-wider hover:bg-stone-200 transition">View / Add Notes</button>
+                    </div>
+                ` : `
+                    <div style="display: grid; grid-template-columns: repeat(${cal.daysInWeek}, minmax(0, 1fr)); gap: 0.5rem;">
+                        ${Array.from({ length: activeMonth.days }).map((_, i) => {
+                            const d = i + 1;
+                            const isCurrent = cal.currentYear === viewYear && cal.currentMonth === safeMonthIdx && cal.currentDay === d;
+                            
+                            let rawNotes = getActiveNotesForDay(viewYear, safeMonthIdx, d);
+                            
+                            let visibleCount = 0;
+                            let hasHidden = false;
+                            
+                            rawNotes.forEach(n => {
+                                if (canViewNote(n)) visibleCount++;
+                                else if (isDM) hasHidden = true;
+                            });
+                            
+                            // Styling
+                            let bgClass = "bg-white";
+                            let borderClass = "border-[#d4c5a9]";
+                            let textClass = "text-stone-700";
+                            let currentBadge = "";
+                            
+                            if (isCurrent) {
+                                bgClass = "bg-amber-100";
+                                borderClass = "border-amber-500 border-2";
+                                textClass = "text-amber-900 font-bold";
+                                currentBadge = `<div class="absolute -top-2 -right-2 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center shadow-sm text-white text-[10px] z-10"><i class="fa-solid fa-star"></i></div>`;
+                            }
+
+                            return `
+                                <div onclick="window.appActions.openCalendarDay(${viewYear}, ${safeMonthIdx}, ${d})" 
+                                     class="relative flex flex-col aspect-square p-1 sm:p-2 cursor-pointer transition shadow-sm hover:shadow-md hover:-translate-y-0.5 rounded-sm ${bgClass} ${borderClass}">
+                                    ${currentBadge}
+                                    <span class="text-sm sm:text-lg font-serif ${textClass}">${d}</span>
+                                    
+                                    <div class="mt-auto flex flex-col gap-1 w-full">
+                                        ${visibleCount > 0 ? `
+                                            <div class="self-end sm:self-center bg-blue-100 text-blue-700 w-full text-center py-0.5 rounded-[2px] border border-blue-200" title="${visibleCount} Note(s)">
+                                                <i class="fa-solid fa-scroll text-[10px] sm:text-xs"></i>
+                                                ${visibleCount > 1 ? `<span class="text-[9px] font-bold ml-0.5">${visibleCount}</span>` : ''}
+                                            </div>
+                                        ` : ''}
+                                        ${hasHidden ? `
+                                            <div class="self-end sm:self-center bg-red-100 text-red-700 w-full text-center py-0.5 rounded-[2px] border border-red-200" title="Hidden Note(s)">
+                                                <i class="fa-solid fa-eye-slash text-[10px] sm:text-xs"></i>
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `}
+            </div>
+        </div>
+
+        <!-- Chronological Monthly Summary -->
+        <div id="chronological-summary" class="mt-12">
+            <h3 class="text-xl font-serif font-bold text-amber-500 mb-6 flex items-center border-b border-stone-700 pb-3">
+                <i class="fa-solid fa-book-open mr-3 text-stone-500"></i> Records for ${displayMonthName}, ${viewYear}
+            </h3>
+            <div class="space-y-4">
+                ${monthlyNotesHtml}
+            </div>
+        </div>
+    </div>
     `;
 
-    if (!isNew && canEdit) {
-        const editBtn = document.getElementById('cx-edit-btn');
-        if (editBtn) {
-            editBtn.onclick = () => {
-                document.getElementById('cx-view-mode').classList.add('hidden');
-                document.getElementById('cx-edit-mode').classList.remove('hidden');
-                document.getElementById('cx-edit-actions').classList.remove('hidden');
-            };
+    // --- GLOBAL CALENDAR LORE MODAL ---
+    if (state.showCalendarLore) {
+        const parsedDesc = (window.appActions && window.appActions.parseSmartText)
+            ? window.appActions.parseSmartText(cal.description || '')
+            : (cal.description || '');
+
+        html += `
+        <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[5000] backdrop-blur-sm animate-in">
+            <div class="bg-[#f4ebd8] rounded-sm shadow-2xl w-full max-w-3xl border border-[#d4c5a9] overflow-hidden flex flex-col max-h-[90vh]">
+                <div class="bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-[#292524] p-4 flex justify-between items-center border-b-2 border-amber-600 shadow-md shrink-0">
+                    <div class="flex items-center gap-3 text-amber-500">
+                        <i class="fa-solid fa-book-journal-whills text-xl"></i>
+                        <div>
+                            <h2 class="text-lg font-serif font-bold text-amber-50 leading-tight">Calendar Lore & Mechanics</h2>
+                            <p class="text-stone-400 text-[10px] uppercase tracking-widest font-bold">${cal.name}</p>
+                        </div>
+                    </div>
+                    <button onclick="window.appActions.closeCalendarLore()" class="w-8 h-8 rounded bg-stone-800 text-stone-300 hover:text-red-400 hover:bg-stone-700 transition flex items-center justify-center"><i class="fa-solid fa-times"></i></button>
+                </div>
+                <div class="p-6 sm:p-8 overflow-y-auto custom-scrollbar flex-grow bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-[#fdfbf7] text-sm text-stone-800 font-serif leading-relaxed space-y-4">
+                    ${parsedDesc || '<p class="italic text-stone-500">No lore has been inscribed for this calendar.</p>'}
+                </div>
+            </div>
+        </div>
+        `;
+    }
+
+    // --- MONTH INFO MODAL ---
+    if (state.viewMonthInfoIdx !== null && state.viewMonthInfoIdx !== undefined) {
+        const mInfo = cal.months[state.viewMonthInfoIdx];
+        if (mInfo) {
+            let mName = mInfo.name;
+            let mNick = mInfo.nickname || "";
+            let mSeason = mInfo.season || "";
+            let mLore = mInfo.lore || "";
+            let mDesc = mInfo.description || "";
+
+            // Fallback for legacy
+            if (!mNick && !mLore && mName.includes('(')) {
+                const pMatch = mName.match(/(.*?)\s*\((.*?)\)/);
+                if (pMatch) {
+                    mName = pMatch[1].trim();
+                    mNick = pMatch[2].trim();
+                }
+            }
+
+            const parsedLore = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(mLore) : mLore;
+            const parsedDesc = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(mDesc) : mDesc;
+
+            html += `
+            <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-50 backdrop-blur-sm animate-in">
+                <div class="bg-[#f4ebd8] rounded-sm shadow-2xl w-full max-w-lg border border-[#d4c5a9] overflow-hidden flex flex-col max-h-[90vh]">
+                    
+                    <div class="bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-[#292524] p-4 flex justify-between items-center border-b-2 border-amber-600 shadow-md">
+                        <div class="flex items-center gap-3 text-amber-500">
+                            <i class="fa-solid fa-moon text-xl"></i>
+                            <div>
+                                <h2 class="text-lg font-serif font-bold text-amber-50 leading-tight">${mName}</h2>
+                                ${mNick ? `<p class="text-stone-400 text-[10px] uppercase tracking-widest font-bold">"${mNick}"</p>` : ''}
+                            </div>
+                        </div>
+                        <button onclick="window.appActions.closeMonthInfo()" class="w-8 h-8 rounded bg-stone-800 text-stone-300 hover:text-red-400 hover:bg-stone-700 transition flex items-center justify-center"><i class="fa-solid fa-times"></i></button>
+                    </div>
+
+                    <div class="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-grow bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-[#fdfbf7] space-y-4">
+                        ${mSeason ? `
+                            <div>
+                                <h3 class="text-[10px] uppercase text-amber-700 font-bold tracking-widest border-b border-[#d4c5a9] pb-1 mb-2"><i class="fa-solid fa-leaf mr-1"></i> Season</h3>
+                                <p class="text-sm font-sans text-stone-800 font-bold">${mSeason}</p>
+                            </div>
+                        ` : ''}
+                        
+                        ${mLore ? `
+                            <div>
+                                <h3 class="text-[10px] uppercase text-amber-700 font-bold tracking-widest border-b border-[#d4c5a9] pb-1 mb-2"><i class="fa-solid fa-book-journal-whills mr-1"></i> Lore & Traditions</h3>
+                                <div class="text-sm font-serif text-stone-800 leading-relaxed">${parsedLore}</div>
+                            </div>
+                        ` : ''}
+
+                        ${mDesc ? `
+                            <div>
+                                <h3 class="text-[10px] uppercase text-amber-700 font-bold tracking-widest border-b border-[#d4c5a9] pb-1 mb-2"><i class="fa-solid fa-feather mr-1"></i> General Notes</h3>
+                                <div class="text-sm font-serif text-stone-800 leading-relaxed">${parsedDesc}</div>
+                            </div>
+                        ` : ''}
+                        
+                        ${(!mSeason && !mLore && !mDesc) ? `
+                            <p class="text-sm text-stone-500 italic text-center py-4">No extensive records exist for this month.</p>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+            `;
         }
     }
-};
 
-export const saveCodexEntry = async () => {
-    updateDerivedState();
-    const camp = window.appData.activeCampaign;
-    if (!camp) return;
 
-    const id = document.getElementById('cx-modal-id').value;
-    const name = document.getElementById('cx-modal-name').value.trim();
-    if (!name) {
-        notify("A name is required for Codex auto-linking.", "error");
-        return;
-    }
-
-    const newEntry = {
-        id: id || generateId(),
-        name: name,
-        type: document.getElementById('cx-modal-type').value,
-        tags: document.getElementById('cx-modal-tags').value.split(',').map(t=>t.trim()).filter(t=>t),
-        desc: document.getElementById('cx-modal-desc').value,
-        image: document.getElementById('cx-modal-image').value.trim()
-    };
-
-    const isNew = !id;
-    const newCodexArray = isNew ? [...(camp.codex || []), newEntry] : camp.codex.map(c => c.id === id ? newEntry : c);
-    
-    const updatedCamp = { ...camp, codex: newCodexArray };
-    await saveCampaign(updatedCamp);
-    document.getElementById('global-popup-container').innerHTML = '';
-    notify("Codex updated.", "success");
-};
-
-export const deleteCodexEntry = async (id) => {
-    if (!confirm("Destroy this Codex entry? Auto-links using this name will no longer function.")) return;
-    
-    updateDerivedState();
-    const camp = window.appData.activeCampaign;
-    if (!camp) return;
-
-    const updatedCamp = {
-        ...camp,
-        codex: (camp.codex || []).filter(c => c.id !== id)
-    };
-
-    await saveCampaign(updatedCamp);
-    document.getElementById('global-popup-container').innerHTML = '';
-    notify("Entry destroyed.", "success");
-};
-
-// --- Journal Viewing ---
-export const openJournal = (scope, sessionId = null) => {
-    updateDerivedState();
-    const camp = window.appData.activeCampaign;
-    const adv = window.appData.activeAdventure;
-    if (!camp) return;
-
-    let md = '';
-    if (scope === 'session' && sessionId) {
-        window.appData.activeSessionId = sessionId;
-        updateDerivedState();
-        const session = window.appData.activeSession;
-        if (session) md = generateSessionMarkdown(session, camp);
-    } else if (scope === 'adventure' && adv) {
-        window.appData.activeSessionId = null;
-        md = generateAdventureMarkdown(adv, camp);
-    } else if (scope === 'campaign') {
-        window.appData.activeAdventureId = null;
-        window.appData.activeSessionId = null;
-        md = generateCampaignMarkdown(camp);
-    }
-
-    window.appData.currentMarkdown = md;
-    window.appActions.setView('journal');
-};
-
-export const closeJournal = () => {
-    if (window.appData.activeSessionId) {
-        window.appData.activeSessionId = null;
-        window.appActions.setView('adventure');
-    } else if (window.appData.activeAdventureId) {
-        window.appActions.setView('adventure');
-    } else {
-        window.appActions.setView('campaign');
-    }
-};
-
-export const copyJournal = () => {
-    const text = window.appData.currentMarkdown || '';
-    const btn = document.getElementById('journal-copy-btn');
-    const originalHtml = btn ? btn.innerHTML : '';
-    
-    const handleSuccess = () => {
-        if (btn) {
-            btn.innerHTML = `<i class="fa-solid fa-check mr-2"></i> Scribed!`;
-            btn.className = "flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider flex justify-center items-center transition shadow-md bg-emerald-700 text-white border border-emerald-900";
-            setTimeout(() => {
-                btn.innerHTML = originalHtml;
-                btn.className = "flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider flex justify-center items-center transition shadow-md bg-stone-700 text-amber-50 hover:bg-stone-600 border border-stone-500";
-            }, 2000);
+    // --- DAY INSPECTOR MODAL (MULTIPLE NOTES SUPPORT) ---
+    if (state.activeCalendarDate) {
+        const { year, monthIndex, day } = state.activeCalendarDate;
+        const isCurrent = cal.currentYear === year && cal.currentMonth === monthIndex && cal.currentDay === day;
+        
+        let modalMonthName = cal.months[monthIndex]?.name || "Unknown";
+        if (cal.months[monthIndex]?.nickname === undefined && cal.months[monthIndex]?.lore === undefined && modalMonthName.includes('(')) {
+            modalMonthName = modalMonthName.split('(')[0].trim();
         }
-    };
 
-    if (navigator.clipboard && window.isSecureContext) {
-        navigator.clipboard.writeText(text).then(handleSuccess);
-    } else {
-        let textArea = document.createElement("textarea");
-        textArea.value = text;
-        textArea.style.position = "fixed";
-        textArea.style.left = "-999999px";
-        textArea.style.top = "-999999px";
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        try {
-            document.execCommand('copy');
-            handleSuccess();
-        } catch (err) {
-            console.error('Fallback: Oops, unable to copy', err);
+        let dayNotes = getActiveNotesForDay(year, monthIndex, day);
+
+        // Build list of existing visible notes
+        let existingNotesHtml = '';
+        dayNotes.forEach(note => {
+            if (canViewNote(note)) {
+                const parsedText = window.appActions.parseSmartText(note.text);
+                const isAuthorDM = note.authorId === camp.dmId || !note.authorId;
+                const authorName = isAuthorDM ? 'Dungeon Master' : (playerNames[note.authorId] || 'Unknown Player');
+                const isMyNote = isDM || note.authorId === myUid;
+                
+                const vis = getVisStatus(note.visibility);
+                let badgeHtml = `<span class="text-[9px] uppercase tracking-wider font-bold text-stone-400 bg-stone-200 px-1.5 py-0.5 rounded-sm"><i class="fa-solid fa-feather-pointed mr-1"></i> ${authorName}</span>`;
+                if (isAuthorDM) badgeHtml = `<span class="text-[9px] uppercase tracking-wider font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-sm"><i class="fa-solid fa-crown mr-1"></i> ${authorName}</span>`;
+
+                let sourceBadge = '';
+                if (note.sy !== year || note.sm !== monthIndex || note.sd !== day) {
+                    let origMName = cal.months[note.sm]?.name || "Unknown";
+                    if (origMName.includes('(')) origMName = origMName.split('(')[0].trim();
+                    sourceBadge = `<span class="text-[9px] uppercase tracking-wider font-bold text-stone-400 ml-2" title="Original Anchor Date">Anchored: ${origMName} ${note.sd}${!note.repeatsYearly ? `, ${note.sy}` : ''}</span>`;
+                }
+
+                existingNotesHtml += `
+                    <div class="mb-4 bg-white border border-[#d4c5a9] rounded-sm shadow-sm overflow-hidden relative group">
+                        <div class="bg-[#f4ebd8] px-3 py-1.5 border-b border-[#d4c5a9] flex justify-between items-center">
+                            <div class="flex items-center gap-2">
+                                ${badgeHtml}
+                                ${isMyNote ? `<span class="text-[9px] uppercase font-bold tracking-widest ${vis.color}" title="${vis.text}"><i class="fa-solid ${vis.icon}"></i></span>` : ''}
+                                ${sourceBadge}
+                            </div>
+                            ${isMyNote ? `
+                                <div class="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                                    <button onclick="window.appActions.editCalendarNote('${note.id}', ${note.sy}, ${note.sm}, ${note.sd})" class="text-[10px] uppercase font-bold tracking-wider text-blue-600 hover:text-blue-800 transition"><i class="fa-solid fa-pen mr-1"></i> Edit</button>
+                                    <button onclick="window.appActions.deleteCalendarNote(${note.sy}, ${note.sm}, ${note.sd}, '${note.id}')" class="text-[10px] uppercase font-bold tracking-wider text-red-600 hover:text-red-800 transition"><i class="fa-solid fa-trash"></i></button>
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div class="p-3 text-sm text-stone-800 font-serif leading-relaxed">
+                            ${parsedText}
+                        </div>
+                    </div>
+                `;
+            }
+        });
+
+        if (existingNotesHtml === '') {
+            existingNotesHtml = `<p class="text-stone-400 italic font-sans text-sm mb-4">No public records exist for this day.</p>`;
         }
-        document.body.removeChild(textArea);
+
+        html += `
+        <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-50 backdrop-blur-sm animate-in">
+            <div class="bg-[#f4ebd8] rounded-sm shadow-2xl w-full max-w-2xl border border-[#d4c5a9] overflow-hidden flex flex-col max-h-[90vh]">
+                
+                <!-- Header -->
+                <div class="bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-[#292524] p-4 flex justify-between items-center border-b-2 border-amber-600 shadow-md">
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-scroll text-amber-500 text-xl"></i>
+                        <div>
+                            <h2 class="text-lg font-serif font-bold text-amber-50 leading-tight">Chronicle: ${modalMonthName} ${day}, ${year}</h2>
+                            <p class="text-stone-400 text-[10px] uppercase tracking-widest font-bold">${isCurrent ? 'Current Campaign Date' : 'Historical Record'}</p>
+                        </div>
+                    </div>
+                    <button onclick="window.appActions.closeCalendarDay()" class="w-8 h-8 rounded bg-stone-800 text-stone-300 hover:text-red-400 hover:bg-stone-700 transition flex items-center justify-center"><i class="fa-solid fa-times"></i></button>
+                </div>
+
+                <div class="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-grow bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-[#fdfbf7]">
+                    
+                    <!-- Existing Notes -->
+                    <h3 class="text-[10px] uppercase text-stone-500 font-bold tracking-widest mb-3 border-b border-[#d4c5a9] pb-1">Day's Events</h3>
+                    <div class="mb-6">
+                        ${existingNotesHtml}
+                    </div>
+
+                    <!-- Add / Edit Note Editor -->
+                    <div id="cal-note-editor" class="border-t-2 border-stone-300 pt-6 mt-4">
+                        <input type="hidden" id="cal-note-id" value="">
+                        <input type="hidden" id="cal-note-orig-y" value="">
+                        <input type="hidden" id="cal-note-orig-m" value="">
+                        <input type="hidden" id="cal-note-orig-d" value="">
+
+                        <div class="flex justify-between items-end mb-2">
+                            <label class="block text-[10px] uppercase text-amber-700 font-bold tracking-widest"><i class="fa-solid fa-feather-pointed mr-1"></i> Scribe a New Note</label>
+                            <div class="flex items-center">
+                                <input type="hidden" class="vis-mode-input" value="public"> <!-- Default public for convenience -->
+                                <input type="hidden" class="vis-players-input" value="">
+                                <button type="button" class="text-emerald-600 hover:text-emerald-500 font-bold px-2 py-1 text-[10px] uppercase tracking-widest transition flex items-center bg-stone-200 border border-[#d4c5a9] rounded-sm shadow-sm" onclick="window.appActions.openVisibilityMenu(this, 'dom')">
+                                    <i class="fa-solid fa-eye mr-1"></i> Public
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="flex flex-wrap gap-4 mb-3 border-b border-[#d4c5a9] pb-3 bg-white p-2 rounded-sm shadow-inner">
+                            <label class="flex items-center gap-2 cursor-pointer group">
+                                <input type="checkbox" id="cal-note-repeats" class="w-3.5 h-3.5 text-amber-600 rounded-sm border-stone-400 focus:ring-amber-500 cursor-pointer">
+                                <span class="text-[10px] uppercase text-stone-600 font-bold tracking-widest group-hover:text-amber-700 transition">Repeats Yearly</span>
+                            </label>
+                            <div class="flex items-center gap-2 border-l border-[#d4c5a9] pl-4">
+                                <label class="text-[10px] uppercase text-stone-600 font-bold tracking-widest">Spans Days:</label>
+                                <input type="number" id="cal-note-duration" min="1" value="1" class="w-16 p-1 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm">
+                            </div>
+                        </div>
+
+                        <textarea id="cal-note-text" class="w-full h-32 bg-white border border-[#d4c5a9] text-stone-900 p-3 text-sm focus:border-amber-600 outline-none resize-none rounded-sm shadow-inner custom-scrollbar font-serif" placeholder="Add your perspective... Codex names link automatically."></textarea>
+                        
+                        <div class="mt-3 flex justify-end">
+                            <button onclick="window.appActions.saveCalendarNote()" class="px-5 py-2 bg-stone-800 text-amber-50 rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-stone-700 transition">Save Note</button>
+                        </div>
+                    </div>
+
+                    ${(isDM && !isCurrent) ? `
+                        <div class="mt-8 pt-4 border-t border-[#d4c5a9] flex justify-center">
+                            <button onclick="window.appActions.setCurrentCampaignDate(${year}, ${monthIndex}, ${day})" class="px-4 py-2 bg-stone-200 text-stone-700 hover:text-amber-900 hover:bg-amber-100 border border-[#d4c5a9] rounded-sm transition font-bold uppercase tracking-wider text-[10px] shadow-sm flex items-center">
+                                <i class="fa-solid fa-location-crosshairs mr-2"></i> Set as Current Campaign Date
+                            </button>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        </div>
+        `;
     }
-};
+
+    // --- DM CALENDAR SETTINGS MODAL ---
+    if (isDM && state.showCalendarSettings) {
+        html += `
+        <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[5000] backdrop-blur-sm animate-in">
+            <div class="bg-[#f4ebd8] rounded-sm shadow-2xl w-full max-w-4xl border border-[#d4c5a9] overflow-hidden flex flex-col max-h-[90vh]">
+                
+                <div class="bg-stone-900 p-4 border-b-4 border-amber-700 text-amber-500 flex justify-between items-center shrink-0">
+                    <h2 class="text-xl font-serif font-bold flex items-center"><i class="fa-solid fa-gear mr-3"></i> Calendar Configuration</h2>
+                    <button onclick="window.appActions.closeCalendarSettings()" class="text-stone-400 hover:text-white transition"><i class="fa-solid fa-times text-xl"></i></button>
+                </div>
+
+                <div class="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-grow bg-[#fdfbf7]">
+                    
+                    <div class="bg-amber-100 text-amber-900 p-3 rounded-sm border border-amber-300 text-xs sm:text-sm mb-6 flex items-start shadow-inner">
+                        <i class="fa-solid fa-triangle-exclamation mt-0.5 mr-3 text-amber-600"></i>
+                        <p>Altering the fundamental structure of the calendar (like days in a week or removing months) will not delete your existing notes, but it may shift how historical dates align on the grid.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Calendar Name</label>
+                            <input type="text" id="cal-config-name" value="${cal.name}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Days in a Week</label>
+                            <input type="number" id="cal-config-week" value="${cal.daysInWeek}" min="1" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white" placeholder="e.g. 10 for Harptos">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Global Calendar Lore & Mechanics</label>
+                        <textarea id="cal-config-desc" class="w-full h-32 p-3 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-amber-600 bg-white text-stone-800 shadow-inner custom-scrollbar" placeholder="General mechanics, holidays, seasons...">${(cal.description || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
+                    </div>
+
+                    <div class="border-t border-[#d4c5a9] pt-4">
+                        <div class="flex justify-between items-center mb-3">
+                            <label class="block text-[10px] uppercase text-stone-500 font-bold tracking-widest">Months of the Year</label>
+                            <button onclick="window.appActions.addCalendarMonthRow()" class="text-[10px] font-bold uppercase tracking-wider text-blue-600 hover:text-blue-800 transition flex items-center"><i class="fa-solid fa-plus mr-1"></i> Add Month / Leap Day</button>
+                        </div>
+                        
+                        <div id="cal-months-container" class="space-y-4">
+                            ${cal.months.map((m) => {
+                                let mName = m.name;
+                                let mNick = m.nickname !== undefined ? m.nickname : "";
+                                let mSeason = m.season !== undefined ? m.season : "";
+                                let mLore = m.lore !== undefined ? m.lore : "";
+                                let mDesc = m.description !== undefined ? m.description : "";
+
+                                // Extract legacy lore into the new explicit input fields during edit
+                                if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) {
+                                    const parenMatch = mName.match(/(.*?)\s*\((.*?)\)/);
+                                    if (parenMatch) {
+                                        mName = parenMatch[1].trim();
+                                        mNick = parenMatch[2].trim();
+                                    }
+                                }
+                                return `
+                                    <div class="cal-month-row bg-stone-100 p-3 sm:p-4 border border-[#d4c5a9] rounded-sm shadow-sm relative group">
+                                        <div class="absolute right-3 top-3">
+                                            <button type="button" class="text-stone-400 hover:text-red-700 transition" onclick="this.closest('.cal-month-row').remove()" title="Remove Month"><i class="fa-solid fa-trash"></i></button>
+                                        </div>
+                                        <div class="flex items-center gap-2 mb-3 cursor-grab text-stone-400 hover:text-stone-600 w-max pr-8">
+                                            <i class="fa-solid fa-bars"></i> <span class="text-[10px] font-bold uppercase tracking-widest">Reorder Month</span>
+                                        </div>
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                                            <div>
+                                                <label class="block text-[9px] uppercase text-stone-500 font-bold tracking-widest mb-1">Name</label>
+                                                <input type="text" value="${mName.replace(/"/g, '&quot;')}" class="cal-month-name w-full p-2 border border-[#d4c5a9] rounded-sm text-sm outline-none focus:border-red-900 bg-white font-bold text-stone-900 shadow-inner" placeholder="e.g. Hammer">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[9px] uppercase text-stone-500 font-bold tracking-widest mb-1">Nickname</label>
+                                                <input type="text" value="${mNick.replace(/"/g, '&quot;')}" class="cal-month-nickname w-full p-2 border border-[#d4c5a9] rounded-sm text-sm outline-none focus:border-red-900 bg-white text-stone-700 shadow-inner" placeholder="e.g. Deepwinter">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[9px] uppercase text-stone-500 font-bold tracking-widest mb-1">Season</label>
+                                                <input type="text" value="${mSeason.replace(/"/g, '&quot;')}" class="cal-month-season w-full p-2 border border-[#d4c5a9] rounded-sm text-sm outline-none focus:border-red-900 bg-white text-stone-700 shadow-inner" placeholder="e.g. Winter">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[9px] uppercase text-stone-500 font-bold tracking-widest mb-1">Days</label>
+                                                <input type="number" min="0" value="${m.days}" class="cal-month-days w-full p-2 border border-[#d4c5a9] rounded-sm text-sm outline-none focus:border-red-900 bg-white text-stone-900 font-mono shadow-inner" placeholder="Days">
+                                            </div>
+                                        </div>
+                                        <div class="space-y-3">
+                                            <div>
+                                                <label class="block text-[9px] uppercase text-stone-500 font-bold tracking-widest mb-1">Lore & Traditions</label>
+                                                <textarea class="cal-month-lore w-full p-2 border border-[#d4c5a9] rounded-sm text-xs sm:text-sm outline-none focus:border-red-900 bg-white text-stone-700 shadow-inner resize-y min-h-[60px]" placeholder="Festivals, celestial alignments, common traditions...">${mLore.replace(/"/g, '&quot;')}</textarea>
+                                            </div>
+                                            <div>
+                                                <label class="block text-[9px] uppercase text-stone-500 font-bold tracking-widest mb-1">General Notes</label>
+                                                <textarea class="cal-month-desc w-full p-2 border border-[#d4c5a9] rounded-sm text-xs sm:text-sm outline-none focus:border-red-900 bg-white text-stone-700 shadow-inner resize-y min-h-[60px]" placeholder="Additional info, weather patterns, DM secrets...">${mDesc.replace(/"/g, '&quot;')}</textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+
+                    <!-- External Data Importer -->
+                    <div class="border-t border-[#d4c5a9] pt-4 mt-6">
+                        <h3 class="text-[10px] uppercase text-stone-500 font-bold tracking-widest mb-3">Data Management</h3>
+                        <div class="flex items-center gap-4">
+                            <input type="file" id="foundry-import-file" class="hidden" accept=".json" onchange="window.appActions.importFoundryCalendarNotes(event)">
+                            <button onclick="document.getElementById('foundry-import-file').click()" class="px-4 py-2 border border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100 rounded-sm transition font-bold uppercase tracking-wider text-[10px] shadow-sm flex items-center">
+                                <i class="fa-solid fa-file-import mr-2"></i> Import Foundry VTT Notes (JSON)
+                            </button>
+                        </div>
+                        <p class="text-[10px] text-stone-500 italic mt-2">Imports notes exported from Foundry VTT (Simple Calendar format). Existing notes on matching dates will be safely kept alongside the imported ones.</p>
+                    </div>
+
+                </div>
+
+                <div class="bg-stone-200 p-4 border-t border-[#d4c5a9] flex flex-wrap-reverse sm:flex-nowrap justify-between gap-3 shrink-0">
+                    <button onclick="window.appActions.resetCalendarToDefault()" class="w-full sm:w-auto px-4 py-2 text-stone-500 hover:text-amber-700 hover:bg-amber-100 rounded-sm transition font-bold uppercase tracking-wider text-[10px] flex items-center justify-center border border-transparent hover:border-amber-300">
+                        <i class="fa-solid fa-rotate-left mr-2"></i> Reset to Harptos Defaults
+                    </button>
+                    <div class="flex gap-2 w-full sm:w-auto">
+                        <button onclick="window.appActions.closeCalendarSettings()" class="flex-1 sm:flex-none px-4 py-2 border border-stone-400 text-stone-600 rounded-sm text-[10px] font-bold uppercase tracking-wider shadow-sm hover:bg-stone-300 transition">Cancel</button>
+                        <button onclick="window.appActions.saveCalendarSettings()" class="flex-1 sm:flex-none px-6 py-2 bg-stone-800 text-amber-50 rounded-sm text-[10px] font-bold uppercase tracking-wider shadow-sm hover:bg-stone-700 transition">Save Layout</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        `;
+    }
+
+    return html;
+}
