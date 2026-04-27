@@ -169,7 +169,7 @@ export function getCalendarHTML(state) {
             <div class="flex flex-wrap gap-2 w-full lg:w-auto items-center bg-stone-900 p-2 sm:p-3 rounded-sm border border-stone-700 shadow-inner">
                 <div class="flex items-center gap-2 w-full sm:w-auto">
                     <input type="number" id="jump-year" value="${viewYear}" class="w-20 p-1.5 sm:p-2 bg-stone-800 text-amber-50 text-xs sm:text-sm border border-stone-600 rounded-sm outline-none focus:border-amber-600 font-bold text-center">
-                    <select id="jump-month" class="flex-grow sm:w-32 p-1.5 sm:p-2 bg-stone-800 text-amber-50 text-xs sm:text-sm border border-stone-600 rounded-sm outline-none focus:border-amber-600 font-bold">
+                    <select id="jump-month" onchange="window.updateDayOptions(this.value, 'jump-day')" class="flex-grow sm:w-32 p-1.5 sm:p-2 bg-stone-800 text-amber-50 text-xs sm:text-sm border border-stone-600 rounded-sm outline-none focus:border-amber-600 font-bold">
                         ${cal.months.map((m, idx) => {
                             let mName = m.name;
                             if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
@@ -178,7 +178,7 @@ export function getCalendarHTML(state) {
                     </select>
                     <select id="jump-day" class="w-20 p-1.5 sm:p-2 bg-stone-800 text-amber-50 text-xs sm:text-sm border border-stone-600 rounded-sm outline-none focus:border-amber-600 font-bold text-center">
                         <option value="">Day...</option>
-                        ${Array.from({ length: activeMonth.days }).map((_, i) => `<option value="${i+1}">${i+1}</option>`).join('')}
+                        ${Array.from({ length: Math.max(1, activeMonth.days) }).map((_, i) => `<option value="${i+1}">${i+1}</option>`).join('')}
                     </select>
                 </div>
                 <div class="flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
@@ -478,13 +478,13 @@ export function getCalendarHTML(state) {
                     </div>
 
                     <!-- Add / Edit Note Editor -->
-                    <div id="cal-note-editor" class="border-t-2 border-stone-300 pt-6 mt-4">
+                    <div id="cal-note-editor" class="border-t-2 border-stone-300 pt-6 mt-4 vis-container">
                         <input type="hidden" id="cal-note-id" value="">
                         <input type="hidden" id="cal-note-orig-y" value="">
                         <input type="hidden" id="cal-note-orig-m" value="">
                         <input type="hidden" id="cal-note-orig-d" value="">
 
-                        <div class="flex justify-between items-end mb-2 vis-container">
+                        <div class="flex justify-between items-end mb-2">
                             <label class="block text-[10px] uppercase text-amber-700 font-bold tracking-widest"><i class="fa-solid fa-feather-pointed mr-1"></i> Scribe a New Note</label>
                             <div class="flex items-center">
                                 <input type="hidden" class="vis-mode-input" value="public"> <!-- Default public for convenience -->
@@ -502,14 +502,16 @@ export function getCalendarHTML(state) {
                                 <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Start Date</label>
                                 <div class="flex items-center gap-1">
                                     <input type="number" id="cal-note-start-y" value="${year}" class="w-16 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm" title="Year">
-                                    <select id="cal-note-start-m" class="flex-grow p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 shadow-sm" title="Month">
+                                    <select id="cal-note-start-m" onchange="window.updateDayOptions(this.value, 'cal-note-start-d')" class="flex-grow p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 shadow-sm" title="Month">
                                         ${cal.months.map((m, idx) => {
                                             let mName = m.name;
                                             if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
                                             return `<option value="${idx}" ${idx === monthIndex ? 'selected' : ''}>${mName}</option>`;
                                         }).join('')}
                                     </select>
-                                    <input type="number" id="cal-note-start-d" value="${day}" class="w-12 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm" title="Day">
+                                    <select id="cal-note-start-d" class="w-14 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm" title="Day">
+                                        ${Array.from({ length: Math.max(1, cal.months[monthIndex].days) }).map((_, i) => `<option value="${i+1}" ${i+1 === day ? 'selected' : ''}>${i+1}</option>`).join('')}
+                                    </select>
                                 </div>
                             </div>
 
@@ -518,14 +520,16 @@ export function getCalendarHTML(state) {
                                 <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">End Date (Optional)</label>
                                 <div class="flex items-center gap-1">
                                     <input type="number" id="cal-note-end-y" value="${year}" class="w-16 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm" title="Year">
-                                    <select id="cal-note-end-m" class="flex-grow p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 shadow-sm" title="Month">
+                                    <select id="cal-note-end-m" onchange="window.updateDayOptions(this.value, 'cal-note-end-d')" class="flex-grow p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 shadow-sm" title="Month">
                                         ${cal.months.map((m, idx) => {
                                             let mName = m.name;
                                             if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
                                             return `<option value="${idx}" ${idx === monthIndex ? 'selected' : ''}>${mName}</option>`;
                                         }).join('')}
                                     </select>
-                                    <input type="number" id="cal-note-end-d" value="${day}" class="w-12 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm" title="Day">
+                                    <select id="cal-note-end-d" class="w-14 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm" title="Day">
+                                        ${Array.from({ length: Math.max(1, cal.months[monthIndex].days) }).map((_, i) => `<option value="${i+1}" ${i+1 === day ? 'selected' : ''}>${i+1}</option>`).join('')}
+                                    </select>
                                 </div>
                             </div>
 
@@ -687,3 +691,33 @@ export function getCalendarHTML(state) {
 
     return html;
 }
+
+// --- GLOBAL WINDOW BINDINGS FOR INLINE HTML ---
+window.updateDayOptions = function(monthIdx, targetSelectId) {
+    const camp = window.appData?.activeCampaign;
+    if (!camp || !camp.calendar) return;
+    
+    const month = camp.calendar.months[monthIdx];
+    const daySelect = document.getElementById(targetSelectId);
+    if (!month || !daySelect) return;
+
+    const currentVal = parseInt(daySelect.value) || 1;
+    const numDays = Math.max(1, month.days); 
+    
+    let optionsHtml = '';
+    if (targetSelectId === 'jump-day') {
+        optionsHtml += '<option value="">Day...</option>';
+    }
+    
+    for (let i = 1; i <= numDays; i++) {
+        optionsHtml += `<option value="${i}">${i}</option>`;
+    }
+    
+    daySelect.innerHTML = optionsHtml;
+    
+    if (targetSelectId !== 'jump-day') {
+        daySelect.value = currentVal > numDays ? numDays : currentVal;
+    } else if (daySelect.value !== '') {
+        daySelect.value = currentVal > numDays ? numDays : currentVal;
+    }
+};
