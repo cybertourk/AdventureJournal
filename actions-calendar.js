@@ -145,6 +145,83 @@ const getDateFromDayOfYear = (cal, doy) => {
     return { monthIndex: Math.max(0, cal.months.length - 1), day: cal.months[cal.months.length - 1]?.days || 1 };
 };
 
+export const syncCalendarNoteDates = (trigger) => {
+    const camp = window.appData?.activeCampaign;
+    if (!camp || !camp.calendar) return;
+
+    const cal = camp.calendar;
+
+    const startYEl = document.getElementById('cal-note-start-y');
+    const startMEl = document.getElementById('cal-note-start-m');
+    const startDEl = document.getElementById('cal-note-start-d');
+
+    const endYEl = document.getElementById('cal-note-end-y');
+    const endMEl = document.getElementById('cal-note-end-m');
+    const endDEl = document.getElementById('cal-note-end-d');
+
+    const durationEl = document.getElementById('cal-note-duration');
+
+    if (!startYEl || !startMEl || !startDEl || !endYEl || !endMEl || !endDEl || !durationEl) return;
+
+    const sY = parseInt(startYEl.value) || 0;
+    const sM = parseInt(startMEl.value) || 0;
+    const sD = parseInt(startDEl.value) || 1;
+
+    let eY = parseInt(endYEl.value) || sY;
+    let eM = parseInt(endMEl.value) || sM;
+    let eD = parseInt(endDEl.value) || sD;
+
+    let duration = parseInt(durationEl.value) || 1;
+    const totalDays = getDaysInYear(cal);
+
+    if (trigger === 'duration' || trigger === 'startdate') {
+        if (duration < 1) {
+            duration = 1;
+            durationEl.value = 1;
+        }
+
+        const startDoy = getDayOfYear(cal, sM, sD);
+        const endDoy = startDoy + duration - 1;
+
+        eY = sY + Math.floor((endDoy - 1) / totalDays);
+        let remDoy = ((endDoy - 1) % totalDays) + 1;
+        let endMD = getDateFromDayOfYear(cal, remDoy);
+
+        eM = endMD.monthIndex;
+        eD = endMD.day;
+
+        endYEl.value = eY;
+        if (endMEl.value != eM) {
+            endMEl.value = eM;
+            if (window.updateDayOptions) window.updateDayOptions(eM, 'cal-note-end-d');
+        }
+        endDEl.value = eD;
+        
+    } else if (trigger === 'enddate') {
+        const startDoy = getDayOfYear(cal, sM, sD);
+        const endDoy = getDayOfYear(cal, eM, eD);
+
+        let calcDuration = (eY - sY) * totalDays + endDoy - startDoy + 1;
+
+        if (calcDuration < 1) {
+            // Prevent users from setting an end date that occurs before the start date
+            eY = sY;
+            eM = sM;
+            eD = sD;
+            calcDuration = 1;
+
+            endYEl.value = eY;
+            if (endMEl.value != eM) {
+                endMEl.value = eM;
+                if (window.updateDayOptions) window.updateDayOptions(eM, 'cal-note-end-d');
+            }
+            endDEl.value = eD;
+        }
+
+        durationEl.value = calcDuration;
+    }
+};
+
 // --- Notes ---
 export const saveCalendarNote = async () => {
     updateDerivedState();
@@ -162,7 +239,6 @@ export const saveCalendarNote = async () => {
     const origMInput = document.getElementById('cal-note-orig-m');
     const origDInput = document.getElementById('cal-note-orig-d');
     
-    // New exact date selectors
     const startYInput = document.getElementById('cal-note-start-y');
     const startMInput = document.getElementById('cal-note-start-m');
     const startDInput = document.getElementById('cal-note-start-d');
@@ -316,7 +392,8 @@ export const editCalendarNote = (noteId, anchorYear, anchorMonth, anchorDay) => 
     const endYInput = document.getElementById('cal-note-end-y');
     const endMInput = document.getElementById('cal-note-end-m');
     const endDInput = document.getElementById('cal-note-end-d');
-
+    
+    const durationInput = document.getElementById('cal-note-duration');
     const repeatsInput = document.getElementById('cal-note-repeats');
     
     const modeInput = container?.querySelector('.vis-mode-input');
@@ -348,6 +425,9 @@ export const editCalendarNote = (noteId, anchorYear, anchorMonth, anchorDay) => 
     let endY = targetY + Math.floor((endDoy - 1) / totalDays);
     let remDoy = ((endDoy - 1) % totalDays) + 1;
     let endMD = getDateFromDayOfYear(camp.calendar, remDoy);
+
+    // Populate Duration UI
+    if (durationInput) durationInput.value = duration;
 
     // Populate the End Date UI
     if (endYInput) endYInput.value = endY;
