@@ -313,7 +313,7 @@ export const _openCodexModal = (entry) => {
                             <option value="Location" ${type==='Location'?'selected':''}>Location</option>
                             <option value="Faction" ${type==='Faction'?'selected':''}>Faction</option>
                             <option value="Item" ${type==='Item'?'selected':''}>Item</option>
-                            <option value="Lore" ${type==='Lore'?'selected':''}>Lore / Rule</option>
+                            <option value="Lore" ${type==='Lore'?'selected':''}>Lore</option>
                         </select>
                     </div>
 
