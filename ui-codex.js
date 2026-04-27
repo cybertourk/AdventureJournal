@@ -10,6 +10,8 @@ export function getCodexHTML(state) {
             // Also grab the hero's image if the codex entry lacks its own!
             return { ...c, type: 'PC', image: c.image || linkedPC.image };
         }
+        // Map any legacy 'Lore / Rule' entries strictly to 'Lore'
+        if (c.type === 'Lore / Rule') return { ...c, type: 'Lore' };
         return c;
     });
     
@@ -53,21 +55,45 @@ export function getCodexHTML(state) {
         const players = (item?.visibility?.visibleTo || []).join(',');
         
         let icon = 'fa-eye';
-        let color = 'text-emerald-600 hover:text-emerald-500';
+        let color = 'text-emerald-600 hover:text-emerald-500 hover:bg-emerald-50 border-emerald-200';
         
         if (mode === 'hidden') {
             icon = 'fa-eye-slash';
-            color = 'text-red-700 hover:text-red-600';
+            color = 'text-red-700 hover:text-red-600 hover:bg-red-50 border-red-200';
         } else if (mode === 'specific') {
             icon = 'fa-user-lock';
-            color = 'text-blue-600 hover:text-blue-500';
+            color = 'text-blue-600 hover:text-blue-500 hover:bg-blue-50 border-blue-200';
         }
         
         return { mode, players, icon, color };
     };
+
+    // --- GROUPING BY TYPE ---
+    const groups = {
+        'PC': [], 'NPC': [], 'Location': [], 'Faction': [], 'Item': [], 'Lore': [], 'Other': []
+    };
+    
+    visibleCodex.forEach(c => {
+        const t = c.type;
+        if (groups[t] !== undefined) {
+            groups[t].push(c);
+        } else {
+            groups['Other'].push(c);
+        }
+    });
+
+    const groupOrder = [
+        { id: 'PC', name: 'Heroes & Player Characters', icon: 'fa-user-shield' },
+        { id: 'NPC', name: 'Non-Player Characters', icon: 'fa-users' },
+        { id: 'Location', name: 'Locations & Landmarks', icon: 'fa-map-location-dot' },
+        { id: 'Faction', name: 'Factions & Organizations', icon: 'fa-flag' },
+        { id: 'Item', name: 'Notable Items & Artifacts', icon: 'fa-gem' },
+        { id: 'Lore', name: 'World Lore & History', icon: 'fa-book-journal-whills' },
+        { id: 'Other', name: 'Uncategorized Records', icon: 'fa-folder' }
+    ];
     
     let html = `
-    <div class="animate-in fade-in duration-300">
+    <div class="animate-in fade-in duration-300 pb-12">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 sm:mb-8 gap-4 border-b-2 border-stone-800 pb-4">
             <div class="w-full md:w-auto">
                 <h2 class="text-2xl sm:text-3xl md:text-4xl font-serif font-bold text-amber-500 leading-tight">Campaign Codex</h2>
@@ -85,8 +111,6 @@ export function getCodexHTML(state) {
                 ` : ''}
             </div>
         </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6" id="codex-grid">
     `;
     
     if (visibleCodex.length === 0) {
@@ -98,62 +122,76 @@ export function getCodexHTML(state) {
             </div>
         `;
     } else {
-        const sorted = [...visibleCodex].sort((a,b) => a.name.localeCompare(b.name));
-        sorted.forEach(c => {
-            // Determine if the current user is the owner of this specific hero's codex entry
-            const isHeroOwner = camp.playerCharacters?.some(p => p.id === c.id && p.playerId === myUid);
-            const canEdit = isDM || isHeroOwner;
+        html += `<div id="codex-folders" class="space-y-4">`;
 
-            let typeColor = "text-stone-500";
-            if (c.type === 'PC') typeColor = "text-indigo-600";
-            if (c.type === 'NPC') typeColor = "text-blue-600";
-            if (c.type === 'Location') typeColor = "text-emerald-600";
-            if (c.type === 'Item') typeColor = "text-amber-600";
-            if (c.type === 'Faction') typeColor = "text-purple-600";
-            if (c.type === 'Lore') typeColor = "text-red-800";
-            
-            const tagsStr = (c.tags || []).join(', ');
-            
-            const vis = getVisStatus(c);
-            
-            // Only the DM and the owning player get the visibility toggle button
-            const visBadge = canEdit ? `
-                <div class="relative z-10 flex-shrink-0 ml-2" onclick="event.stopPropagation()">
-                    <input type="hidden" class="vis-mode-input" value="${vis.mode}">
-                    <input type="hidden" class="vis-players-input" value="${vis.players}">
-                    <button class="${vis.color} bg-[#f4ebd8] border border-[#d4c5a9] px-2 py-1 rounded-sm shadow-sm text-[10px] transition hover:border-current group-hover:bg-white" onclick="window.appActions.openVisibilityMenu(this, 'codex', '${c.id}')" title="Visibility Settings">
-                        <i class="fa-solid ${vis.icon}"></i>
+        groupOrder.forEach(grp => {
+            const items = groups[grp.id];
+            if (items && items.length > 0) {
+                const sorted = items.sort((a,b) => a.name.localeCompare(b.name));
+                
+                html += `
+                <div class="codex-folder bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm shadow-sm overflow-hidden" data-folder="${grp.id}">
+                    <button class="w-full flex items-center justify-between p-3 sm:p-4 bg-stone-900 text-amber-500 hover:bg-stone-800 transition-colors border-b border-transparent" onclick="const content = this.nextElementSibling; content.classList.toggle('hidden'); this.querySelector('.folder-chevron').classList.toggle('rotate-180'); this.classList.toggle('border-stone-700');">
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid ${grp.icon} text-lg w-6 text-center"></i>
+                            <span class="font-serif font-bold text-base sm:text-lg tracking-wide">${grp.name}</span>
+                            <span class="bg-stone-800 text-stone-400 text-[10px] px-2 py-0.5 rounded-full ml-2 border border-stone-700 font-sans">${items.length}</span>
+                        </div>
+                        <i class="fa-solid fa-chevron-down folder-chevron transition-transform duration-200 text-stone-500"></i>
                     </button>
+                    
+                    <div class="folder-content hidden p-3 sm:p-4 bg-[#fdfbf7]">
+                        <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+                `;
+
+                sorted.forEach(c => {
+                    const isHeroOwner = camp.playerCharacters?.some(p => p.id === c.id && p.playerId === myUid);
+                    const canEdit = isDM || isHeroOwner;
+                    const tagsStr = (c.tags || []).join(', ');
+                    const vis = getVisStatus(c);
+                    
+                    const visBadge = canEdit ? `
+                        <div class="relative z-10 flex-shrink-0 ml-2" onclick="event.stopPropagation()">
+                            <input type="hidden" class="vis-mode-input" value="${vis.mode}">
+                            <input type="hidden" class="vis-players-input" value="${vis.players}">
+                            <button class="${vis.color} bg-[#f4ebd8] border px-1.5 py-0.5 rounded shadow-sm text-[9px] transition" onclick="window.appActions.openVisibilityMenu(this, 'codex', '${c.id}')" title="Visibility Settings">
+                                <i class="fa-solid ${vis.icon}"></i>
+                            </button>
+                        </div>
+                    ` : '';
+
+                    html += `
+                    <div class="codex-card bg-white p-0 rounded-sm border border-[#d4c5a9] shadow-sm flex group relative overflow-hidden hover:shadow-md hover:-translate-y-[1px] transition duration-200 cursor-pointer h-20 sm:h-24" onclick="window.appActions.viewCodex('${c.id}')" data-search="${c.name.toLowerCase()} ${c.type.toLowerCase()} ${tagsStr.toLowerCase()}">
+                        <div class="absolute top-0 left-0 w-1 h-full bg-stone-400 group-hover:bg-amber-500 transition-colors z-20"></div>
+                        
+                        ${c.image ? `<div class="w-20 sm:w-24 h-full shrink-0 border-r border-[#d4c5a9] bg-stone-900 overflow-hidden relative z-10"><img src="${c.image}" alt="${c.name}" class="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105" onerror="this.style.display='none'"></div>` : ''}
+                        
+                        <div class="p-3 flex-grow flex flex-col justify-center min-w-0 relative z-10">
+                            <div class="flex justify-between items-start mb-1">
+                                <h3 class="font-serif font-bold text-sm sm:text-base text-stone-900 truncate pr-2 leading-none" title="${c.name}">${c.name}</h3>
+                                ${visBadge}
+                            </div>
+                            <div class="flex items-center gap-1 mb-1 flex-wrap overflow-hidden h-[18px]">
+                                ${(c.tags || []).map(t => `<span class="text-[8px] font-bold uppercase tracking-wider text-stone-500 bg-stone-200 px-1.5 py-0.5 rounded-sm truncate max-w-[80px]">${t}</span>`).join('')}
+                            </div>
+                            <p class="text-[10px] sm:text-[11px] text-stone-500 font-sans truncate italic leading-tight">"${c.desc || 'No description...'}"</p>
+                        </div>
+                    </div>
+                    `;
+                });
+
+                html += `
+                        </div>
+                    </div>
                 </div>
-            ` : '';
-            
-            html += `
-            <div class="codex-card bg-[#fdfbf7] p-0 sm:p-0 rounded-sm border border-[#d4c5a9] shadow-sm flex flex-col group relative overflow-hidden hover:shadow-md transition cursor-pointer" onclick="window.appActions.viewCodex('${c.id}')" data-search="${c.name.toLowerCase()} ${c.type.toLowerCase()} ${tagsStr.toLowerCase()}">
-                <div class="absolute top-0 left-0 w-1 h-full bg-stone-400 group-hover:bg-amber-500 transition-colors z-20"></div>
-                
-                ${c.image ? `<div class="h-32 sm:h-40 w-full overflow-hidden border-b border-[#d4c5a9] bg-stone-900"><img src="${c.image}" alt="${c.name}" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105" onerror="this.style.display='none'"></div>` : ''}
-                
-                <div class="p-4 sm:p-5 flex-grow flex flex-col relative z-10 bg-[#fdfbf7]">
-                    <div class="pl-2 flex justify-between items-start mb-2">
-                        <h3 class="font-serif font-bold text-lg text-stone-900 leading-tight truncate pr-2">${c.name}</h3>
-                        ${visBadge}
-                    </div>
-                    <div class="pl-2 flex items-center gap-2 mb-3 flex-wrap">
-                        <span class="text-[9px] font-bold uppercase tracking-wider ${typeColor} border border-current px-1.5 py-0.5 rounded-sm">${c.type}</span>
-                        ${(c.tags || []).slice(0,2).map(t => `<span class="text-[9px] font-bold uppercase tracking-wider text-stone-500 bg-stone-200 px-1.5 py-0.5 rounded-sm">${t}</span>`).join('')}
-                        ${(c.tags && c.tags.length > 2) ? `<span class="text-[9px] font-bold text-stone-400">+${c.tags.length - 2}</span>` : ''}
-                    </div>
-                    <div class="pl-2 mt-auto pt-3 border-t border-[#d4c5a9]/50">
-                        <p class="text-xs text-stone-600 font-sans line-clamp-2 italic">"${c.desc || 'No description...'}"</p>
-                    </div>
-                </div>
-            </div>
-            `;
+                `;
+            }
         });
+
+        html += `</div>`; // Close codex-folders
     }
     
     html += `
-        </div>
     </div>
     `;
     return html;
