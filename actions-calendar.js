@@ -332,7 +332,11 @@ export const editCalendarNote = (noteId, anchorYear, anchorMonth, anchorDay) => 
     
     // Populate the Start Date UI
     if (startYInput) startYInput.value = targetY;
-    if (startMInput) startMInput.value = targetM;
+    if (startMInput) {
+        startMInput.value = targetM;
+        // Dynamically recalculate the Day dropdown options for the selected start month!
+        if (window.updateDayOptions) window.updateDayOptions(targetM, 'cal-note-start-d');
+    }
     if (startDInput) startDInput.value = targetD;
 
     // Calculate End Date math based on the duration
@@ -347,7 +351,11 @@ export const editCalendarNote = (noteId, anchorYear, anchorMonth, anchorDay) => 
 
     // Populate the End Date UI
     if (endYInput) endYInput.value = endY;
-    if (endMInput) endMInput.value = endMD.monthIndex;
+    if (endMInput) {
+        endMInput.value = endMD.monthIndex;
+        // Dynamically recalculate the Day dropdown options for the selected end month!
+        if (window.updateDayOptions) window.updateDayOptions(endMD.monthIndex, 'cal-note-end-d');
+    }
     if (endDInput) endDInput.value = endMD.day;
 
     if (repeatsInput) repeatsInput.checked = targetNote.repeatsYearly || false;
