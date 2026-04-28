@@ -82,22 +82,25 @@ export function getRulesHTML(state) {
                                     <optgroup label="On Foot">
                                         <option value="foot-standard">🚶 Standard Overland</option>
                                     </optgroup>
-                                    <optgroup label="Mounts & Vehicles (Land)">
-                                        <option value="mount-riding">🐎 Riding / Warhorse (60 ft)</option>
+                                    <optgroup label="Mounts & Draft Animals">
+                                        <option value="mount-riding">🐎 Riding horse / Warhorse (60 ft)</option>
                                         <option value="mount-camel">🐪 Camel (50 ft)</option>
-                                        <option value="mount-draft">🐴 Draft Horse / Mule / Cart (40 ft)</option>
+                                        <option value="mount-draft">🐴 Draft horse / Donkey / Mule (40 ft)</option>
                                         <option value="mount-elephant">🐘 Elephant (40 ft)</option>
                                         <option value="mount-mastiff">🐕 Mastiff / Pony (40 ft)</option>
                                     </optgroup>
                                     <optgroup label="Waterborne Vessels">
                                         <option value="water-galley">🚢 Galley (4 mph)</option>
-                                        <option value="water-longship">🛶 Longship / Keelboat (3 mph)</option>
+                                        <option value="water-longship">🛶 Longship (3 mph)</option>
                                         <option value="water-warship">⛵ Warship (2.5 mph)</option>
-                                        <option value="water-sailing">⛵ Sailing Ship (2 mph)</option>
+                                        <option value="water-sailing">⛵ Sailing ship (2 mph)</option>
                                         <option value="water-rowboat">🚣 Rowboat (1.5 mph)</option>
+                                        <option value="water-keelboat">⛵ Keelboat (1 mph)</option>
                                     </optgroup>
-                                    <optgroup label="Custom / Magical">
-                                        <option value="custom">✨ Custom / Flying Speed</option>
+                                    <optgroup label="Flying & Magical">
+                                        <option value="flying-griffon">🦅 Flying Mount (e.g. Griffon 80 ft)</option>
+                                        <option value="flying-carpet">✨ Carpet of Flying (60 ft)</option>
+                                        <option value="custom">✨ Custom Magical Speed</option>
                                     </optgroup>
                                 </select>
                             </div>
