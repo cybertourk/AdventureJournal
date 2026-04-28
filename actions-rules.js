@@ -197,22 +197,43 @@ export const deleteRule = async (id) => {
 // --- PINNED UTILITY CALCULATORS ---
 
 export const calculateTravel = () => {
+    const modeEl = document.getElementById('calc-travel-mode');
     const speedEl = document.getElementById('calc-travel-speed');
     const hoursEl = document.getElementById('calc-travel-hours');
     const diffEl = document.getElementById('calc-travel-difficult');
+    const helpEl = document.getElementById('calc-travel-speed-help');
     
-    if (!speedEl || !hoursEl || !diffEl) return;
+    if (!modeEl || !speedEl || !hoursEl || !diffEl) return;
 
+    const mode = modeEl.value; // 'standard' or 'special'
     const speed = parseFloat(speedEl.value) || 0;
     const hours = parseFloat(hoursEl.value) || 0;
     const isDifficult = diffEl.checked;
 
-    // Base math: Normal pace mph is speed / 10
-    let normalMph = speed / 10;
-    let fastMph = normalMph * (4/3); // Approx +33% faster
-    let slowMph = normalMph * (2/3); // Approx 33% slower
+    let normalMph = 0;
+    let fastMph = 0;
+    let slowMph = 0;
 
-    // Apply difficult terrain
+    if (mode === 'standard') {
+        speedEl.disabled = true;
+        speedEl.classList.add('opacity-50');
+        if (helpEl) helpEl.textContent = "Standard travel ignores individual speed (PHB p.181).";
+
+        // Standard PHB Overland Math
+        normalMph = 3;
+        fastMph = 4;
+        slowMph = 2;
+    } else {
+        speedEl.disabled = false;
+        speedEl.classList.remove('opacity-50');
+        if (helpEl) helpEl.textContent = "Magical or vehicle speed. 1 hour = Speed / 10 miles (DMG p.242).";
+
+        // Special DMG Math: 1 hour = Speed / 10 miles
+        normalMph = speed / 10;
+        fastMph = normalMph * (4/3);
+        slowMph = normalMph * (2/3);
+    }
+
     if (isDifficult) {
         normalMph /= 2;
         fastMph /= 2;
@@ -232,7 +253,7 @@ export const calculateTravel = () => {
     const dcEl = document.getElementById('res-travel-dc');
     if (hours > 8) {
         warnEl.classList.remove('hidden');
-        dcEl.textContent = 10 + Math.floor(hours - 8);
+        if (dcEl) dcEl.textContent = 10 + Math.floor(hours - 8);
     } else {
         warnEl.classList.add('hidden');
     }
