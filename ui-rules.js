@@ -77,21 +77,23 @@ export function getRulesHTML(state) {
                         <!-- Inputs -->
                         <div class="col-span-1 space-y-4 bg-stone-50 p-4 border border-[#d4c5a9] rounded-sm shadow-inner">
                             <div>
-                                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Travel Mode</label>
-                                <select id="calc-travel-mode" onchange="window.appActions.calculateTravel()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 shadow-sm">
-                                    <option value="standard">Standard Overland</option>
-                                    <option value="special">Special / Magical</option>
+                                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Method of Travel</label>
+                                <select id="calc-travel-mode" onchange="window.appActions.updateTravelPresets(); window.appActions.calculateTravel()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 shadow-sm">
+                                    <option value="foot">🚶 On Foot</option>
+                                    <option value="mount">🐎 Mounted (Land)</option>
+                                    <option value="water">⛵ Waterborne Vessel</option>
+                                    <option value="flying">🦅 Flying / Magical</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Base Speed (ft/round)</label>
-                                <input type="number" id="calc-travel-speed" value="30" min="0" oninput="window.appActions.calculateTravel()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 text-center opacity-50 shadow-sm" disabled>
+                                <input type="number" id="calc-travel-speed" value="30" min="0" oninput="window.appActions.calculateTravel()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm">
                                 <p id="calc-travel-speed-help" class="text-[9px] text-stone-400 mt-1 italic">Standard travel ignores individual speed (PHB p.181).</p>
                             </div>
                             <div>
-                                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Travel Hours</label>
+                                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Travel Hours / Day</label>
                                 <input type="number" id="calc-travel-hours" value="8" min="1" max="24" oninput="window.appActions.calculateTravel()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm">
-                                <p class="text-[9px] text-stone-400 mt-1 italic">Standard day is 8 hours. 24 hours for wind/water vessels.</p>
+                                <p class="text-[9px] text-stone-400 mt-1 italic">Standard day is 8 hours. Forced march beyond 8.</p>
                             </div>
                             <div class="flex items-center gap-2 mt-2 pt-2 border-t border-[#d4c5a9]">
                                 <input type="checkbox" id="calc-travel-difficult" onchange="window.appActions.calculateTravel()" class="w-4 h-4 text-amber-600 rounded-sm border-stone-400 focus:ring-amber-500 cursor-pointer shadow-sm">
@@ -110,17 +112,17 @@ export function getRulesHTML(state) {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr class="border-b border-stone-200">
+                                    <tr id="row-travel-fast" class="border-b border-stone-200">
                                         <td class="py-3 font-bold text-amber-700"><i class="fa-solid fa-forward-fast mr-1"></i> Fast</td>
                                         <td class="py-3 font-bold text-stone-800" id="res-travel-fast">30 miles</td>
                                         <td class="py-3 text-stone-600 italic text-xs">-5 penalty to passive Wisdom (Perception) scores</td>
                                     </tr>
-                                    <tr class="border-b border-stone-200">
+                                    <tr id="row-travel-normal" class="border-b border-stone-200">
                                         <td class="py-3 font-bold text-emerald-700"><i class="fa-solid fa-play mr-1"></i> Normal</td>
                                         <td class="py-3 font-bold text-stone-800" id="res-travel-normal">24 miles</td>
-                                        <td class="py-3 text-stone-600 italic text-xs">Standard travel</td>
+                                        <td class="py-3 text-stone-600 italic text-xs" id="res-travel-normal-desc">Standard travel</td>
                                     </tr>
-                                    <tr>
+                                    <tr id="row-travel-slow">
                                         <td class="py-3 font-bold text-blue-700"><i class="fa-solid fa-backward-step mr-1"></i> Slow</td>
                                         <td class="py-3 font-bold text-stone-800" id="res-travel-slow">18 miles</td>
                                         <td class="py-3 text-stone-600 italic text-xs">Able to use stealth</td>
@@ -128,8 +130,10 @@ export function getRulesHTML(state) {
                                 </tbody>
                             </table>
 
-                            <div id="res-travel-exhaustion" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-sm text-xs text-red-800 hidden shadow-sm">
-                                <i class="fa-solid fa-triangle-exclamation mr-1"></i> <span class="font-bold">Forced March:</span> Traveling beyond 8 hours requires a Constitution saving throw at the end of each extra hour (DC <span id="res-travel-dc" class="font-bold"></span>). On a failure, a character suffers one level of exhaustion. <span class="italic block mt-1 opacity-80">(Note: Passengers on magical/wind/water vehicles may be exempt).</span>
+                            <div id="res-travel-extra" class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-sm text-xs text-blue-800 hidden shadow-sm leading-relaxed"></div>
+
+                            <div id="res-travel-exhaustion" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-sm text-xs text-red-800 hidden shadow-sm leading-relaxed">
+                                <i class="fa-solid fa-triangle-exclamation mr-1"></i> <span class="font-bold">Forced March:</span> Traveling beyond 8 hours requires a Constitution saving throw at the end of each extra hour (DC <span id="res-travel-dc" class="font-bold"></span>). On a failure, a character suffers one level of exhaustion.
                             </div>
                         </div>
                     </div>
