@@ -67,6 +67,66 @@ function renderSmartFieldWithVis(id, labelHtml, value, visObj, placeholderText, 
     `;
 }
 
+// Helper to render the new Collaborative Chronicle Log
+function renderChronicleLog(session, camp, myUid) {
+    const entries = session.chronicle || [];
+    const isDM = camp._isDM;
+    const playerNames = camp.playerNames || {};
+
+    let html = '<div class="space-y-3 mb-4" id="chronicle-feed">';
+    if (entries.length === 0) {
+        html += `<div class="p-6 text-center border border-dashed border-stone-400 bg-stone-50 rounded-sm"><p class="text-stone-500 italic text-sm font-serif">The chronicle is silent. Add an entry below to begin the collaborative record.</p></div>`;
+    } else {
+        entries.forEach(entry => {
+            const isAuthor = entry.authorId === myUid;
+            const canEdit = isDM || isAuthor;
+            const isAuthorDM = entry.authorId === camp.dmId;
+            const authorName = isAuthorDM ? 'Dungeon Master' : (playerNames[entry.authorId] || 'Unknown Player');
+            const authorIcon = isAuthorDM ? '<i class="fa-solid fa-crown text-amber-500"></i>' : '<i class="fa-solid fa-feather-pointed text-stone-500"></i>';
+            
+            // Real-time parsing via window.appActions if available
+            const parsedText = (window.appActions && window.appActions.parseSmartText) 
+                ? window.appActions.parseSmartText(entry.text) 
+                : entry.text.replace(/\n/g, '<br>');
+
+            const dateObj = new Date(entry.timestamp);
+            const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const dateString = dateObj.toLocaleDateString();
+
+            html += `
+            <div class="bg-white border border-[#d4c5a9] rounded-sm shadow-sm relative group overflow-hidden">
+                <div class="bg-[#f4ebd8] border-b border-[#d4c5a9] px-3 py-1.5 flex justify-between items-center">
+                    <div class="flex items-center gap-2 text-[10px] uppercase font-bold tracking-widest text-stone-600">
+                        ${authorIcon} <span class="text-stone-900">${authorName}</span> <span class="text-stone-400 font-normal ml-1 normal-case tracking-normal hidden sm:inline">${dateString} at ${timeString}</span>
+                    </div>
+                    ${canEdit ? `
+                    <button type="button" onclick="window.appActions.deleteChronicleEntry('${entry.id}')" class="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-red-800 hover:text-red-600 uppercase font-bold flex items-center" title="Delete Entry"><i class="fa-solid fa-trash sm:mr-1"></i> <span class="hidden sm:inline">Erase</span></button>
+                    ` : ''}
+                </div>
+                <div class="p-3 text-sm text-stone-800 font-serif leading-relaxed whitespace-pre-wrap">
+                    ${parsedText}
+                </div>
+            </div>
+            `;
+        });
+    }
+    html += '</div>';
+
+    // Add Input Area
+    html += `
+    <div class="bg-stone-100 border border-stone-300 rounded-sm p-3 shadow-inner">
+        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5"><i class="fa-solid fa-comment-dots mr-1"></i> Contribute to Chronicle</label>
+        <textarea id="new-chronicle-input" class="w-full p-3 bg-white border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 resize-none min-h-[80px] custom-scrollbar shadow-inner" placeholder="Add your perspective, a quote, or a session event... Codex names link automatically."></textarea>
+        <div class="flex justify-end mt-2">
+            <button type="button" onclick="window.appActions.addChronicleEntry()" class="px-5 py-2 bg-stone-800 text-amber-50 rounded-sm hover:bg-stone-700 transition font-bold uppercase tracking-wider text-[10px] shadow-sm flex items-center">
+                <i class="fa-solid fa-paper-plane mr-2"></i> Submit Entry
+            </button>
+        </div>
+    </div>
+    `;
+    return html;
+}
+
 // --- MAIN SESSION EDITOR HTML GENERATOR ---
 
 export function getSessionEditHTML(state) {
@@ -83,7 +143,7 @@ export function getSessionEditHTML(state) {
     const myNoteData = (session.playerNotes && session.playerNotes[myUid]) ? session.playerNotes[myUid] : { text: '', visibility: { mode: 'hidden', visibleTo: [] } };
 
     // ==========================================
-    // PLAYER VIEW (Streamlined Personal Notes)
+    // PLAYER VIEW (Collaborative + Personal Notes)
     // ==========================================
     if (!isDM) {
         if (isNew) {
@@ -91,12 +151,12 @@ export function getSessionEditHTML(state) {
         }
 
         return `
-        <div class="animate-in slide-in-from-bottom-4 duration-300 bg-[#fdfbf7] rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col max-w-3xl mx-auto h-[calc(100vh-100px)] sm:h-[calc(100vh-120px)] relative">
+        <div class="animate-in slide-in-from-bottom-4 duration-300 bg-[#fdfbf7] rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col max-w-4xl mx-auto h-[calc(100vh-100px)] sm:h-[calc(100vh-120px)] relative">
             
             <!-- Header -->
             <div class="bg-stone-900 p-4 border-b-4 border-blue-900 text-amber-500 flex justify-between items-center shrink-0 shadow-md z-10">
                 <h2 class="text-xl sm:text-2xl font-serif font-bold flex items-center">
-                    <i class="fa-solid fa-feather-pointed mr-3 text-blue-500"></i> Personal Notes
+                    <i class="fa-solid fa-feather-pointed mr-3 text-blue-500"></i> Session Record
                 </h2>
                 <div class="flex items-center gap-2">
                     <span class="bg-stone-800 text-amber-200 text-[10px] px-2 py-1 rounded border border-stone-600 uppercase tracking-widest shadow-inner hidden sm:inline-block">${adv.name}</span>
@@ -108,19 +168,29 @@ export function getSessionEditHTML(state) {
 
             <!-- Content Area -->
             <div class="flex-grow overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 bg-[#fdfbf7]">
-                <div class="max-w-2xl mx-auto">
+                <div class="max-w-3xl mx-auto">
                     <h3 class="w-full pb-4 mb-6 text-stone-900 font-serif font-bold text-2xl border-b-2 border-stone-300">${session.name || 'Session'}</h3>
                     
-                    <p class="text-stone-500 text-xs sm:text-sm mb-6 italic border-l-2 border-blue-500 pl-3">Record your private thoughts, inventory updates, or quest notes for this session. By default, these are only visible to you and the Dungeon Master.</p>
-                    
-                    ${renderSmartFieldWithVis(`player-note-${myUid}`, `<i class="fa-solid fa-book-open mr-2 text-stone-500"></i> My Hero's Journal`, myNoteData.text, myNoteData.visibility, 'Scribe your personal notes here... Codex names link automatically.', 10, false)}
+                    <!-- Collaborative Chronicle -->
+                    <div class="mb-10">
+                        <h4 class="font-serif font-bold text-lg text-stone-900 border-b border-[#d4c5a9] pb-1 mb-3"><i class="fa-solid fa-users text-amber-600 mr-2"></i> Collaborative Chronicle</h4>
+                        <p class="text-stone-500 text-[10px] uppercase tracking-widest font-bold mb-4">A shared record of events, quotes, and memories.</p>
+                        ${renderChronicleLog(session, camp, myUid)}
+                    </div>
+
+                    <!-- Personal Notes -->
+                    <div class="mt-8 border-t-2 border-stone-300 pt-6">
+                        <h4 class="font-serif font-bold text-lg text-stone-900 border-b border-[#d4c5a9] pb-1 mb-3"><i class="fa-solid fa-lock text-stone-500 mr-2"></i> Private Details</h4>
+                        <p class="text-stone-500 text-xs sm:text-sm mb-4 italic border-l-2 border-blue-500 pl-3">Record your private thoughts, inventory updates, or quest notes for this session. By default, these are only visible to you and the Dungeon Master.</p>
+                        ${renderSmartFieldWithVis(`player-note-${myUid}`, `<i class="fa-solid fa-book-open mr-2 text-stone-500"></i> My Hero's Journal`, myNoteData.text, myNoteData.visibility, 'Scribe your personal notes here... Codex names link automatically.', 8, false)}
+                    </div>
                 </div>
             </div>
 
             <!-- Footer Actions -->
             <div class="bg-[#e8dec7] p-3 sm:p-4 border-t border-stone-400 flex justify-end gap-2 shrink-0 z-10 shadow-[0_-4px_10px_rgba(0,0,0,0.1)]">
-                <button onclick="window.appActions.setView('adventure')" class="px-4 py-2 text-stone-600 border border-stone-400 rounded-sm hover:bg-stone-300 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs">Discard</button>
-                <button onclick="window.appActions.saveSession()" class="px-5 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs flex items-center shadow-md"><i class="fa-solid fa-floppy-disk mr-2"></i> Inscribe Notes</button>
+                <button onclick="window.appActions.setView('adventure')" class="px-4 py-2 text-stone-600 border border-stone-400 rounded-sm hover:bg-stone-300 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs">Discard Changes</button>
+                <button onclick="window.appActions.saveSession()" class="px-5 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs flex items-center shadow-md"><i class="fa-solid fa-floppy-disk mr-2"></i> Inscribe Private Notes</button>
             </div>
         </div>
         `;
@@ -283,12 +353,21 @@ export function getSessionEditHTML(state) {
                     </button>
                 </div>
 
-                <!-- Static Fields with Visibility Wrappers -->
-                <div class="space-y-6">
+                <!-- Loot & Main Overview -->
+                <div class="space-y-6 mb-8">
                     ${renderSmartFieldWithVis('draft-loot', `<i class="fa-solid fa-coins mr-2 text-stone-500"></i> Loot & Rewards`, session.lootText, session.lootVisibility, 'Describe the treasure found...', 4)}
-                    ${renderSmartFieldWithVis('draft-notes', `<i class="fa-solid fa-book mr-2 text-stone-500"></i> General Notes`, session.notes, session.notesVisibility, 'Any general notes or lore...', 4)}
-                    
-                    <!-- DM's Personal Notes Section -->
+                    ${renderSmartFieldWithVis('draft-notes', `<i class="fa-solid fa-book mr-2 text-stone-500"></i> DM Overview & Context`, session.notes, session.notesVisibility, 'The primary summary or hidden DM notes...', 4)}
+                </div>
+
+                <!-- Collaborative Chronicle -->
+                <div class="mb-8 mt-6 border-t-2 border-stone-300 pt-6">
+                    <h3 class="text-sm font-bold text-stone-800 uppercase tracking-widest flex items-center border-b border-stone-300 w-full pb-1 mb-3"><i class="fa-solid fa-users mr-2 text-stone-500"></i> Collaborative Chronicle</h3>
+                    <p class="text-stone-500 text-[10px] uppercase tracking-widest font-bold mb-4">A shared record of events, quotes, and memories.</p>
+                    ${renderChronicleLog(session, camp, myUid)}
+                </div>
+
+                <!-- DM's Personal Notes Section -->
+                <div class="space-y-6 mt-8 border-t-2 border-stone-300 pt-6">
                     ${renderSmartFieldWithVis(`player-note-${myUid}`, `<i class="fa-solid fa-feather mr-2 text-stone-500"></i> My Personal Notes`, myNoteData.text, myNoteData.visibility, 'Record your private DM/player thoughts here...', 4)}
                 </div>
             </div>
@@ -374,7 +453,7 @@ export function getSessionEditHTML(state) {
 
         <!-- Footer Actions -->
         <div class="bg-[#e8dec7] p-3 sm:p-4 border-t border-stone-400 flex justify-end gap-2 shrink-0 z-10 shadow-[0_-4px_10px_rgba(0,0,0,0.1)]">
-            <button onclick="window.appActions.setView('adventure')" class="px-4 py-2 text-stone-600 border border-stone-400 rounded-sm hover:bg-stone-300 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs">Discard</button>
+            <button onclick="window.appActions.setView('adventure')" class="px-4 py-2 text-stone-600 border border-stone-400 rounded-sm hover:bg-stone-300 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs">Discard Changes</button>
             <button onclick="window.appActions.saveSession()" class="px-5 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs flex items-center shadow-md"><i class="fa-solid fa-floppy-disk mr-2"></i> Inscribe Record</button>
         </div>
     </div>
