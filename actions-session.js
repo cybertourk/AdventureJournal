@@ -127,6 +127,8 @@ export const _gatherSessionDraft = () => {
                 visibility: grabVisibility(row)
             })),
             
+            chronicle: session?.chronicle || [], // Preserves the collaborative log feed!
+            
             notes: document.getElementById('input-draft-notes')?.value || '',
             notesVisibility: getStaticVis('input-draft-notes'),
             
@@ -268,6 +270,85 @@ export const deleteSession = async (sessionId) => {
     await saveCampaign(updatedCamp);
     notify("Session log destroyed.", "success");
 };
+
+// --- Collaborative Chronicle ---
+
+export const addChronicleEntry = async () => {
+    const input = document.getElementById('new-chronicle-input');
+    if (!input) return;
+    
+    const text = input.value.trim();
+    if (!text) return;
+    
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    const adv = window.appData.activeAdventure;
+    const session = window.appData.activeSession;
+    const myUid = window.appData.currentUserUid;
+    
+    if (!camp || !adv || !myUid) return;
+
+    if (!session) {
+        notify("You must save the new session first before adding collaborative chronicle entries.", "error");
+        return;
+    }
+
+    const newEntry = {
+        id: generateId(),
+        text: text,
+        authorId: myUid,
+        timestamp: Date.now()
+    };
+
+    const updatedAdventures = camp.adventures.map(a => {
+        if (a.id !== adv.id) return a;
+        const updatedSessions = a.sessions.map(s => {
+            if (s.id !== session.id) return s;
+            return {
+                ...s,
+                chronicle: [...(s.chronicle || []), newEntry]
+            };
+        });
+        return { ...a, sessions: updatedSessions };
+    });
+
+    const updatedCamp = { ...camp, adventures: updatedAdventures };
+    input.value = ''; // Clear the input field
+    
+    await saveCampaign(updatedCamp);
+    
+    // Force a local re-render so the new message pops up instantly for the author
+    reRender();
+};
+
+export const deleteChronicleEntry = async (entryId) => {
+    if (!confirm("Are you sure you want to permanently erase this entry from the chronicle?")) return;
+    
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    const adv = window.appData.activeAdventure;
+    const session = window.appData.activeSession;
+    
+    if (!camp || !adv || !session) return;
+
+    const updatedAdventures = camp.adventures.map(a => {
+        if (a.id !== adv.id) return a;
+        const updatedSessions = a.sessions.map(s => {
+            if (s.id !== session.id) return s;
+            return {
+                ...s,
+                chronicle: (s.chronicle || []).filter(e => e.id !== entryId)
+            };
+        });
+        return { ...a, sessions: updatedSessions };
+    });
+
+    const updatedCamp = { ...camp, adventures: updatedAdventures };
+    
+    await saveCampaign(updatedCamp);
+    reRender();
+};
+
 
 // --- Dynamic DOM Log Builders ---
 
