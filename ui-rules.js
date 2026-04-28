@@ -79,15 +79,31 @@ export function getRulesHTML(state) {
                             <div>
                                 <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Method of Travel</label>
                                 <select id="calc-travel-mode" onchange="window.appActions.updateTravelPresets(); window.appActions.calculateTravel()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 shadow-sm">
-                                    <option value="foot">🚶 On Foot</option>
-                                    <option value="mount">🐎 Mounted (Land)</option>
-                                    <option value="water">⛵ Waterborne Vessel</option>
-                                    <option value="flying">🦅 Flying / Magical</option>
+                                    <optgroup label="On Foot">
+                                        <option value="foot-standard">🚶 Standard Overland</option>
+                                    </optgroup>
+                                    <optgroup label="Mounts & Vehicles (Land)">
+                                        <option value="mount-riding">🐎 Riding / Warhorse (60 ft)</option>
+                                        <option value="mount-camel">🐪 Camel (50 ft)</option>
+                                        <option value="mount-draft">🐴 Draft Horse / Mule / Cart (40 ft)</option>
+                                        <option value="mount-elephant">🐘 Elephant (40 ft)</option>
+                                        <option value="mount-mastiff">🐕 Mastiff / Pony (40 ft)</option>
+                                    </optgroup>
+                                    <optgroup label="Waterborne Vessels">
+                                        <option value="water-galley">🚢 Galley (4 mph)</option>
+                                        <option value="water-longship">🛶 Longship / Keelboat (3 mph)</option>
+                                        <option value="water-warship">⛵ Warship (2.5 mph)</option>
+                                        <option value="water-sailing">⛵ Sailing Ship (2 mph)</option>
+                                        <option value="water-rowboat">🚣 Rowboat (1.5 mph)</option>
+                                    </optgroup>
+                                    <optgroup label="Custom / Magical">
+                                        <option value="custom">✨ Custom / Flying Speed</option>
+                                    </optgroup>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Base Speed (ft/round)</label>
-                                <input type="number" id="calc-travel-speed" value="30" min="0" oninput="window.appActions.calculateTravel()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm">
+                                <input type="number" id="calc-travel-speed" value="30" min="0" oninput="window.appActions.calculateTravel()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm opacity-50" disabled>
                                 <p id="calc-travel-speed-help" class="text-[9px] text-stone-400 mt-1 italic">Standard travel ignores individual speed (PHB p.181).</p>
                             </div>
                             <div>
@@ -133,7 +149,7 @@ export function getRulesHTML(state) {
                             <div id="res-travel-extra" class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-sm text-xs text-blue-800 hidden shadow-sm leading-relaxed"></div>
 
                             <div id="res-travel-exhaustion" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-sm text-xs text-red-800 hidden shadow-sm leading-relaxed">
-                                <i class="fa-solid fa-triangle-exclamation mr-1"></i> <span class="font-bold">Forced March:</span> Traveling beyond 8 hours requires a Constitution saving throw at the end of each extra hour (DC <span id="res-travel-dc" class="font-bold"></span>). On a failure, a character suffers one level of exhaustion.
+                                <i class="fa-solid fa-triangle-exclamation mr-1"></i> <span class="font-bold">Forced March:</span> Traveling beyond 8 hours requires a Constitution saving throw at the end of each extra hour (DC <span id="res-travel-dc" class="font-bold"></span>). On a failure, a character suffers one level of exhaustion. <span class="italic block mt-1 opacity-80">(Note: Passengers on vehicles may be exempt, but draft animals can still suffer exhaustion.)</span>
                             </div>
                         </div>
                     </div>
