@@ -207,56 +207,55 @@ export const updateTravelPresets = () => {
 
     const mode = modeEl.value;
 
+    // By default, UNLOCK speed and difficult terrain for everything except explicitly locked modes.
+    speedEl.disabled = false;
+    speedEl.classList.remove('opacity-50');
+    diffEl.disabled = false;
+
     if (mode === 'foot-standard') {
         speedEl.value = 30;
         speedEl.disabled = true; // Overland PHB specifically ignores individual walking speeds
         speedEl.classList.add('opacity-50');
         hoursEl.value = 8;
-        diffEl.disabled = false;
         if (helpEl) helpEl.textContent = "Standard travel ignores individual speed (PHB p.181).";
     } 
     else if (mode.startsWith('mount-')) {
-        speedEl.disabled = false; // Unlocked!
-        speedEl.classList.remove('opacity-50');
         hoursEl.value = 8;
-        diffEl.disabled = false;
         
         if (mode === 'mount-riding') { speedEl.value = 60; if (helpEl) helpEl.textContent = "Riding/Warhorse. Can push to gallop for 1 hour."; }
-        if (mode === 'mount-camel') { speedEl.value = 50; if (helpEl) helpEl.textContent = "Camel."; }
-        if (mode === 'mount-draft') { speedEl.value = 40; if (helpEl) helpEl.textContent = "Draft Horse/Mule/Vehicle."; }
-        if (mode === 'mount-elephant') { speedEl.value = 40; if (helpEl) helpEl.textContent = "Elephant."; }
-        if (mode === 'mount-mastiff') { speedEl.value = 40; if (helpEl) helpEl.textContent = "Mastiff/Pony."; }
+        if (mode === 'mount-camel') { speedEl.value = 50; if (helpEl) helpEl.textContent = "Camel. Base speed fully editable."; }
+        if (mode === 'mount-draft') { speedEl.value = 40; if (helpEl) helpEl.textContent = "Draft Horse/Mule/Vehicle. Base speed fully editable."; }
+        if (mode === 'mount-elephant') { speedEl.value = 40; if (helpEl) helpEl.textContent = "Elephant. Base speed fully editable."; }
+        if (mode === 'mount-mastiff') { speedEl.value = 40; if (helpEl) helpEl.textContent = "Mastiff/Pony. Base speed fully editable."; }
     } 
     else if (mode.startsWith('water-')) {
-        speedEl.disabled = false; // Unlocked!
-        speedEl.classList.remove('opacity-50');
         diffEl.checked = false;
-        diffEl.disabled = true; 
+        diffEl.disabled = true; // Difficult terrain generally doesn't apply out in open water
         
-        if (mode === 'water-galley') { speedEl.value = 40; hoursEl.value = 24; if (helpEl) helpEl.textContent = "Galley (4 mph). Can travel 24 hrs."; }
-        if (mode === 'water-longship') { speedEl.value = 30; hoursEl.value = 24; if (helpEl) helpEl.textContent = "Longship (3 mph). Can travel 24 hrs."; }
-        if (mode === 'water-warship') { speedEl.value = 25; hoursEl.value = 24; if (helpEl) helpEl.textContent = "Warship (2.5 mph). Can travel 24 hrs."; }
-        if (mode === 'water-sailing') { speedEl.value = 20; hoursEl.value = 24; if (helpEl) helpEl.textContent = "Sailing Ship (2 mph). Can travel 24 hrs."; }
+        if (mode === 'water-galley') { speedEl.value = 40; hoursEl.value = 24; if (helpEl) helpEl.textContent = "Galley (4 mph). Can travel 24 hrs. Speed editable."; }
+        if (mode === 'water-longship') { speedEl.value = 30; hoursEl.value = 24; if (helpEl) helpEl.textContent = "Longship (3 mph). Can travel 24 hrs. Speed editable."; }
+        if (mode === 'water-warship') { speedEl.value = 25; hoursEl.value = 24; if (helpEl) helpEl.textContent = "Warship (2.5 mph). Can travel 24 hrs. Speed editable."; }
+        if (mode === 'water-sailing') { speedEl.value = 20; hoursEl.value = 24; if (helpEl) helpEl.textContent = "Sailing Ship (2 mph). Can travel 24 hrs. Speed editable."; }
         if (mode === 'water-rowboat') { speedEl.value = 15; hoursEl.value = 8; if (helpEl) helpEl.textContent = "Rowboat (1.5 mph). Requires constant rowing (8 hr limit)."; }
-        if (mode === 'water-keelboat') { speedEl.value = 10; hoursEl.value = 24; if (helpEl) helpEl.textContent = "Keelboat (1 mph). Can travel 24 hrs."; }
+        if (mode === 'water-keelboat') { speedEl.value = 10; hoursEl.value = 24; if (helpEl) helpEl.textContent = "Keelboat (1 mph). Can travel 24 hrs. Speed editable."; }
     } 
     else if (mode.startsWith('flying-')) {
-        speedEl.disabled = false; // Unlocked!
-        speedEl.classList.remove('opacity-50');
-        hoursEl.value = 8;
         diffEl.checked = false;
         diffEl.disabled = true;
         
-        if (mode === 'flying-griffon') { speedEl.value = 80; if (helpEl) helpEl.textContent = "Flying generally ignores difficult terrain."; }
-        if (mode === 'flying-carpet') { speedEl.value = 60; if (helpEl) helpEl.textContent = "Flying generally ignores difficult terrain."; }
+        if (mode === 'flying-creature') { 
+            speedEl.value = 50; 
+            hoursEl.value = 8; 
+            diffEl.disabled = false; // Biological flying creatures might still face high winds (difficult terrain)
+            if (helpEl) helpEl.textContent = "Biological flying creatures risk exhaustion after 8 hours."; 
+        }
+        if (mode === 'flying-griffon') { speedEl.value = 80; hoursEl.value = 8; if (helpEl) helpEl.textContent = "Flying generally ignores land-based difficult terrain."; }
+        if (mode === 'flying-carpet') { speedEl.value = 60; hoursEl.value = 24; if (helpEl) helpEl.textContent = "Magical vehicles don't tire. Can travel 24 hrs."; }
     }
     else if (mode === 'custom') {
         speedEl.value = 80;
-        speedEl.disabled = false; // Unlocked!
-        speedEl.classList.remove('opacity-50');
         hoursEl.value = 8;
-        diffEl.disabled = false; 
-        if (helpEl) helpEl.textContent = "Enter custom speed. Flying ignores difficult terrain.";
+        if (helpEl) helpEl.textContent = "Enter custom speed. Apply difficult terrain if necessary.";
     }
 };
 
@@ -332,12 +331,18 @@ export const calculateTravel = () => {
         document.getElementById('res-travel-slow').textContent = `${formatDist(slowMph * hours)} miles`;
     }
 
-    // Forced March Warning
+    // Forced March Warning Logic
     const warnEl = document.getElementById('res-travel-exhaustion');
     const dcEl = document.getElementById('res-travel-dc');
     
-    // Ships don't cause forced march for passengers.
-    if (hours > 8 && !mode.startsWith('water-')) {
+    let showExhaustion = hours > 8;
+
+    // Ships don't cause forced march exhaustion for passengers, nor do magic carpets.
+    // Rowboats are the exception—they require constant physical rowing.
+    if (mode.startsWith('water-') && mode !== 'water-rowboat') showExhaustion = false;
+    if (mode === 'flying-carpet') showExhaustion = false;
+
+    if (showExhaustion) {
         warnEl.classList.remove('hidden');
         if (dcEl) dcEl.textContent = 10 + Math.floor(hours - 8);
     } else {
