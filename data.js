@@ -4,7 +4,7 @@ import { setCampaignsData } from './state.js';
 import { setView, openCampaign, openAdventure, toggleNewCampaignForm, createCampaign, deleteCampaignAction, copyCampaignId, toggleJoinCampaignForm, joinCampaignAction, toggleNewAdventureForm, createAdventure, deleteAdventure, openAdvRoster, toggleAdvRosterPc, saveAdvRoster, openPCEdit, savePCEdit, deletePC, kickPlayer, openChecklistMenu, closeChecklistMenu, addSheetUpdate, toggleSheetUpdateResolved, toggleSheetUpdateVis, deleteSheetUpdate } from './actions-campaign.js'; 
 
 // Import Session, Narrative, & Visibility Controls 
-import { openSessionEdit, switchSessionTab, updateSessionBudget, _readDynamicList, _gatherSessionDraft, updateSessionPreview, saveSession, deleteSession, addLogScene, addLogClue, openVisibilityMenu, toggleVisSpecificList, saveVisibility, _saveCampaignHelper, openUniversalEditor, closeUniversalEditor, saveUniversalEditor, formatText } from './actions-session.js'; 
+import { openSessionEdit, switchSessionTab, updateSessionBudget, _readDynamicList, _gatherSessionDraft, updateSessionPreview, saveSession, deleteSession, addLogScene, addLogClue, openVisibilityMenu, toggleVisSpecificList, saveVisibility, _saveCampaignHelper, openUniversalEditor, closeUniversalEditor, saveUniversalEditor, formatText, addChronicleEntry, deleteChronicleEntry } from './actions-session.js'; 
 
 // Import Codex, Smart-Text, & Journal Functionality 
 import { _canViewCodex, parseSmartText, handleSmartInput, _showSuggestions, viewCodex, _openCodexModal, saveCodexEntry, deleteCodexEntry, openJournal, closeJournal, copyJournal } from './actions-codex.js'; 
@@ -52,7 +52,7 @@ window.appActions = {
   toggleSheetUpdateVis, 
   deleteSheetUpdate, 
   
-  // Session Editing 
+  // Session Editing & Collaborative Chronicle
   openSessionEdit, 
   switchSessionTab, 
   updateSessionBudget, 
@@ -63,6 +63,8 @@ window.appActions = {
   deleteSession, 
   addLogScene, 
   addLogClue, 
+  addChronicleEntry,
+  deleteChronicleEntry,
   
   // Visibility 
   openVisibilityMenu, 
