@@ -77,17 +77,24 @@ export function getRulesHTML(state) {
                         <!-- Inputs -->
                         <div class="col-span-1 space-y-4 bg-stone-50 p-4 border border-[#d4c5a9] rounded-sm shadow-inner">
                             <div>
+                                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Travel Mode</label>
+                                <select id="calc-travel-mode" onchange="window.appActions.calculateTravel()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 shadow-sm">
+                                    <option value="standard">Standard Overland</option>
+                                    <option value="special">Special / Magical</option>
+                                </select>
+                            </div>
+                            <div>
                                 <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Base Speed (ft/round)</label>
-                                <input type="number" id="calc-travel-speed" value="30" min="0" oninput="window.appActions.calculateTravel()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 text-center">
-                                <p class="text-[9px] text-stone-400 mt-1 italic">Default human speed is 30. Adjust for mounts or vehicles.</p>
+                                <input type="number" id="calc-travel-speed" value="30" min="0" oninput="window.appActions.calculateTravel()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 text-center opacity-50 shadow-sm" disabled>
+                                <p id="calc-travel-speed-help" class="text-[9px] text-stone-400 mt-1 italic">Standard travel ignores individual speed (PHB p.181).</p>
                             </div>
                             <div>
                                 <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Travel Hours</label>
-                                <input type="number" id="calc-travel-hours" value="8" min="1" max="24" oninput="window.appActions.calculateTravel()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 text-center">
+                                <input type="number" id="calc-travel-hours" value="8" min="1" max="24" oninput="window.appActions.calculateTravel()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm">
                                 <p class="text-[9px] text-stone-400 mt-1 italic">Standard day is 8 hours. 24 hours for wind/water vessels.</p>
                             </div>
-                            <div class="flex items-center gap-2 mt-2">
-                                <input type="checkbox" id="calc-travel-difficult" onchange="window.appActions.calculateTravel()" class="w-4 h-4 text-amber-600 rounded-sm border-stone-400 focus:ring-amber-500 cursor-pointer">
+                            <div class="flex items-center gap-2 mt-2 pt-2 border-t border-[#d4c5a9]">
+                                <input type="checkbox" id="calc-travel-difficult" onchange="window.appActions.calculateTravel()" class="w-4 h-4 text-amber-600 rounded-sm border-stone-400 focus:ring-amber-500 cursor-pointer shadow-sm">
                                 <label class="text-[10px] uppercase text-amber-700 font-bold tracking-widest cursor-pointer" for="calc-travel-difficult">Difficult Terrain (1/2 Dist)</label>
                             </div>
                         </div>
@@ -105,24 +112,24 @@ export function getRulesHTML(state) {
                                 <tbody>
                                     <tr class="border-b border-stone-200">
                                         <td class="py-3 font-bold text-amber-700"><i class="fa-solid fa-forward-fast mr-1"></i> Fast</td>
-                                        <td class="py-3 font-bold text-stone-800" id="res-travel-fast">-- miles</td>
+                                        <td class="py-3 font-bold text-stone-800" id="res-travel-fast">30 miles</td>
                                         <td class="py-3 text-stone-600 italic text-xs">-5 penalty to passive Wisdom (Perception) scores</td>
                                     </tr>
                                     <tr class="border-b border-stone-200">
                                         <td class="py-3 font-bold text-emerald-700"><i class="fa-solid fa-play mr-1"></i> Normal</td>
-                                        <td class="py-3 font-bold text-stone-800" id="res-travel-normal">-- miles</td>
+                                        <td class="py-3 font-bold text-stone-800" id="res-travel-normal">24 miles</td>
                                         <td class="py-3 text-stone-600 italic text-xs">Standard travel</td>
                                     </tr>
                                     <tr>
                                         <td class="py-3 font-bold text-blue-700"><i class="fa-solid fa-backward-step mr-1"></i> Slow</td>
-                                        <td class="py-3 font-bold text-stone-800" id="res-travel-slow">-- miles</td>
+                                        <td class="py-3 font-bold text-stone-800" id="res-travel-slow">18 miles</td>
                                         <td class="py-3 text-stone-600 italic text-xs">Able to use stealth</td>
                                     </tr>
                                 </tbody>
                             </table>
 
-                            <div id="res-travel-exhaustion" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-sm text-xs text-red-800 hidden">
-                                <i class="fa-solid fa-triangle-exclamation mr-1"></i> <span class="font-bold">Forced March:</span> Traveling beyond 8 hours requires a Constitution saving throw at the end of each extra hour (DC <span id="res-travel-dc" class="font-bold"></span>). On a failure, a character suffers one level of exhaustion.
+                            <div id="res-travel-exhaustion" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-sm text-xs text-red-800 hidden shadow-sm">
+                                <i class="fa-solid fa-triangle-exclamation mr-1"></i> <span class="font-bold">Forced March:</span> Traveling beyond 8 hours requires a Constitution saving throw at the end of each extra hour (DC <span id="res-travel-dc" class="font-bold"></span>). On a failure, a character suffers one level of exhaustion. <span class="italic block mt-1 opacity-80">(Note: Passengers on magical/wind/water vehicles may be exempt).</span>
                             </div>
                         </div>
                     </div>
@@ -148,11 +155,11 @@ export function getRulesHTML(state) {
                                 <div class="flex items-center gap-4">
                                     <div class="flex-1">
                                         <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Strength Score</label>
-                                        <input type="number" id="calc-enc-str" value="10" min="1" max="30" oninput="window.appActions.calculateEncumbrance()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 text-center">
+                                        <input type="number" id="calc-enc-str" value="10" min="1" max="30" oninput="window.appActions.calculateEncumbrance()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm">
                                     </div>
                                     <div class="flex-1">
                                         <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Size Category</label>
-                                        <select id="calc-enc-size" onchange="window.appActions.calculateEncumbrance()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600">
+                                        <select id="calc-enc-size" onchange="window.appActions.calculateEncumbrance()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 shadow-sm">
                                             <option value="1">Tiny / Small / Medium</option>
                                             <option value="2">Large (x2)</option>
                                             <option value="4">Huge (x4)</option>
@@ -167,8 +174,8 @@ export function getRulesHTML(state) {
                                 <div>
                                     <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Total Coins (Any Mix)</label>
                                     <div class="flex items-center gap-3">
-                                        <input type="number" id="calc-enc-coins" value="0" min="0" oninput="window.appActions.calculateEncumbrance()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 text-center">
-                                        <div class="flex-shrink-0 text-sm font-bold text-amber-700 bg-amber-100 px-3 py-2 rounded-sm border border-amber-300">
+                                        <input type="number" id="calc-enc-coins" value="0" min="0" oninput="window.appActions.calculateEncumbrance()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm">
+                                        <div class="flex-shrink-0 text-sm font-bold text-amber-700 bg-amber-100 px-3 py-2 rounded-sm border border-amber-300 shadow-sm">
                                             = <span id="res-coin-weight">0</span> lbs
                                         </div>
                                     </div>
@@ -179,7 +186,7 @@ export function getRulesHTML(state) {
 
                         <!-- Results -->
                         <div class="flex flex-col justify-center space-y-4">
-                            <div class="bg-blue-50 border border-blue-200 p-4 rounded-sm">
+                            <div class="bg-blue-50 border border-blue-200 p-4 rounded-sm shadow-sm">
                                 <h4 class="text-xs uppercase text-blue-800 font-bold mb-2 tracking-widest"><i class="fa-solid fa-dumbbell mr-1"></i> Standard Rules</h4>
                                 <div class="grid grid-cols-2 gap-2 text-sm">
                                     <div class="text-stone-600">Max Carrying Capacity:</div>
@@ -190,7 +197,7 @@ export function getRulesHTML(state) {
                                 <p class="text-[10px] text-stone-500 italic mt-2">While pushing or dragging weight in excess of your carrying capacity, your speed drops to 5 feet.</p>
                             </div>
 
-                            <div class="bg-stone-100 border border-stone-300 p-4 rounded-sm">
+                            <div class="bg-stone-100 border border-stone-300 p-4 rounded-sm shadow-sm">
                                 <h4 class="text-xs uppercase text-stone-600 font-bold mb-2 tracking-widest"><i class="fa-solid fa-scale-unbalanced mr-1"></i> Variant Encumbrance</h4>
                                 <p class="text-[10px] text-stone-500 italic mb-3">If your table uses the optional variant rules for detailed weight tracking.</p>
                                 <div class="space-y-3 text-sm">
@@ -231,18 +238,18 @@ export function getRulesHTML(state) {
                             <div class="flex items-center gap-4">
                                 <div class="flex-1">
                                     <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Strength Score</label>
-                                    <input type="number" id="calc-jump-str" value="10" min="1" max="30" oninput="window.appActions.calculateJump()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 text-center">
+                                    <input type="number" id="calc-jump-str" value="10" min="1" max="30" oninput="window.appActions.calculateJump()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm">
                                 </div>
                                 <div class="flex-1">
                                     <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Character Height (ft)</label>
-                                    <input type="number" id="calc-jump-height" value="6" min="1" oninput="window.appActions.calculateJump()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 text-center" placeholder="e.g. 6">
+                                    <input type="number" id="calc-jump-height" value="6" min="1" oninput="window.appActions.calculateJump()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm" placeholder="e.g. 6">
                                 </div>
                             </div>
                         </div>
 
                         <!-- Results -->
                         <div class="space-y-4">
-                            <div class="bg-white border border-[#d4c5a9] rounded-sm overflow-hidden">
+                            <div class="bg-white border border-[#d4c5a9] rounded-sm overflow-hidden shadow-sm">
                                 <div class="bg-stone-200 px-3 py-1 border-b border-[#d4c5a9] text-xs font-bold uppercase tracking-widest text-stone-600">Long Jump</div>
                                 <div class="p-3 grid grid-cols-2 gap-2 text-sm">
                                     <div class="text-stone-600">Running (10ft start):</div>
@@ -252,7 +259,7 @@ export function getRulesHTML(state) {
                                 </div>
                             </div>
 
-                            <div class="bg-white border border-[#d4c5a9] rounded-sm overflow-hidden">
+                            <div class="bg-white border border-[#d4c5a9] rounded-sm overflow-hidden shadow-sm">
                                 <div class="bg-stone-200 px-3 py-1 border-b border-[#d4c5a9] text-xs font-bold uppercase tracking-widest text-stone-600">High Jump</div>
                                 <div class="p-3 grid grid-cols-2 gap-2 text-sm">
                                     <div class="text-stone-600">Running (10ft start):</div>
