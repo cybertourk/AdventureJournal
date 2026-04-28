@@ -13,7 +13,7 @@ import { _canViewCodex, parseSmartText, handleSmartInput, _showSuggestions, view
 import { openCalendar, navCalendarMonth, jumpToCurrentDate, jumpToSpecificDate, openCalendarLore, closeCalendarLore, openMonthInfo, closeMonthInfo, openCalendarDay, closeCalendarDay, setCurrentCampaignDate, syncCalendarNoteDates, saveCalendarNote, editCalendarNote, deleteCalendarNote, openCalendarSettings, closeCalendarSettings, addCalendarMonthRow, saveCalendarSettings, resetCalendarToDefault, importFoundryCalendarNotes } from './actions-calendar.js';
 
 // Import Rules Glossary Functionality
-import { openRulesGlossary, viewRule, openRuleModal, saveRule, deleteRule, calculateTravel, calculateEncumbrance, calculateJump } from './actions-rules.js';
+import { openRulesGlossary, viewRule, openRuleModal, saveRule, deleteRule, updateTravelPresets, calculateTravel, calculateEncumbrance, calculateJump } from './actions-rules.js';
 
 // --- APP ACTIONS HUB --- 
 // We bind all our imported modular functions back to the global window.appActions 
@@ -118,6 +118,7 @@ window.appActions = {
   openRuleModal,
   saveRule,
   deleteRule,
+  updateTravelPresets,
   calculateTravel,
   calculateEncumbrance,
   calculateJump
