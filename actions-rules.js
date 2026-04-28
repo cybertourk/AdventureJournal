@@ -207,36 +207,45 @@ export const updateTravelPresets = () => {
 
     const mode = modeEl.value;
 
-    if (mode === 'foot') {
+    if (mode === 'foot-standard') {
         speedEl.value = 30;
         speedEl.disabled = true;
         speedEl.classList.add('opacity-50');
         hoursEl.value = 8;
         diffEl.disabled = false;
         if (helpEl) helpEl.textContent = "Standard travel ignores individual speed (PHB p.181).";
-    } else if (mode === 'mount') {
-        speedEl.value = 60; // Riding horse defaults to 60
-        speedEl.disabled = false;
-        speedEl.classList.remove('opacity-50');
+    } 
+    else if (mode.startsWith('mount-')) {
+        speedEl.disabled = true;
+        speedEl.classList.add('opacity-50');
         hoursEl.value = 8;
         diffEl.disabled = false;
-        if (helpEl) helpEl.textContent = "Base speed of the mount (e.g., Riding Horse = 60ft).";
-    } else if (mode === 'water') {
-        speedEl.value = 20; // Sailing ship defaults to 20
-        speedEl.disabled = false;
-        speedEl.classList.remove('opacity-50');
-        hoursEl.value = 24; 
+        
+        if (mode === 'mount-riding') { speedEl.value = 60; if (helpEl) helpEl.textContent = "Riding/Warhorse. Can push to gallop for 1 hour."; }
+        if (mode === 'mount-camel') { speedEl.value = 50; if (helpEl) helpEl.textContent = "Camel."; }
+        if (mode === 'mount-draft') { speedEl.value = 40; if (helpEl) helpEl.textContent = "Draft Horse/Mule/Vehicle."; }
+        if (mode === 'mount-elephant') { speedEl.value = 40; if (helpEl) helpEl.textContent = "Elephant."; }
+        if (mode === 'mount-mastiff') { speedEl.value = 40; if (helpEl) helpEl.textContent = "Mastiff/Pony."; }
+    } 
+    else if (mode.startsWith('water-')) {
+        speedEl.disabled = true;
+        speedEl.classList.add('opacity-50');
         diffEl.checked = false;
         diffEl.disabled = true; 
-        if (helpEl) helpEl.textContent = "Water vessels travel 24 hours/day and ignore paces (DMG p.119).";
-    } else if (mode === 'flying') {
-        speedEl.value = 80; // Griffon defaults to 80
+        
+        if (mode === 'water-galley') { speedEl.value = 40; hoursEl.value = 24; if (helpEl) helpEl.textContent = "Galley (4 mph). Can travel 24 hrs."; }
+        if (mode === 'water-longship') { speedEl.value = 30; hoursEl.value = 24; if (helpEl) helpEl.textContent = "Longship / Keelboat (3 mph). Can travel 24 hrs."; }
+        if (mode === 'water-warship') { speedEl.value = 25; hoursEl.value = 24; if (helpEl) helpEl.textContent = "Warship (2.5 mph). Can travel 24 hrs."; }
+        if (mode === 'water-sailing') { speedEl.value = 20; hoursEl.value = 24; if (helpEl) helpEl.textContent = "Sailing Ship (2 mph). Can travel 24 hrs."; }
+        if (mode === 'water-rowboat') { speedEl.value = 15; hoursEl.value = 8; if (helpEl) helpEl.textContent = "Rowboat (1.5 mph). Requires constant rowing (8 hr limit)."; }
+    } 
+    else if (mode === 'custom') {
+        speedEl.value = 80;
         speedEl.disabled = false;
         speedEl.classList.remove('opacity-50');
         hoursEl.value = 8;
-        diffEl.checked = false;
-        diffEl.disabled = true; 
-        if (helpEl) helpEl.textContent = "Flying generally ignores difficult terrain and obstacles.";
+        diffEl.disabled = false; 
+        if (helpEl) helpEl.textContent = "Enter custom speed. Flying ignores difficult terrain.";
     }
 };
 
@@ -269,12 +278,12 @@ export const calculateTravel = () => {
     if (extraEl) { extraEl.classList.add('hidden'); extraEl.innerHTML = ''; }
     if (resNormalDesc) resNormalDesc.textContent = "Standard travel";
 
-    if (mode === 'foot') {
+    if (mode === 'foot-standard') {
         // Standard PHB Overland Math ignores walking speed entirely
         normalMph = 3;
         fastMph = 4;
         slowMph = 2;
-    } else if (mode === 'water') {
+    } else if (mode.startsWith('water-')) {
         // Ships ignore fast/slow pace completely (PHB 181)
         normalMph = speed / 10;
         fastMph = normalMph;
@@ -285,12 +294,12 @@ export const calculateTravel = () => {
         if (rowSlow) rowSlow.classList.add('hidden');
         if (resNormalDesc) resNormalDesc.textContent = "Vessel speed (ignores paces)";
     } else {
-        // Mounts / Flying (Special DMG Math: 1 hour = Speed / 10 miles)
+        // Mounts / Custom (Special DMG Math: 1 hour = Speed / 10 miles)
         normalMph = speed / 10;
         fastMph = normalMph * (4/3);
         slowMph = normalMph * (2/3);
 
-        if (mode === 'mount') {
+        if (mode.startsWith('mount-')) {
             if (extraEl) {
                 extraEl.classList.remove('hidden');
                 extraEl.innerHTML = `<i class="fa-solid fa-horse mr-1 text-amber-700"></i> <span class="font-bold text-amber-900">Gallop:</span> A mounted character can ride at a gallop for 1 hour, covering twice the usual distance for a fast pace (<strong>${Math.round(fastMph * 2)} miles</strong>).`;
@@ -316,8 +325,8 @@ export const calculateTravel = () => {
     const warnEl = document.getElementById('res-travel-exhaustion');
     const dcEl = document.getElementById('res-travel-dc');
     
-    // Ships don't cause forced march for passengers. Flying/Mounts usually don't either, but the mounts themselves might exhaust!
-    if (hours > 8 && mode !== 'water') {
+    // Ships don't cause forced march for passengers.
+    if (hours > 8 && !mode.startsWith('water-')) {
         warnEl.classList.remove('hidden');
         if (dcEl) dcEl.textContent = 10 + Math.floor(hours - 8);
     } else {
