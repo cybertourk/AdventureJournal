@@ -98,6 +98,7 @@ export function getRulesHTML(state) {
                                         <option value="water-keelboat">⛵ Keelboat (1 mph)</option>
                                     </optgroup>
                                     <optgroup label="Flying & Magical">
+                                        <option value="flying-creature">🦅 Flying Creature / PC (e.g. Aarakocra 50 ft)</option>
                                         <option value="flying-griffon">🦅 Flying Mount (e.g. Griffon 80 ft)</option>
                                         <option value="flying-carpet">✨ Carpet of Flying (60 ft)</option>
                                         <option value="custom">✨ Custom Magical Speed</option>
