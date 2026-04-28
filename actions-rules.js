@@ -196,42 +196,106 @@ export const deleteRule = async (id) => {
 
 // --- PINNED UTILITY CALCULATORS ---
 
-export const calculateTravel = () => {
+export const updateTravelPresets = () => {
     const modeEl = document.getElementById('calc-travel-mode');
     const speedEl = document.getElementById('calc-travel-speed');
     const hoursEl = document.getElementById('calc-travel-hours');
     const diffEl = document.getElementById('calc-travel-difficult');
     const helpEl = document.getElementById('calc-travel-speed-help');
-    
+
     if (!modeEl || !speedEl || !hoursEl || !diffEl) return;
 
-    const mode = modeEl.value; // 'standard' or 'special'
+    const mode = modeEl.value;
+
+    if (mode === 'foot') {
+        speedEl.value = 30;
+        speedEl.disabled = true;
+        speedEl.classList.add('opacity-50');
+        hoursEl.value = 8;
+        diffEl.disabled = false;
+        if (helpEl) helpEl.textContent = "Standard travel ignores individual speed (PHB p.181).";
+    } else if (mode === 'mount') {
+        speedEl.value = 60; // Riding horse defaults to 60
+        speedEl.disabled = false;
+        speedEl.classList.remove('opacity-50');
+        hoursEl.value = 8;
+        diffEl.disabled = false;
+        if (helpEl) helpEl.textContent = "Base speed of the mount (e.g., Riding Horse = 60ft).";
+    } else if (mode === 'water') {
+        speedEl.value = 20; // Sailing ship defaults to 20
+        speedEl.disabled = false;
+        speedEl.classList.remove('opacity-50');
+        hoursEl.value = 24; 
+        diffEl.checked = false;
+        diffEl.disabled = true; 
+        if (helpEl) helpEl.textContent = "Water vessels travel 24 hours/day and ignore paces (DMG p.119).";
+    } else if (mode === 'flying') {
+        speedEl.value = 80; // Griffon defaults to 80
+        speedEl.disabled = false;
+        speedEl.classList.remove('opacity-50');
+        hoursEl.value = 8;
+        diffEl.checked = false;
+        diffEl.disabled = true; 
+        if (helpEl) helpEl.textContent = "Flying generally ignores difficult terrain and obstacles.";
+    }
+};
+
+export const calculateTravel = () => {
+    const modeEl = document.getElementById('calc-travel-mode');
+    const speedEl = document.getElementById('calc-travel-speed');
+    const hoursEl = document.getElementById('calc-travel-hours');
+    const diffEl = document.getElementById('calc-travel-difficult');
+    
+    const rowFast = document.getElementById('row-travel-fast');
+    const rowSlow = document.getElementById('row-travel-slow');
+    const resNormalDesc = document.getElementById('res-travel-normal-desc');
+    const extraEl = document.getElementById('res-travel-extra');
+
+    if (!modeEl || !speedEl || !hoursEl || !diffEl) return;
+
+    const mode = modeEl.value; 
     const speed = parseFloat(speedEl.value) || 0;
     const hours = parseFloat(hoursEl.value) || 0;
-    const isDifficult = diffEl.checked;
+    const isDifficult = diffEl.checked && !diffEl.disabled;
 
     let normalMph = 0;
     let fastMph = 0;
     let slowMph = 0;
+    let showFastSlow = true;
 
-    if (mode === 'standard') {
-        speedEl.disabled = true;
-        speedEl.classList.add('opacity-50');
-        if (helpEl) helpEl.textContent = "Standard travel ignores individual speed (PHB p.181).";
+    // Reset UI visibility
+    if (rowFast) rowFast.classList.remove('hidden');
+    if (rowSlow) rowSlow.classList.remove('hidden');
+    if (extraEl) { extraEl.classList.add('hidden'); extraEl.innerHTML = ''; }
+    if (resNormalDesc) resNormalDesc.textContent = "Standard travel";
 
-        // Standard PHB Overland Math
+    if (mode === 'foot') {
+        // Standard PHB Overland Math ignores walking speed entirely
         normalMph = 3;
         fastMph = 4;
         slowMph = 2;
+    } else if (mode === 'water') {
+        // Ships ignore fast/slow pace completely (PHB 181)
+        normalMph = speed / 10;
+        fastMph = normalMph;
+        slowMph = normalMph;
+        showFastSlow = false;
+        
+        if (rowFast) rowFast.classList.add('hidden');
+        if (rowSlow) rowSlow.classList.add('hidden');
+        if (resNormalDesc) resNormalDesc.textContent = "Vessel speed (ignores paces)";
     } else {
-        speedEl.disabled = false;
-        speedEl.classList.remove('opacity-50');
-        if (helpEl) helpEl.textContent = "Magical or vehicle speed. 1 hour = Speed / 10 miles (DMG p.242).";
-
-        // Special DMG Math: 1 hour = Speed / 10 miles
+        // Mounts / Flying (Special DMG Math: 1 hour = Speed / 10 miles)
         normalMph = speed / 10;
         fastMph = normalMph * (4/3);
         slowMph = normalMph * (2/3);
+
+        if (mode === 'mount') {
+            if (extraEl) {
+                extraEl.classList.remove('hidden');
+                extraEl.innerHTML = `<i class="fa-solid fa-horse mr-1 text-amber-700"></i> <span class="font-bold text-amber-900">Gallop:</span> A mounted character can ride at a gallop for 1 hour, covering twice the usual distance for a fast pace (<strong>${Math.round(fastMph * 2)} miles</strong>).`;
+            }
+        }
     }
 
     if (isDifficult) {
@@ -240,18 +304,20 @@ export const calculateTravel = () => {
         slowMph /= 2;
     }
 
-    const formatDist = (val) => {
-        return Number.isInteger(val) ? val.toString() : val.toFixed(1);
-    };
+    const formatDist = (val) => Number.isInteger(val) ? val.toString() : val.toFixed(1);
 
     document.getElementById('res-travel-normal').textContent = `${formatDist(normalMph * hours)} miles`;
-    document.getElementById('res-travel-fast').textContent = `${formatDist(fastMph * hours)} miles`;
-    document.getElementById('res-travel-slow').textContent = `${formatDist(slowMph * hours)} miles`;
+    if (showFastSlow) {
+        document.getElementById('res-travel-fast').textContent = `${formatDist(fastMph * hours)} miles`;
+        document.getElementById('res-travel-slow').textContent = `${formatDist(slowMph * hours)} miles`;
+    }
 
     // Forced March Warning
     const warnEl = document.getElementById('res-travel-exhaustion');
     const dcEl = document.getElementById('res-travel-dc');
-    if (hours > 8) {
+    
+    // Ships don't cause forced march for passengers. Flying/Mounts usually don't either, but the mounts themselves might exhaust!
+    if (hours > 8 && mode !== 'water') {
         warnEl.classList.remove('hidden');
         if (dcEl) dcEl.textContent = 10 + Math.floor(hours - 8);
     } else {
