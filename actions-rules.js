@@ -209,15 +209,15 @@ export const updateTravelPresets = () => {
 
     if (mode === 'foot-standard') {
         speedEl.value = 30;
-        speedEl.disabled = true;
+        speedEl.disabled = true; // Overland PHB specifically ignores individual walking speeds
         speedEl.classList.add('opacity-50');
         hoursEl.value = 8;
         diffEl.disabled = false;
         if (helpEl) helpEl.textContent = "Standard travel ignores individual speed (PHB p.181).";
     } 
     else if (mode.startsWith('mount-')) {
-        speedEl.disabled = true;
-        speedEl.classList.add('opacity-50');
+        speedEl.disabled = false; // Unlocked!
+        speedEl.classList.remove('opacity-50');
         hoursEl.value = 8;
         diffEl.disabled = false;
         
@@ -228,20 +228,31 @@ export const updateTravelPresets = () => {
         if (mode === 'mount-mastiff') { speedEl.value = 40; if (helpEl) helpEl.textContent = "Mastiff/Pony."; }
     } 
     else if (mode.startsWith('water-')) {
-        speedEl.disabled = true;
-        speedEl.classList.add('opacity-50');
+        speedEl.disabled = false; // Unlocked!
+        speedEl.classList.remove('opacity-50');
         diffEl.checked = false;
         diffEl.disabled = true; 
         
         if (mode === 'water-galley') { speedEl.value = 40; hoursEl.value = 24; if (helpEl) helpEl.textContent = "Galley (4 mph). Can travel 24 hrs."; }
-        if (mode === 'water-longship') { speedEl.value = 30; hoursEl.value = 24; if (helpEl) helpEl.textContent = "Longship / Keelboat (3 mph). Can travel 24 hrs."; }
+        if (mode === 'water-longship') { speedEl.value = 30; hoursEl.value = 24; if (helpEl) helpEl.textContent = "Longship (3 mph). Can travel 24 hrs."; }
         if (mode === 'water-warship') { speedEl.value = 25; hoursEl.value = 24; if (helpEl) helpEl.textContent = "Warship (2.5 mph). Can travel 24 hrs."; }
         if (mode === 'water-sailing') { speedEl.value = 20; hoursEl.value = 24; if (helpEl) helpEl.textContent = "Sailing Ship (2 mph). Can travel 24 hrs."; }
         if (mode === 'water-rowboat') { speedEl.value = 15; hoursEl.value = 8; if (helpEl) helpEl.textContent = "Rowboat (1.5 mph). Requires constant rowing (8 hr limit)."; }
+        if (mode === 'water-keelboat') { speedEl.value = 10; hoursEl.value = 24; if (helpEl) helpEl.textContent = "Keelboat (1 mph). Can travel 24 hrs."; }
     } 
+    else if (mode.startsWith('flying-')) {
+        speedEl.disabled = false; // Unlocked!
+        speedEl.classList.remove('opacity-50');
+        hoursEl.value = 8;
+        diffEl.checked = false;
+        diffEl.disabled = true;
+        
+        if (mode === 'flying-griffon') { speedEl.value = 80; if (helpEl) helpEl.textContent = "Flying generally ignores difficult terrain."; }
+        if (mode === 'flying-carpet') { speedEl.value = 60; if (helpEl) helpEl.textContent = "Flying generally ignores difficult terrain."; }
+    }
     else if (mode === 'custom') {
         speedEl.value = 80;
-        speedEl.disabled = false;
+        speedEl.disabled = false; // Unlocked!
         speedEl.classList.remove('opacity-50');
         hoursEl.value = 8;
         diffEl.disabled = false; 
@@ -294,7 +305,7 @@ export const calculateTravel = () => {
         if (rowSlow) rowSlow.classList.add('hidden');
         if (resNormalDesc) resNormalDesc.textContent = "Vessel speed (ignores paces)";
     } else {
-        // Mounts / Custom (Special DMG Math: 1 hour = Speed / 10 miles)
+        // Mounts / Flying / Custom (Special DMG Math: 1 hour = Speed / 10 miles)
         normalMph = speed / 10;
         fastMph = normalMph * (4/3);
         slowMph = normalMph * (2/3);
