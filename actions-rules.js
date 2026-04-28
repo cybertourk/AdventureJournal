@@ -20,6 +20,13 @@ export const openRulesGlossary = async () => {
     }
 
     window.appActions.setView('rules');
+    
+    // Initialize calculators after a tiny delay to ensure the DOM is rendered
+    setTimeout(() => {
+        if (window.appActions.calculateTravel) window.appActions.calculateTravel();
+        if (window.appActions.calculateEncumbrance) window.appActions.calculateEncumbrance();
+        if (window.appActions.calculateJump) window.appActions.calculateJump();
+    }, 50);
 };
 
 export const viewRule = (ruleId) => {
@@ -185,4 +192,107 @@ export const deleteRule = async (id) => {
     document.getElementById('global-popup-container').innerHTML = '';
     notify("Rule erased.", "success");
     reRender();
+};
+
+// --- PINNED UTILITY CALCULATORS ---
+
+export const calculateTravel = () => {
+    const speedEl = document.getElementById('calc-travel-speed');
+    const hoursEl = document.getElementById('calc-travel-hours');
+    const diffEl = document.getElementById('calc-travel-difficult');
+    
+    if (!speedEl || !hoursEl || !diffEl) return;
+
+    const speed = parseFloat(speedEl.value) || 0;
+    const hours = parseFloat(hoursEl.value) || 0;
+    const isDifficult = diffEl.checked;
+
+    // Base math: Normal pace mph is speed / 10
+    let normalMph = speed / 10;
+    let fastMph = normalMph * (4/3); // Approx +33% faster
+    let slowMph = normalMph * (2/3); // Approx 33% slower
+
+    // Apply difficult terrain
+    if (isDifficult) {
+        normalMph /= 2;
+        fastMph /= 2;
+        slowMph /= 2;
+    }
+
+    const formatDist = (val) => {
+        return Number.isInteger(val) ? val.toString() : val.toFixed(1);
+    };
+
+    document.getElementById('res-travel-normal').textContent = `${formatDist(normalMph * hours)} miles`;
+    document.getElementById('res-travel-fast').textContent = `${formatDist(fastMph * hours)} miles`;
+    document.getElementById('res-travel-slow').textContent = `${formatDist(slowMph * hours)} miles`;
+
+    // Forced March Warning
+    const warnEl = document.getElementById('res-travel-exhaustion');
+    const dcEl = document.getElementById('res-travel-dc');
+    if (hours > 8) {
+        warnEl.classList.remove('hidden');
+        dcEl.textContent = 10 + Math.floor(hours - 8);
+    } else {
+        warnEl.classList.add('hidden');
+    }
+};
+
+export const calculateEncumbrance = () => {
+    const strEl = document.getElementById('calc-enc-str');
+    const sizeEl = document.getElementById('calc-enc-size');
+    const coinsEl = document.getElementById('calc-enc-coins');
+    
+    if (!strEl || !sizeEl || !coinsEl) return;
+
+    const str = parseInt(strEl.value) || 0;
+    const sizeMult = parseInt(sizeEl.value) || 1;
+    const coins = parseInt(coinsEl.value) || 0;
+
+    // Update coin weight purely for display
+    const coinWeight = coins / 50;
+    document.getElementById('res-coin-weight').textContent = Number.isInteger(coinWeight) ? coinWeight : coinWeight.toFixed(2);
+
+    // Standard Math
+    const maxCarry = str * 15 * sizeMult;
+    const dragLift = str * 30 * sizeMult;
+    document.getElementById('res-enc-standard').textContent = `${maxCarry} lbs`;
+    document.getElementById('res-enc-drag').textContent = `${dragLift} lbs`;
+
+    // Variant Math
+    const varLight = str * 5 * sizeMult;
+    const varHeavy = str * 10 * sizeMult;
+    document.getElementById('res-var-light').textContent = `0 to ${varLight} lbs`;
+    document.getElementById('res-var-heavy').textContent = `${varLight + 1} to ${varHeavy} lbs`;
+    document.getElementById('res-var-max').textContent = `${varHeavy + 1} to ${maxCarry} lbs`;
+};
+
+export const calculateJump = () => {
+    const strEl = document.getElementById('calc-jump-str');
+    const heightEl = document.getElementById('calc-jump-height');
+
+    if (!strEl || !heightEl) return;
+
+    const str = parseInt(strEl.value) || 0;
+    const height = parseFloat(heightEl.value) || 0;
+    const strMod = Math.floor((str - 10) / 2);
+
+    // Long Jump
+    const longRun = str;
+    const longStand = Math.max(0, Math.floor(str / 2));
+
+    // High Jump
+    const highRun = Math.max(0, 3 + strMod);
+    const highStand = Math.max(0, Math.floor((3 + strMod) / 2));
+    
+    // Reach
+    const reach = highRun + (1.5 * height);
+
+    document.getElementById('res-jump-long-run').textContent = `${longRun} ft`;
+    document.getElementById('res-jump-long-stand').textContent = `${longStand} ft`;
+    
+    document.getElementById('res-jump-high-run').textContent = `${highRun} ft`;
+    document.getElementById('res-jump-high-stand').textContent = `${highStand} ft`;
+    
+    document.getElementById('res-jump-high-reach').textContent = `${Number.isInteger(reach) ? reach : reach.toFixed(1)} ft`;
 };
