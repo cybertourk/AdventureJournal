@@ -537,6 +537,9 @@ export const savePCEdit = async () => {
     flaws: document.getElementById('input-pc-edit-flaws')?.value || '',
     appearance: document.getElementById('input-pc-edit-appearance')?.value || '',
     backstory: document.getElementById('input-pc-edit-backstory')?.value || '',
+    organizations: document.getElementById('input-pc-edit-organizations')?.value || '',
+    allies: document.getElementById('input-pc-edit-allies')?.value || '',
+    enemies: document.getElementById('input-pc-edit-enemies')?.value || '',
     // DM Restricted Administrative Fields
     playerId: isDM ? (document.getElementById('pc-edit-player-id')?.value || '') : (existingPC.playerId || ''),
     dmNotes: isDM ? (document.getElementById('input-pc-edit-dmnotes')?.value || '') : (existingPC.dmNotes || '')
