@@ -243,6 +243,113 @@ export const deleteAdventure = async (id) => {
   }
 };
 
+// Adventure Editing Modal Actions
+export const openEditAdventureModal = () => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    const adv = window.appData.activeAdventure;
+    if (!camp || !adv || !camp._isDM) return;
+
+    const container = document.getElementById('global-popup-container');
+    if (!container) return;
+
+    let levelOptionsHtml = '';
+    for (let i = 1; i <= 21; i++) {
+        const lbl = i === 21 ? '20+' : i;
+        levelOptionsHtml += `<option value="${i}">Level ${lbl}</option>`;
+    }
+
+    const startOptions = levelOptionsHtml.replace(`value="${adv.startLevel}"`, `value="${adv.startLevel}" selected`);
+    const endOptions = levelOptionsHtml.replace(`value="${adv.endLevel}"`, `value="${adv.endLevel}" selected`);
+
+    container.innerHTML = `
+        <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[13000] backdrop-blur-sm animate-in">
+            <div class="bg-[#f4ebd8] rounded-sm shadow-2xl w-full max-w-md border border-[#d4c5a9] overflow-hidden flex flex-col">
+                <div class="bg-stone-900 p-4 border-b-2 border-amber-600 shadow-md flex justify-between items-center">
+                    <h2 class="text-lg font-serif font-bold text-amber-50 leading-tight"><i class="fa-solid fa-pen-to-square mr-2 text-amber-500"></i>Amend Arc Details</h2>
+                    <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="text-stone-400 hover:text-red-400 transition"><i class="fa-solid fa-times text-xl"></i></button>
+                </div>
+                <div class="p-5 sm:p-6 bg-[#fdfbf7]">
+                    <div class="mb-4">
+                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Adventure Title</label>
+                        <input type="text" id="edit-adv-name" value="${adv.name.replace(/"/g, '&quot;')}" class="w-full bg-white text-stone-900 border border-[#d4c5a9] p-2 text-sm font-bold outline-none rounded-sm shadow-inner focus:border-amber-600">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Start Level</label>
+                            <select id="edit-adv-start" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 bg-white outline-none focus:border-amber-600 shadow-inner">
+                                ${startOptions}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">End Level</label>
+                            <select id="edit-adv-end" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 bg-white outline-none focus:border-amber-600 shadow-inner">
+                                ${endOptions}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Party Size (Active Heroes)</label>
+                        <input type="number" id="edit-adv-players" min="1" value="${adv.numPlayers || 4}" class="w-full bg-white text-stone-900 border border-[#d4c5a9] p-2 text-sm font-bold outline-none rounded-sm shadow-inner focus:border-amber-600">
+                    </div>
+                </div>
+                <div class="p-4 bg-stone-200 border-t border-[#d4c5a9] flex justify-end gap-2">
+                    <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="px-4 py-2 border border-stone-400 text-stone-600 rounded-sm text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-stone-300 transition">Cancel</button>
+                    <button onclick="window.appActions.saveEditAdventure()" class="px-5 py-2 bg-stone-800 text-amber-50 rounded-sm text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-stone-700 transition">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    `;
+};
+
+export const saveEditAdventure = async () => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    const adv = window.appData.activeAdventure;
+    if (!camp || !adv || !camp._isDM) return;
+
+    const newName = document.getElementById('edit-adv-name').value.trim();
+    if (!newName) {
+        notify("Adventure title cannot be empty.", "error");
+        return;
+    }
+
+    const newStart = parseInt(document.getElementById('edit-adv-start').value) || 1;
+    const newEnd = parseInt(document.getElementById('edit-adv-end').value) || 1;
+    const newPlayers = parseInt(document.getElementById('edit-adv-players').value) || 1;
+
+    // Smart-Sync: Update the linked Calendar Note to match the new name immediately!
+    if (camp.calendar && camp.calendar.notes) {
+        Object.keys(camp.calendar.notes).forEach(key => {
+            const notesArr = camp.calendar.notes[key];
+            if (Array.isArray(notesArr)) {
+                const noteIdx = notesArr.findIndex(n => n.id === adv.id);
+                if (noteIdx !== -1) {
+                    // Update the title but preserve the underlying text
+                    const oldText = notesArr[noteIdx].text;
+                    const textParts = oldText.split('\n\n');
+                    textParts[0] = `**${newName}**`; // Set the new bolded title
+                    notesArr[noteIdx].text = textParts.join('\n\n');
+                }
+            }
+        });
+    }
+
+    const updatedAdventures = camp.adventures.map(a => {
+        if (a.id === adv.id) {
+            return { ...a, name: newName, startLevel: newStart, endLevel: newEnd, numPlayers: newPlayers };
+        }
+        return a;
+    });
+
+    const updatedCamp = { ...camp, adventures: updatedAdventures };
+    await saveCampaign(updatedCamp);
+    
+    document.getElementById('global-popup-container').innerHTML = '';
+    notify("Adventure details updated.", "success");
+    reRender();
+};
+
 // --- Adventure Roster Management ---
 export const openAdvRoster = () => {
   updateDerivedState();
