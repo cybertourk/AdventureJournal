@@ -7,8 +7,8 @@ export function getCalendarHTML(state) {
     const cal = camp.calendar;
     const playerNames = camp.playerNames || {};
     
-    const viewYear = state.calendarViewYear !== undefined ? state.calendarViewYear : cal.currentYear;
-    const viewMonthIdx = state.calendarViewMonth !== undefined ? state.calendarViewMonth : cal.currentMonth;
+    const viewYear = state.calendarViewYear !== undefined ? parseInt(state.calendarViewYear, 10) : parseInt(cal.currentYear, 10);
+    const viewMonthIdx = state.calendarViewMonth !== undefined ? parseInt(state.calendarViewMonth, 10) : parseInt(cal.currentMonth, 10);
     
     // Safety fallback if months got deleted
     const safeMonthIdx = Math.max(0, Math.min(viewMonthIdx, cal.months.length - 1));
@@ -28,11 +28,11 @@ export function getCalendarHTML(state) {
     }
 
     // --- SPANNING & REPEATING CALENDAR MATH ENGINE ---
-    const totalDaysPerYear = cal.months.reduce((sum, m) => sum + (m.days || 0), 0);
+    const totalDaysPerYear = cal.months.reduce((sum, m) => sum + parseInt(m.days || 0, 10), 0);
     const getDayOfYear = (mIdx, day) => {
         let doy = 0;
-        for(let i=0; i<mIdx; i++) doy += (cal.months[i].days || 0);
-        return doy + day;
+        for(let i=0; i<mIdx; i++) doy += parseInt(cal.months[i].days || 0, 10);
+        return doy + parseInt(day, 10);
     };
 
     // Pre-flatten all notes to easily filter across year and month boundaries
@@ -40,7 +40,7 @@ export function getCalendarHTML(state) {
     Object.entries(cal.notes || {}).forEach(([key, notesArr]) => {
         if(!Array.isArray(notesArr)) notesArr = [notesArr]; // legacy safety
         const [yStr, mStr, dStr] = key.split('-');
-        const sy = parseInt(yStr), sm = parseInt(mStr), sd = parseInt(dStr);
+        const sy = parseInt(yStr, 10), sm = parseInt(mStr, 10), sd = parseInt(dStr, 10);
         notesArr.forEach(n => {
             allNotes.push({ ...n, sy, sm, sd });
         });
@@ -50,7 +50,7 @@ export function getCalendarHTML(state) {
         const targetDOY = getDayOfYear(checkMonthIdx, checkDay);
         
         return allNotes.filter(n => {
-            const duration = n.duration || 1;
+            const duration = parseInt(n.duration || 1, 10);
             const repeats = n.repeatsYearly || false;
 
             // Simple exact match
@@ -127,7 +127,9 @@ export function getCalendarHTML(state) {
 
     // Sort by duration descending (longest events on top), then oldest timestamp
     monthActiveNotes.sort((a, b) => {
-        if (b.duration !== a.duration) return b.duration - a.duration;
+        const aDur = parseInt(a.duration || 1, 10);
+        const bDur = parseInt(b.duration || 1, 10);
+        if (bDur !== aDur) return bDur - aDur;
         return a.timestamp - b.timestamp;
     });
 
@@ -137,20 +139,21 @@ export function getCalendarHTML(state) {
     monthActiveNotes.forEach(note => {
         const startDOY = getDayOfYear(note.sm, note.sd);
         let absStart = (note.sy * totalDaysPerYear) + startDOY;
+        const dur = parseInt(note.duration || 1, 10);
         
         if (note.repeatsYearly) {
             let thisYearStart = (viewYear * totalDaysPerYear) + startDOY;
             let lastYearStart = ((viewYear - 1) * totalDaysPerYear) + startDOY;
             const viewMonthStart = (viewYear * totalDaysPerYear) + getDayOfYear(safeMonthIdx, 1);
             
-            if (lastYearStart + note.duration - 1 >= viewMonthStart) {
+            if (lastYearStart + dur - 1 >= viewMonthStart) {
                 absStart = lastYearStart;
             } else {
                 absStart = thisYearStart;
             }
         }
         
-        const absEnd = absStart + note.duration - 1;
+        const absEnd = absStart + dur - 1;
         
         // Find an empty lane
         let placed = false;
@@ -191,12 +194,13 @@ export function getCalendarHTML(state) {
                 if (canViewNote(note)) {
                     const targetAbsolute = (viewYear * totalDaysPerYear) + getDayOfYear(safeMonthIdx, d);
                     const noteStartDOY = getDayOfYear(note.sm, note.sd);
+                    const dur = parseInt(note.duration || 1, 10);
                     
                     let effectiveStartAbsolute = (note.sy * totalDaysPerYear) + noteStartDOY;
                     if (note.repeatsYearly) {
                         let thisYearStart = (viewYear * totalDaysPerYear) + noteStartDOY;
                         let lastYearStart = ((viewYear - 1) * totalDaysPerYear) + noteStartDOY;
-                        if (lastYearStart + note.duration - 1 >= targetAbsolute) {
+                        if (lastYearStart + dur - 1 >= targetAbsolute) {
                             effectiveStartAbsolute = lastYearStart;
                         } else {
                             effectiveStartAbsolute = thisYearStart;
@@ -220,7 +224,7 @@ export function getCalendarHTML(state) {
                         const authorIcon = isAuthorDM ? '<i class="fa-solid fa-crown text-amber-500 mr-1"></i>' : '<i class="fa-solid fa-feather-pointed text-stone-400 mr-1"></i>';
                         
                         let badgesHtml = '';
-                        if (note.duration > 1) badgesHtml += `<span class="text-[9px] uppercase tracking-wider font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded-sm shadow-sm" title="Spans ${note.duration} days"><i class="fa-solid fa-arrows-left-right"></i> ${note.duration} Days</span>`;
+                        if (dur > 1) badgesHtml += `<span class="text-[9px] uppercase tracking-wider font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded-sm shadow-sm" title="Spans ${dur} days"><i class="fa-solid fa-arrows-left-right"></i> ${dur} Days</span>`;
                         if (note.repeatsYearly) badgesHtml += `<span class="text-[9px] uppercase tracking-wider font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-sm shadow-sm"><i class="fa-solid fa-rotate-right"></i> Yearly</span>`;
                         
                         const catColor = getCategoryColors(note.category).split(' ')[0]; // Just grab the BG color
@@ -289,7 +293,7 @@ export function getCalendarHTML(state) {
                     </select>
                     <select id="jump-day" class="w-20 p-1.5 sm:p-2 bg-stone-800 text-amber-50 text-xs sm:text-sm border border-stone-600 rounded-sm outline-none focus:border-amber-600 font-bold text-center">
                         <option value="">Day...</option>
-                        ${Array.from({ length: Math.max(1, activeMonth.days) }).map((_, i) => `<option value="${i+1}">${i+1}</option>`).join('')}
+                        ${Array.from({ length: Math.max(1, parseInt(activeMonth.days || 1, 10)) }).map((_, i) => `<option value="${i+1}">${i+1}</option>`).join('')}
                     </select>
                 </div>
                 <div class="flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
@@ -330,7 +334,7 @@ export function getCalendarHTML(state) {
 
             <!-- Calendar Grid -->
             <div class="p-2 sm:p-4 lg:p-6 bg-[#f4ebd8]">
-                ${activeMonth.days === 0 ? `
+                ${parseInt(activeMonth.days || 0, 10) === 0 ? `
                     <div class="text-center py-12 bg-white border border-[#d4c5a9] rounded-sm">
                         <i class="fa-solid fa-moon text-5xl text-stone-300 mb-4"></i>
                         <h4 class="font-serif text-xl font-bold text-stone-600 mb-2">Intercalary Observance</h4>
@@ -342,10 +346,10 @@ export function getCalendarHTML(state) {
                     </div>
                 ` : `
                     <div class="border-l border-t border-[#d4c5a9] rounded-sm overflow-hidden bg-white shadow-sm">
-                        <div class="grid w-full" style="grid-template-columns: repeat(${cal.daysInWeek}, minmax(0, 1fr));">
-                            ${Array.from({ length: activeMonth.days }).map((_, i) => {
+                        <div class="grid w-full" style="grid-template-columns: repeat(${parseInt(cal.daysInWeek || 7, 10)}, minmax(0, 1fr));">
+                            ${Array.from({ length: parseInt(activeMonth.days || 1, 10) }).map((_, i) => {
                                 const d = i + 1;
-                                const isCurrent = cal.currentYear === viewYear && cal.currentMonth === safeMonthIdx && cal.currentDay === d;
+                                const isCurrent = parseInt(cal.currentYear, 10) === viewYear && parseInt(cal.currentMonth, 10) === safeMonthIdx && parseInt(cal.currentDay, 10) === d;
                                 
                                 let rawNotes = getActiveNotesForDay(viewYear, safeMonthIdx, d);
                                 const visibleNotes = rawNotes.filter(canViewNote);
@@ -369,6 +373,7 @@ export function getCalendarHTML(state) {
                                     
                                     if (note) {
                                         const catColorClass = getCategoryColors(note.category);
+                                        const dur = parseInt(note.duration || 1, 10);
                                         
                                         let mClass = 'mx-1 border';
                                         let rClass = 'rounded-sm';
@@ -376,7 +381,7 @@ export function getCalendarHTML(state) {
                                         let textOpacity = 'text-current';
                                         let shadowClass = 'shadow-sm';
 
-                                        if (note.duration > 1) {
+                                        if (dur > 1) {
                                             zClass = 'relative z-10';
                                             shadowClass = ''; // Remove shadow from spanning blocks so they merge visually
                                             
@@ -387,20 +392,21 @@ export function getCalendarHTML(state) {
                                             if (note.repeatsYearly) {
                                                 let thisYearStart = (viewYear * totalDaysPerYear) + noteStartDOY;
                                                 let lastYearStart = ((viewYear - 1) * totalDaysPerYear) + noteStartDOY;
-                                                if (lastYearStart + note.duration - 1 >= targetAbsolute) {
+                                                if (lastYearStart + dur - 1 >= targetAbsolute) {
                                                     effectiveStartAbsolute = lastYearStart;
                                                 } else {
                                                     effectiveStartAbsolute = thisYearStart;
                                                 }
                                             }
                                             
-                                            const effectiveEndAbsolute = effectiveStartAbsolute + note.duration - 1;
+                                            const effectiveEndAbsolute = effectiveStartAbsolute + dur - 1;
 
                                             const isStart = targetAbsolute === effectiveStartAbsolute;
                                             const isEnd = targetAbsolute === effectiveEndAbsolute;
 
-                                            const isRowStart = ((d - 1) % cal.daysInWeek) === 0;
-                                            const isRowEnd = (d % cal.daysInWeek) === 0 || d === activeMonth.days;
+                                            const daysInWeekInt = parseInt(cal.daysInWeek || 7, 10);
+                                            const isRowStart = ((d - 1) % daysInWeekInt) === 0;
+                                            const isRowEnd = (d % daysInWeekInt) === 0 || d === parseInt(activeMonth.days, 10);
 
                                             const leftTouches = !isStart && !isRowStart; 
                                             const rightTouches = !isEnd && !isRowEnd;
@@ -583,7 +589,7 @@ export function getCalendarHTML(state) {
     // --- DAY INSPECTOR MODAL (MULTIPLE NOTES SUPPORT) ---
     if (state.activeCalendarDate) {
         const { year, monthIndex, day } = state.activeCalendarDate;
-        const isCurrent = cal.currentYear === year && cal.currentMonth === monthIndex && cal.currentDay === day;
+        const isCurrent = parseInt(cal.currentYear, 10) === year && parseInt(cal.currentMonth, 10) === monthIndex && parseInt(cal.currentDay, 10) === day;
         
         let modalMonthName = cal.months[monthIndex]?.name || "Unknown";
         if (cal.months[monthIndex]?.nickname === undefined && cal.months[monthIndex]?.lore === undefined && modalMonthName.includes('(')) {
@@ -609,7 +615,7 @@ export function getCalendarHTML(state) {
                 let catBadge = `<span class="text-[9px] uppercase tracking-wider font-bold text-white ${catColor} px-1.5 py-0.5 rounded-sm">${note.category || 'Misc'}</span>`;
 
                 let sourceBadge = '';
-                if (note.sy !== year || note.sm !== monthIndex || note.sd !== day) {
+                if (parseInt(note.sy, 10) !== year || parseInt(note.sm, 10) !== monthIndex || parseInt(note.sd, 10) !== day) {
                     let origMName = cal.months[note.sm]?.name || "Unknown";
                     if (origMName.includes('(')) origMName = origMName.split('(')[0].trim();
                     sourceBadge = `<span class="text-[9px] uppercase tracking-wider font-bold text-stone-400 ml-2" title="Original Anchor Date">Anchored: ${origMName} ${note.sd}${!note.repeatsYearly ? `, ${note.sy}` : ''}</span>`;
@@ -700,7 +706,7 @@ export function getCalendarHTML(state) {
                                         }).join('')}
                                     </select>
                                     <select id="cal-note-start-d" onchange="window.appActions.syncCalendarNoteDates('startdate')" class="w-14 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm" title="Day">
-                                        ${Array.from({ length: Math.max(1, cal.months[monthIndex].days) }).map((_, i) => `<option value="${i+1}" ${i+1 === day ? 'selected' : ''}>${i+1}</option>`).join('')}
+                                        ${Array.from({ length: Math.max(1, parseInt(cal.months[monthIndex].days || 1, 10)) }).map((_, i) => `<option value="${i+1}" ${i+1 === day ? 'selected' : ''}>${i+1}</option>`).join('')}
                                     </select>
                                 </div>
                             </div>
@@ -742,7 +748,7 @@ export function getCalendarHTML(state) {
                                             }).join('')}
                                         </select>
                                         <select id="cal-note-end-d" onchange="window.appActions.syncCalendarNoteDates('enddate')" class="w-14 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 text-center shadow-sm" title="Day">
-                                            ${Array.from({ length: Math.max(1, cal.months[monthIndex].days) }).map((_, i) => `<option value="${i+1}" ${i+1 === day ? 'selected' : ''}>${i+1}</option>`).join('')}
+                                            ${Array.from({ length: Math.max(1, parseInt(cal.months[monthIndex].days || 1, 10)) }).map((_, i) => `<option value="${i+1}" ${i+1 === day ? 'selected' : ''}>${i+1}</option>`).join('')}
                                         </select>
                                     </div>
                                 </div>
@@ -916,8 +922,8 @@ window.updateDayOptions = function(monthIdx, targetSelectId) {
     const daySelect = document.getElementById(targetSelectId);
     if (!month || !daySelect) return;
 
-    const currentVal = parseInt(daySelect.value) || 1;
-    const numDays = Math.max(1, month.days); 
+    const currentVal = parseInt(daySelect.value, 10) || 1;
+    const numDays = Math.max(1, parseInt(month.days, 10) || 1); 
     
     let optionsHtml = '';
     if (targetSelectId === 'jump-day') {
