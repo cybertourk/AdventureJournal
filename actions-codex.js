@@ -175,6 +175,18 @@ export const _showSuggestions = (matches, inputEl, cursor, triggerLen) => {
     });
 };
 
+// --- NEW FEATURE: CREATE ENTRY FROM HIGHLIGHTED TEXT ---
+export const defineEntryFromSelection = (textareaId) => {
+    const textarea = document.getElementById(textareaId);
+    if (!textarea) return;
+
+    // Grab the text the user has highlighted
+    const selectedText = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd).trim();
+    
+    // Open a fresh Codex Modal, prefilling the name! 
+    window.appActions._openCodexModal({ isNew: true, name: selectedText });
+};
+
 export const viewCodex = (id) => {
     // SECURITY CHECK: Final hard block if someone explicitly triggers viewCodex on a hidden ID
     if (!_canViewCodex(id)) {
@@ -268,7 +280,7 @@ export const _openCodexModal = (entry) => {
     const descPlaceholder = linkedPC ? "What do people know about this hero? Scribe their rumors, repute, and public knowledge..." : "Description... Codex names link automatically.";
 
     container.innerHTML = `
-        <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-50 backdrop-blur-sm animate-in">
+        <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[17000] backdrop-blur-sm animate-in">
             <div class="bg-[#f4ebd8] rounded-sm shadow-2xl w-full max-w-lg border border-[#d4c5a9] overflow-hidden flex flex-col max-h-[90vh]">
                 
                 <!-- Header -->
@@ -343,6 +355,8 @@ export const _openCodexModal = (entry) => {
                                 <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'h1')" class="w-6 h-6 flex items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Heading 1">H1</button>
                                 <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'h2')" class="w-6 h-6 flex items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Heading 2">H2</button>
                                 <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'list')" class="w-6 h-6 flex items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
+                                <div class="w-px bg-[#d4c5a9] mx-1"></div>
+                                <button type="button" onclick="window.appActions.defineEntryFromSelection('cx-modal-desc')" class="px-2 h-6 flex items-center justify-center text-[10px] font-bold text-amber-700 hover:text-amber-900 hover:bg-[#d4c5a9] rounded-sm transition uppercase tracking-wider" title="Define Highlighted Text"><i class="fa-solid fa-book-medical mr-1"></i> Define</button>
                             </div>
                         </div>
                         <textarea id="cx-modal-desc" class="w-full h-40 bg-[#fdfbf7] border border-[#d4c5a9] text-stone-900 p-3 text-sm focus:border-red-900 outline-none resize-none rounded-b-sm shadow-inner custom-scrollbar" placeholder="${descPlaceholder}">${desc}</textarea>
