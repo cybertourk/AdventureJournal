@@ -763,7 +763,21 @@ export function getCalendarHTML(state) {
                             </div>
                         </div>
 
-                        <textarea id="cal-note-text" class="w-full h-32 bg-white border border-[#d4c5a9] text-stone-900 p-3 text-sm focus:border-amber-600 outline-none resize-none rounded-sm shadow-inner custom-scrollbar font-serif" placeholder="Add your perspective... Codex names link automatically."></textarea>
+                        <div class="flex flex-wrap justify-between items-end mb-1 mt-3 gap-2">
+                            <label class="block text-[10px] uppercase text-stone-500 font-bold tracking-widest">Note Details</label>
+                            <div class="flex gap-1 bg-stone-200 p-1 rounded-sm border border-[#d4c5a9] shadow-sm ml-auto overflow-x-auto hide-scrollbar">
+                                <button type="button" onclick="window.appActions.formatText('cal-note-text', 'bold')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bold"><i class="fa-solid fa-bold"></i></button>
+                                <button type="button" onclick="window.appActions.formatText('cal-note-text', 'italic')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Italic"><i class="fa-solid fa-italic"></i></button>
+                                <button type="button" onclick="window.appActions.formatText('cal-note-text', 'underline')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Underline"><i class="fa-solid fa-underline"></i></button>
+                                <div class="w-px bg-[#d4c5a9] mx-0.5 sm:mx-1 shrink-0"></div>
+                                <button type="button" onclick="window.appActions.formatText('cal-note-text', 'h1')" class="w-6 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Heading 1">H1</button>
+                                <button type="button" onclick="window.appActions.formatText('cal-note-text', 'h2')" class="w-6 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Heading 2">H2</button>
+                                <button type="button" onclick="window.appActions.formatText('cal-note-text', 'list')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
+                                <div class="w-px bg-[#d4c5a9] mx-0.5 sm:mx-1 shrink-0"></div>
+                                <button type="button" onclick="window.appActions.defineEntryFromSelection('cal-note-text')" class="px-2 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-amber-700 hover:text-amber-900 hover:bg-[#d4c5a9] rounded-sm transition uppercase tracking-wider" title="Define Highlighted Text"><i class="fa-solid fa-book-medical mr-1"></i> Define</button>
+                            </div>
+                        </div>
+                        <textarea id="cal-note-text" oninput="window.appActions.handleSmartInput(this)" class="w-full h-32 bg-white border border-[#d4c5a9] text-stone-900 p-3 text-sm focus:border-amber-600 outline-none resize-none rounded-b-sm shadow-inner custom-scrollbar font-serif" placeholder="Add your perspective... Codex names link automatically."></textarea>
                         
                         <div class="mt-3 flex justify-end">
                             <button onclick="window.appActions.saveCalendarNote()" class="px-5 py-2 bg-stone-800 text-amber-50 rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-stone-700 transition">Save Note</button>
