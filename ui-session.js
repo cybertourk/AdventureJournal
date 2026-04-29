@@ -215,7 +215,16 @@ export function getSessionEditHTML(state) {
         defaultRealDate = new Date().toISOString().split('T')[0];
     }
     
-    const defaultInGameDate = session.inGameDate || '';
+    // In-Game Date Parsing logic to sync cleanly with the Calendar
+    let igY = camp.calendar?.currentYear || 1492;
+    let igM = camp.calendar?.currentMonth || 0;
+    let igD = camp.calendar?.currentDay || 1;
+
+    if (session.inGameDate && typeof session.inGameDate === 'object') {
+        igY = session.inGameDate.year;
+        igM = session.inGameDate.month;
+        igD = session.inGameDate.day;
+    }
 
     // Gather PCs active in this adventure
     const activePcIds = adv.activePcIds || camp.playerCharacters?.map(p => p.id) || [];
@@ -316,8 +325,20 @@ export function getSessionEditHTML(state) {
                         <input type="date" id="draft-real-date" value="${defaultRealDate}" class="w-full p-2 bg-transparent border-b-2 border-stone-400 text-stone-900 font-serif text-sm outline-none focus:border-red-900 transition-colors">
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1"><i class="fa-solid fa-moon text-stone-400 mr-1"></i> In-Game Date <span class="text-stone-400 normal-case font-normal">(Optional)</span></label>
-                        <input type="text" id="draft-ingame-date" value="${defaultInGameDate.replace(/"/g, '&quot;')}" placeholder="e.g. 14th of Kythorn, 1492 DR" class="w-full p-2 bg-transparent border-b-2 border-stone-400 text-stone-900 font-serif text-sm outline-none focus:border-red-900 transition-colors">
+                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1"><i class="fa-solid fa-moon text-stone-400 mr-1"></i> In-Game Date</label>
+                        <div class="flex items-center gap-1">
+                            <input type="number" id="draft-ingame-y" value="${igY}" class="w-16 p-2 bg-transparent border-b-2 border-stone-400 text-stone-900 font-serif text-sm outline-none focus:border-red-900 text-center transition-colors">
+                            <select id="draft-ingame-m" onchange="window.updateDayOptions(this.value, 'draft-ingame-d')" class="flex-grow p-2 bg-transparent border-b-2 border-stone-400 text-stone-900 font-serif text-sm outline-none focus:border-red-900 transition-colors">
+                                ${(camp.calendar?.months || []).map((m, idx) => {
+                                    let mName = m.name;
+                                    if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
+                                    return \`<option value="\${idx}" \${idx === igM ? 'selected' : ''}>\${mName}</option>\`;
+                                }).join('')}
+                            </select>
+                            <select id="draft-ingame-d" class="w-14 p-2 bg-transparent border-b-2 border-stone-400 text-stone-900 font-serif text-sm outline-none focus:border-red-900 text-center transition-colors">
+                                ${Array.from({ length: Math.max(1, parseInt(camp.calendar?.months[igM]?.days || 1, 10)) }).map((_, i) => \`<option value="\${i+1}" \${i+1 === igD ? 'selected' : ''}>\${i+1}</option>\`).join('')}
+                            </select>
+                        </div>
                     </div>
                 </div>
 
