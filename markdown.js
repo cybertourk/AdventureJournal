@@ -22,8 +22,29 @@ export function generateSessionMarkdown(session, campaign) {
     let md = `### ${session.name}\n`;
     
     const dateStr = new Date(session.timestamp).toLocaleDateString();
-    if (session.inGameDate && session.inGameDate.trim()) {
-        md += `*Logged on ${dateStr} (${session.inGameDate.trim()})*\n\n`;
+    
+    // --- SMART IN-GAME DATE PARSER ---
+    let inGameDateStr = '';
+    if (typeof session.inGameDate === 'string') {
+        // Legacy Support for older sessions where the date was typed in manually
+        inGameDateStr = session.inGameDate;
+    } else if (session.inGameDate && typeof session.inGameDate === 'object') {
+        // New Strict Object Support
+        const { year, month, day } = session.inGameDate;
+        let monthName = "Unknown Month";
+        
+        if (campaign && campaign.calendar && campaign.calendar.months && campaign.calendar.months[month]) {
+            monthName = campaign.calendar.months[month].name;
+            // Clean up legacy month names if they have parenthesis
+            if (monthName.includes('(') && campaign.calendar.months[month].nickname === undefined) {
+                monthName = monthName.split('(')[0].trim();
+            }
+        }
+        inGameDateStr = `${day} ${monthName}, ${year}`;
+    }
+
+    if (inGameDateStr && inGameDateStr.trim()) {
+        md += `*Logged on ${dateStr} (${inGameDateStr.trim()})*\n\n`;
     } else {
         md += `*Logged on ${dateStr}*\n\n`;
     }
