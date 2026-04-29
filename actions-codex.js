@@ -52,8 +52,8 @@ export const parseSmartText = (text) => {
     safeText = safeText.replace(/\b_(.*?)_\b/g, '<em class="italic text-stone-800">$1</em>');
 
     // --- 1.5. PARSE CURRENCY HIGHLIGHTING ---
-    // Finds values like "50 gp", "1,500 gold pieces", "5.5 pp", "100 silver", etc.
-    const currencyRegex = /\b((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)\s*(cp|sp|ep|gp|pp|copper|silver|electrum|gold|platinum)(?:\s+(?:pieces?|coins?))?\b/gi;
+    // Finds values like "50 gp", "1,500 gold pieces", "5.5 pp", "100 silver", "50 gp x 10" etc.
+    const currencyRegex = /\b((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)\s*(cp|sp|ep|gp|pp|copper|silver|electrum|gold|platinum)(?:\s+(?:pieces?|coins?))?\b(?:\s*[*x]\s*(?:\d{1,3}(?:,\d{3})+|\d+))?\b/gi;
     safeText = safeText.replace(currencyRegex, '<span class="inline-flex items-center font-bold text-amber-800 bg-amber-100/60 border border-amber-300 px-1.5 py-0.5 rounded-sm shadow-sm whitespace-nowrap mx-0.5 text-xs"><i class="fa-solid fa-coins text-amber-500 mr-1.5 drop-shadow-sm"></i>$&</span>');
 
     // --- 2. PARSE CODEX LINKS (SAFARI COMPATIBLE, ALIAS SUPPORT & FOG OF WAR PROTECTED) ---
