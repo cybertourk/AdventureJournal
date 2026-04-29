@@ -98,12 +98,12 @@ export function getCalendarHTML(state) {
 
     const getCategoryColors = (category) => {
         switch(category) {
-            case 'Adventure': return 'bg-red-600 text-white';
-            case 'Birthday': return 'bg-purple-600 text-white';
-            case 'Holiday': return 'bg-amber-500 text-amber-950';
-            case 'Downtime': return 'bg-blue-500 text-white';
-            case 'Travel': return 'bg-emerald-600 text-white';
-            default: return 'bg-stone-500 text-white'; // Misc
+            case 'Adventure': return 'bg-red-600 text-white border-red-700';
+            case 'Birthday': return 'bg-purple-600 text-white border-purple-700';
+            case 'Holiday': return 'bg-amber-500 text-amber-950 border-amber-600';
+            case 'Downtime': return 'bg-blue-500 text-white border-blue-600';
+            case 'Travel': return 'bg-emerald-600 text-white border-emerald-700';
+            default: return 'bg-stone-500 text-white border-stone-600'; // Misc
         }
     };
 
@@ -141,8 +141,8 @@ export function getCalendarHTML(state) {
                         if (note.duration > 1) badgesHtml += `<span class="text-[9px] uppercase tracking-wider font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded-sm shadow-sm" title="Spans ${note.duration} days"><i class="fa-solid fa-arrows-left-right"></i> ${note.duration} Days</span>`;
                         if (note.repeatsYearly) badgesHtml += `<span class="text-[9px] uppercase tracking-wider font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-sm shadow-sm"><i class="fa-solid fa-rotate-right"></i> Yearly</span>`;
                         
-                        const catColor = getCategoryColors(note.category);
-                        badgesHtml += `<span class="text-[9px] uppercase tracking-wider font-bold ${catColor} px-1.5 py-0.5 rounded-sm shadow-sm">${note.category || 'Misc'}</span>`;
+                        const catColor = getCategoryColors(note.category).split(' ')[0]; // Just grab the BG color
+                        badgesHtml += `<span class="text-[9px] uppercase tracking-wider font-bold text-white ${catColor} px-1.5 py-0.5 rounded-sm shadow-sm">${note.category || 'Misc'}</span>`;
 
                         monthlyNotesHtml += `
                             <div class="mb-4 bg-white border border-[#d4c5a9] rounded-sm shadow-sm overflow-hidden">
@@ -247,9 +247,9 @@ export function getCalendarHTML(state) {
             </div>
 
             <!-- Calendar Grid -->
-            <div class="p-2 sm:p-4 lg:p-6 bg-[#fdfbf7]">
+            <div class="p-2 sm:p-4 lg:p-6 bg-[#f4ebd8]">
                 ${activeMonth.days === 0 ? `
-                    <div class="text-center py-12">
+                    <div class="text-center py-12 bg-white border border-[#d4c5a9] rounded-sm">
                         <i class="fa-solid fa-moon text-5xl text-stone-300 mb-4"></i>
                         <h4 class="font-serif text-xl font-bold text-stone-600 mb-2">Intercalary Observance</h4>
                         <p class="text-sm text-stone-500 italic flex items-center justify-center gap-2">
@@ -259,86 +259,114 @@ export function getCalendarHTML(state) {
                         <button onclick="window.appActions.openCalendarDay(${viewYear}, ${safeMonthIdx}, 1)" class="mt-4 px-4 py-2 border border-stone-400 text-stone-600 rounded-sm text-xs font-bold uppercase tracking-wider hover:bg-stone-200 transition">View / Add Notes</button>
                     </div>
                 ` : `
-                    <div style="display: grid; grid-template-columns: repeat(${cal.daysInWeek}, minmax(0, 1fr)); gap: 0.25rem sm:gap-0.5rem;">
-                        ${Array.from({ length: activeMonth.days }).map((_, i) => {
-                            const d = i + 1;
-                            const isCurrent = cal.currentYear === viewYear && cal.currentMonth === safeMonthIdx && cal.currentDay === d;
-                            
-                            let rawNotes = getActiveNotesForDay(viewYear, safeMonthIdx, d);
-                            
-                            // Sort notes by timestamp so they stack consistently across adjacent days!
-                            const visibleNotes = rawNotes.filter(canViewNote).sort((a, b) => a.timestamp - b.timestamp);
-                            let hasHidden = isDM ? rawNotes.some(n => !canViewNote(n)) : false;
-                            
-                            // Build the spanning bars for the grid!
-                            let spanBarsHtml = '';
-                            visibleNotes.forEach(note => {
-                                const catColorClass = getCategoryColors(note.category);
+                    <div class="border-l border-t border-[#d4c5a9] rounded-sm overflow-hidden bg-white shadow-sm">
+                        <div class="grid w-full" style="grid-template-columns: repeat(${cal.daysInWeek}, minmax(0, 1fr));">
+                            ${Array.from({ length: activeMonth.days }).map((_, i) => {
+                                const d = i + 1;
+                                const isCurrent = cal.currentYear === viewYear && cal.currentMonth === safeMonthIdx && cal.currentDay === d;
                                 
-                                // Determine rounded corners to visually indicate spanning
-                                let roundedClass = 'rounded-sm';
-                                if (note.duration > 1) {
-                                    // Check if this day is the exact start or end
-                                    const startDOY = getDayOfYear(note.sm, note.sd);
-                                    const targetDOY = getDayOfYear(safeMonthIdx, d);
-                                    const endDOY = startDOY + note.duration - 1;
+                                let rawNotes = getActiveNotesForDay(viewYear, safeMonthIdx, d);
+                                
+                                // Sort notes by timestamp so they stack perfectly in the same horizontal lane across adjacent days
+                                const visibleNotes = rawNotes.filter(canViewNote).sort((a, b) => a.timestamp - b.timestamp);
+                                let hasHidden = isDM ? rawNotes.some(n => !canViewNote(n)) : false;
+                                
+                                // Build the spanning bars for the grid
+                                let spanBarsHtml = '';
+                                visibleNotes.forEach(note => {
+                                    const catColorClass = getCategoryColors(note.category);
                                     
-                                    // For repeating notes, math adjusts to current view year
-                                    let effectiveStartDOY = startDOY;
-                                    let effectiveEndDOY = endDOY;
-                                    if (note.repeatsYearly) {
-                                        const noteStartTotal = (viewYear * totalDaysPerYear) + startDOY;
-                                        const targetTotal = (viewYear * totalDaysPerYear) + targetDOY;
-                                        effectiveStartDOY = targetTotal >= noteStartTotal ? startDOY : startDOY - totalDaysPerYear;
-                                        effectiveEndDOY = effectiveStartDOY + note.duration - 1;
+                                    let mClass = 'mx-1 border';
+                                    let rClass = 'rounded-sm';
+                                    let zClass = '';
+                                    let textOpacity = 'text-current';
+                                    let shadowClass = 'shadow-sm';
+
+                                    if (note.duration > 1) {
+                                        zClass = 'relative z-10';
+                                        shadowClass = ''; // Remove shadow from spanning blocks so they merge visually
+                                        
+                                        const noteStartDOY = getDayOfYear(note.sm, note.sd);
+                                        const targetDOY = getDayOfYear(safeMonthIdx, d);
+                                        let endDOY = noteStartDOY + note.duration - 1;
+
+                                        let effectiveStartDOY = noteStartDOY;
+                                        let effectiveEndDOY = endDOY;
+                                        
+                                        if (note.repeatsYearly) {
+                                            const noteStartTotal = (viewYear * totalDaysPerYear) + noteStartDOY;
+                                            const targetTotal = (viewYear * totalDaysPerYear) + targetDOY;
+                                            effectiveStartDOY = targetTotal >= noteStartTotal ? noteStartDOY : noteStartDOY - totalDaysPerYear;
+                                            effectiveEndDOY = effectiveStartDOY + note.duration - 1;
+                                        }
+
+                                        const isStart = targetDOY === effectiveStartDOY;
+                                        const isEnd = targetDOY === effectiveEndDOY;
+
+                                        // Determine if we are at the edge of the visual grid wrapper
+                                        const isRowStart = ((d - 1) % cal.daysInWeek) === 0;
+                                        const isRowEnd = (d % cal.daysInWeek) === 0 || d === activeMonth.days;
+
+                                        const leftTouches = !isStart && !isRowStart; 
+                                        const rightTouches = !isEnd && !isRowEnd;
+
+                                        if (leftTouches && rightTouches) {
+                                            mClass = '-mx-px border-y border-x-transparent';
+                                            rClass = 'rounded-none';
+                                            textOpacity = 'text-transparent select-none'; // Hide text in the middle
+                                        } else if (leftTouches && !rightTouches) {
+                                            mClass = '-ml-px mr-1 border-y border-r border-l-transparent';
+                                            rClass = 'rounded-l-none rounded-r-sm';
+                                            textOpacity = 'text-transparent select-none'; // Hide text at the end segment
+                                        } else if (!leftTouches && rightTouches) {
+                                            mClass = 'ml-1 -mr-px border-y border-l border-r-transparent';
+                                            rClass = 'rounded-l-sm rounded-r-none';
+                                        } else {
+                                            // 1-day span that wraps perfectly into its own row (rare edge case)
+                                            mClass = 'mx-1 border';
+                                            rClass = 'rounded-sm';
+                                            shadowClass = 'shadow-sm';
+                                        }
                                     }
 
-                                    if (targetDOY === effectiveStartDOY) roundedClass = 'rounded-l-sm rounded-r-none';
-                                    else if (targetDOY === effectiveEndDOY) roundedClass = 'rounded-r-sm rounded-l-none';
-                                    else roundedClass = 'rounded-none'; // Middle of a span
+                                    const plainText = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(note.text).replace(/<[^>]*>?/gm, '').trim() : note.text;
+                                    
+                                    spanBarsHtml += `
+                                        <div class="text-[9px] sm:text-[10px] leading-tight px-1.5 py-0.5 truncate ${catColorClass} ${rClass} ${mClass} ${zClass} ${shadowClass}" title="${plainText}">
+                                            <span class="${textOpacity}">${plainText}</span>
+                                        </div>
+                                    `;
+                                });
+
+                                let bgClass = "bg-[#fdfbf7]";
+                                let textClass = "text-stone-700";
+                                
+                                if (isCurrent) {
+                                    bgClass = "bg-amber-50";
+                                    textClass = "text-amber-900 font-bold";
                                 }
 
-                                // Strip HTML from note text to make a clean, truncated title for the tiny bar
-                                const plainText = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(note.text).replace(/<[^>]*>?/gm, '').trim() : note.text;
-                                
-                                spanBarsHtml += `
-                                    <div class="w-full text-[8px] sm:text-[10px] leading-tight px-1 py-0.5 mb-[1px] truncate shadow-sm ${catColorClass} ${roundedClass}" title="${plainText}">
-                                        ${plainText}
+                                return `
+                                    <div onclick="window.appActions.openCalendarDay(${viewYear}, ${safeMonthIdx}, ${d})" 
+                                         class="relative flex flex-col min-h-[5rem] sm:min-h-[7rem] cursor-pointer transition hover:bg-white border-r border-b border-[#d4c5a9] ${bgClass}">
+                                        
+                                        ${isCurrent ? `<div class="absolute top-1 right-1 w-4 h-4 sm:w-5 sm:h-5 bg-amber-500 rounded-full flex items-center justify-center shadow-sm text-white text-[8px] sm:text-[10px] z-20" title="Current Campaign Date"><i class="fa-solid fa-star"></i></div>` : ''}
+                                        
+                                        <span class="text-xs sm:text-sm font-serif ${textClass} p-1 sm:p-2 pb-0 opacity-70">${d}</span>
+                                        
+                                        <div class="flex flex-col w-full z-0 flex-grow py-1 space-y-[2px]">
+                                            ${spanBarsHtml}
+                                        </div>
+
+                                        ${hasHidden ? `
+                                            <div class="absolute bottom-1 right-1 text-red-300" title="Hidden Note(s)">
+                                                <i class="fa-solid fa-eye-slash text-[8px] sm:text-[10px]"></i>
+                                            </div>
+                                        ` : ''}
                                     </div>
                                 `;
-                            });
-
-                            // Styling
-                            let bgClass = "bg-white";
-                            let borderClass = "border border-[#d4c5a9]";
-                            let textClass = "text-stone-700";
-                            let currentBadge = "";
-                            
-                            if (isCurrent) {
-                                bgClass = "bg-amber-50";
-                                borderClass = "border-amber-500 border-2";
-                                textClass = "text-amber-900 font-bold";
-                                currentBadge = `<div class="absolute -top-2 -right-2 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center shadow-sm text-white text-[10px] z-10"><i class="fa-solid fa-star"></i></div>`;
-                            }
-
-                            return `
-                                <div onclick="window.appActions.openCalendarDay(${viewYear}, ${safeMonthIdx}, ${d})" 
-                                     class="relative flex flex-col min-h-[4rem] sm:min-h-[6rem] p-1 sm:p-2 cursor-pointer transition shadow-sm hover:shadow-md hover:-translate-y-0.5 rounded-sm overflow-hidden ${bgClass} ${borderClass}">
-                                    ${currentBadge}
-                                    <span class="text-xs sm:text-sm font-serif ${textClass} mb-1 opacity-70">${d}</span>
-                                    
-                                    <div class="flex flex-col w-full z-0 overflow-y-auto hide-scrollbar flex-grow">
-                                        ${spanBarsHtml}
-                                    </div>
-
-                                    ${hasHidden ? `
-                                        <div class="absolute bottom-1 right-1 text-red-300" title="Hidden Note(s)">
-                                            <i class="fa-solid fa-eye-slash text-[8px] sm:text-[10px]"></i>
-                                        </div>
-                                    ` : ''}
-                                </div>
-                            `;
-                        }).join('')}
+                            }).join('')}
+                        </div>
                     </div>
                 `}
             </div>
@@ -478,8 +506,8 @@ export function getCalendarHTML(state) {
                 let badgeHtml = `<span class="text-[9px] uppercase tracking-wider font-bold text-stone-400 bg-stone-200 px-1.5 py-0.5 rounded-sm"><i class="fa-solid fa-feather-pointed mr-1"></i> ${authorName}</span>`;
                 if (isAuthorDM) badgeHtml = `<span class="text-[9px] uppercase tracking-wider font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-sm"><i class="fa-solid fa-crown mr-1"></i> ${authorName}</span>`;
 
-                const catColor = getCategoryColors(note.category);
-                let catBadge = `<span class="text-[9px] uppercase tracking-wider font-bold ${catColor} px-1.5 py-0.5 rounded-sm">${note.category || 'Misc'}</span>`;
+                const catColor = getCategoryColors(note.category).split(' ')[0]; // Just grab the BG color for the badge
+                let catBadge = `<span class="text-[9px] uppercase tracking-wider font-bold text-white ${catColor} px-1.5 py-0.5 rounded-sm">${note.category || 'Misc'}</span>`;
 
                 let sourceBadge = '';
                 if (note.sy !== year || note.sm !== monthIndex || note.sd !== day) {
