@@ -49,15 +49,21 @@ export function calculateLootValue(text) {
       .replace(/\bsilver(?: pieces?| coins?)?\b/g, 'sp')
       .replace(/\bcopper(?: pieces?| coins?)?\b/g, 'cp');
     
-    // Regex now explicitly supports commas in numbers (e.g. 5,000 gp) and floating points (e.g. 1.5 gp)
-    const currencyRegex = /((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)\s*(pp|gp|ep|sp|cp)\b/g;
+    // Regex explicitly supports commas in base number, floating points, AND an optional multiplier (e.g. "x 10" or "* 20")
+    const currencyRegex = /((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)\s*(pp|gp|ep|sp|cp)\b(?:\s*[*x]\s*((?:\d{1,3}(?:,\d{3})+|\d+)))?/g;
     const conversion = { pp: 10, gp: 1, ep: 0.5, sp: 0.1, cp: 0.01 };
     let totalGP = 0;
     
     for (const match of processedText.matchAll(currencyRegex)) {
-      // Strip commas from the number string before parsing it to a float
       const cleanNumberStr = match[1].replace(/,/g, '');
-      totalGP += parseFloat(cleanNumberStr) * (conversion[match[2]] || 0);
+      const baseValue = parseFloat(cleanNumberStr);
+      const coinValue = conversion[match[2]] || 0;
+      
+      // If there is a multiplier (match[3]), strip its commas and parse it, otherwise default to 1
+      const multiplierStr = match[3] ? match[3].replace(/,/g, '') : '1';
+      const multiplier = parseInt(multiplierStr);
+      
+      totalGP += baseValue * coinValue * multiplier;
     }
     return totalGP;
 }
