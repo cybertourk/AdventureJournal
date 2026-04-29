@@ -107,6 +107,78 @@ export function getCalendarHTML(state) {
         }
     };
 
+    // =========================================================================
+    // HORIZONTAL LANE ASSIGNMENT SYSTEM
+    // Ensures spanning notes stay perfectly aligned vertically across multiple days
+    // =========================================================================
+    const monthActiveNotes = [];
+    const uniqueNotesMap = new Map();
+    
+    // Gather all visible notes for the entire month
+    for (let d = 1; d <= activeMonth.days; d++) {
+        let dayNotes = getActiveNotesForDay(viewYear, safeMonthIdx, d).filter(canViewNote);
+        dayNotes.forEach(n => {
+            if (!uniqueNotesMap.has(n.id)) {
+                uniqueNotesMap.set(n.id, n);
+                monthActiveNotes.push(n);
+            }
+        });
+    }
+
+    // Sort by duration descending (longest events on top), then oldest timestamp
+    monthActiveNotes.sort((a, b) => {
+        if (b.duration !== a.duration) return b.duration - a.duration;
+        return a.timestamp - b.timestamp;
+    });
+
+    const noteToLane = {};
+    const laneAllocations = []; // Array of Sets containing "Absolute Days" occupied
+
+    monthActiveNotes.forEach(note => {
+        const startDOY = getDayOfYear(note.sm, note.sd);
+        let absStart = (note.sy * totalDaysPerYear) + startDOY;
+        
+        if (note.repeatsYearly) {
+            let thisYearStart = (viewYear * totalDaysPerYear) + startDOY;
+            let lastYearStart = ((viewYear - 1) * totalDaysPerYear) + startDOY;
+            const viewMonthStart = (viewYear * totalDaysPerYear) + getDayOfYear(safeMonthIdx, 1);
+            
+            if (lastYearStart + note.duration - 1 >= viewMonthStart) {
+                absStart = lastYearStart;
+            } else {
+                absStart = thisYearStart;
+            }
+        }
+        
+        const absEnd = absStart + note.duration - 1;
+        
+        // Find an empty lane
+        let placed = false;
+        for (let i = 0; i < laneAllocations.length; i++) {
+            let hasOverlap = false;
+            for (let d = absStart; d <= absEnd; d++) {
+                if (laneAllocations[i].has(d)) {
+                    hasOverlap = true;
+                    break;
+                }
+            }
+            if (!hasOverlap) {
+                for (let d = absStart; d <= absEnd; d++) laneAllocations[i].add(d);
+                noteToLane[note.id] = i;
+                placed = true;
+                break;
+            }
+        }
+        
+        // If no empty lane, create a new one
+        if (!placed) {
+            const newSet = new Set();
+            for (let d = absStart; d <= absEnd; d++) newSet.add(d);
+            laneAllocations.push(newSet);
+            noteToLane[note.id] = laneAllocations.length - 1;
+        }
+    });
+
     // --- Chronological Monthly Notes Builder ---
     let monthlyNotesHtml = '';
     let monthlyNotesCount = 0;
@@ -117,18 +189,28 @@ export function getCalendarHTML(state) {
         if (dayNotes.length > 0) {
             dayNotes.forEach(note => {
                 if (canViewNote(note)) {
-                    // Only show in summary if it's the START of the note (to prevent 10 entries for a 10-day trip)
-                    const isStartOfDay = note.sy === viewYear && note.sm === safeMonthIdx && note.sd === d;
-                    // If it repeats yearly, show it if the month and day match
-                    const isStartOfRepeating = note.repeatsYearly && note.sm === safeMonthIdx && note.sd === d;
+                    const targetAbsolute = (viewYear * totalDaysPerYear) + getDayOfYear(safeMonthIdx, d);
+                    const noteStartDOY = getDayOfYear(note.sm, note.sd);
+                    
+                    let effectiveStartAbsolute = (note.sy * totalDaysPerYear) + noteStartDOY;
+                    if (note.repeatsYearly) {
+                        let thisYearStart = (viewYear * totalDaysPerYear) + noteStartDOY;
+                        let lastYearStart = ((viewYear - 1) * totalDaysPerYear) + noteStartDOY;
+                        if (lastYearStart + note.duration - 1 >= targetAbsolute) {
+                            effectiveStartAbsolute = lastYearStart;
+                        } else {
+                            effectiveStartAbsolute = thisYearStart;
+                        }
+                    }
 
-                    if (isStartOfDay || isStartOfRepeating || d === 1) { // Show on the 1st of the month if spanning across months
+                    // Only show in summary if it's the absolute START of the note (prevents 10 entries for a 10-day trip)
+                    const isStartOfDay = targetAbsolute === effectiveStartAbsolute;
+
+                    if (isStartOfDay || d === 1) { 
                         // Avoid duplicates if we already showed it on the 1st
-                        if (d === 1 && (!isStartOfDay && !isStartOfRepeating)) {
-                            // Check if it started in a previous month but is still active
-                            const noteStartTotal = note.sy * totalDaysPerYear + getDayOfYear(note.sm, note.sd);
-                            const currentViewTotal = viewYear * totalDaysPerYear + getDayOfYear(safeMonthIdx, 1);
-                            if (noteStartTotal > currentViewTotal) return; // Wait until its actual start date
+                        if (d === 1 && !isStartOfDay) {
+                            const viewMonthStartAbsolute = (viewYear * totalDaysPerYear) + getDayOfYear(safeMonthIdx, 1);
+                            if (effectiveStartAbsolute > viewMonthStartAbsolute) return; 
                         }
 
                         monthlyNotesCount++;
@@ -266,77 +348,94 @@ export function getCalendarHTML(state) {
                                 const isCurrent = cal.currentYear === viewYear && cal.currentMonth === safeMonthIdx && cal.currentDay === d;
                                 
                                 let rawNotes = getActiveNotesForDay(viewYear, safeMonthIdx, d);
-                                
-                                // Sort notes by timestamp so they stack perfectly in the same horizontal lane across adjacent days
-                                const visibleNotes = rawNotes.filter(canViewNote).sort((a, b) => a.timestamp - b.timestamp);
+                                const visibleNotes = rawNotes.filter(canViewNote);
                                 let hasHidden = isDM ? rawNotes.some(n => !canViewNote(n)) : false;
                                 
-                                // Build the spanning bars for the grid
-                                let spanBarsHtml = '';
-                                visibleNotes.forEach(note => {
-                                    const catColorClass = getCategoryColors(note.category);
-                                    
-                                    let mClass = 'mx-1 border';
-                                    let rClass = 'rounded-sm';
-                                    let zClass = '';
-                                    let textOpacity = 'text-current';
-                                    let shadowClass = 'shadow-sm';
-
-                                    if (note.duration > 1) {
-                                        zClass = 'relative z-10';
-                                        shadowClass = ''; // Remove shadow from spanning blocks so they merge visually
-                                        
-                                        const noteStartDOY = getDayOfYear(note.sm, note.sd);
-                                        const targetDOY = getDayOfYear(safeMonthIdx, d);
-                                        let endDOY = noteStartDOY + note.duration - 1;
-
-                                        let effectiveStartDOY = noteStartDOY;
-                                        let effectiveEndDOY = endDOY;
-                                        
-                                        if (note.repeatsYearly) {
-                                            const noteStartTotal = (viewYear * totalDaysPerYear) + noteStartDOY;
-                                            const targetTotal = (viewYear * totalDaysPerYear) + targetDOY;
-                                            effectiveStartDOY = targetTotal >= noteStartTotal ? noteStartDOY : noteStartDOY - totalDaysPerYear;
-                                            effectiveEndDOY = effectiveStartDOY + note.duration - 1;
-                                        }
-
-                                        const isStart = targetDOY === effectiveStartDOY;
-                                        const isEnd = targetDOY === effectiveEndDOY;
-
-                                        // Determine if we are at the edge of the visual grid wrapper
-                                        const isRowStart = ((d - 1) % cal.daysInWeek) === 0;
-                                        const isRowEnd = (d % cal.daysInWeek) === 0 || d === activeMonth.days;
-
-                                        const leftTouches = !isStart && !isRowStart; 
-                                        const rightTouches = !isEnd && !isRowEnd;
-
-                                        if (leftTouches && rightTouches) {
-                                            mClass = '-mx-px border-y border-x-transparent';
-                                            rClass = 'rounded-none';
-                                            textOpacity = 'text-transparent select-none'; // Hide text in the middle
-                                        } else if (leftTouches && !rightTouches) {
-                                            mClass = '-ml-px mr-1 border-y border-r border-l-transparent';
-                                            rClass = 'rounded-l-none rounded-r-sm';
-                                            textOpacity = 'text-transparent select-none'; // Hide text at the end segment
-                                        } else if (!leftTouches && rightTouches) {
-                                            mClass = 'ml-1 -mr-px border-y border-l border-r-transparent';
-                                            rClass = 'rounded-l-sm rounded-r-none';
-                                        } else {
-                                            // 1-day span that wraps perfectly into its own row (rare edge case)
-                                            mClass = 'mx-1 border';
-                                            rClass = 'rounded-sm';
-                                            shadowClass = 'shadow-sm';
-                                        }
+                                // Map visible notes to their permanent lanes for this month
+                                const dayLanes = [];
+                                let maxLane = -1;
+                                visibleNotes.forEach(n => {
+                                    const lane = noteToLane[n.id];
+                                    if (lane !== undefined) {
+                                        dayLanes[lane] = n;
+                                        if (lane > maxLane) maxLane = lane;
                                     }
-
-                                    const plainText = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(note.text).replace(/<[^>]*>?/gm, '').trim() : note.text;
-                                    
-                                    spanBarsHtml += `
-                                        <div class="text-[9px] sm:text-[10px] leading-tight px-1.5 py-0.5 truncate ${catColorClass} ${rClass} ${mClass} ${zClass} ${shadowClass}" title="${plainText}">
-                                            <span class="${textOpacity}">${plainText}</span>
-                                        </div>
-                                    `;
                                 });
+                                
+                                // Build the spanning bars based on exact lane positions
+                                let spanBarsHtml = '';
+                                for (let laneIdx = 0; laneIdx <= maxLane; laneIdx++) {
+                                    const note = dayLanes[laneIdx];
+                                    
+                                    if (note) {
+                                        const catColorClass = getCategoryColors(note.category);
+                                        
+                                        let mClass = 'mx-1 border';
+                                        let rClass = 'rounded-sm';
+                                        let zClass = '';
+                                        let textOpacity = 'text-current';
+                                        let shadowClass = 'shadow-sm';
+
+                                        if (note.duration > 1) {
+                                            zClass = 'relative z-10';
+                                            shadowClass = ''; // Remove shadow from spanning blocks so they merge visually
+                                            
+                                            const targetAbsolute = (viewYear * totalDaysPerYear) + getDayOfYear(safeMonthIdx, d);
+                                            const noteStartDOY = getDayOfYear(note.sm, note.sd);
+                                            
+                                            let effectiveStartAbsolute = (note.sy * totalDaysPerYear) + noteStartDOY;
+                                            if (note.repeatsYearly) {
+                                                let thisYearStart = (viewYear * totalDaysPerYear) + noteStartDOY;
+                                                let lastYearStart = ((viewYear - 1) * totalDaysPerYear) + noteStartDOY;
+                                                if (lastYearStart + note.duration - 1 >= targetAbsolute) {
+                                                    effectiveStartAbsolute = lastYearStart;
+                                                } else {
+                                                    effectiveStartAbsolute = thisYearStart;
+                                                }
+                                            }
+                                            
+                                            const effectiveEndAbsolute = effectiveStartAbsolute + note.duration - 1;
+
+                                            const isStart = targetAbsolute === effectiveStartAbsolute;
+                                            const isEnd = targetAbsolute === effectiveEndAbsolute;
+
+                                            const isRowStart = ((d - 1) % cal.daysInWeek) === 0;
+                                            const isRowEnd = (d % cal.daysInWeek) === 0 || d === activeMonth.days;
+
+                                            const leftTouches = !isStart && !isRowStart; 
+                                            const rightTouches = !isEnd && !isRowEnd;
+
+                                            if (leftTouches && rightTouches) {
+                                                mClass = '-mx-px border-y border-x-transparent';
+                                                rClass = 'rounded-none';
+                                                textOpacity = 'text-transparent select-none'; // Hide text in the middle
+                                            } else if (leftTouches && !rightTouches) {
+                                                mClass = '-ml-px mr-1 border-y border-r border-l-transparent';
+                                                rClass = 'rounded-l-none rounded-r-sm';
+                                                textOpacity = 'text-transparent select-none'; // Hide text at the end segment
+                                            } else if (!leftTouches && rightTouches) {
+                                                mClass = 'ml-1 -mr-px border-y border-l border-r-transparent';
+                                                rClass = 'rounded-l-sm rounded-r-none';
+                                            } else {
+                                                // 1-day span that wraps perfectly into its own row (rare edge case)
+                                                mClass = 'mx-1 border';
+                                                rClass = 'rounded-sm';
+                                                shadowClass = 'shadow-sm';
+                                            }
+                                        }
+
+                                        const plainText = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(note.text).replace(/<[^>]*>?/gm, '').trim() : note.text;
+                                        
+                                        spanBarsHtml += `
+                                            <div class="text-[9px] sm:text-[10px] leading-tight px-1.5 flex items-center truncate ${catColorClass} ${rClass} ${mClass} ${zClass} ${shadowClass} h-[16px] sm:h-[18px] mb-[2px]" title="${plainText}">
+                                                <span class="${textOpacity}">${plainText}</span>
+                                            </div>
+                                        `;
+                                    } else {
+                                        // Invisible Spacer to maintain exact vertical offset for the lane!
+                                        spanBarsHtml += `<div class="h-[16px] sm:h-[18px] mb-[2px] w-full invisible"></div>`;
+                                    }
+                                }
 
                                 let bgClass = "bg-[#fdfbf7]";
                                 let textClass = "text-stone-700";
@@ -354,7 +453,7 @@ export function getCalendarHTML(state) {
                                         
                                         <span class="text-xs sm:text-sm font-serif ${textClass} p-1 sm:p-2 pb-0 opacity-70">${d}</span>
                                         
-                                        <div class="flex flex-col w-full z-0 flex-grow py-1 space-y-[2px]">
+                                        <div class="flex flex-col w-full z-0 flex-grow py-1">
                                             ${spanBarsHtml}
                                         </div>
 
