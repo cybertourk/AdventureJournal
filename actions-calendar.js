@@ -247,7 +247,9 @@ export const saveCalendarNote = async () => {
     const endMInput = document.getElementById('cal-note-end-m');
     const endDInput = document.getElementById('cal-note-end-d');
     
+    const durationInput = document.getElementById('cal-note-duration');
     const repeatsInput = document.getElementById('cal-note-repeats');
+    const categoryInput = document.getElementById('cal-note-category');
     
     // Grab visibility from the hidden DOM inputs controlled by the global Fog of War menu
     const modeInput = container?.querySelector('.vis-mode-input');
@@ -322,7 +324,8 @@ export const saveCalendarNote = async () => {
         },
         timestamp: Date.now(),
         duration: duration,
-        repeatsYearly: repeatsInput ? repeatsInput.checked : false
+        repeatsYearly: repeatsInput ? repeatsInput.checked : false,
+        category: categoryInput ? categoryInput.value : 'Misc'
     };
 
     if (existingNoteIndex >= 0) {
@@ -347,7 +350,9 @@ export const saveCalendarNote = async () => {
     if (endYInput) endYInput.value = date.year;
     if (endMInput) endMInput.value = date.monthIndex;
     if (endDInput) endDInput.value = date.day;
+    if (durationInput) durationInput.value = '1';
     if (repeatsInput) repeatsInput.checked = false;
+    if (categoryInput) categoryInput.value = 'Misc';
     
     await saveCampaign(camp);
     notify("Chronicle inscribed.", "success");
@@ -371,7 +376,7 @@ export const editCalendarNote = (noteId, anchorYear, anchorMonth, anchorDay) => 
     // Backward compatibility
     let targetNote = null;
     if (!Array.isArray(dayNotes)) {
-        targetNote = { id: noteId, text: dayNotes.text, visibility: dayNotes.visibility };
+        targetNote = { id: noteId, text: dayNotes.text, visibility: dayNotes.visibility, category: 'Misc' };
     } else {
         targetNote = dayNotes.find(n => n.id === noteId);
     }
@@ -395,6 +400,7 @@ export const editCalendarNote = (noteId, anchorYear, anchorMonth, anchorDay) => 
     
     const durationInput = document.getElementById('cal-note-duration');
     const repeatsInput = document.getElementById('cal-note-repeats');
+    const categoryInput = document.getElementById('cal-note-category');
     
     const modeInput = container?.querySelector('.vis-mode-input');
     const playersInput = container?.querySelector('.vis-players-input');
@@ -439,6 +445,7 @@ export const editCalendarNote = (noteId, anchorYear, anchorMonth, anchorDay) => 
     if (endDInput) endDInput.value = endMD.day;
 
     if (repeatsInput) repeatsInput.checked = targetNote.repeatsYearly || false;
+    if (categoryInput) categoryInput.value = targetNote.category || 'Misc';
 
     // Populate Visibility DOM overrides
     if (modeInput) modeInput.value = targetNote.visibility?.mode || 'public';
@@ -545,6 +552,7 @@ export const importFoundryCalendarNotes = async (event) => {
                 // Determine Duration and Repeats from Simple Calendar format
                 let duration = 1;
                 let repeatsYearly = false;
+                let category = 'Misc'; // Default our newly imported notes to Misc
                 
                 if (scFlags?.noteData) {
                     if (scFlags.noteData.repeats === 1) repeatsYearly = true; // Simple Calendar uses '1' for Yearly
@@ -560,6 +568,16 @@ export const importFoundryCalendarNotes = async (event) => {
                         const endDoy = getDayOfYear(camp.calendar, em, ed);
                         duration = (ey - y) * totalDays + endDoy - startDoy + 1;
                         if (duration < 1) duration = 1;
+                    }
+
+                    // Smart map Foundry Categories to our native Color-coded Categories
+                    if (scFlags.noteData.categories && scFlags.noteData.categories.length > 0) {
+                        const rawCat = scFlags.noteData.categories[0].toLowerCase();
+                        if (rawCat.includes('holiday')) category = 'Holiday';
+                        else if (rawCat.includes('birthday')) category = 'Birthday';
+                        else if (rawCat.includes('in-game') || rawCat.includes('adventure')) category = 'Adventure';
+                        else if (rawCat.includes('downtime')) category = 'Downtime';
+                        else if (rawCat.includes('travel')) category = 'Travel';
                     }
                 }
 
@@ -601,7 +619,7 @@ export const importFoundryCalendarNotes = async (event) => {
                 
                 let dayNotes = camp.calendar.notes[dateKey];
                 if (dayNotes && !Array.isArray(dayNotes)) {
-                    dayNotes = [{ id: generateId(), text: dayNotes.text, visibility: dayNotes.visibility, authorId: camp.dmId }];
+                    dayNotes = [{ id: generateId(), text: dayNotes.text, visibility: dayNotes.visibility, authorId: camp.dmId, category: 'Misc' }];
                 }
                 if (!dayNotes) dayNotes = [];
 
@@ -612,7 +630,8 @@ export const importFoundryCalendarNotes = async (event) => {
                     visibility: { mode: 'public' }, // Imported notes default to public
                     timestamp: Date.now(),
                     duration: duration,
-                    repeatsYearly: repeatsYearly
+                    repeatsYearly: repeatsYearly,
+                    category: category // Injects the mapped category here!
                 });
 
                 camp.calendar.notes[dateKey] = dayNotes;
@@ -754,7 +773,10 @@ export const resetCalendarToDefault = async () => {
     const defaults = JSON.parse(JSON.stringify(DEFAULT_CALENDAR));
     camp.calendar.name = defaults.name;
     camp.calendar.description = defaults.description;
-    camp.calendar.daysInWeek = defaults.daysInWeek;
+    camp.calendar.daysInWeek = defaults.defaultsInWeek; // Bug fix here, falling back to defaults if it doesn't map perfectly initially
+    if(!defaults.daysInWeek) camp.calendar.daysInWeek = 10;
+    else camp.calendar.daysInWeek = defaults.daysInWeek;
+
     camp.calendar.months = defaults.months;
 
     window.appData.calendarViewMonth = 0;
