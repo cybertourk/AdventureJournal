@@ -332,11 +332,11 @@ export function getSessionEditHTML(state) {
                                 ${(camp.calendar?.months || []).map((m, idx) => {
                                     let mName = m.name;
                                     if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
-                                    return \`<option value="\${idx}" \${idx === igM ? 'selected' : ''}>\${mName}</option>\`;
+                                    return `<option value="${idx}" ${idx === igM ? 'selected' : ''}>${mName}</option>`;
                                 }).join('')}
                             </select>
                             <select id="draft-ingame-d" class="w-14 p-2 bg-transparent border-b-2 border-stone-400 text-stone-900 font-serif text-sm outline-none focus:border-red-900 text-center transition-colors">
-                                ${Array.from({ length: Math.max(1, parseInt(camp.calendar?.months[igM]?.days || 1, 10)) }).map((_, i) => \`<option value="\${i+1}" \${i+1 === igD ? 'selected' : ''}>\${i+1}</option>\`).join('')}
+                                ${Array.from({ length: Math.max(1, parseInt(camp.calendar?.months[igM]?.days || 1, 10)) }).map((_, i) => `<option value="${i+1}" ${i+1 === igD ? 'selected' : ''}>${i+1}</option>`).join('')}
                             </select>
                         </div>
                     </div>
