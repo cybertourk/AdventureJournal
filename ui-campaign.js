@@ -245,7 +245,14 @@ export function getAdventureHTML(state) {
     <div class="animate-in fade-in duration-300">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 sm:mb-8 gap-4 border-b-2 border-stone-800 pb-4">
             <div class="w-full md:w-auto">
-                <h2 class="text-2xl sm:text-3xl md:text-4xl font-serif font-bold text-amber-500 leading-tight">${adv.name}</h2>
+                <div class="flex items-center gap-3">
+                    <h2 class="text-2xl sm:text-3xl md:text-4xl font-serif font-bold text-amber-500 leading-tight">${adv.name}</h2>
+                    ${isDM ? `
+                    <button onclick="window.appActions.openEditAdventureModal()" class="text-stone-500 hover:text-amber-400 transition text-lg mt-1" title="Amend Adventure Details">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </button>
+                    ` : ''}
+                </div>
                 <div class="flex flex-wrap items-center gap-2 sm:gap-3 text-stone-400 text-xs sm:text-sm font-sans mt-2">
                     <span class="bg-stone-900 px-2 py-1 rounded border border-stone-700 shadow-inner">Level ${adv.startLevel}-${adv.endLevel}</span>
                     <span class="bg-stone-900 px-2 py-1 rounded border border-stone-700 shadow-inner">${adv.numPlayers} Heroes Active</span>
