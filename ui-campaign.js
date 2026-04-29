@@ -162,7 +162,12 @@ export function getCampaignHTML(state) {
     `;
 
     if (camp.adventures) {
-        camp.adventures.forEach(adv => {
+        // Sort adventures alphanumerically by name
+        const sortedAdventures = [...camp.adventures].sort((a, b) => {
+            return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+        });
+
+        sortedAdventures.forEach(adv => {
             html += `
             <div class="bg-[#fdfbf7] p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-sm flex flex-col justify-between group relative overflow-hidden hover:shadow-md transition">
                 <div class="absolute top-0 left-0 w-1 h-full bg-stone-500"></div>
