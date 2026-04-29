@@ -63,13 +63,13 @@ export const jumpToSpecificDate = () => {
     const daySelect = document.getElementById('jump-day');
 
     if (yearInput && monthSelect) {
-        window.appData.calendarViewYear = parseInt(yearInput.value) || 1492;
-        window.appData.calendarViewMonth = parseInt(monthSelect.value) || 0;
+        window.appData.calendarViewYear = parseInt(yearInput.value, 10) || 1492;
+        window.appData.calendarViewMonth = parseInt(monthSelect.value, 10) || 0;
     }
 
     // If they selected a specific day, open that day's modal directly
     if (daySelect && daySelect.value) {
-        const day = parseInt(daySelect.value);
+        const day = parseInt(daySelect.value, 10);
         window.appActions.openCalendarDay(window.appData.calendarViewYear, window.appData.calendarViewMonth, day);
     } else {
         reRender();
@@ -124,25 +124,26 @@ export const setCurrentCampaignDate = async (year, monthIndex, day) => {
     reRender(); // Refresh to show the new "Current Date" styling on the grid
 };
 
-// --- Calendar Math Helpers ---
-const getDaysInYear = (cal) => cal.months.reduce((sum, m) => sum + (m.days || 0), 0);
+// --- STRICT CALENDAR MATH HELPERS ---
+// Using strict parseInt to guarantee no string concatenation explosions
+const getDaysInYear = (cal) => cal.months.reduce((sum, m) => sum + parseInt(m.days || 0, 10), 0);
 
 const getDayOfYear = (cal, mIdx, day) => {
     let doy = 0;
-    for(let i = 0; i < mIdx; i++) doy += (cal.months[i].days || 0);
-    return doy + day;
+    for(let i = 0; i < mIdx; i++) doy += parseInt(cal.months[i].days || 0, 10);
+    return doy + parseInt(day, 10);
 };
 
 const getDateFromDayOfYear = (cal, doy) => {
     let currentDoy = 0;
     for (let i = 0; i < cal.months.length; i++) {
-        const mDays = cal.months[i].days || 0;
+        const mDays = parseInt(cal.months[i].days || 0, 10);
         if (currentDoy + mDays >= doy) {
             return { monthIndex: i, day: doy - currentDoy };
         }
         currentDoy += mDays;
     }
-    return { monthIndex: Math.max(0, cal.months.length - 1), day: cal.months[cal.months.length - 1]?.days || 1 };
+    return { monthIndex: Math.max(0, cal.months.length - 1), day: parseInt(cal.months[cal.months.length - 1]?.days || 1, 10) };
 };
 
 export const syncCalendarNoteDates = (trigger) => {
@@ -163,15 +164,15 @@ export const syncCalendarNoteDates = (trigger) => {
 
     if (!startYEl || !startMEl || !startDEl || !endYEl || !endMEl || !endDEl || !durationEl) return;
 
-    const sY = parseInt(startYEl.value) || 0;
-    const sM = parseInt(startMEl.value) || 0;
-    const sD = parseInt(startDEl.value) || 1;
+    const sY = parseInt(startYEl.value, 10) || 0;
+    const sM = parseInt(startMEl.value, 10) || 0;
+    const sD = parseInt(startDEl.value, 10) || 1;
 
-    let eY = parseInt(endYEl.value) || sY;
-    let eM = parseInt(endMEl.value) || sM;
-    let eD = parseInt(endDEl.value) || sD;
+    let eY = parseInt(endYEl.value, 10) || sY;
+    let eM = parseInt(endMEl.value, 10) || sM;
+    let eD = parseInt(endDEl.value, 10) || sD;
 
-    let duration = parseInt(durationEl.value) || 1;
+    let duration = parseInt(durationEl.value, 10) || 1;
     const totalDays = getDaysInYear(cal);
 
     if (trigger === 'duration' || trigger === 'startdate') {
@@ -204,18 +205,9 @@ export const syncCalendarNoteDates = (trigger) => {
         let calcDuration = (eY - sY) * totalDays + endDoy - startDoy + 1;
 
         if (calcDuration < 1) {
-            // Prevent users from setting an end date that occurs before the start date
-            eY = sY;
-            eM = sM;
-            eD = sD;
+            // UI Snap-back removed! If they input an end date before the start date while adjusting dropdowns, 
+            // we just safely lock duration to 1 so they can finish typing without fighting the UI.
             calcDuration = 1;
-
-            endYEl.value = eY;
-            if (endMEl.value != eM) {
-                endMEl.value = eM;
-                if (window.updateDayOptions) window.updateDayOptions(eM, 'cal-note-end-d');
-            }
-            endDEl.value = eD;
         }
 
         durationEl.value = calcDuration;
@@ -257,24 +249,21 @@ export const saveCalendarNote = async () => {
 
     if (!textInput || textInput.value.trim() === '') return;
 
-    let startY = startYInput ? parseInt(startYInput.value) || date.year : date.year;
-    let startM = startMInput ? parseInt(startMInput.value) || date.monthIndex : date.monthIndex;
-    let startD = startDInput ? parseInt(startDInput.value) || date.day : date.day;
+    let startY = startYInput ? parseInt(startYInput.value, 10) || date.year : date.year;
+    let startM = startMInput ? parseInt(startMInput.value, 10) || date.monthIndex : date.monthIndex;
+    let startD = startDInput ? parseInt(startDInput.value, 10) || date.day : date.day;
 
-    let endY = endYInput ? parseInt(endYInput.value) || startY : startY;
-    let endM = endMInput ? parseInt(endMInput.value) || startM : startM;
-    let endD = endDInput ? parseInt(endDInput.value) || startD : startD;
+    let endY = endYInput ? parseInt(endYInput.value, 10) || startY : startY;
+    let endM = endMInput ? parseInt(endMInput.value, 10) || startM : startM;
+    let endD = endDInput ? parseInt(endDInput.value, 10) || startD : startD;
 
-    // Safety fallback for end date logic in case user enters it backwards
-    if (endY < startY || (endY === startY && endM < startM) || (endY === startY && endM === startM && endD < startD)) {
-        endY = startY; endM = startM; endD = startD;
-    }
-
-    // Calculate absolute duration based on calendar days
+    // Calculate strict absolute duration based on integer calendar days
     const totalDays = getDaysInYear(camp.calendar);
     const startDoy = getDayOfYear(camp.calendar, startM, startD);
     const endDoy = getDayOfYear(camp.calendar, endM, endD);
     let duration = (endY - startY) * totalDays + endDoy - startDoy + 1;
+    
+    // Final safety fallback: If the math produces a negative number (e.g. End Date was saved as prior to Start Date), lock it to 1.
     if (duration < 1) duration = 1;
 
     const noteId = noteIdInput?.value || generateId();
@@ -283,9 +272,9 @@ export const saveCalendarNote = async () => {
 
     // Remove the note from its original anchor date if the user moved its start date
     if (origYInput && origYInput.value !== '') {
-        const oY = parseInt(origYInput.value);
-        const oM = parseInt(origMInput.value);
-        const oD = parseInt(origDInput.value);
+        const oY = parseInt(origYInput.value, 10);
+        const oM = parseInt(origMInput.value, 10);
+        const oD = parseInt(origDInput.value, 10);
         const oldKey = `${oY}-${oM}-${oD}`;
         const newKey = `${startY}-${startM}-${startD}`;
         
@@ -308,7 +297,7 @@ export const saveCalendarNote = async () => {
     // Backward compatibility: Convert legacy single-note object to an array
     let dayNotes = camp.calendar.notes[dateKey];
     if (dayNotes && !Array.isArray(dayNotes)) {
-        dayNotes = [{ id: generateId(), text: dayNotes.text, visibility: dayNotes.visibility, authorId: camp.dmId }];
+        dayNotes = [{ id: generateId(), text: dayNotes.text, visibility: dayNotes.visibility, authorId: camp.dmId, category: 'Misc' }];
     }
     if (!dayNotes) dayNotes = [];
 
@@ -740,7 +729,7 @@ export const saveCalendarSettings = async () => {
                 season: seasonEl ? seasonEl.value.trim() : "",
                 lore: loreEl ? loreEl.value.trim() : "",
                 description: descEl ? descEl.value.trim() : "",
-                days: parseInt(daysEl.value) || 0
+                days: parseInt(daysEl.value, 10) || 0
             });
         }
     });
@@ -752,7 +741,7 @@ export const saveCalendarSettings = async () => {
 
     camp.calendar.name = nameInput ? nameInput.value.trim() : camp.calendar.name;
     camp.calendar.description = descInput ? descInput.value.trim() : (camp.calendar.description || '');
-    camp.calendar.daysInWeek = daysInWeekInput ? parseInt(daysInWeekInput.value) || 7 : 7;
+    camp.calendar.daysInWeek = daysInWeekInput ? parseInt(daysInWeekInput.value, 10) || 7 : 7;
     camp.calendar.months = newMonths;
 
     // Reset view to the beginning of the year just in case they deleted the month they were currently viewing
