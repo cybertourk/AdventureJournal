@@ -40,16 +40,24 @@ export function generateId() {
 
 export function calculateLootValue(text) {
     if (!text) return 0;
-    const processedText = text.toLowerCase()
-      .replace(/\bplatinum\b/g, 'pp').replace(/\bgold\b/g, 'gp')
-      .replace(/\belectrum\b/g, 'ep').replace(/\bsilver\b/g, 'sp').replace(/\bcopper\b/g, 'cp');
     
-    const currencyRegex = /(\d+(\.\d+)?)\s*(pp|gp|ep|sp|cp)/g;
+    // Normalize text, removing commas from numbers and standardizing plurals
+    const processedText = text.toLowerCase()
+      .replace(/\bplatinum(?: pieces?| coins?)?\b/g, 'pp')
+      .replace(/\bgold(?: pieces?| coins?)?\b/g, 'gp')
+      .replace(/\belectrum(?: pieces?| coins?)?\b/g, 'ep')
+      .replace(/\bsilver(?: pieces?| coins?)?\b/g, 'sp')
+      .replace(/\bcopper(?: pieces?| coins?)?\b/g, 'cp');
+    
+    // Regex now explicitly supports commas in numbers (e.g. 5,000 gp) and floating points (e.g. 1.5 gp)
+    const currencyRegex = /((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)\s*(pp|gp|ep|sp|cp)\b/g;
     const conversion = { pp: 10, gp: 1, ep: 0.5, sp: 0.1, cp: 0.01 };
     let totalGP = 0;
     
     for (const match of processedText.matchAll(currencyRegex)) {
-      totalGP += parseFloat(match[1]) * (conversion[match[3]] || 0);
+      // Strip commas from the number string before parsing it to a float
+      const cleanNumberStr = match[1].replace(/,/g, '');
+      totalGP += parseFloat(cleanNumberStr) * (conversion[match[2]] || 0);
     }
     return totalGP;
 }
