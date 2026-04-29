@@ -63,17 +63,23 @@ export const jumpToSpecificDate = () => {
     const daySelect = document.getElementById('jump-day');
 
     if (yearInput && monthSelect) {
-        window.appData.calendarViewYear = parseInt(yearInput.value, 10) || 1492;
-        window.appData.calendarViewMonth = parseInt(monthSelect.value, 10) || 0;
+        let parsedY = parseInt(yearInput.value, 10);
+        window.appData.calendarViewYear = isNaN(parsedY) ? 1492 : parsedY;
+        
+        let parsedM = parseInt(monthSelect.value, 10);
+        window.appData.calendarViewMonth = isNaN(parsedM) ? 0 : parsedM;
     }
 
     // If they selected a specific day, open that day's modal directly
     if (daySelect && daySelect.value) {
         const day = parseInt(daySelect.value, 10);
-        window.appActions.openCalendarDay(window.appData.calendarViewYear, window.appData.calendarViewMonth, day);
-    } else {
-        reRender();
+        if (!isNaN(day)) {
+            window.appActions.openCalendarDay(window.appData.calendarViewYear, window.appData.calendarViewMonth, day);
+            return;
+        }
     }
+    
+    reRender();
 };
 
 // --- Global Calendar Lore Inspector ---
@@ -164,15 +170,16 @@ export const syncCalendarNoteDates = (trigger) => {
 
     if (!startYEl || !startMEl || !startDEl || !endYEl || !endMEl || !endDEl || !durationEl) return;
 
-    const sY = parseInt(startYEl.value, 10) || 0;
-    const sM = parseInt(startMEl.value, 10) || 0;
-    const sD = parseInt(startDEl.value, 10) || 1;
+    // Strict numerical parsing avoiding "falsy zero" overrides
+    let sY = parseInt(startYEl.value, 10); if (isNaN(sY)) sY = 0;
+    let sM = parseInt(startMEl.value, 10); if (isNaN(sM)) sM = 0;
+    let sD = parseInt(startDEl.value, 10); if (isNaN(sD)) sD = 1;
 
-    let eY = parseInt(endYEl.value, 10) || sY;
-    let eM = parseInt(endMEl.value, 10) || sM;
-    let eD = parseInt(endDEl.value, 10) || sD;
+    let eY = parseInt(endYEl.value, 10); if (isNaN(eY)) eY = sY;
+    let eM = parseInt(endMEl.value, 10); if (isNaN(eM)) eM = sM;
+    let eD = parseInt(endDEl.value, 10); if (isNaN(eD)) eD = sD;
 
-    let duration = parseInt(durationEl.value, 10) || 1;
+    let duration = parseInt(durationEl.value, 10); if (isNaN(duration)) duration = 1;
     const totalDays = getDaysInYear(cal);
 
     if (trigger === 'duration' || trigger === 'startdate') {
@@ -205,8 +212,6 @@ export const syncCalendarNoteDates = (trigger) => {
         let calcDuration = (eY - sY) * totalDays + endDoy - startDoy + 1;
 
         if (calcDuration < 1) {
-            // UI Snap-back removed! If they input an end date before the start date while adjusting dropdowns, 
-            // we just safely lock duration to 1 so they can finish typing without fighting the UI.
             calcDuration = 1;
         }
 
@@ -243,19 +248,29 @@ export const saveCalendarNote = async () => {
     const repeatsInput = document.getElementById('cal-note-repeats');
     const categoryInput = document.getElementById('cal-note-category');
     
-    // Grab visibility from the hidden DOM inputs controlled by the global Fog of War menu
     const modeInput = container?.querySelector('.vis-mode-input');
     const playersInput = container?.querySelector('.vis-players-input');
 
     if (!textInput || textInput.value.trim() === '') return;
 
-    let startY = startYInput ? parseInt(startYInput.value, 10) || date.year : date.year;
-    let startM = startMInput ? parseInt(startMInput.value, 10) || date.monthIndex : date.monthIndex;
-    let startD = startDInput ? parseInt(startDInput.value, 10) || date.day : date.day;
+    // Strict numerical parsing avoiding "falsy zero" overrides
+    let startY = startYInput ? parseInt(startYInput.value, 10) : NaN;
+    if (isNaN(startY)) startY = date.year;
 
-    let endY = endYInput ? parseInt(endYInput.value, 10) || startY : startY;
-    let endM = endMInput ? parseInt(endMInput.value, 10) || startM : startM;
-    let endD = endDInput ? parseInt(endDInput.value, 10) || startD : startD;
+    let startM = startMInput ? parseInt(startMInput.value, 10) : NaN;
+    if (isNaN(startM)) startM = date.monthIndex;
+
+    let startD = startDInput ? parseInt(startDInput.value, 10) : NaN;
+    if (isNaN(startD)) startD = date.day;
+
+    let endY = endYInput ? parseInt(endYInput.value, 10) : NaN;
+    if (isNaN(endY)) endY = startY;
+
+    let endM = endMInput ? parseInt(endMInput.value, 10) : NaN;
+    if (isNaN(endM)) endM = startM;
+
+    let endD = endDInput ? parseInt(endDInput.value, 10) : NaN;
+    if (isNaN(endD)) endD = startD;
 
     // Calculate strict absolute duration based on integer calendar days
     const totalDays = getDaysInYear(camp.calendar);
@@ -263,7 +278,6 @@ export const saveCalendarNote = async () => {
     const endDoy = getDayOfYear(camp.calendar, endM, endD);
     let duration = (endY - startY) * totalDays + endDoy - startDoy + 1;
     
-    // Final safety fallback: If the math produces a negative number (e.g. End Date was saved as prior to Start Date), lock it to 1.
     if (duration < 1) duration = 1;
 
     const noteId = noteIdInput?.value || generateId();
@@ -275,18 +289,21 @@ export const saveCalendarNote = async () => {
         const oY = parseInt(origYInput.value, 10);
         const oM = parseInt(origMInput.value, 10);
         const oD = parseInt(origDInput.value, 10);
-        const oldKey = `${oY}-${oM}-${oD}`;
-        const newKey = `${startY}-${startM}-${startD}`;
         
-        if (oldKey !== newKey && camp.calendar.notes[oldKey]) {
-            let filteredNotes = [];
-            if (Array.isArray(camp.calendar.notes[oldKey])) {
-                filteredNotes = camp.calendar.notes[oldKey].filter(n => n.id !== noteId);
-            }
-            if (filteredNotes.length === 0) {
-                delete camp.calendar.notes[oldKey];
-            } else {
-                camp.calendar.notes[oldKey] = filteredNotes;
+        if (!isNaN(oY) && !isNaN(oM) && !isNaN(oD)) {
+            const oldKey = `${oY}-${oM}-${oD}`;
+            const newKey = `${startY}-${startM}-${startD}`;
+            
+            if (oldKey !== newKey && camp.calendar.notes[oldKey]) {
+                let filteredNotes = [];
+                if (Array.isArray(camp.calendar.notes[oldKey])) {
+                    filteredNotes = camp.calendar.notes[oldKey].filter(n => n.id !== noteId);
+                }
+                if (filteredNotes.length === 0) {
+                    delete camp.calendar.notes[oldKey];
+                } else {
+                    camp.calendar.notes[oldKey] = filteredNotes;
+                }
             }
         }
     }
@@ -318,7 +335,6 @@ export const saveCalendarNote = async () => {
     };
 
     if (existingNoteIndex >= 0) {
-        // Preserve original author if just editing
         newNote.authorId = dayNotes[existingNoteIndex].authorId || myUid;
         dayNotes[existingNoteIndex] = newNote;
     } else {
@@ -327,7 +343,7 @@ export const saveCalendarNote = async () => {
 
     camp.calendar.notes[dateKey] = dayNotes;
 
-    // Clear the editor inputs to allow adding another note immediately
+    // Clear the editor inputs
     if (textInput) textInput.value = '';
     if (noteIdInput) noteIdInput.value = '';
     if (origYInput) origYInput.value = '';
@@ -345,7 +361,7 @@ export const saveCalendarNote = async () => {
     
     await saveCampaign(camp);
     notify("Chronicle inscribed.", "success");
-    reRender(); // Re-render to show the newly added note in the modal list
+    reRender(); 
 };
 
 export const editCalendarNote = (noteId, anchorYear, anchorMonth, anchorDay) => {
@@ -397,22 +413,18 @@ export const editCalendarNote = (noteId, anchorYear, anchorMonth, anchorDay) => 
     if (textInput) textInput.value = targetNote.text;
     if (noteIdInput) noteIdInput.value = targetNote.id || 'legacy';
     
-    // Track the true anchor so we know where to delete it from if they change the start date
     if (origYInput) origYInput.value = targetY;
     if (origMInput) origMInput.value = targetM;
     if (origDInput) origDInput.value = targetD;
     
-    // Populate the Start Date UI
     if (startYInput) startYInput.value = targetY;
     if (startMInput) {
         startMInput.value = targetM;
-        // Dynamically recalculate the Day dropdown options for the selected start month!
         if (window.updateDayOptions) window.updateDayOptions(targetM, 'cal-note-start-d');
     }
     if (startDInput) startDInput.value = targetD;
 
-    // Calculate End Date math based on the duration
-    const duration = targetNote.duration || 1;
+    const duration = parseInt(targetNote.duration, 10) || 1;
     const totalDays = getDaysInYear(camp.calendar);
     let startDoy = getDayOfYear(camp.calendar, targetM, targetD);
     let endDoy = startDoy + duration - 1;
@@ -421,14 +433,11 @@ export const editCalendarNote = (noteId, anchorYear, anchorMonth, anchorDay) => 
     let remDoy = ((endDoy - 1) % totalDays) + 1;
     let endMD = getDateFromDayOfYear(camp.calendar, remDoy);
 
-    // Populate Duration UI
     if (durationInput) durationInput.value = duration;
 
-    // Populate the End Date UI
     if (endYInput) endYInput.value = endY;
     if (endMInput) {
         endMInput.value = endMD.monthIndex;
-        // Dynamically recalculate the Day dropdown options for the selected end month!
         if (window.updateDayOptions) window.updateDayOptions(endMD.monthIndex, 'cal-note-end-d');
     }
     if (endDInput) endDInput.value = endMD.day;
@@ -436,11 +445,9 @@ export const editCalendarNote = (noteId, anchorYear, anchorMonth, anchorDay) => 
     if (repeatsInput) repeatsInput.checked = targetNote.repeatsYearly || false;
     if (categoryInput) categoryInput.value = targetNote.category || 'Misc';
 
-    // Populate Visibility DOM overrides
     if (modeInput) modeInput.value = targetNote.visibility?.mode || 'public';
     if (playersInput) playersInput.value = (targetNote.visibility?.visibleTo || []).join(',');
 
-    // Visually update the visibility button to match the note's state
     const visBtn = container?.querySelector('button');
     if (visBtn) {
         const mode = targetNote.visibility?.mode || 'public';
@@ -452,7 +459,6 @@ export const editCalendarNote = (noteId, anchorYear, anchorMonth, anchorDay) => 
         visBtn.innerHTML = `<i class="fa-solid ${icon} mr-1"></i> ${text}`;
     }
 
-    // Scroll down to the editor so the user sees it's ready to edit
     container?.scrollIntoView({ behavior: 'smooth' });
 };
 
