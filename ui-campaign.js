@@ -290,7 +290,24 @@ export function getAdventureHTML(state) {
             
             // Format the dates
             const dateStr = new Date(session.timestamp).toLocaleDateString();
-            const inGameStr = session.inGameDate ? `<span class="text-stone-400 normal-case ml-1 font-serif italic">(${session.inGameDate})</span>` : '';
+            
+            // --- SMART IN-GAME DATE PARSER ---
+            let inGameDateParsed = '';
+            if (typeof session.inGameDate === 'string') {
+                inGameDateParsed = session.inGameDate;
+            } else if (session.inGameDate && typeof session.inGameDate === 'object') {
+                const { year, month, day } = session.inGameDate;
+                let monthName = "Unknown Month";
+                if (camp && camp.calendar && camp.calendar.months && camp.calendar.months[month]) {
+                    monthName = camp.calendar.months[month].name;
+                    if (monthName.includes('(') && camp.calendar.months[month].nickname === undefined) {
+                        monthName = monthName.split('(')[0].trim();
+                    }
+                }
+                inGameDateParsed = `${day} ${monthName}, ${year}`;
+            }
+
+            const inGameStr = inGameDateParsed ? `<span class="text-stone-400 normal-case ml-1 font-serif italic">(${inGameDateParsed})</span>` : '';
             
             // Extract the best available preview text (Intelligent Fallback)
             let previewText = '';
