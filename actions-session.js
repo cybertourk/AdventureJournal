@@ -220,7 +220,7 @@ const _syncAdventureCalendarNote = (camp, advId, sessions) => {
 
         const newNote = {
             id: advId, // Tie the note ID strictly to the Adventure ID for easy updating
-            text: `**Adventure Arc:** ${advName}\n\n*Auto-generated chronicle of the party's timeline during this arc.*`,
+            text: `**${advName}**\n\n*Auto-generated chronicle of the party's timeline during this arc.*`,
             authorId: camp.dmId,
             visibility: { mode: 'public', visibleTo: [] },
             timestamp: 10, // A tiny artificial timestamp forces this "Arc Banner" to float to the very top of the day's grid
