@@ -153,8 +153,9 @@ export const _gatherSessionDraft = () => {
         const noteEl = document.getElementById(`input-pc-note-${pc.id}`);
         if (noteEl && noteEl.value.trim()) pcNotes[pc.id] = noteEl.value.trim();
         
+        // Grab the numeric inspiration value
         const inspEl = document.getElementById(`pc-insp-${pc.id}`);
-        if (inspEl) pc.inspiration = inspEl.checked;
+        if (inspEl) pc.inspiration = parseInt(inspEl.value, 10) || 0;
         
         const autoEl = document.getElementById(`pc-auto-${pc.id}`);
         if (autoEl) pc.automaticSuccess = autoEl.checked;
