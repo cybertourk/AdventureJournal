@@ -87,18 +87,10 @@ export function getCalendarHTML(state) {
         return { mode, players, icon, text, color };
     };
 
-    const canViewNote = (note) => {
-        if (isDM || note.authorId === myUid) return true;
-        if (note.visibility) {
-            if (note.visibility.mode === 'public') return true;
-            if (note.visibility.mode === 'specific' && note.visibility.visibleTo.includes(myUid)) return true;
-        }
-        return false;
-    };
-
     const getCategoryColors = (category) => {
         switch(category) {
             case 'Adventure': return 'bg-red-600 text-white border-red-700';
+            case 'Session': return 'bg-indigo-600 text-white border-indigo-700'; // New Session Color!
             case 'Birthday': return 'bg-purple-600 text-white border-purple-700';
             case 'Holiday': return 'bg-amber-500 text-amber-950 border-amber-600';
             case 'Downtime': return 'bg-blue-500 text-white border-blue-600';
@@ -716,6 +708,7 @@ export function getCalendarHTML(state) {
                                 <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Category</label>
                                 <select id="cal-note-category" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 shadow-sm">
                                     <option value="Adventure">Adventure</option>
+                                    <option value="Session">Session</option>
                                     <option value="Birthday">Birthday</option>
                                     <option value="Holiday">Holiday</option>
                                     <option value="Downtime">Downtime</option>
