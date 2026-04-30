@@ -4,7 +4,7 @@ import { setCampaignsData } from './state.js';
 import { setView, openCampaign, openAdventure, toggleNewCampaignForm, createCampaign, deleteCampaignAction, copyCampaignId, toggleJoinCampaignForm, joinCampaignAction, toggleNewAdventureForm, createAdventure, deleteAdventure, openEditAdventureModal, saveEditAdventure, openAdvRoster, toggleAdvRosterPc, saveAdvRoster, openPCEdit, savePCEdit, deletePC, kickPlayer, openChecklistMenu, closeChecklistMenu, addSheetUpdate, toggleSheetUpdateResolved, toggleSheetUpdateVis, deleteSheetUpdate } from './actions-campaign.js'; 
 
 // Import Session, Narrative, & Visibility Controls 
-import { openSessionEdit, switchSessionTab, updateSessionBudget, _readDynamicList, _gatherSessionDraft, updateSessionPreview, saveSession, deleteSession, addLogScene, addLogClue, openVisibilityMenu, toggleVisSpecificList, saveVisibility, _saveCampaignHelper, openUniversalEditor, closeUniversalEditor, saveUniversalEditor, formatText, addChronicleEntry, deleteChronicleEntry, syncSessionDates } from './actions-session.js'; 
+import { openSessionEdit, switchSessionTab, updateSessionBudget, _readDynamicList, _gatherSessionDraft, updateSessionPreview, saveSession, deleteSession, addLogScene, addLogClue, openVisibilityMenu, toggleVisSpecificList, saveVisibility, _saveCampaignHelper, openUniversalEditor, closeUniversalEditor, saveUniversalEditor, formatText, addChronicleEntry, editChronicleEntry, cancelChronicleEdit, deleteChronicleEntry, syncSessionDates } from './actions-session.js'; 
 
 // Import Codex, Smart-Text, & Journal Functionality 
 import { _canViewCodex, parseSmartText, handleSmartInput, _showSuggestions, viewCodex, _openCodexModal, saveCodexEntry, deleteCodexEntry, openJournal, closeJournal, copyJournal, defineEntryFromSelection } from './actions-codex.js'; 
@@ -66,6 +66,8 @@ window.appActions = {
   addLogScene, 
   addLogClue, 
   addChronicleEntry,
+  editChronicleEntry,
+  cancelChronicleEdit,
   deleteChronicleEntry,
   syncSessionDates,
   
