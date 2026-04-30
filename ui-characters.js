@@ -42,6 +42,41 @@ export function getPCManagerHTML(state) {
             const isOwner = pc.playerId === myUid;
             const canEdit = isDM || isOwner;
 
+            // --- BOON & RESOURCE CALCULATIONS ---
+            let maxInsp = 0;
+            if (pc.boonBackstory) maxInsp += 1;
+            if (pc.boon2ndBday) maxInsp += 1;
+            
+            // Legacy support: if inspiration was saved as a boolean previously, convert it to 1 or 0 for display
+            const currentInsp = pc.inspiration === true ? 1 : (parseInt(pc.inspiration) || 0);
+            const hasAutoSuccess = pc.automaticSuccess === true;
+            
+            const activeBoons = [];
+            if (pc.boon1stBday) activeBoons.push(`1st B-Day: ${pc.boon1stBday}`);
+            if (pc.boon2ndBday) activeBoons.push(`2nd B-Day: ${pc.boon2ndBday}`);
+
+            let resourceBadge = `
+            <div class="mt-3 flex gap-2 flex-wrap">
+                <div class="bg-amber-100 border border-amber-300 text-amber-800 px-2 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wider flex items-center shadow-sm" title="Inspiration (Max: ${maxInsp})">
+                    <i class="fa-solid fa-dice-d20 mr-1.5 text-amber-600"></i> Insp: ${currentInsp} / ${maxInsp}
+                </div>
+                ${hasAutoSuccess ? `
+                <div class="bg-emerald-100 border border-emerald-300 text-emerald-800 px-2 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wider flex items-center shadow-sm" title="Automatic Success Available">
+                    <i class="fa-solid fa-check-double mr-1.5 text-emerald-600"></i> Auto-Success
+                </div>
+                ` : ''}
+            </div>
+            `;
+
+            let boonsHtml = '';
+            if (activeBoons.length > 0) {
+                boonsHtml = `
+                <div class="mt-3 pt-3 border-t border-[#d4c5a9]/50 text-[9px] sm:text-[10px] font-bold text-stone-500 uppercase tracking-widest leading-tight">
+                    ${activeBoons.map(b => `<div class="mt-1 flex items-start"><i class="fa-solid fa-gift text-amber-500 mr-1.5 mt-0.5"></i> <span class="text-stone-700">${b}</span></div>`).join('')}
+                </div>
+                `;
+            }
+
             html += `
             <div class="bg-[#fdfbf7] p-0 sm:p-0 rounded-sm border border-[#d4c5a9] shadow-sm flex flex-col group relative overflow-hidden hover:shadow-md transition">
                 <div class="absolute top-0 left-0 w-1 h-full ${canEdit ? 'bg-red-900 group-hover:bg-red-700' : 'bg-stone-400 group-hover:bg-amber-600'} transition-colors z-20"></div>
@@ -54,6 +89,8 @@ export function getPCManagerHTML(state) {
                         <p class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-stone-500 mt-1 sm:mt-2">
                             ${race} <span class="mx-1">•</span> ${classLevel}
                         </p>
+                        ${resourceBadge}
+                        ${boonsHtml}
                     </div>
                     <div class="mt-4 sm:mt-5 pt-3 sm:pt-4 border-t border-[#d4c5a9]/50 flex flex-wrap gap-4">
                         ${canEdit ? `
@@ -120,10 +157,10 @@ export function getPCEditHTML(state) {
     const camp = state.activeCampaign;
     const isNew = !state.activePcId;
     
-    // Updated fallback to include organizations, allies, and enemies
+    // Updated fallback to include boon trackers
     const pc = !isNew && camp?.playerCharacters 
         ? camp.playerCharacters.find(p => p.id === state.activePcId) 
-        : { name: '', race: '', classLevel: '', background: '', alignment: '', faith: '', gender: '', age: '', size: '', height: '', weight: '', eyes: '', hair: '', skin: '', traits: '', ideals: '', bonds: '', flaws: '', appearance: '', backstory: '', organizations: '', allies: '', enemies: '', dmNotes: '', playerId: '', image: '' };
+        : { name: '', race: '', classLevel: '', background: '', alignment: '', faith: '', gender: '', age: '', size: '', height: '', weight: '', eyes: '', hair: '', skin: '', traits: '', ideals: '', bonds: '', flaws: '', appearance: '', backstory: '', organizations: '', allies: '', enemies: '', dmNotes: '', playerId: '', image: '', boonBackstory: false, boon1stBday: '', boon2ndBday: '' };
 
     if (!pc && !isNew) return `<div class="text-center text-red-500 p-8 font-serif font-bold text-xl">Hero not found in the archives.</div>`;
 
@@ -287,6 +324,38 @@ export function getPCEditHTML(state) {
                     ${renderSmartField('pc-edit-enemies', `<i class="fa-solid fa-skull-crossbones text-stone-500 mr-2"></i> Enemies`, pc.enemies || '', "Rivals, villains...", 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner h-full flex-grow', false)}
                 </div>
                 
+                <!-- DM ONLY: BOONS & UNLOCKS -->
+                ${isDM ? `
+                <div class="mt-6 bg-amber-50 p-4 sm:p-5 rounded-sm border border-amber-300 shadow-inner">
+                    <h3 class="text-xs sm:text-sm font-bold text-amber-900 font-serif mb-3 border-b border-amber-300 pb-1"><i class="fa-solid fa-gift mr-2"></i> Player Boons & Unlocks</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="col-span-1 sm:col-span-2 flex items-center gap-2">
+                            <input type="checkbox" id="pc-edit-boon-backstory" ${pc.boonBackstory ? 'checked' : ''} class="w-4 h-4 text-amber-600 rounded-sm cursor-pointer shadow-sm border-amber-400">
+                            <label class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-amber-900 cursor-pointer" for="pc-edit-boon-backstory">Backstory Completed (+1 Max Inspiration)</label>
+                        </div>
+                        <div class="col-span-1 sm:col-span-2">
+                            <label class="block text-[10px] font-bold text-amber-700 uppercase tracking-widest mb-1.5">1st Birthday Boon (Custom Ability)</label>
+                            <input type="text" id="pc-edit-boon-1st" value="${pc.boon1stBday || ''}" class="w-full p-2 border border-amber-300 rounded-sm text-sm font-bold text-stone-900 shadow-sm outline-none focus:border-amber-600 bg-white" placeholder="e.g. Minor Pyromancy...">
+                        </div>
+                        <div class="col-span-1 sm:col-span-2">
+                            <label class="block text-[10px] font-bold text-amber-700 uppercase tracking-widest mb-1.5">2nd Birthday Boon (+1 Max Inspiration & Choice)</label>
+                            <select id="pc-edit-boon-2nd" class="w-full p-2 border border-amber-300 rounded-sm text-sm font-bold text-stone-900 shadow-sm outline-none focus:border-amber-600 bg-white">
+                                <option value="">-- No Boon Unlocked --</option>
+                                <option value="Mark of the Hero" ${pc.boon2ndBday === 'Mark of the Hero' ? 'selected' : ''}>Mark of the Hero (+1 Ability Score)</option>
+                                <option value="Fortify" ${pc.boon2ndBday === 'Fortify' ? 'selected' : ''}>Fortify (+15 Temp HP as BA once/adv)</option>
+                                <option value="Skillful" ${pc.boon2ndBday === 'Skillful' ? 'selected' : ''}>Skillful (1 Skill + 1 Language/Tool)</option>
+                                <option value="Well-trained" ${pc.boon2ndBday === 'Well-trained' ? 'selected' : ''}>Well-trained (1 Weapon Prof)</option>
+                                <option value="Weave Child" ${pc.boon2ndBday === 'Weave Child' ? 'selected' : ''}>Weave Child (1 Cantrip)</option>
+                                <option value="Aggressive" ${pc.boon2ndBday === 'Aggressive' ? 'selected' : ''}>Aggressive (+1 Action once/adv)</option>
+                                <option value="Capable" ${pc.boon2ndBday === 'Capable' ? 'selected' : ''}>Capable (1 Save Prof)</option>
+                                <option value="Quickened" ${pc.boon2ndBday === 'Quickened' ? 'selected' : ''}>Quickened (+10ft Movement)</option>
+                                <option value="On Edge" ${pc.boon2ndBday === 'On Edge' ? 'selected' : ''}>On Edge (+4 Initiative)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+
                 <!-- DM ONLY -->
                 ${isDM ? renderSmartField('pc-edit-dmnotes', `<i class="fa-solid fa-eye text-red-900 mr-2"></i> DM's Secret Notes`, pc.dmNotes || '', 'Hooks, secrets, curses, or background ties...', 4, 'bg-stone-200 border border-[#d4c5a9] shadow-inner border-l-4 border-l-red-900', false) : ''}
             </div>
