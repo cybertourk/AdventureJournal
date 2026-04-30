@@ -81,8 +81,18 @@ function renderChronicleLog(session, camp, myUid) {
             const isAuthor = entry.authorId === myUid;
             const canEdit = isDM || isAuthor;
             const isAuthorDM = entry.authorId === camp.dmId;
+            
             const authorName = isAuthorDM ? 'Dungeon Master' : (playerNames[entry.authorId] || 'Unknown Player');
             const authorIcon = isAuthorDM ? '<i class="fa-solid fa-crown text-amber-500"></i>' : '<i class="fa-solid fa-feather-pointed text-stone-500"></i>';
+            
+            // Look up the Hero owned by this author
+            const authorPc = camp.playerCharacters?.find(p => p.playerId === entry.authorId);
+            
+            // Build the immersive Display Name
+            let displayNameHtml = `<span class="text-stone-900">${authorName}</span>`;
+            if (authorPc && !isAuthorDM) {
+                displayNameHtml += ` <span class="text-stone-500 font-normal lowercase tracking-normal">as</span> <span class="text-amber-700 font-bold">${authorPc.name}</span>`;
+            }
             
             // Real-time parsing via window.appActions if available
             const parsedText = (window.appActions && window.appActions.parseSmartText) 
@@ -92,15 +102,23 @@ function renderChronicleLog(session, camp, myUid) {
             const dateObj = new Date(entry.timestamp);
             const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             const dateString = dateObj.toLocaleDateString();
+            
+            // Safely store the unparsed original text so the Edit function can grab it
+            const safeRawText = entry.text.replace(/"/g, '&quot;').replace(/\n/g, '&#10;');
 
             html += `
-            <div class="bg-white border border-[#d4c5a9] rounded-sm shadow-sm relative group overflow-hidden">
+            <div class="bg-white border border-[#d4c5a9] rounded-sm shadow-sm relative group overflow-hidden" id="chronicle-entry-${entry.id}">
+                <input type="hidden" id="raw-chronicle-${entry.id}" value="${safeRawText}">
                 <div class="bg-[#f4ebd8] border-b border-[#d4c5a9] px-3 py-1.5 flex justify-between items-center">
                     <div class="flex items-center gap-2 text-[10px] uppercase font-bold tracking-widest text-stone-600">
-                        ${authorIcon} <span class="text-stone-900">${authorName}</span> <span class="text-stone-400 font-normal ml-1 normal-case tracking-normal hidden sm:inline">${dateString} at ${timeString}</span>
+                        ${authorIcon} ${displayNameHtml} <span class="text-stone-400 font-normal ml-1 normal-case tracking-normal hidden sm:inline">${dateString} at ${timeString}</span>
                     </div>
                     ${canEdit ? `
-                    <button type="button" onclick="window.appActions.deleteChronicleEntry('${entry.id}')" class="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-red-800 hover:text-red-600 uppercase font-bold flex items-center" title="Delete Entry"><i class="fa-solid fa-trash sm:mr-1"></i> <span class="hidden sm:inline">Erase</span></button>
+                    <div class="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
+                        <button type="button" onclick="window.appActions.editChronicleEntry('${entry.id}')" class="text-[10px] text-stone-500 hover:text-blue-600 uppercase font-bold flex items-center transition" title="Edit Entry"><i class="fa-solid fa-pen sm:mr-1"></i> <span class="hidden sm:inline">Edit</span></button>
+                        <div class="w-px h-3 bg-stone-400"></div>
+                        <button type="button" onclick="window.appActions.deleteChronicleEntry('${entry.id}')" class="text-[10px] text-red-800 hover:text-red-600 uppercase font-bold flex items-center transition" title="Delete Entry"><i class="fa-solid fa-trash sm:mr-1"></i> <span class="hidden sm:inline">Erase</span></button>
+                    </div>
                     ` : ''}
                 </div>
                 <div class="p-3 text-sm text-stone-800 font-serif leading-relaxed whitespace-pre-wrap">
@@ -112,15 +130,21 @@ function renderChronicleLog(session, camp, myUid) {
     }
     html += '</div>';
 
-    // Add Input Area
+    // Add Input Area (Updated for Edit Support)
     html += `
-    <div class="bg-stone-100 border border-stone-300 rounded-sm p-3 shadow-inner">
+    <div class="bg-stone-100 border border-stone-300 rounded-sm p-3 shadow-inner relative" id="chronicle-input-container">
+        <input type="hidden" id="edit-chronicle-id" value="">
         <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5"><i class="fa-solid fa-comment-dots mr-1"></i> Contribute to Chronicle</label>
         <textarea id="new-chronicle-input" class="w-full p-3 bg-white border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 resize-none min-h-[80px] custom-scrollbar shadow-inner" placeholder="Add your perspective, a quote, or a session event... Codex names link automatically."></textarea>
-        <div class="flex justify-end mt-2">
-            <button type="button" onclick="window.appActions.addChronicleEntry()" class="px-5 py-2 bg-stone-800 text-amber-50 rounded-sm hover:bg-stone-700 transition font-bold uppercase tracking-wider text-[10px] shadow-sm flex items-center">
-                <i class="fa-solid fa-paper-plane mr-2"></i> Submit Entry
-            </button>
+        
+        <div class="flex justify-between items-center mt-2">
+            <span id="edit-chronicle-label" class="hidden text-[10px] text-amber-600 font-bold uppercase tracking-wider animate-pulse flex items-center"><i class="fa-solid fa-pen-nib mr-1.5"></i> Editing Entry</span>
+            <div class="flex justify-end gap-2 w-full">
+                <button type="button" id="cancel-chronicle-edit" onclick="window.appActions.cancelChronicleEdit()" class="hidden px-4 py-2 text-stone-500 hover:text-stone-800 transition font-bold uppercase tracking-wider text-[10px]">Cancel</button>
+                <button type="button" id="submit-chronicle-btn" onclick="window.appActions.addChronicleEntry()" class="px-5 py-2 bg-stone-800 text-amber-50 rounded-sm hover:bg-stone-700 transition font-bold uppercase tracking-wider text-[10px] shadow-sm flex items-center">
+                    <i class="fa-solid fa-paper-plane mr-2" id="submit-chronicle-icon"></i> <span id="submit-chronicle-text">Submit Entry</span>
+                </button>
+            </div>
         </div>
     </div>
     `;
