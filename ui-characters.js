@@ -142,8 +142,7 @@ export function getPCEditHTML(state) {
         </div>`;
     }
 
-    const coreReadonlyAttr = !isDM ? 'readonly disabled' : '';
-    const coreClass = !isDM ? 'opacity-70 bg-[#e8dec7] cursor-not-allowed' : 'bg-white focus:border-red-900';
+    const coreClass = 'bg-white focus:border-red-900';
 
     const title = isNew ? "Enroll New Hero" : `Private Journal: ${pc.name}`;
 
@@ -202,31 +201,31 @@ export function getPCEditHTML(state) {
                 ${playerAssignHTML}
                 <div class="col-span-1 sm:col-span-2 lg:col-span-1">
                     <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Hero Name *</label>
-                    <input type="text" id="pc-edit-name" value="${pc.name}" ${coreReadonlyAttr} class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 shadow-sm outline-none font-serif ${coreClass}" placeholder="e.g. Eldrin">
+                    <input type="text" id="pc-edit-name" value="${pc.name}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 shadow-sm outline-none font-serif ${coreClass}" placeholder="e.g. Eldrin">
                 </div>
                 <div>
                     <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Race / Lineage</label>
-                    <input type="text" id="pc-edit-race" value="${pc.race || ''}" ${coreReadonlyAttr} class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. Wood Elf">
+                    <input type="text" id="pc-edit-race" value="${pc.race || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. Wood Elf">
                 </div>
                 <div>
                     <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Class & Level</label>
-                    <input type="text" id="pc-edit-class" value="${pc.classLevel || ''}" ${coreReadonlyAttr} class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. Ranger 4">
+                    <input type="text" id="pc-edit-class" value="${pc.classLevel || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. Ranger 4">
                 </div>
                 <div>
                     <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Background</label>
-                    <input type="text" id="pc-edit-background" value="${pc.background || ''}" ${coreReadonlyAttr} class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. Acolyte">
+                    <input type="text" id="pc-edit-background" value="${pc.background || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. Acolyte">
                 </div>
                 <div>
                     <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Alignment</label>
-                    <input type="text" id="pc-edit-alignment" value="${pc.alignment || ''}" ${coreReadonlyAttr} class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. Chaotic Good">
+                    <input type="text" id="pc-edit-alignment" value="${pc.alignment || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. Chaotic Good">
                 </div>
                 <div>
                     <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Faith / Deity</label>
-                    <input type="text" id="pc-edit-faith" value="${pc.faith || ''}" ${coreReadonlyAttr} class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. Corellon Larethian">
+                    <input type="text" id="pc-edit-faith" value="${pc.faith || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. Corellon Larethian">
                 </div>
                 <div class="col-span-1 sm:col-span-2 lg:col-span-3 mt-2 border-t border-[#d4c5a9] pt-4">
                     <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Portrait Image URL</label>
-                    <input type="text" id="pc-edit-image" value="${pc.image || ''}" ${coreReadonlyAttr} class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="https://example.com/portrait.jpg">
+                    <input type="text" id="pc-edit-image" value="${pc.image || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="https://example.com/portrait.jpg">
                 </div>
             </div>
 
@@ -236,35 +235,35 @@ export function getPCEditHTML(state) {
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <div>
                         <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Gender</label>
-                        <input type="text" id="pc-edit-gender" value="${pc.gender || ''}" ${coreReadonlyAttr} class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
+                        <input type="text" id="pc-edit-gender" value="${pc.gender || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Age</label>
-                        <input type="text" id="pc-edit-age" value="${pc.age || ''}" ${coreReadonlyAttr} class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
+                        <input type="text" id="pc-edit-age" value="${pc.age || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Size</label>
-                        <input type="text" id="pc-edit-size" value="${pc.size || ''}" ${coreReadonlyAttr} class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="Medium">
+                        <input type="text" id="pc-edit-size" value="${pc.size || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="Medium">
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Height</label>
-                        <input type="text" id="pc-edit-height" value="${pc.height || ''}" ${coreReadonlyAttr} class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
+                        <input type="text" id="pc-edit-height" value="${pc.height || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Weight</label>
-                        <input type="text" id="pc-edit-weight" value="${pc.weight || ''}" ${coreReadonlyAttr} class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
+                        <input type="text" id="pc-edit-weight" value="${pc.weight || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Eyes</label>
-                        <input type="text" id="pc-edit-eyes" value="${pc.eyes || ''}" ${coreReadonlyAttr} class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
+                        <input type="text" id="pc-edit-eyes" value="${pc.eyes || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Hair</label>
-                        <input type="text" id="pc-edit-hair" value="${pc.hair || ''}" ${coreReadonlyAttr} class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
+                        <input type="text" id="pc-edit-hair" value="${pc.hair || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Skin</label>
-                        <input type="text" id="pc-edit-skin" value="${pc.skin || ''}" ${coreReadonlyAttr} class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
+                        <input type="text" id="pc-edit-skin" value="${pc.skin || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
                     </div>
                 </div>
             </div>
