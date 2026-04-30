@@ -292,9 +292,15 @@ const _syncIndividualSessionCalendarNote = (camp, sessionData) => {
         const { year, month, day, duration } = sessionData.inGameDate;
         
         if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+            
+            let noteText = `**${sessionData.name}**`;
+            if (sessionData.notes && sessionData.notes.trim() !== '') {
+                noteText += `\n\n${sessionData.notes.trim()}`;
+            }
+
             const newNote = {
                 id: sessionData.id, // Tie the note ID strictly to the Session ID for easy updating/purging
-                text: `**${sessionData.name}**\n\n*Auto-generated marker for this session.*`,
+                text: noteText,
                 authorId: camp.dmId,
                 visibility: { mode: 'public', visibleTo: [] },
                 timestamp: sessionData.timestamp, 
