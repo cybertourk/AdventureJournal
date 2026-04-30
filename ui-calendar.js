@@ -87,6 +87,15 @@ export function getCalendarHTML(state) {
         return { mode, players, icon, text, color };
     };
 
+    const canViewNote = (note) => {
+        if (isDM || note.authorId === myUid) return true;
+        if (note.visibility) {
+            if (note.visibility.mode === 'public') return true;
+            if (note.visibility.mode === 'specific' && note.visibility.visibleTo && note.visibility.visibleTo.includes(myUid)) return true;
+        }
+        return false;
+    };
+
     const getCategoryColors = (category) => {
         switch(category) {
             case 'Adventure': return 'bg-red-600 text-white border-red-700';
