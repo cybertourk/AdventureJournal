@@ -69,6 +69,70 @@ export function updateHeaderUI(state) {
     }
 }
 
+// --- PLAYER RESOURCE BAR ---
+export function updatePlayerResourceBar(state) {
+    const bar = document.getElementById('player-resource-bar');
+    if (!bar) return;
+
+    const camp = state.activeCampaign;
+    
+    // Only display this bar if we are in a campaign and the user is a Player (not the DM)
+    if (!camp || state.currentView === 'home' || camp._isDM) {
+        bar.innerHTML = '';
+        return;
+    }
+
+    // Find the player's active hero
+    const myPc = camp.playerCharacters?.find(p => p.playerId === state.currentUserUid);
+    if (!myPc) {
+        bar.innerHTML = '';
+        return;
+    }
+
+    // Calculate Resources
+    let maxInsp = 0;
+    if (myPc.boonBackstory) maxInsp += 1;
+    if (myPc.boon2ndBday) maxInsp += 1;
+    
+    const currentInsp = myPc.inspiration === true ? 1 : (parseInt(myPc.inspiration) || 0);
+    const autoSuccess = myPc.automaticSuccess ? 1 : 0;
+
+    // Get the most relevant/latest Adventure Name
+    let advName = "Current Adventure";
+    if (state.activeAdventure) {
+        advName = state.activeAdventure.name;
+    } else if (camp.adventures && camp.adventures.length > 0) {
+        // Sort alphanumerically to match the dashboard logic, grabbing the very last one
+        const sortedAdventures = [...camp.adventures].sort((a, b) => {
+            return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+        });
+        advName = sortedAdventures[sortedAdventures.length - 1].name;
+    }
+
+    // Pulse FX
+    const inspPulse = currentInsp > 0 ? 'animate-pulse text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]' : 'text-stone-600';
+    const autoPulse = autoSuccess > 0 ? 'animate-pulse text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'text-stone-600';
+
+    bar.innerHTML = `
+        <div class="bg-stone-900 border border-stone-700 rounded-sm p-3 flex flex-col sm:flex-row justify-between items-center gap-3 shadow-inner">
+            <div class="font-serif font-bold text-amber-500 text-sm sm:text-base truncate flex items-center">
+                <i class="fa-solid fa-book-journal-whills text-amber-700 mr-2 sm:mr-3"></i> ${advName}
+            </div>
+            <div class="flex items-center gap-4 text-[10px] sm:text-xs font-bold uppercase tracking-widest bg-stone-950 px-4 py-2 rounded-sm border border-stone-800 shadow-[0_4px_10px_rgba(0,0,0,0.5)]">
+                <div class="flex items-center gap-2" title="Inspiration Available">
+                    <i class="fa-solid fa-dice-d20 ${inspPulse} text-sm sm:text-lg transition-all duration-300"></i>
+                    <span class="${currentInsp > 0 ? 'text-amber-500' : 'text-stone-600'}">Insp <span class="text-white">${currentInsp}</span><span class="text-stone-600">/${maxInsp}</span></span>
+                </div>
+                <div class="w-px h-5 bg-stone-800"></div>
+                <div class="flex items-center gap-2" title="Auto-Success Available">
+                    <i class="fa-solid fa-check-double ${autoPulse} text-sm sm:text-lg transition-all duration-300"></i>
+                    <span class="${autoSuccess > 0 ? 'text-emerald-500' : 'text-stone-600'}">Auto <span class="text-white">${autoSuccess}</span></span>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
 // --- GLOBAL CHECKLIST GENERATOR (MODAL UI) ---
 export function updateChecklistUI(state) {
     const btn = document.getElementById('header-checklist-btn');
@@ -227,6 +291,7 @@ export function renderApp(state) {
     // Post-render UI adjustments
     updateHeaderUI(state);
     updateChecklistUI(state);
+    updatePlayerResourceBar(state);
 
     if (state.currentView === 'session-edit') {
         updateSessionTabUI('session');
