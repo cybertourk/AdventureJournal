@@ -30,17 +30,35 @@ export function generateSessionMarkdown(session, campaign) {
         inGameDateStr = session.inGameDate;
     } else if (session.inGameDate && typeof session.inGameDate === 'object') {
         // New Strict Object Support
-        const { year, month, day } = session.inGameDate;
-        let monthName = "Unknown Month";
+        const { year, month, day, endYear, endMonth, endDay, duration } = session.inGameDate;
         
-        if (campaign && campaign.calendar && campaign.calendar.months && campaign.calendar.months[month]) {
-            monthName = campaign.calendar.months[month].name;
-            // Clean up legacy month names if they have parenthesis
-            if (monthName.includes('(') && campaign.calendar.months[month].nickname === undefined) {
-                monthName = monthName.split('(')[0].trim();
+        const getMonthName = (mIdx) => {
+            let mName = "Unknown Month";
+            if (campaign && campaign.calendar && campaign.calendar.months && campaign.calendar.months[mIdx]) {
+                mName = campaign.calendar.months[mIdx].name;
+                if (mName.includes('(') && campaign.calendar.months[mIdx].nickname === undefined) {
+                    mName = mName.split('(')[0].trim();
+                }
             }
+            return mName;
+        };
+
+        const startMonthName = getMonthName(month);
+        
+        // If duration is greater than 1 and we have valid end dates, format as a span!
+        if (duration > 1 && endYear !== undefined && endMonth !== undefined && endDay !== undefined) {
+            const endMonthName = getMonthName(endMonth);
+            
+            if (year === endYear && month === endMonth) {
+                inGameDateStr = `${day}-${endDay} ${startMonthName}, ${year}`;
+            } else if (year === endYear) {
+                inGameDateStr = `${day} ${startMonthName} - ${endDay} ${endMonthName}, ${year}`;
+            } else {
+                inGameDateStr = `${day} ${startMonthName}, ${year} - ${endDay} ${endMonthName}, ${endYear}`;
+            }
+        } else {
+            inGameDateStr = `${day} ${startMonthName}, ${year}`;
         }
-        inGameDateStr = `${day} ${monthName}, ${year}`;
     }
 
     if (inGameDateStr && inGameDateStr.trim()) {
