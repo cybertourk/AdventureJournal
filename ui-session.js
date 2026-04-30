@@ -346,11 +346,11 @@ export function getSessionEditHTML(state) {
                                     ${(camp.calendar?.months || []).map((m, idx) => {
                                         let mName = m.name;
                                         if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
-                                        return \`<option value="\${idx}" \${idx === igM ? 'selected' : ''}>\${mName}</option>\`;
+                                        return `<option value="${idx}" ${idx === igM ? 'selected' : ''}>${mName}</option>`;
                                     }).join('')}
                                 </select>
                                 <select id="draft-ingame-d" onchange="window.appActions.syncSessionDates('startdate')" class="w-14 p-1.5 bg-white border border-[#d4c5a9] rounded-sm text-stone-900 font-serif text-xs outline-none focus:border-red-900 text-center shadow-sm">
-                                    ${Array.from({ length: Math.max(1, parseInt(camp.calendar?.months[igM]?.days || 1, 10)) }).map((_, i) => \`<option value="\${i+1}" \${i+1 === igD ? 'selected' : ''}>\${i+1}</option>\`).join('')}
+                                    ${Array.from({ length: Math.max(1, parseInt(camp.calendar?.months[igM]?.days || 1, 10)) }).map((_, i) => `<option value="${i+1}" ${i+1 === igD ? 'selected' : ''}>${i+1}</option>`).join('')}
                                 </select>
                             </div>
 
@@ -362,11 +362,11 @@ export function getSessionEditHTML(state) {
                                     ${(camp.calendar?.months || []).map((m, idx) => {
                                         let mName = m.name;
                                         if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
-                                        return \`<option value="\${idx}" \${idx === igEndM ? 'selected' : ''}>\${mName}</option>\`;
+                                        return `<option value="${idx}" ${idx === igEndM ? 'selected' : ''}>${mName}</option>`;
                                     }).join('')}
                                 </select>
                                 <select id="draft-ingame-end-d" onchange="window.appActions.syncSessionDates('enddate')" class="w-14 p-1.5 bg-white border border-[#d4c5a9] rounded-sm text-stone-900 font-serif text-xs outline-none focus:border-red-900 text-center shadow-sm">
-                                    ${Array.from({ length: Math.max(1, parseInt(camp.calendar?.months[igEndM]?.days || 1, 10)) }).map((_, i) => \`<option value="\${i+1}" \${i+1 === igEndD ? 'selected' : ''}>\${i+1}</option>\`).join('')}
+                                    ${Array.from({ length: Math.max(1, parseInt(camp.calendar?.months[igEndM]?.days || 1, 10)) }).map((_, i) => `<option value="${i+1}" ${i+1 === igEndD ? 'selected' : ''}>${i+1}</option>`).join('')}
                                 </select>
                             </div>
                             
