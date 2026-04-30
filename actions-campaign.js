@@ -491,7 +491,7 @@ export const savePCEdit = async () => {
   const pcId = window.appData.activePcId || generateId();
   
   const existingPC = camp.playerCharacters?.find(p => p.id === pcId) || {
-    inspiration: false,
+    inspiration: 0,
     automaticSuccess: false,
     playerId: ''
   };
@@ -542,7 +542,10 @@ export const savePCEdit = async () => {
     enemies: document.getElementById('input-pc-edit-enemies')?.value || '',
     // DM Restricted Administrative Fields
     playerId: isDM ? (document.getElementById('pc-edit-player-id')?.value || '') : (existingPC.playerId || ''),
-    dmNotes: isDM ? (document.getElementById('input-pc-edit-dmnotes')?.value || '') : (existingPC.dmNotes || '')
+    dmNotes: isDM ? (document.getElementById('input-pc-edit-dmnotes')?.value || '') : (existingPC.dmNotes || ''),
+    boonBackstory: isDM ? (document.getElementById('pc-edit-boon-backstory')?.checked || false) : (existingPC.boonBackstory || false),
+    boon1stBday: isDM ? (document.getElementById('pc-edit-boon-1st')?.value.trim() || '') : (existingPC.boon1stBday || ''),
+    boon2ndBday: isDM ? (document.getElementById('pc-edit-boon-2nd')?.value.trim() || '') : (existingPC.boon2ndBday || '')
   };
 
   const isNew = !camp.playerCharacters?.some(p => p.id === pcId);
