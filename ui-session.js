@@ -219,11 +219,20 @@ export function getSessionEditHTML(state) {
     let igY = camp.calendar?.currentYear || 1492;
     let igM = camp.calendar?.currentMonth || 0;
     let igD = camp.calendar?.currentDay || 1;
+    let igDur = 1;
+    let igEndM = igM;
+    let igEndD = igD;
+    let igEndY = igY;
 
     if (session.inGameDate && typeof session.inGameDate === 'object') {
         igY = session.inGameDate.year;
         igM = session.inGameDate.month;
         igD = session.inGameDate.day;
+        
+        igDur = session.inGameDate.duration || 1;
+        igEndM = session.inGameDate.endMonth !== undefined ? session.inGameDate.endMonth : igM;
+        igEndD = session.inGameDate.endDay !== undefined ? session.inGameDate.endDay : igD;
+        igEndY = session.inGameDate.endYear !== undefined ? session.inGameDate.endYear : igY;
     }
 
     // Gather PCs active in this adventure
@@ -319,37 +328,66 @@ export function getSessionEditHTML(state) {
                 <input type="text" id="draft-name" value="${defaultName}" class="w-full p-2 bg-transparent border-b-2 border-stone-400 text-stone-900 font-serif font-bold text-2xl outline-none focus:border-red-900 mb-4 transition-colors" placeholder="Session Title...">
 
                 <!-- Dates Configuration -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div>
                         <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1"><i class="fa-regular fa-calendar text-stone-400 mr-1"></i> Real-World Date</label>
                         <input type="date" id="draft-real-date" value="${defaultRealDate}" class="w-full p-2 bg-transparent border-b-2 border-stone-400 text-stone-900 font-serif text-sm outline-none focus:border-red-900 transition-colors">
                     </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1"><i class="fa-solid fa-moon text-stone-400 mr-1"></i> In-Game Date</label>
-                        <div class="flex items-center gap-1">
-                            <input type="number" id="draft-ingame-y" value="${igY}" class="w-16 p-2 bg-transparent border-b-2 border-stone-400 text-stone-900 font-serif text-sm outline-none focus:border-red-900 text-center transition-colors">
-                            <select id="draft-ingame-m" onchange="window.updateDayOptions(this.value, 'draft-ingame-d')" class="flex-grow p-2 bg-transparent border-b-2 border-stone-400 text-stone-900 font-serif text-sm outline-none focus:border-red-900 transition-colors">
-                                ${(camp.calendar?.months || []).map((m, idx) => {
-                                    let mName = m.name;
-                                    if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
-                                    return `<option value="${idx}" ${idx === igM ? 'selected' : ''}>${mName}</option>`;
-                                }).join('')}
-                            </select>
-                            <select id="draft-ingame-d" class="w-14 p-2 bg-transparent border-b-2 border-stone-400 text-stone-900 font-serif text-sm outline-none focus:border-red-900 text-center transition-colors">
-                                ${Array.from({ length: Math.max(1, parseInt(camp.calendar?.months[igM]?.days || 1, 10)) }).map((_, i) => `<option value="${i+1}" ${i+1 === igD ? 'selected' : ''}>${i+1}</option>`).join('')}
-                            </select>
+                    
+                    <div class="md:row-span-2">
+                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1"><i class="fa-solid fa-moon text-stone-400 mr-1"></i> In-Game Dates</label>
+                        <div class="bg-stone-50 border border-stone-300 rounded-sm p-3 shadow-inner">
+                            
+                            <!-- Start Date -->
+                            <div class="flex items-center gap-1 mb-2">
+                                <span class="text-[10px] uppercase font-bold text-stone-400 w-8">Start</span>
+                                <input type="number" id="draft-ingame-y" value="${igY}" onchange="window.appActions.syncSessionDates('startdate')" class="w-16 p-1.5 bg-white border border-[#d4c5a9] rounded-sm text-stone-900 font-serif text-xs outline-none focus:border-red-900 text-center shadow-sm">
+                                <select id="draft-ingame-m" onchange="window.updateDayOptions(this.value, 'draft-ingame-d'); window.appActions.syncSessionDates('startdate')" class="flex-grow p-1.5 bg-white border border-[#d4c5a9] rounded-sm text-stone-900 font-serif text-xs outline-none focus:border-red-900 shadow-sm">
+                                    ${(camp.calendar?.months || []).map((m, idx) => {
+                                        let mName = m.name;
+                                        if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
+                                        return \`<option value="\${idx}" \${idx === igM ? 'selected' : ''}>\${mName}</option>\`;
+                                    }).join('')}
+                                </select>
+                                <select id="draft-ingame-d" onchange="window.appActions.syncSessionDates('startdate')" class="w-14 p-1.5 bg-white border border-[#d4c5a9] rounded-sm text-stone-900 font-serif text-xs outline-none focus:border-red-900 text-center shadow-sm">
+                                    ${Array.from({ length: Math.max(1, parseInt(camp.calendar?.months[igM]?.days || 1, 10)) }).map((_, i) => \`<option value="\${i+1}" \${i+1 === igD ? 'selected' : ''}>\${i+1}</option>\`).join('')}
+                                </select>
+                            </div>
+
+                            <!-- End Date -->
+                            <div class="flex items-center gap-1 mb-2">
+                                <span class="text-[10px] uppercase font-bold text-stone-400 w-8">End</span>
+                                <input type="number" id="draft-ingame-end-y" value="${igEndY}" onchange="window.appActions.syncSessionDates('enddate')" class="w-16 p-1.5 bg-white border border-[#d4c5a9] rounded-sm text-stone-900 font-serif text-xs outline-none focus:border-red-900 text-center shadow-sm">
+                                <select id="draft-ingame-end-m" onchange="window.updateDayOptions(this.value, 'draft-ingame-end-d'); window.appActions.syncSessionDates('enddate')" class="flex-grow p-1.5 bg-white border border-[#d4c5a9] rounded-sm text-stone-900 font-serif text-xs outline-none focus:border-red-900 shadow-sm">
+                                    ${(camp.calendar?.months || []).map((m, idx) => {
+                                        let mName = m.name;
+                                        if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
+                                        return \`<option value="\${idx}" \${idx === igEndM ? 'selected' : ''}>\${mName}</option>\`;
+                                    }).join('')}
+                                </select>
+                                <select id="draft-ingame-end-d" onchange="window.appActions.syncSessionDates('enddate')" class="w-14 p-1.5 bg-white border border-[#d4c5a9] rounded-sm text-stone-900 font-serif text-xs outline-none focus:border-red-900 text-center shadow-sm">
+                                    ${Array.from({ length: Math.max(1, parseInt(camp.calendar?.months[igEndM]?.days || 1, 10)) }).map((_, i) => \`<option value="\${i+1}" \${i+1 === igEndD ? 'selected' : ''}>\${i+1}</option>\`).join('')}
+                                </select>
+                            </div>
+                            
+                            <!-- Duration -->
+                            <div class="flex justify-end items-center gap-2 pt-2 border-t border-stone-200">
+                                <span class="text-[10px] uppercase font-bold text-stone-400">Duration</span>
+                                <input type="number" id="draft-ingame-dur" value="${igDur}" min="1" oninput="window.appActions.syncSessionDates('duration')" class="w-16 p-1.5 bg-white border border-[#d4c5a9] rounded-sm text-stone-900 font-bold text-xs outline-none focus:border-red-900 text-center shadow-sm">
+                                <span class="text-[10px] uppercase font-bold text-stone-400">Days</span>
+                            </div>
                         </div>
+                    </div>
+
+                    <!-- Banner Image Configuration -->
+                    <div>
+                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1"><i class="fa-solid fa-image text-stone-400 mr-1"></i> Banner Image URL <span class="text-stone-400 normal-case font-normal">(Optional)</span></label>
+                        <input type="text" id="draft-image" value="${(session.image || '').replace(/"/g, '&quot;')}" class="w-full p-2 bg-transparent border-b-2 border-stone-400 text-stone-900 font-serif text-sm outline-none focus:border-red-900 transition-colors" placeholder="https://example.com/session-banner.jpg">
                     </div>
                 </div>
 
-                <!-- Banner Image Configuration -->
-                <div class="mb-8">
-                    <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1"><i class="fa-solid fa-image text-stone-400 mr-1"></i> Banner Image URL <span class="text-stone-400 normal-case font-normal">(Optional)</span></label>
-                    <input type="text" id="draft-image" value="${(session.image || '').replace(/"/g, '&quot;')}" class="w-full p-2 bg-transparent border-b-2 border-stone-400 text-stone-900 font-serif text-sm outline-none focus:border-red-900 transition-colors" placeholder="https://example.com/session-banner.jpg">
-                </div>
-
                 <!-- Dynamic Scenes -->
-                <div class="mb-8">
+                <div class="mb-8 mt-6">
                     <div class="flex justify-between items-center mb-3">
                         <h3 class="text-sm font-bold text-stone-800 uppercase tracking-widest flex items-center border-b border-stone-300 w-full pb-1"><i class="fa-solid fa-masks-theater mr-2 text-stone-500"></i> Narrative Scenes</h3>
                     </div>
