@@ -513,8 +513,50 @@ export const deleteSession = async (sessionId) => {
 
 // --- Collaborative Chronicle ---
 
+export const editChronicleEntry = (entryId) => {
+    const rawInput = document.getElementById(`raw-chronicle-${entryId}`);
+    const editor = document.getElementById('new-chronicle-input');
+    const idTracker = document.getElementById('edit-chronicle-id');
+
+    if (!rawInput || !editor || !idTracker) return;
+
+    // Load the text (unescape quotes and newlines)
+    editor.value = rawInput.value.replace(/&#10;/g, '\n').replace(/&quot;/g, '"');
+    idTracker.value = entryId;
+
+    // Update UI
+    document.getElementById('edit-chronicle-label')?.classList.remove('hidden');
+    document.getElementById('cancel-chronicle-edit')?.classList.remove('hidden');
+    
+    const submitText = document.getElementById('submit-chronicle-text');
+    const submitIcon = document.getElementById('submit-chronicle-icon');
+    if (submitText) submitText.innerText = 'Save Changes';
+    if (submitIcon) submitIcon.className = 'fa-solid fa-floppy-disk mr-2';
+
+    // Focus and scroll
+    editor.focus();
+    document.getElementById('chronicle-input-container')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+};
+
+export const cancelChronicleEdit = () => {
+    const editor = document.getElementById('new-chronicle-input');
+    const idTracker = document.getElementById('edit-chronicle-id');
+    
+    if (editor) editor.value = '';
+    if (idTracker) idTracker.value = '';
+
+    document.getElementById('edit-chronicle-label')?.classList.add('hidden');
+    document.getElementById('cancel-chronicle-edit')?.classList.add('hidden');
+    
+    const submitText = document.getElementById('submit-chronicle-text');
+    const submitIcon = document.getElementById('submit-chronicle-icon');
+    if (submitText) submitText.innerText = 'Submit Entry';
+    if (submitIcon) submitIcon.className = 'fa-solid fa-paper-plane mr-2';
+};
+
 export const addChronicleEntry = async () => {
     const input = document.getElementById('new-chronicle-input');
+    const editIdInput = document.getElementById('edit-chronicle-id');
     if (!input) return;
     
     const text = input.value.trim();
@@ -533,31 +575,45 @@ export const addChronicleEntry = async () => {
         return;
     }
 
-    const newEntry = {
-        id: generateId(),
-        text: text,
-        authorId: myUid,
-        timestamp: Date.now()
-    };
+    const editId = editIdInput ? editIdInput.value : '';
 
     const updatedAdventures = camp.adventures.map(a => {
         if (a.id !== adv.id) return a;
         const updatedSessions = a.sessions.map(s => {
             if (s.id !== session.id) return s;
-            return {
-                ...s,
-                chronicle: [...(s.chronicle || []), newEntry]
-            };
+            
+            let newChronicle = s.chronicle ? [...s.chronicle] : [];
+            
+            if (editId) {
+                // UPDATE EXISTING ENTRY
+                const targetIdx = newChronicle.findIndex(e => e.id === editId);
+                if (targetIdx > -1) {
+                    newChronicle[targetIdx].text = text;
+                }
+            } else {
+                // ADD NEW ENTRY
+                newChronicle.push({
+                    id: generateId(),
+                    text: text,
+                    authorId: myUid,
+                    timestamp: Date.now()
+                });
+            }
+
+            return { ...s, chronicle: newChronicle };
         });
         return { ...a, sessions: updatedSessions };
     });
 
     const updatedCamp = { ...camp, adventures: updatedAdventures };
-    input.value = ''; // Clear the input field
+    
+    // Clean up input fields and UI state
+    input.value = '';
+    window.appActions.cancelChronicleEdit();
     
     await saveCampaign(updatedCamp);
     
-    // Force a local re-render so the new message pops up instantly for the author
+    // Force a local re-render so the new/edited message pops up instantly for the author
     reRender();
 };
 
@@ -586,7 +642,14 @@ export const deleteChronicleEntry = async (entryId) => {
     const updatedCamp = { ...camp, adventures: updatedAdventures };
     
     await saveCampaign(updatedCamp);
-    reRender();
+    
+    // If they delete an entry they were currently editing, clear the edit state!
+    const editIdInput = document.getElementById('edit-chronicle-id');
+    if (editIdInput && editIdInput.value === entryId) {
+        window.appActions.cancelChronicleEdit();
+    } else {
+        reRender();
+    }
 };
 
 
