@@ -370,11 +370,11 @@ export function getSessionEditHTML(state) {
                                     ${(camp.calendar?.months || []).map((m, idx) => {
                                         let mName = m.name;
                                         if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
-                                        return \`<option value="\${idx}" \${idx === igM ? 'selected' : ''}>\${mName}</option>\`;
+                                        return `<option value="${idx}" ${idx === igM ? 'selected' : ''}>${mName}</option>`;
                                     }).join('')}
                                 </select>
                                 <select id="draft-ingame-d" onchange="window.appActions.syncSessionDates('startdate')" class="w-14 p-1.5 bg-white border border-[#d4c5a9] rounded-sm text-stone-900 font-serif text-xs outline-none focus:border-red-900 text-center shadow-sm">
-                                    ${Array.from({ length: Math.max(1, parseInt(camp.calendar?.months[igM]?.days || 1, 10)) }).map((_, i) => \`<option value="\${i+1}" \${i+1 === igD ? 'selected' : ''}>\${i+1}</option>\`).join('')}
+                                    ${Array.from({ length: Math.max(1, parseInt(camp.calendar?.months[igM]?.days || 1, 10)) }).map((_, i) => `<option value="${i+1}" ${i+1 === igD ? 'selected' : ''}>${i+1}</option>`).join('')}
                                 </select>
                             </div>
 
@@ -386,11 +386,11 @@ export function getSessionEditHTML(state) {
                                     ${(camp.calendar?.months || []).map((m, idx) => {
                                         let mName = m.name;
                                         if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
-                                        return \`<option value="\${idx}" \${idx === igEndM ? 'selected' : ''}>\${mName}</option>\`;
+                                        return `<option value="${idx}" ${idx === igEndM ? 'selected' : ''}>${mName}</option>`;
                                     }).join('')}
                                 </select>
                                 <select id="draft-ingame-end-d" onchange="window.appActions.syncSessionDates('enddate')" class="w-14 p-1.5 bg-white border border-[#d4c5a9] rounded-sm text-stone-900 font-serif text-xs outline-none focus:border-red-900 text-center shadow-sm">
-                                    ${Array.from({ length: Math.max(1, parseInt(camp.calendar?.months[igEndM]?.days || 1, 10)) }).map((_, i) => \`<option value="\${i+1}" \${i+1 === igEndD ? 'selected' : ''}>\${i+1}</option>\`).join('')}
+                                    ${Array.from({ length: Math.max(1, parseInt(camp.calendar?.months[igEndM]?.days || 1, 10)) }).map((_, i) => `<option value="${i+1}" ${i+1 === igEndD ? 'selected' : ''}>${i+1}</option>`).join('')}
                                 </select>
                             </div>
                             
@@ -468,24 +468,24 @@ export function getSessionEditHTML(state) {
                     if (pc.boon2ndBday) maxInsp += 1;
                     const currentInsp = pc.inspiration === true ? 1 : (parseInt(pc.inspiration) || 0);
 
-                    return \`
+                    return `
                     <div class="bg-white border border-[#d4c5a9] rounded-sm p-4 shadow-sm flex flex-col">
-                        <h4 class="font-serif font-bold text-lg text-stone-900 mb-2 border-b border-[#d4c5a9] pb-1">\${pc.name}</h4>
+                        <h4 class="font-serif font-bold text-lg text-stone-900 mb-2 border-b border-[#d4c5a9] pb-1">${pc.name}</h4>
                         <div class="flex gap-4 mb-3 items-center">
                             <div class="flex items-center gap-2 group">
-                                <label class="text-[10px] font-bold uppercase tracking-widest text-stone-500 group-hover:text-amber-700 transition-colors" for="pc-insp-\${pc.id}">Inspiration</label>
-                                <input type="number" id="pc-insp-\${pc.id}" value="\${currentInsp}" min="0" max="\${maxInsp}" class="w-12 p-1 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 bg-[#fdfbf7] outline-none focus:border-amber-600 text-center shadow-inner">
-                                <span class="text-[10px] text-stone-400 font-bold">/ \${maxInsp}</span>
+                                <label class="text-[10px] font-bold uppercase tracking-widest text-stone-500 group-hover:text-amber-700 transition-colors" for="pc-insp-${pc.id}">Inspiration</label>
+                                <input type="number" id="pc-insp-${pc.id}" value="${currentInsp}" min="0" max="${maxInsp}" class="w-12 p-1 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 bg-[#fdfbf7] outline-none focus:border-amber-600 text-center shadow-inner">
+                                <span class="text-[10px] text-stone-400 font-bold">/ ${maxInsp}</span>
                             </div>
                             <div class="w-px h-4 bg-stone-300"></div>
                             <label class="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-stone-500 cursor-pointer group">
-                                <input type="checkbox" id="pc-auto-\${pc.id}" \${pc.automaticSuccess ? 'checked' : ''} class="w-4 h-4 text-emerald-600 focus:ring-emerald-500 rounded-sm cursor-pointer shadow-sm border-stone-300"> 
+                                <input type="checkbox" id="pc-auto-${pc.id}" ${pc.automaticSuccess ? 'checked' : ''} class="w-4 h-4 text-emerald-600 focus:ring-emerald-500 rounded-sm cursor-pointer shadow-sm border-stone-300"> 
                                 <span class="group-hover:text-emerald-700 transition-colors">Auto-Success</span>
                             </label>
                         </div>
-                        <textarea id="input-pc-note-\${pc.id}" class="w-full p-3 border border-[#d4c5a9] bg-[#fdfbf7] rounded-sm text-sm outline-none focus:border-red-900 resize-none flex-grow custom-scrollbar shadow-inner min-h-[100px]" placeholder="Session notes specific to \${pc.name}..."> \${note}</textarea>
+                        <textarea id="input-pc-note-${pc.id}" class="w-full p-3 border border-[#d4c5a9] bg-[#fdfbf7] rounded-sm text-sm outline-none focus:border-red-900 resize-none flex-grow custom-scrollbar shadow-inner min-h-[100px]" placeholder="Session notes specific to ${pc.name}..."> ${note}</textarea>
                     </div>
-                    \`;
+                    `;
                 }).join('')}
                 </div>
                 
