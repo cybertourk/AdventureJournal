@@ -308,15 +308,35 @@ export function getAdventureHTML(state) {
             if (typeof session.inGameDate === 'string') {
                 inGameDateParsed = session.inGameDate;
             } else if (session.inGameDate && typeof session.inGameDate === 'object') {
-                const { year, month, day } = session.inGameDate;
-                let monthName = "Unknown Month";
-                if (camp && camp.calendar && camp.calendar.months && camp.calendar.months[month]) {
-                    monthName = camp.calendar.months[month].name;
-                    if (monthName.includes('(') && camp.calendar.months[month].nickname === undefined) {
-                        monthName = monthName.split('(')[0].trim();
+                const { year, month, day, endYear, endMonth, endDay, duration } = session.inGameDate;
+                
+                const getMonthName = (mIdx) => {
+                    let mName = "Unknown Month";
+                    if (camp && camp.calendar && camp.calendar.months && camp.calendar.months[mIdx]) {
+                        mName = camp.calendar.months[mIdx].name;
+                        if (mName.includes('(') && camp.calendar.months[mIdx].nickname === undefined) {
+                            mName = mName.split('(')[0].trim();
+                        }
                     }
+                    return mName;
+                };
+
+                const startMonthName = getMonthName(month);
+                
+                // If duration is greater than 1 and we have valid end dates, format as a span!
+                if (duration > 1 && endYear !== undefined && endMonth !== undefined && endDay !== undefined) {
+                    const endMonthName = getMonthName(endMonth);
+                    
+                    if (year === endYear && month === endMonth) {
+                        inGameDateParsed = `${day}-${endDay} ${startMonthName}, ${year}`;
+                    } else if (year === endYear) {
+                        inGameDateParsed = `${day} ${startMonthName} - ${endDay} ${endMonthName}, ${year}`;
+                    } else {
+                        inGameDateParsed = `${day} ${startMonthName}, ${year} - ${endDay} ${endMonthName}, ${endYear}`;
+                    }
+                } else {
+                    inGameDateParsed = `${day} ${startMonthName}, ${year}`;
                 }
-                inGameDateParsed = `${day} ${monthName}, ${year}`;
             }
 
             const inGameStr = inGameDateParsed ? `<span class="text-stone-400 normal-case ml-1 font-serif italic">(${inGameDateParsed})</span>` : '';
