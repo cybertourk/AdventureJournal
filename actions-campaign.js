@@ -504,7 +504,7 @@ export const savePCEdit = async () => {
   }
 
   const nameInput = document.getElementById('pc-edit-name')?.value.trim();
-  if (!nameInput && isDM) {
+  if (!nameInput) {
     notify("Hero must have a name.", "error");
     return;
   }
@@ -513,24 +513,24 @@ export const savePCEdit = async () => {
   const updatedPC = {
     ...existingPC,
     id: pcId,
-    // Core Identity (DM only can edit these, Players retain existing)
-    name: isDM ? nameInput : existingPC.name,
-    race: isDM ? (document.getElementById('pc-edit-race')?.value.trim() || '') : existingPC.race,
-    classLevel: isDM ? (document.getElementById('pc-edit-class')?.value.trim() || '') : existingPC.classLevel,
-    background: isDM ? (document.getElementById('pc-edit-background')?.value.trim() || '') : existingPC.background,
-    image: isDM ? (document.getElementById('pc-edit-image')?.value.trim() || '') : (existingPC.image || ''),
-    // Characteristics (DM only)
-    alignment: isDM ? (document.getElementById('pc-edit-alignment')?.value.trim() || '') : existingPC.alignment,
-    faith: isDM ? (document.getElementById('pc-edit-faith')?.value.trim() || '') : existingPC.faith,
-    gender: isDM ? (document.getElementById('pc-edit-gender')?.value.trim() || '') : existingPC.gender,
-    age: isDM ? (document.getElementById('pc-edit-age')?.value.trim() || '') : existingPC.age,
-    size: isDM ? (document.getElementById('pc-edit-size')?.value.trim() || '') : existingPC.size,
-    height: isDM ? (document.getElementById('pc-edit-height')?.value.trim() || '') : existingPC.height,
-    weight: isDM ? (document.getElementById('pc-edit-weight')?.value.trim() || '') : existingPC.weight,
-    eyes: isDM ? (document.getElementById('pc-edit-eyes')?.value.trim() || '') : existingPC.eyes,
-    hair: isDM ? (document.getElementById('pc-edit-hair')?.value.trim() || '') : existingPC.hair,
-    skin: isDM ? (document.getElementById('pc-edit-skin')?.value.trim() || '') : existingPC.skin,
-    // Personality & Roleplay (DM or Player Owner can edit)
+    // Core Identity (Now editable by Owner AND DM)
+    name: nameInput,
+    race: document.getElementById('pc-edit-race')?.value.trim() || '',
+    classLevel: document.getElementById('pc-edit-class')?.value.trim() || '',
+    background: document.getElementById('pc-edit-background')?.value.trim() || '',
+    image: document.getElementById('pc-edit-image')?.value.trim() || '',
+    // Characteristics
+    alignment: document.getElementById('pc-edit-alignment')?.value.trim() || '',
+    faith: document.getElementById('pc-edit-faith')?.value.trim() || '',
+    gender: document.getElementById('pc-edit-gender')?.value.trim() || '',
+    age: document.getElementById('pc-edit-age')?.value.trim() || '',
+    size: document.getElementById('pc-edit-size')?.value.trim() || '',
+    height: document.getElementById('pc-edit-height')?.value.trim() || '',
+    weight: document.getElementById('pc-edit-weight')?.value.trim() || '',
+    eyes: document.getElementById('pc-edit-eyes')?.value.trim() || '',
+    hair: document.getElementById('pc-edit-hair')?.value.trim() || '',
+    skin: document.getElementById('pc-edit-skin')?.value.trim() || '',
+    // Personality & Roleplay
     traits: document.getElementById('input-pc-edit-traits')?.value || '',
     ideals: document.getElementById('input-pc-edit-ideals')?.value || '',
     bonds: document.getElementById('input-pc-edit-bonds')?.value || '',
