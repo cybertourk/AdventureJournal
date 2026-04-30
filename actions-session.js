@@ -49,6 +49,93 @@ export const _readDynamicList = (containerId, mapper) => {
     return Array.from(container.children).map(mapper).filter(x => x !== null);
 };
 
+// Strict Calendar Math Helpers reused here for accurate duration calculations
+const getDaysInYear = (cal) => cal.months.reduce((sum, m) => sum + parseInt(m.days || 0, 10), 0);
+
+const getDayOfYear = (cal, mIdx, day) => {
+    let doy = 0;
+    for(let i = 0; i < mIdx; i++) doy += parseInt(cal.months[i].days || 0, 10);
+    return doy + parseInt(day, 10);
+};
+
+const getDateFromDayOfYear = (cal, doy) => {
+    let currentDoy = 0;
+    for (let i = 0; i < cal.months.length; i++) {
+        const mDays = parseInt(cal.months[i].days || 0, 10);
+        if (currentDoy + mDays >= doy) {
+            return { monthIndex: i, day: doy - currentDoy };
+        }
+        currentDoy += mDays;
+    }
+    return { monthIndex: Math.max(0, cal.months.length - 1), day: parseInt(cal.months[cal.months.length - 1]?.days || 1, 10) };
+};
+
+export const syncSessionDates = (trigger) => {
+    const camp = window.appData?.activeCampaign;
+    if (!camp || !camp.calendar) return;
+
+    const cal = camp.calendar;
+
+    const startYEl = document.getElementById('draft-ingame-y');
+    const startMEl = document.getElementById('draft-ingame-m');
+    const startDEl = document.getElementById('draft-ingame-d');
+
+    const endYEl = document.getElementById('draft-ingame-end-y');
+    const endMEl = document.getElementById('draft-ingame-end-m');
+    const endDEl = document.getElementById('draft-ingame-end-d');
+
+    const durationEl = document.getElementById('draft-ingame-dur');
+
+    if (!startYEl || !startMEl || !startDEl || !endYEl || !endMEl || !endDEl || !durationEl) return;
+
+    let sY = parseInt(startYEl.value, 10); if (isNaN(sY)) sY = 0;
+    let sM = parseInt(startMEl.value, 10); if (isNaN(sM)) sM = 0;
+    let sD = parseInt(startDEl.value, 10); if (isNaN(sD)) sD = 1;
+
+    let eY = parseInt(endYEl.value, 10); if (isNaN(eY)) eY = sY;
+    let eM = parseInt(endMEl.value, 10); if (isNaN(eM)) eM = sM;
+    let eD = parseInt(endDEl.value, 10); if (isNaN(eD)) eD = sD;
+
+    let duration = parseInt(durationEl.value, 10); if (isNaN(duration)) duration = 1;
+    const totalDays = getDaysInYear(cal);
+
+    if (trigger === 'duration' || trigger === 'startdate') {
+        if (duration < 1) {
+            duration = 1;
+            durationEl.value = 1;
+        }
+
+        const startDoy = getDayOfYear(cal, sM, sD);
+        const endDoy = startDoy + duration - 1;
+
+        eY = sY + Math.floor((endDoy - 1) / totalDays);
+        let remDoy = ((endDoy - 1) % totalDays) + 1;
+        let endMD = getDateFromDayOfYear(cal, remDoy);
+
+        eM = endMD.monthIndex;
+        eD = endMD.day;
+
+        endYEl.value = eY;
+        if (endMEl.value != eM) {
+            endMEl.value = eM;
+            if (window.updateDayOptions) window.updateDayOptions(eM, 'draft-ingame-end-d');
+        }
+        endDEl.value = eD;
+        
+    } else if (trigger === 'enddate') {
+        const startDoy = getDayOfYear(cal, sM, sD);
+        const endDoy = getDayOfYear(cal, eM, eD);
+
+        let calcDuration = (eY - sY) * totalDays + endDoy - startDoy + 1;
+
+        if (calcDuration < 1) {
+            calcDuration = 1;
+        }
+
+        durationEl.value = calcDuration;
+    }
+};
+
 export const _gatherSessionDraft = () => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
@@ -103,14 +190,28 @@ export const _gatherSessionDraft = () => {
         }
     }
     
-    // Process new strict In-Game Date dropdowns
+    // Process new strict In-Game Date dropdowns + Duration
     let inGameDateObj = null;
     const igY = parseInt(document.getElementById('draft-ingame-y')?.value, 10);
     const igM = parseInt(document.getElementById('draft-ingame-m')?.value, 10);
     const igD = parseInt(document.getElementById('draft-ingame-d')?.value, 10);
     
+    const igEndY = parseInt(document.getElementById('draft-ingame-end-y')?.value, 10);
+    const igEndM = parseInt(document.getElementById('draft-ingame-end-m')?.value, 10);
+    const igEndD = parseInt(document.getElementById('draft-ingame-end-d')?.value, 10);
+    
+    const igDur = parseInt(document.getElementById('draft-ingame-dur')?.value, 10) || 1;
+
     if (!isNaN(igY) && !isNaN(igM) && !isNaN(igD)) {
-        inGameDateObj = { year: igY, month: igM, day: igD };
+        inGameDateObj = { 
+            year: igY, 
+            month: igM, 
+            day: igD,
+            endYear: !isNaN(igEndY) ? igEndY : igY,
+            endMonth: !isNaN(igEndM) ? igEndM : igM,
+            endDay: !isNaN(igEndD) ? igEndD : igD,
+            duration: igDur
+        };
     }
 
     return {
@@ -172,6 +273,44 @@ export const updateSessionPreview = () => {
 };
 
 // --- AUTOMATED CALENDAR SYNC ENGINE ---
+
+// Syncs the individual Session note onto the calendar (Deep Indigo marker)
+const _syncIndividualSessionCalendarNote = (camp, sessionData) => {
+    if (!camp.calendar) return;
+    if (!camp.calendar.notes) camp.calendar.notes = {};
+
+    // 1. Purge the old version of this specific session note from everywhere on the calendar
+    Object.keys(camp.calendar.notes).forEach(key => {
+        if (Array.isArray(camp.calendar.notes[key])) {
+            camp.calendar.notes[key] = camp.calendar.notes[key].filter(n => n.id !== sessionData.id);
+            if (camp.calendar.notes[key].length === 0) delete camp.calendar.notes[key];
+        }
+    });
+
+    // 2. If the session has a valid strict date, generate its Calendar Note!
+    if (sessionData.inGameDate && typeof sessionData.inGameDate === 'object') {
+        const { year, month, day, duration } = sessionData.inGameDate;
+        
+        if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+            const newNote = {
+                id: sessionData.id, // Tie the note ID strictly to the Session ID for easy updating/purging
+                text: `**${sessionData.name}**\n\n*Auto-generated marker for this session.*`,
+                authorId: camp.dmId,
+                visibility: { mode: 'public', visibleTo: [] },
+                timestamp: sessionData.timestamp, 
+                duration: duration || 1,
+                repeatsYearly: false,
+                category: 'Session' // Uses the new Indigo UI color!
+            };
+
+            const dateKey = `${year}-${month}-${day}`;
+            if (!camp.calendar.notes[dateKey]) camp.calendar.notes[dateKey] = [];
+            camp.calendar.notes[dateKey].push(newNote);
+        }
+    }
+};
+
+// Syncs the overarching Adventure Arc banner onto the calendar
 const _syncAdventureCalendarNote = (camp, advId, sessions) => {
     if (!camp.calendar) return;
     if (!camp.calendar.notes) camp.calendar.notes = {};
@@ -188,22 +327,25 @@ const _syncAdventureCalendarNote = (camp, advId, sessions) => {
     const validDates = [];
     const cal = camp.calendar;
     
-    const getDaysInYear = (c) => c.months.reduce((sum, m) => sum + parseInt(m.days || 0, 10), 0);
-    const getDayOfYear = (c, mIdx, day) => {
-        let doy = 0;
-        for(let i=0; i<mIdx; i++) doy += parseInt(c.months[i].days || 0, 10);
-        return doy + parseInt(day, 10);
-    };
     const getAbsoluteDay = (c, y, m, d) => (y * getDaysInYear(c)) + getDayOfYear(c, m, d);
 
     sessions.forEach(s => {
         if (s.inGameDate && typeof s.inGameDate === 'object') {
-            const { year, month, day } = s.inGameDate;
+            const { year, month, day, endYear, endMonth, endDay } = s.inGameDate;
             if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+                
                 validDates.push({
                     year, month, day,
                     abs: getAbsoluteDay(cal, year, month, day)
                 });
+                
+                // If a session has a duration, make sure we count its END date as part of the overall arc bounds!
+                if (endYear !== undefined && endMonth !== undefined && endDay !== undefined) {
+                    validDates.push({
+                        year: endYear, month: endMonth, day: endDay,
+                        abs: getAbsoluteDay(cal, endYear, endMonth, endDay)
+                    });
+                }
             }
         }
     });
@@ -283,6 +425,9 @@ export const saveSession = async () => {
     // DM SAVE MODE - Standard Full Save
     const draft = window.appActions._gatherSessionDraft();
 
+    // Auto-generate the individual session note on the calendar!
+    _syncIndividualSessionCalendarNote(camp, draft.sessionData);
+
     const newAdventures = camp.adventures.map(a => {
         if (a.id !== adv.id) return a;
 
@@ -291,7 +436,7 @@ export const saveSession = async () => {
             ? [...(a.sessions || []), draft.sessionData]
             : a.sessions.map(s => s.id === draft.sessionData.id ? draft.sessionData : s);
 
-        // Auto-generate the spanned calendar note for this adventure!
+        // Auto-generate the spanned calendar note for this overall adventure!
         _syncAdventureCalendarNote(camp, a.id, newSessions);
 
         return {
@@ -330,12 +475,22 @@ export const deleteSession = async (sessionId) => {
 
     if (!confirm("Are you sure you want to delete this session log?")) return;
 
+    // Purge the individual session note from the calendar
+    if (camp.calendar && camp.calendar.notes) {
+        Object.keys(camp.calendar.notes).forEach(key => {
+            if (Array.isArray(camp.calendar.notes[key])) {
+                camp.calendar.notes[key] = camp.calendar.notes[key].filter(n => n.id !== sessionId);
+                if (camp.calendar.notes[key].length === 0) delete camp.calendar.notes[key];
+            }
+        });
+    }
+
     const newAdventures = camp.adventures.map(a => {
         if (a.id !== adv.id) return a;
         
         const newSessions = a.sessions.filter(s => s.id !== sessionId);
         
-        // Auto-update the calendar note for this adventure since the dates might have shifted!
+        // Auto-update the overarching calendar note for this adventure since the dates might have shifted!
         _syncAdventureCalendarNote(camp, a.id, newSessions);
 
         return {
