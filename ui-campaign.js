@@ -148,6 +148,11 @@ export function getCampaignHTML(state) {
                 <button onclick="window.appActions.setView('pc-manager')" class="flex-1 md:flex-none flex items-center justify-center px-3 sm:px-4 py-2 sm:py-2 bg-stone-800 text-amber-500 border border-stone-600 rounded-sm hover:bg-stone-700 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md">
                     <i class="fa-solid ${isDM ? 'fa-users' : 'fa-users-viewfinder'} mr-1 sm:mr-2"></i> ${isDM ? 'Manage Party' : 'View Party'}
                 </button>
+                ${isDM ? `
+                <button onclick="window.appActions.openActivityLog()" class="flex-1 md:flex-none flex items-center justify-center px-3 sm:px-4 py-2 sm:py-2 bg-stone-800 text-amber-500 border border-stone-600 rounded-sm hover:bg-stone-700 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md" title="View Player Activity Log">
+                    <i class="fa-solid fa-clock-rotate-left mr-1 sm:mr-2"></i> Activity Log
+                </button>
+                ` : ''}
                 <button onclick="window.appActions.openJournal('campaign')" class="flex-1 md:flex-none flex items-center justify-center px-3 sm:px-4 py-2 sm:py-2 bg-[#f4ebd8] text-stone-900 border border-[#d4c5a9] rounded-sm hover:bg-[#e8dec7] transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md" title="Read full campaign tome">
                     <i class="fa-solid fa-book mr-1 sm:mr-2 text-stone-700"></i> Grand Tome
                 </button>
@@ -465,5 +470,61 @@ export function getAdvRosterHTML(state) {
         </div>
     </div>
     `;
+    return html;
+}
+
+export function getActivityLogHTML(state) {
+    const camp = state.activeCampaign;
+    // Hard security check to ensure only DMs can render this view
+    if (!camp || !camp._isDM) return `<div class="text-center text-red-500 p-8 font-serif font-bold text-xl">Access Denied.</div>`;
+
+    const logs = camp.activityLog || [];
+
+    let html = `
+    <div class="animate-in fade-in duration-300 max-w-4xl mx-auto pb-12">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 sm:mb-8 gap-4 border-b-2 border-stone-800 pb-4">
+            <div>
+                <h2 class="text-2xl sm:text-3xl md:text-4xl font-serif font-bold text-amber-500 leading-tight flex items-center">
+                    <i class="fa-solid fa-clock-rotate-left mr-3 text-stone-500"></i> Activity Log
+                </h2>
+                <p class="text-stone-400 text-xs sm:text-sm font-sans mt-2 italic">Recent player actions in ${camp.name}</p>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="window.appActions.setView('campaign')" class="px-4 py-2 border border-stone-600 text-stone-400 rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-sm hover:text-amber-50 hover:bg-stone-800 transition">Back to Campaign</button>
+                ${logs.length > 0 ? `<button onclick="window.appActions.clearActivityLog()" class="px-4 py-2 bg-red-900 text-amber-50 rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-md hover:bg-red-800 transition flex items-center border border-red-950"><i class="fa-solid fa-trash-can mr-2"></i> Clear Log</button>` : ''}
+            </div>
+        </div>
+    `;
+
+    if (logs.length === 0) {
+        html += `
+            <div class="p-8 sm:p-12 text-center text-stone-500 bg-[#f4ebd8] rounded-sm border border-[#d4c5a9] shadow-sm">
+                <i class="fa-solid fa-wind text-4xl sm:text-6xl mx-auto text-stone-400 mb-3 sm:mb-4 opacity-50"></i>
+                <p class="font-serif text-base sm:text-lg">All is quiet. No recent player activity.</p>
+            </div>
+        `;
+    } else {
+        html += `<div class="space-y-3">`;
+        logs.forEach(log => {
+            const dateObj = new Date(log.timestamp);
+            const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const dateString = dateObj.toLocaleDateString();
+
+            html += `
+            <div class="bg-[#fdfbf7] border border-[#d4c5a9] p-3 sm:p-4 rounded-sm shadow-sm flex items-start gap-4 hover:border-amber-400 transition">
+                <div class="mt-0.5 text-stone-400 text-lg w-6 flex justify-center shrink-0">
+                    <i class="fa-solid ${log.icon || 'fa-clock-rotate-left'}"></i>
+                </div>
+                <div class="flex-grow">
+                    <p class="text-sm text-stone-800 font-serif leading-relaxed">${log.text}</p>
+                    <p class="text-[10px] text-stone-500 uppercase tracking-widest font-bold mt-1">${dateString} at ${timeString}</p>
+                </div>
+            </div>
+            `;
+        });
+        html += `</div>`;
+    }
+
+    html += `</div>`;
     return html;
 }
