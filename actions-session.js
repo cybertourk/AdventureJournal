@@ -2,6 +2,7 @@ import { generateId, calculateLootValue, updateDerivedState, reRender } from './
 import { saveCampaign, notify } from './firebase-manager.js';
 import { BUDGET_BY_LEVEL, updateBudgetUI, updateSessionTabUI } from './ui-core.js';
 import { generateSessionMarkdown } from './markdown.js';
+import { logPlayerActivity } from './actions-campaign.js';
 
 // --- Session Editing ---
 export const openSessionEdit = (sessionId = null) => {
@@ -422,7 +423,11 @@ export const saveSession = async () => {
             return { ...a, sessions: updatedSessions };
         });
 
-        const updatedCamp = { ...camp, adventures: updatedAdventures };
+        let updatedCamp = { ...camp, adventures: updatedAdventures };
+        
+        // Track Player Edits!
+        updatedCamp = logPlayerActivity(updatedCamp, myUid, `updated their private notes for the session <span class="font-bold text-amber-700">${session.name}</span>.`, 'fa-lock');
+
         await saveCampaign(updatedCamp);
         window.appActions.setView('adventure');
         notify("Personal notes inscribed.", "success");
@@ -606,7 +611,14 @@ export const addChronicleEntry = async () => {
         return { ...a, sessions: updatedSessions };
     });
 
-    const updatedCamp = { ...camp, adventures: updatedAdventures };
+    let updatedCamp = { ...camp, adventures: updatedAdventures };
+    
+    // Track Player Edits!
+    if (editId) {
+        updatedCamp = logPlayerActivity(updatedCamp, myUid, `amended a Chronicle entry in <span class="font-bold text-amber-700">${session.name}</span>.`, 'fa-pen-clip');
+    } else {
+        updatedCamp = logPlayerActivity(updatedCamp, myUid, `added a new Chronicle entry to <span class="font-bold text-amber-700">${session.name}</span>.`, 'fa-feather-pointed');
+    }
     
     // Clean up input fields and UI state
     input.value = '';
@@ -625,8 +637,9 @@ export const deleteChronicleEntry = async (entryId) => {
     const camp = window.appData.activeCampaign;
     const adv = window.appData.activeAdventure;
     const session = window.appData.activeSession;
+    const myUid = window.appData.currentUserUid;
     
-    if (!camp || !adv || !session) return;
+    if (!camp || !adv || !session || !myUid) return;
 
     const updatedAdventures = camp.adventures.map(a => {
         if (a.id !== adv.id) return a;
@@ -640,7 +653,10 @@ export const deleteChronicleEntry = async (entryId) => {
         return { ...a, sessions: updatedSessions };
     });
 
-    const updatedCamp = { ...camp, adventures: updatedAdventures };
+    let updatedCamp = { ...camp, adventures: updatedAdventures };
+    
+    // Track Player Edits!
+    updatedCamp = logPlayerActivity(updatedCamp, myUid, `erased a Chronicle entry from <span class="font-bold text-amber-700">${session.name}</span>.`, 'fa-eraser');
     
     await saveCampaign(updatedCamp);
     
