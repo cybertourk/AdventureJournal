@@ -200,12 +200,27 @@ export const createAdventure = async () => {
     sessions: []
   };
 
+  // Automatically refresh party boons at the start of a new adventure!
+  const updatedPCs = (camp.playerCharacters || []).map(pc => {
+      let maxInsp = 0;
+      if (pc.boonBackstory) maxInsp += 1;
+      if (pc.boon2ndBday) maxInsp += 1;
+      return {
+          ...pc,
+          inspiration: maxInsp,
+          automaticSuccess: true
+      };
+  });
+
   const updatedCamp = {
     ...camp,
+    playerCharacters: updatedPCs,
     adventures: [...(camp.adventures || []), newAdv]
   };
+  
   await saveCampaign(updatedCamp);
   window.appActions.openAdventure(newAdv.id);
+  notify("Adventure begun! Party boons have been refreshed.", "success");
 };
 
 export const deleteAdventure = async (id) => {
@@ -293,9 +308,14 @@ export const openEditAdventureModal = () => {
                         <input type="number" id="edit-adv-players" min="1" value="${adv.numPlayers || 4}" class="w-full bg-white text-stone-900 border border-[#d4c5a9] p-2 text-sm font-bold outline-none rounded-sm shadow-inner focus:border-amber-600">
                     </div>
                 </div>
-                <div class="p-4 bg-stone-200 border-t border-[#d4c5a9] flex justify-end gap-2">
-                    <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="px-4 py-2 border border-stone-400 text-stone-600 rounded-sm text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-stone-300 transition">Cancel</button>
-                    <button onclick="window.appActions.saveEditAdventure()" class="px-5 py-2 bg-stone-800 text-amber-50 rounded-sm text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-stone-700 transition">Save Changes</button>
+                <div class="p-4 bg-stone-200 border-t border-[#d4c5a9] flex flex-wrap-reverse sm:flex-nowrap justify-between gap-3 items-center">
+                    <button onclick="window.appActions.refreshPartyBoons()" class="w-full sm:w-auto px-4 py-2 border border-amber-400 bg-amber-100 text-amber-700 rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-amber-200 transition whitespace-nowrap" title="Top up Inspiration & Auto-Success">
+                        <i class="fa-solid fa-gift mr-1"></i> Refresh Boons
+                    </button>
+                    <div class="flex gap-2 w-full sm:w-auto justify-end">
+                        <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="px-4 py-2 border border-stone-400 text-stone-600 rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-stone-300 transition">Cancel</button>
+                        <button onclick="window.appActions.saveEditAdventure()" class="px-5 py-2 bg-stone-800 text-amber-50 rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-stone-700 transition">Save Changes</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -347,6 +367,31 @@ export const saveEditAdventure = async () => {
     
     document.getElementById('global-popup-container').innerHTML = '';
     notify("Adventure details updated.", "success");
+    reRender();
+};
+
+export const refreshPartyBoons = async () => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    if (!camp || !camp._isDM) return;
+
+    if (!confirm("This will restore Inspiration to maximum and grant 1 Auto-Success for all heroes. Proceed?")) return;
+
+    const updatedPCs = (camp.playerCharacters || []).map(pc => {
+        let maxInsp = 0;
+        if (pc.boonBackstory) maxInsp += 1;
+        if (pc.boon2ndBday) maxInsp += 1;
+        return {
+            ...pc,
+            inspiration: maxInsp,
+            automaticSuccess: true
+        };
+    });
+
+    const updatedCamp = { ...camp, playerCharacters: updatedPCs };
+    await saveCampaign(updatedCamp);
+    
+    notify("Party boons have been refreshed.", "success");
     reRender();
 };
 
