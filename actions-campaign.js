@@ -1,6 +1,44 @@
 import { generateId, updateDerivedState, reRender } from './state.js';
 import { saveCampaign, deleteCampaign as dbDeleteCampaign, notify, joinCampaign as dbJoinCampaign } from './firebase-manager.js';
 
+// --- ACTIVITY LOG ENGINE ---
+export const logPlayerActivity = (camp, myUid, message, icon = 'fa-clock-rotate-left') => {
+    // We only log actions taken by players. If the DM does it, we don't spam the log.
+    if (!camp || camp.dmId === myUid) return camp;
+    
+    const pName = camp.playerNames ? (camp.playerNames[myUid] || 'Unknown Player') : 'Unknown Player';
+    const fullMessage = `<span class="font-bold text-stone-900">${pName}</span> ${message}`;
+    
+    const newLog = {
+        id: generateId(),
+        timestamp: Date.now(),
+        text: fullMessage,
+        icon: icon
+    };
+    
+    return {
+        ...camp,
+        activityLog: [newLog, ...(camp.activityLog || [])].slice(0, 100) // Keep the last 100 events to prevent bloat
+    };
+};
+
+export const openActivityLog = () => {
+    window.appActions.setView('activity-log');
+};
+
+export const clearActivityLog = async () => {
+    if (!confirm("Are you sure you want to clear the entire activity log?")) return;
+    
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    if (!camp || !camp._isDM) return;
+    
+    const updatedCamp = { ...camp, activityLog: [] };
+    await saveCampaign(updatedCamp);
+    notify("Activity log cleared.", "success");
+    reRender();
+};
+
 // --- Navigation ---
 export const setView = (viewName) => {
   window.appData.currentView = viewName;
@@ -25,6 +63,12 @@ export const setView = (viewName) => {
     window.appData.activeCalendarDate = null;
     window.appData.showCalendarSettings = false;
   } else if (viewName === 'rules') {
+    window.appData.activeAdventureId = null;
+    window.appData.activeSessionId = null;
+    window.appData.activePcId = null;
+    window.appData.activeCalendarDate = null;
+    window.appData.showCalendarSettings = false;
+  } else if (viewName === 'activity-log') {
     window.appData.activeAdventureId = null;
     window.appData.activeSessionId = null;
     window.appData.activePcId = null;
@@ -68,7 +112,8 @@ export const createCampaign = async () => {
     adventures: [],
     sheetUpdates: [], // Initialize Global Checklist
     codex: [],
-    rulesGlossary: [] // Initialize Rules Glossary
+    rulesGlossary: [], // Initialize Rules Glossary
+    activityLog: [] // Initialize DM Activity Log
   };
   await saveCampaign(newCamp);
   // The real-time listener handles injecting the new data into state!
@@ -533,6 +578,7 @@ export const savePCEdit = async () => {
   const camp = window.appData.activeCampaign;
   if (!camp) return;
   const isDM = camp._isDM;
+  const myUid = window.appData.currentUserUid;
   const pcId = window.appData.activePcId || generateId();
   
   const existingPC = camp.playerCharacters?.find(p => p.id === pcId) || {
@@ -541,7 +587,7 @@ export const savePCEdit = async () => {
     playerId: ''
   };
   
-  const isOwner = existingPC.playerId === window.appData.currentUserUid;
+  const isOwner = existingPC.playerId === myUid;
   
   if (!isDM && !isOwner) {
     notify("You do not have permission to modify this hero.", "error");
@@ -628,7 +674,13 @@ export const savePCEdit = async () => {
     });
   }
 
-  const updatedCamp = { ...camp, playerCharacters: newPCs, codex: updatedCodexArray };
+  let updatedCamp = { ...camp, playerCharacters: newPCs, codex: updatedCodexArray };
+  
+  // Track Player Edits!
+  if (!isDM) {
+      updatedCamp = logPlayerActivity(updatedCamp, myUid, `updated the private journal for <span class="font-bold text-amber-700">${updatedPC.name}</span>.`, 'fa-user-pen');
+  }
+
   await saveCampaign(updatedCamp);
   
   window.appActions.setView('pc-manager');
