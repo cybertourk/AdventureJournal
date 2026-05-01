@@ -34,7 +34,7 @@ export function getCodexHTML(state) {
 
     // --- FOG OF WAR FILTER ---
     const isVisibleToPlayer = (item) => {
-        if (isDM) return true; // DM sees all
+        if (isDM || item.authorId === myUid) return true; // DM and the Author always see it
         
         // If the item is a Hero Codex Entry owned by the current user, they can always see it
         const isHeroOwner = camp.playerCharacters?.some(p => p.id === item.id && p.playerId === myUid);
@@ -104,11 +104,9 @@ export function getCodexHTML(state) {
                     <i class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-stone-500 text-xs"></i>
                     <input type="text" id="codex-search" class="w-full md:w-48 pl-8 pr-3 py-2 bg-stone-900 border border-stone-700 text-stone-200 text-xs rounded-sm focus:outline-none focus:border-amber-600 shadow-inner placeholder-stone-600" placeholder="Search..." onkeyup="window.filterCodex()">
                 </div>
-                ${isDM ? `
                 <button onclick="window.appActions._openCodexModal({isNew: true})" class="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-amber-600 text-stone-950 border border-amber-500 rounded-sm hover:bg-amber-500 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md">
                     <i class="fa-solid fa-plus mr-2"></i> New Entry
                 </button>
-                ` : ''}
             </div>
         </div>
     `;
@@ -117,8 +115,8 @@ export function getCodexHTML(state) {
         html += `
             <div class="col-span-full p-8 sm:p-12 text-center text-stone-500 bg-[#f4ebd8] rounded-sm border border-[#d4c5a9] shadow-sm">
                 <i class="fa-solid fa-book-journal-whills text-4xl sm:text-6xl mx-auto text-stone-400 mb-3 sm:mb-4 opacity-50"></i>
-                <p class="font-serif text-base sm:text-lg">${isDM ? 'The Codex is empty.' : 'No knowledge has been revealed to you yet.'}</p>
-                ${isDM ? `<p class="text-xs sm:text-sm mt-2 font-sans">Create entries for NPCs, Locations, and Lore to auto-link them in your session logs.</p>` : ''}
+                <p class="font-serif text-base sm:text-lg">${codex.length === 0 ? 'The Codex is empty.' : 'No knowledge has been revealed to you yet.'}</p>
+                <p class="text-xs sm:text-sm mt-2 font-sans">Create entries for NPCs, Locations, and Lore to auto-link them in your session logs.</p>
             </div>
         `;
     } else {
@@ -146,7 +144,9 @@ export function getCodexHTML(state) {
 
                 sorted.forEach(c => {
                     const isHeroOwner = camp.playerCharacters?.some(p => p.id === c.id && p.playerId === myUid);
-                    const canEdit = isDM || isHeroOwner;
+                    const isAuthor = c.authorId === myUid;
+                    const canEdit = isDM || isHeroOwner || isAuthor;
+                    
                     const tagsStr = (c.tags || []).join(', ');
                     const vis = getVisStatus(c);
                     
