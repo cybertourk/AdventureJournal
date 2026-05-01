@@ -1,6 +1,7 @@
 import { generateId, updateDerivedState } from './state.js';
 import { saveCampaign, notify } from './firebase-manager.js';
 import { generateSessionMarkdown, generateAdventureMarkdown, generateCampaignMarkdown } from './markdown.js';
+import { logPlayerActivity } from './actions-campaign.js';
 
 // --- Smart Text & Codex Interactions ---
 
@@ -411,7 +412,18 @@ export const saveCodexEntry = async () => {
     const isNew = !id;
     const newCodexArray = isNew ? [...(camp.codex || []), newEntry] : camp.codex.map(c => c.id === id ? newEntry : c);
     
-    const updatedCamp = { ...camp, codex: newCodexArray };
+    let updatedCamp = { ...camp, codex: newCodexArray };
+
+    // Track Player Edits!
+    if (!camp._isDM) {
+        const myUid = window.appData.currentUserUid;
+        if (isNew) {
+            updatedCamp = logPlayerActivity(updatedCamp, myUid, `added a new Codex entry for <span class="font-bold text-amber-700">${name}</span>.`, 'fa-book-medical');
+        } else {
+            updatedCamp = logPlayerActivity(updatedCamp, myUid, `amended the Codex entry for <span class="font-bold text-amber-700">${name}</span>.`, 'fa-pen-to-square');
+        }
+    }
+
     await saveCampaign(updatedCamp);
     document.getElementById('global-popup-container').innerHTML = '';
     notify("Codex updated.", "success");
@@ -424,10 +436,19 @@ export const deleteCodexEntry = async (id) => {
     const camp = window.appData.activeCampaign;
     if (!camp) return;
 
-    const updatedCamp = {
+    const entryToDelete = (camp.codex || []).find(c => c.id === id);
+    const name = entryToDelete ? entryToDelete.name : 'an unknown entry';
+
+    let updatedCamp = {
         ...camp,
         codex: (camp.codex || []).filter(c => c.id !== id)
     };
+
+    // Track Player Edits!
+    if (!camp._isDM) {
+        const myUid = window.appData.currentUserUid;
+        updatedCamp = logPlayerActivity(updatedCamp, myUid, `erased the Codex entry for <span class="font-bold text-amber-700">${name}</span>.`, 'fa-eraser');
+    }
 
     await saveCampaign(updatedCamp);
     document.getElementById('global-popup-container').innerHTML = '';
