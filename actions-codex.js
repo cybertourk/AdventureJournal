@@ -239,8 +239,9 @@ export const _openCodexModal = (entry) => {
     const myUid = window.appData.currentUserUid;
     const linkedPC = camp.playerCharacters?.find(p => p.id === id);
     const isHeroOwner = linkedPC && linkedPC.playerId === myUid;
-    const canEdit = isDM || isHeroOwner;
-    const canDelete = isDM && !linkedPC; // Core Hero profiles can only be deleted via the PC manager
+    const isAuthor = entry.authorId === myUid;
+    const canEdit = isDM || isHeroOwner || isAuthor || isNew;
+    const canDelete = (isDM || isAuthor) && !linkedPC; // Core Hero profiles can only be deleted via the PC manager
 
     const viewHidden = isNew ? "hidden" : "";
     const editHidden = isNew ? "" : "hidden";
@@ -400,23 +401,27 @@ export const saveCodexEntry = async () => {
         return;
     }
 
+    const myUid = window.appData.currentUserUid;
+    const isNew = !id;
+    const existingEntry = camp.codex?.find(c => c.id === id);
+
     const newEntry = {
         id: id || generateId(),
         name: name,
         type: document.getElementById('cx-modal-type').value,
         tags: document.getElementById('cx-modal-tags').value.split(',').map(t=>t.trim()).filter(t=>t),
         desc: document.getElementById('cx-modal-desc').value,
-        image: document.getElementById('cx-modal-image').value.trim()
+        image: document.getElementById('cx-modal-image').value.trim(),
+        authorId: isNew ? myUid : (existingEntry?.authorId || myUid),
+        visibility: existingEntry?.visibility || { mode: 'public' }
     };
 
-    const isNew = !id;
     const newCodexArray = isNew ? [...(camp.codex || []), newEntry] : camp.codex.map(c => c.id === id ? newEntry : c);
     
     let updatedCamp = { ...camp, codex: newCodexArray };
 
     // Track Player Edits!
     if (!camp._isDM) {
-        const myUid = window.appData.currentUserUid;
         if (isNew) {
             updatedCamp = logPlayerActivity(updatedCamp, myUid, `added a new Codex entry for <span class="font-bold text-amber-700">${name}</span>.`, 'fa-book-medical');
         } else {
