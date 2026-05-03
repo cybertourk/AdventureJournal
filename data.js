@@ -1,5 +1,8 @@
 import { setCampaignsData } from './state.js'; 
 
+// Import UI Core Navigation & Layout Controls
+import { navigateBack, toggleActionMenu } from './ui-core.js';
+
 // Import Campaign & Hero Management 
 import { setView, openCampaign, openAdventure, toggleNewCampaignForm, createCampaign, deleteCampaignAction, copyCampaignId, toggleJoinCampaignForm, joinCampaignAction, toggleNewAdventureForm, createAdventure, deleteAdventure, openEditAdventureModal, saveEditAdventure, refreshPartyBoons, openAdvRoster, toggleAdvRosterPc, saveAdvRoster, openActivityLog, clearActivityLog, openPCEdit, savePCEdit, deletePC, kickPlayer, openChecklistMenu, closeChecklistMenu, addSheetUpdate, toggleSheetUpdateResolved, toggleSheetUpdateVis, deleteSheetUpdate } from './actions-campaign.js'; 
 
@@ -19,6 +22,10 @@ import { openRulesGlossary, viewRule, openRuleModal, saveRule, deleteRule, updat
 // We bind all our imported modular functions back to the global window.appActions 
 // object so that the UI's inline onclick handlers can still reach them! 
 window.appActions = { 
+  // Navigation & UI Core
+  navigateBack,
+  toggleActionMenu,
+
   // Navigation & Campaigns 
   setView, 
   openCampaign, 
