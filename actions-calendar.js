@@ -122,6 +122,11 @@ export const openCalendarDay = async (year, monthIndex, day) => {
         await saveCampaign(camp);
     }
 
+    // Switch to calendar view FIRST, so setView doesn't erase the active date we are about to set!
+    if (window.appData.currentView !== 'calendar') {
+        window.appActions.setView('calendar');
+    }
+
     // Align the background view grid so it matches the note being opened
     window.appData.calendarViewYear = year;
     window.appData.calendarViewMonth = monthIndex;
@@ -129,8 +134,7 @@ export const openCalendarDay = async (year, monthIndex, day) => {
     // Set the active date to trigger the modal overlay
     window.appData.activeCalendarDate = { year, monthIndex, day };
     
-    // Switch to calendar view (if called from the global dock, this ensures the HTML actually renders)
-    window.appActions.setView('calendar');
+    reRender(); // Force a render to show the modal!
 };
 
 export const closeCalendarDay = () => {
