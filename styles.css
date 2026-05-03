@@ -3,10 +3,48 @@
  * but we use this file for custom scrollbars and specific animations.
  */
 
-/* Custom Scrollbar for a thematic look */
+/* --- MOBILE-FIRST SAFE AREAS & BEHAVIORS --- */
+:root {
+    --sab: env(safe-area-inset-bottom, 20px);
+}
+
+body {
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+}
+
+.thematic-bg {
+    background-image: url('https://www.transparenttextures.com/patterns/aged-paper.png');
+}
+
+/* --- FLOATING DOCK & BOTTOM SHEET --- */
+.floating-dock {
+    /* Padding so it explicitly clears the iPhone home bar / Android gestures */
+    bottom: calc(var(--sab) + 16px);
+}
+
+.center-action-btn {
+    transform: translateY(-20px);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.center-action-btn:active {
+    transform: translateY(-16px) scale(0.95);
+}
+
+.bottom-sheet { 
+    transition: transform 0.4s cubic-bezier(0.2, 1, 0.3, 1); 
+    transform: translateY(100%); 
+}
+
+.bottom-sheet.open { 
+    transform: translateY(0); 
+}
+
+/* --- CUSTOM SCROLLBARS --- */
 ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: 8px; /* Thinned slightly for mobile */
+    height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -33,7 +71,7 @@
     scrollbar-width: none; /* Firefox */
 }
 
-/* Custom Animations */
+/* --- CUSTOM ANIMATIONS --- */
 @keyframes fadeInSlideUp {
     from { 
         opacity: 0; 
