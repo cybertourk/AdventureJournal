@@ -1,3 +1,5 @@
+import { getLibraryTabsHTML } from './ui-core.js';
+
 export function getCodexHTML(state) {
     const camp = state.activeCampaign;
     if (!camp) return '';
@@ -95,31 +97,12 @@ export function getCodexHTML(state) {
     let html = `
     <div class="animate-in fade-in duration-300 pb-12 max-w-5xl mx-auto">
         
+        ${getLibraryTabsHTML('codex')}
+
         <!-- Thematic Search Bar -->
         <div class="relative mb-6">
             <i class="fa-solid fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-stone-400 text-sm"></i>
             <input type="text" id="codex-search" class="w-full pl-10 pr-4 py-3.5 bg-white border border-[#d4c5a9] text-stone-900 text-sm font-bold rounded-full focus:outline-none focus:border-amber-600 shadow-sm placeholder:font-normal placeholder:text-stone-400 transition-colors" placeholder="Search the archives..." onkeyup="window.filterCodex()">
-        </div>
-
-        <!-- The Archives Hub (Mobile-First Grid) -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-8">
-            <button onclick="window.appActions.setView('codex')" class="bg-red-900/10 border border-red-900/20 p-4 sm:p-5 rounded-sm flex flex-col items-center justify-center gap-2 sm:gap-3 shadow-sm active:scale-95 transition-transform group">
-                <i class="fa-solid fa-book-journal-whills text-red-800 text-2xl sm:text-3xl group-hover:scale-110 transition-transform"></i>
-                <span class="text-[10px] font-bold uppercase tracking-widest text-red-950">Codex</span>
-            </button>
-            <button onclick="window.appActions.openRulesGlossary()" class="bg-amber-900/10 border border-amber-900/20 p-4 sm:p-5 rounded-sm flex flex-col items-center justify-center gap-2 sm:gap-3 shadow-sm active:scale-95 transition-transform group">
-                <i class="fa-solid fa-scale-balanced text-amber-800 text-2xl sm:text-3xl group-hover:scale-110 transition-transform"></i>
-                <span class="text-[10px] font-bold uppercase tracking-widest text-amber-950">Rules</span>
-            </button>
-            <button onclick="window.appActions.openJournal('campaign')" class="bg-stone-800 border border-stone-700 p-4 sm:p-5 rounded-sm flex flex-col items-center justify-center gap-2 sm:gap-3 shadow-sm active:scale-95 transition-transform group">
-                <i class="fa-solid fa-scroll text-stone-300 text-2xl sm:text-3xl group-hover:scale-110 transition-transform"></i>
-                <span class="text-[10px] font-bold uppercase tracking-widest text-amber-50">Tome</span>
-            </button>
-            <button onclick="window.appActions.openChecklistMenu()" class="bg-blue-900/10 border border-blue-900/20 p-4 sm:p-5 rounded-sm flex flex-col items-center justify-center gap-2 sm:gap-3 shadow-sm active:scale-95 transition-transform group relative">
-                <i class="fa-solid fa-list-check text-blue-800 text-2xl sm:text-3xl group-hover:scale-110 transition-transform"></i>
-                <span class="text-[10px] font-bold uppercase tracking-widest text-blue-950">Tasks</span>
-                <!-- The red badge is handled by the Floating Dock element via ui-core.js, but we can add a static indicator if needed -->
-            </button>
         </div>
     `;
     
@@ -222,26 +205,31 @@ export function getJournalHTML(state) {
     else if (state.activeAdventure) title = `Arc Scroll: ${state.activeAdventure.name}`;
     else if (state.activeCampaign) title = `Grand Tome: ${state.activeCampaign.name}`;
 
+    const isLibraryTome = !state.activeSessionId && !state.activeAdventureId;
+
     let html = `
-    <div class="animate-in fade-in duration-300 max-w-4xl mx-auto bg-[#fdfbf7] rounded-sm border-2 sm:border-4 border-stone-800 shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col h-[calc(100vh-140px)] sm:h-[calc(100vh-150px)]">
-        <div class="bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-stone-900 p-3 sm:p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center text-amber-500 shrink-0 border-b-2 sm:border-b-4 border-red-900 gap-3 sm:gap-0 shadow-md z-10">
-            <h2 class="text-base sm:text-xl font-serif font-bold flex items-center w-full sm:w-auto min-w-0">
-                <i class="fa-solid fa-scroll mr-2 sm:mr-3 text-red-700 flex-shrink-0"></i> 
-                <span class="truncate pr-2">${title}</span>
-            </h2>
-            <div class="flex gap-2 w-full sm:w-auto self-end flex-shrink-0">
-                <button id="journal-copy-btn" onclick="window.appActions.copyJournal()" class="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider flex justify-center items-center transition shadow-md bg-stone-700 text-amber-50 hover:bg-stone-600 border border-stone-500">
-                    <i class="fa-solid fa-copy mr-1 sm:mr-2"></i> Copy
-                </button>
-                <button onclick="window.appActions.closeJournal()" class="flex-none p-2 bg-stone-800 hover:bg-red-900 text-stone-300 hover:text-white border border-stone-600 rounded-sm transition shadow-md" title="Close Scroll">
-                    <i class="fa-solid fa-xmark w-4 h-4 sm:w-5 sm:h-5"></i>
-                </button>
+    <div class="animate-in fade-in duration-300 max-w-5xl mx-auto flex flex-col h-[calc(100vh-140px)] sm:h-[calc(100vh-150px)]">
+        ${isLibraryTome ? getLibraryTabsHTML('tome') : ''}
+        <div class="bg-[#fdfbf7] rounded-sm border-2 sm:border-4 border-stone-800 shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col flex-grow">
+            <div class="bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-stone-900 p-3 sm:p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center text-amber-500 shrink-0 border-b-2 sm:border-b-4 border-red-900 gap-3 sm:gap-0 shadow-md z-10">
+                <h2 class="text-base sm:text-xl font-serif font-bold flex items-center w-full sm:w-auto min-w-0">
+                    <i class="fa-solid fa-scroll mr-2 sm:mr-3 text-red-700 flex-shrink-0"></i> 
+                    <span class="truncate pr-2">${title}</span>
+                </h2>
+                <div class="flex gap-2 w-full sm:w-auto self-end flex-shrink-0">
+                    <button id="journal-copy-btn" onclick="window.appActions.copyJournal()" class="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider flex justify-center items-center transition shadow-md bg-stone-700 text-amber-50 hover:bg-stone-600 border border-stone-500">
+                        <i class="fa-solid fa-copy mr-1 sm:mr-2"></i> Copy
+                    </button>
+                    <button onclick="window.appActions.closeJournal()" class="flex-none p-2 bg-stone-800 hover:bg-red-900 text-stone-300 hover:text-white border border-stone-600 rounded-sm transition shadow-md" title="Close Scroll">
+                        <i class="fa-solid fa-xmark w-4 h-4 sm:w-5 sm:h-5"></i>
+                    </button>
+                </div>
             </div>
-        </div>
-        
-        <div class="flex-grow p-0 bg-[#fdfbf7] overflow-hidden relative">
-            <div id="journal-textarea" class="w-full h-full p-4 sm:p-8 bg-transparent text-stone-900 font-serif text-[10px] sm:text-sm leading-relaxed overflow-y-auto custom-scrollbar pb-32">
-                ${formattedContent}
+            
+            <div class="flex-grow p-0 bg-[#fdfbf7] overflow-hidden relative">
+                <div id="journal-textarea" class="w-full h-full p-4 sm:p-8 bg-transparent text-stone-900 font-serif text-[10px] sm:text-sm leading-relaxed overflow-y-auto custom-scrollbar pb-32">
+                    ${formattedContent}
+                </div>
             </div>
         </div>
     </div>
