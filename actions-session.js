@@ -6,6 +6,27 @@ import { logPlayerActivity } from './actions-campaign.js';
 
 // --- Session Editing ---
 export const openSessionEdit = (sessionId = null) => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    
+    if (!camp) {
+        notify("You must open a campaign tome first.", "error");
+        return;
+    }
+
+    // Smart Routing: If creating a new session from the global dock, auto-select the latest arc!
+    if (!sessionId && !window.appData.activeAdventureId) {
+        if (!camp.adventures || camp.adventures.length === 0) {
+            notify("You must start an Adventure Arc before logging a session.", "error");
+            return;
+        }
+        // Grab the latest adventure (sorted alphanumerically to match the UI)
+        const sortedAdventures = [...camp.adventures].sort((a, b) => {
+            return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+        });
+        window.appData.activeAdventureId = sortedAdventures[sortedAdventures.length - 1].id;
+    }
+
     window.appData.activeSessionId = sessionId;
     window.appActions.setView('session-edit');
 };
