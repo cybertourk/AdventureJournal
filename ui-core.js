@@ -54,6 +54,32 @@ export function renderSmartField(id, labelHtml, value, placeholderText, rows, wr
     `;
 }
 
+// --- LIBRARY NAVIGATION TABS ---
+export function getLibraryTabsHTML(activeTab) {
+    const isCodex = activeTab === 'codex';
+    const isRules = activeTab === 'rules';
+    const isTome = activeTab === 'tome';
+
+    return `
+    <div class="flex bg-stone-200 p-1 sm:p-1.5 rounded-sm border border-[#d4c5a9] shadow-inner mb-6 w-full max-w-3xl mx-auto shrink-0">
+        <button onclick="window.appActions.setView('codex')" class="flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isCodex ? 'bg-white shadow-sm text-red-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
+            <i class="fa-solid fa-book-journal-whills text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Codex</span>
+        </button>
+        <button onclick="window.appActions.openRulesGlossary()" class="flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isRules ? 'bg-white shadow-sm text-amber-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
+            <i class="fa-solid fa-scale-balanced text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Rules</span>
+        </button>
+        <button onclick="window.appActions.openJournal('campaign')" class="flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isTome ? 'bg-white shadow-sm text-stone-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
+            <i class="fa-solid fa-scroll text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Tome</span>
+        </button>
+        <button onclick="window.appActions.openChecklistMenu()" class="flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition text-stone-500 hover:text-blue-800 border border-transparent text-[9px] sm:text-[10px] uppercase tracking-wider relative group">
+            <i class="fa-solid fa-list-check text-sm sm:text-base mb-0.5 sm:mb-0 group-hover:text-blue-600 transition-colors"></i> <span>Tasks</span>
+            <span id="lib-tab-badge-tasks" class="hidden absolute top-1 right-2 sm:right-6 w-2 h-2 bg-red-500 rounded-full border border-stone-200 animate-pulse"></span>
+        </button>
+    </div>
+    `;
+}
+
+
 // --- GLOBAL HEADER & NAVIGATION VISIBILITY ---
 export function updateHeaderUI(state) {
     const titleEl = document.getElementById('header-title');
@@ -92,10 +118,13 @@ export function updateHeaderUI(state) {
         case 'session-edit': breadcrumbText = state.activeSessionId ? 'Amend Record' : 'New Record'; showBack = true; break;
         case 'pc-manager': breadcrumbText = 'Party Manifest'; showBack = true; break;
         case 'pc-edit': breadcrumbText = state.activePcId ? 'Edit Hero' : 'New Hero'; showBack = true; break;
-        case 'codex': breadcrumbText = 'Campaign Codex'; showBack = true; break;
-        case 'rules': breadcrumbText = 'Rules Glossary'; showBack = true; break;
+        case 'codex': breadcrumbText = 'Library • Codex'; showBack = true; break;
+        case 'rules': breadcrumbText = 'Library • Rules'; showBack = true; break;
         case 'calendar': breadcrumbText = 'Chronicle Timeline'; showBack = true; break;
-        case 'journal': breadcrumbText = state.activeSessionId ? 'Session Scroll' : (state.activeAdventureId ? 'Arc Scroll' : 'Campaign Tome'); showBack = true; break;
+        case 'journal': 
+            breadcrumbText = state.activeSessionId ? 'Session Scroll' : (state.activeAdventureId ? 'Arc Scroll' : 'Library • Tome'); 
+            showBack = true; 
+            break;
         case 'activity-log': breadcrumbText = 'Activity Log'; showBack = true; break;
     }
 
@@ -128,9 +157,9 @@ export function updateDockUI(state) {
     if (['pc-manager', 'pc-edit'].includes(state.currentView)) activeTab = 'pc-manager';
     if (['codex', 'rules'].includes(state.currentView)) activeTab = 'codex';
     
-    // Edge case: If reading the grand tome, default back to campaign
+    // The Grand Tome is now officially part of the Library Hub, so keep the Library dock icon highlighted
     if (state.currentView === 'journal' && !state.activeAdventureId && !state.activeSessionId) {
-        activeTab = 'campaign'; 
+        activeTab = 'codex'; 
     }
 
     const activeEl = document.getElementById(`dock-tab-${activeTab}`);
@@ -149,6 +178,7 @@ export const navigateBack = () => {
         case 'campaign': 
         case 'pc-manager':
         case 'codex':
+        case 'rules': 
         case 'calendar':
             window.appActions.setView('home'); 
             break;
@@ -156,7 +186,6 @@ export const navigateBack = () => {
         case 'adv-roster': window.appActions.setView('adventure'); break;
         case 'session-edit': window.appActions.setView('adventure'); break;
         case 'pc-edit': window.appActions.setView('pc-manager'); break;
-        case 'rules': window.appActions.setView('codex'); break;
         case 'activity-log': window.appActions.setView('campaign'); break;
         case 'journal': 
             if (state.activeSessionId) { 
@@ -165,7 +194,7 @@ export const navigateBack = () => {
             } else if (state.activeAdventureId) { 
                 window.appActions.setView('adventure'); 
             } else { 
-                window.appActions.setView('campaign'); 
+                window.appActions.setView('home'); 
             }
             break;
     }
@@ -259,14 +288,16 @@ export function updatePlayerResourceBar(state) {
 export function updateChecklistUI(state) {
     const dockBadge = document.getElementById('dock-badge-tasks');
     const sheetBadge = document.getElementById('sheet-badge-tasks');
+    const libTabBadge = document.getElementById('lib-tab-badge-tasks');
     const container = document.getElementById('checklist-content-container');
     
-    if (!container) return; // Note: badges might be missing on auth screen, that's fine.
+    if (!container) return; 
 
     const camp = state.activeCampaign;
     if (!camp || state.currentView === 'home') {
         if (dockBadge) dockBadge.classList.add('hidden');
         if (sheetBadge) sheetBadge.classList.add('hidden');
+        if (libTabBadge) libTabBadge.classList.add('hidden');
         return;
     }
 
@@ -288,6 +319,7 @@ export function updateChecklistUI(state) {
         const pendingCount = visibleUpdates.filter(u => !(u.resolvedBy || []).includes(myUid)).length;
         if (pendingCount > 0) {
             if (dockBadge) dockBadge.classList.remove('hidden');
+            if (libTabBadge) libTabBadge.classList.remove('hidden');
             if (sheetBadge) {
                 sheetBadge.textContent = pendingCount;
                 sheetBadge.classList.remove('hidden');
@@ -295,10 +327,12 @@ export function updateChecklistUI(state) {
         } else {
             if (dockBadge) dockBadge.classList.add('hidden');
             if (sheetBadge) sheetBadge.classList.add('hidden');
+            if (libTabBadge) libTabBadge.classList.add('hidden');
         }
     } else {
         if (dockBadge) dockBadge.classList.add('hidden');
-        if (sheetBadge) sheetBadge.classList.add('hidden'); // DM doesn't need the red pulse badge
+        if (sheetBadge) sheetBadge.classList.add('hidden'); 
+        if (libTabBadge) libTabBadge.classList.add('hidden');
     }
 
     // Sort: Tasks I haven't resolved float to top. Then sort by newest.
