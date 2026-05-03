@@ -54,20 +54,117 @@ export function renderSmartField(id, labelHtml, value, placeholderText, rows, wr
     `;
 }
 
-// --- GLOBAL HEADER NAVIGATION VISIBILITY ---
+// --- GLOBAL HEADER & NAVIGATION VISIBILITY ---
 export function updateHeaderUI(state) {
-    const camp = state.activeCampaign;
-    const calBtn = document.getElementById('header-calendar-btn');
-    const rulesBtn = document.getElementById('header-rules-btn');
+    const titleEl = document.getElementById('header-title');
+    const breadcrumbEl = document.getElementById('header-breadcrumb');
+    const backBtn = document.getElementById('header-back-btn');
+    const iconEl = document.getElementById('header-icon');
+    const settingsBtn = document.getElementById('settings-btn');
+    const dockContainer = document.getElementById('floating-dock-container');
 
-    if (!camp || state.currentView === 'home') {
-        if (calBtn) calBtn.classList.add('hidden');
-        if (rulesBtn) rulesBtn.classList.add('hidden');
+    if (!titleEl) return;
+
+    // Hide dock & show default branding on home screen
+    if (state.currentView === 'home' || !state.activeCampaign) {
+        if (dockContainer) dockContainer.classList.add('translate-y-32', 'opacity-0');
+        titleEl.textContent = 'Adventure Journal';
+        if (breadcrumbEl) breadcrumbEl.textContent = 'The Lobby';
+        if (backBtn) backBtn.classList.add('hidden');
+        if (iconEl) iconEl.classList.remove('hidden');
+        if (settingsBtn) settingsBtn.classList.remove('hidden');
+        return;
+    }
+
+    // Show dock and set campaign branding
+    if (dockContainer) dockContainer.classList.remove('translate-y-32', 'opacity-0');
+    titleEl.textContent = state.activeCampaign.name;
+    if (settingsBtn) settingsBtn.classList.add('hidden'); // Hide settings when in a campaign
+
+    let breadcrumbText = 'Story Arcs';
+    let showBack = false;
+
+    // Smart logic for breadcrumb text and deciding if we need the back button
+    switch (state.currentView) {
+        case 'campaign': breadcrumbText = 'Story Arcs'; break;
+        case 'adventure': breadcrumbText = state.activeAdventure?.name || 'Adventure Arc'; showBack = true; break;
+        case 'adv-roster': breadcrumbText = 'Arc Roster'; showBack = true; break;
+        case 'session-edit': breadcrumbText = state.activeSessionId ? 'Amend Record' : 'New Record'; showBack = true; break;
+        case 'pc-manager': breadcrumbText = 'Party Manifest'; break;
+        case 'pc-edit': breadcrumbText = state.activePcId ? 'Edit Hero' : 'New Hero'; showBack = true; break;
+        case 'codex': breadcrumbText = 'Campaign Codex'; break;
+        case 'rules': breadcrumbText = 'Rules Glossary'; showBack = true; break;
+        case 'calendar': breadcrumbText = 'Chronicle Timeline'; break;
+        case 'journal': breadcrumbText = state.activeSessionId ? 'Session Scroll' : (state.activeAdventureId ? 'Arc Scroll' : 'Campaign Tome'); showBack = true; break;
+        case 'activity-log': breadcrumbText = 'Activity Log'; showBack = true; break;
+    }
+
+    if (breadcrumbEl) breadcrumbEl.textContent = breadcrumbText;
+
+    if (showBack) {
+        if (backBtn) backBtn.classList.remove('hidden');
+        if (iconEl) iconEl.classList.add('hidden');
     } else {
-        if (calBtn) calBtn.classList.remove('hidden');
-        if (rulesBtn) rulesBtn.classList.remove('hidden');
+        if (backBtn) backBtn.classList.add('hidden');
+        if (iconEl) iconEl.classList.remove('hidden');
     }
 }
+
+export function updateDockUI(state) {
+    const tabs = ['campaign', 'calendar', 'pc-manager', 'codex'];
+    
+    // Reset all tabs to inactive color
+    tabs.forEach(tab => {
+        const el = document.getElementById(`dock-tab-${tab}`);
+        if (el) {
+            el.classList.remove('text-amber-500', 'hover:text-amber-300');
+            el.classList.add('text-stone-400', 'hover:text-amber-300');
+        }
+    });
+
+    // Determine which "Pill" tab should be highlighted based on the current deep view
+    let activeTab = 'campaign';
+    if (['calendar'].includes(state.currentView)) activeTab = 'calendar';
+    if (['pc-manager', 'pc-edit'].includes(state.currentView)) activeTab = 'pc-manager';
+    if (['codex', 'rules'].includes(state.currentView)) activeTab = 'codex';
+    
+    // Edge case: If reading the grand tome, default back to campaign
+    if (state.currentView === 'journal' && !state.activeAdventureId && !state.activeSessionId) {
+        activeTab = 'campaign'; 
+    }
+
+    const activeEl = document.getElementById(`dock-tab-${activeTab}`);
+    if (activeEl) {
+        activeEl.classList.remove('text-stone-400', 'hover:text-amber-300');
+        activeEl.classList.add('text-amber-500');
+    }
+}
+
+// Global hook for the Back Button
+window.appActions = window.appActions || {};
+window.appActions.navigateBack = function() {
+    const state = window.appData;
+    if (!state) return;
+    
+    switch(state.currentView) {
+        case 'adventure': window.appActions.setView('campaign'); break;
+        case 'adv-roster': window.appActions.setView('adventure'); break;
+        case 'session-edit': window.appActions.setView('adventure'); break;
+        case 'pc-edit': window.appActions.setView('pc-manager'); break;
+        case 'rules': window.appActions.setView('codex'); break;
+        case 'activity-log': window.appActions.setView('campaign'); break;
+        case 'journal': 
+            if (state.activeSessionId) { 
+                window.appData.activeSessionId = null; 
+                window.appActions.setView('adventure'); 
+            } else if (state.activeAdventureId) { 
+                window.appActions.setView('adventure'); 
+            } else { 
+                window.appActions.setView('campaign'); 
+            }
+            break;
+    }
+};
 
 // --- PLAYER RESOURCE BAR ---
 export function updatePlayerResourceBar(state) {
@@ -114,11 +211,11 @@ export function updatePlayerResourceBar(state) {
     const autoPulse = autoSuccess > 0 ? 'animate-pulse text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'text-stone-600';
 
     bar.innerHTML = `
-        <div class="bg-stone-900 border border-stone-700 rounded-sm p-3 flex flex-col sm:flex-row justify-between items-center gap-3 shadow-inner">
+        <div class="bg-[#292524] border-b-2 border-stone-800 p-3 px-5 flex flex-col sm:flex-row justify-between items-center gap-3 shadow-inner bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')]">
             <div class="font-serif font-bold text-amber-500 text-sm sm:text-base truncate flex items-center">
                 <i class="fa-solid fa-book-journal-whills text-amber-700 mr-2 sm:mr-3"></i> ${advName}
             </div>
-            <div class="flex items-center gap-4 text-[10px] sm:text-xs font-bold uppercase tracking-widest bg-stone-950 px-4 py-2 rounded-sm border border-stone-800 shadow-[0_4px_10px_rgba(0,0,0,0.5)]">
+            <div class="flex items-center gap-4 text-[10px] sm:text-xs font-bold uppercase tracking-widest bg-stone-900 px-4 py-2 rounded-sm border border-stone-700 shadow-[0_4px_10px_rgba(0,0,0,0.5)]">
                 <div class="flex items-center gap-2" title="Inspiration Available">
                     <i class="fa-solid fa-dice-d20 ${inspPulse} text-sm sm:text-lg transition-all duration-300"></i>
                     <span class="${currentInsp > 0 ? 'text-amber-500' : 'text-stone-600'}">Insp <span class="text-white">${currentInsp}</span><span class="text-stone-600">/${maxInsp}</span></span>
@@ -135,15 +232,16 @@ export function updatePlayerResourceBar(state) {
 
 // --- GLOBAL CHECKLIST GENERATOR (MODAL UI) ---
 export function updateChecklistUI(state) {
-    const btn = document.getElementById('header-checklist-btn');
-    const badge = document.getElementById('header-checklist-badge');
+    const dockBadge = document.getElementById('dock-badge-tasks');
+    const sheetBadge = document.getElementById('sheet-badge-tasks');
     const container = document.getElementById('checklist-content-container');
     
-    if (!btn || !badge || !container) return;
+    if (!container) return; // Note: badges might be missing on auth screen, that's fine.
 
     const camp = state.activeCampaign;
     if (!camp || state.currentView === 'home') {
-        btn.classList.add('hidden');
+        if (dockBadge) dockBadge.classList.add('hidden');
+        if (sheetBadge) sheetBadge.classList.add('hidden');
         return;
     }
 
@@ -160,25 +258,22 @@ export function updateChecklistUI(state) {
         return false;
     });
 
-    // Hide button for players if no tasks
-    if (!isDM && visibleUpdates.length === 0) {
-        btn.classList.add('hidden');
-        return;
-    }
-    
-    btn.classList.remove('hidden');
-
     // Badge logic for players
     if (!isDM) {
         const pendingCount = visibleUpdates.filter(u => !(u.resolvedBy || []).includes(myUid)).length;
         if (pendingCount > 0) {
-            badge.textContent = pendingCount;
-            badge.classList.remove('hidden');
+            if (dockBadge) dockBadge.classList.remove('hidden');
+            if (sheetBadge) {
+                sheetBadge.textContent = pendingCount;
+                sheetBadge.classList.remove('hidden');
+            }
         } else {
-            badge.classList.add('hidden');
+            if (dockBadge) dockBadge.classList.add('hidden');
+            if (sheetBadge) sheetBadge.classList.add('hidden');
         }
     } else {
-        badge.classList.add('hidden'); // DM doesn't need the red pulse badge
+        if (dockBadge) dockBadge.classList.add('hidden');
+        if (sheetBadge) sheetBadge.classList.add('hidden'); // DM doesn't need the red pulse badge
     }
 
     // Sort: Tasks I haven't resolved float to top. Then sort by newest.
@@ -268,7 +363,8 @@ export function renderApp(state) {
     const container = document.getElementById('app-container');
     if (!container) return;
 
-    renderBreadcrumbs(state);
+    // Reset scroll position gracefully
+    container.scrollTo({ top: 0, behavior: 'instant' });
 
     let html = '';
     switch (state.currentView) {
@@ -289,8 +385,9 @@ export function renderApp(state) {
 
     container.innerHTML = html;
 
-    // Post-render UI adjustments
+    // Post-render UI adjustments (Handles the new mobile-first elements)
     updateHeaderUI(state);
+    updateDockUI(state);
     updateChecklistUI(state);
     updatePlayerResourceBar(state);
 
@@ -302,68 +399,6 @@ export function renderApp(state) {
             window.appActions.updateSessionBudget();
         }
     }
-}
-
-// --- BREADCRUMBS ---
-export function renderBreadcrumbs(state) {
-    const container = document.getElementById('breadcrumbs-container');
-    if (!container) return;
-
-    let html = `<div class="flex items-center text-[10px] sm:text-sm text-amber-200/60 mb-4 sm:mb-6 bg-stone-900 border border-stone-800 p-2 sm:p-3 rounded font-sans shadow-md overflow-x-auto whitespace-nowrap hide-scrollbar">`;
-
-    html += `
-        <button onclick="window.appActions.setView('home')" class="hover:text-amber-400 flex items-center uppercase tracking-wider font-bold transition flex-shrink-0">
-            <i class="fa-solid fa-book mr-1 sm:mr-2"></i> Library
-        </button>
-    `;
-
-    if (state.activeCampaign) {
-        html += `
-            <i class="fa-solid fa-chevron-right mx-1 sm:mx-2 text-stone-600 flex-shrink-0 text-[8px] sm:text-xs"></i>
-            <button onclick="window.appActions.setView('campaign')" class="hover:text-amber-400 uppercase tracking-wider font-bold truncate max-w-[100px] sm:max-w-xs transition flex-shrink-0 ${state.currentView === 'campaign' ? 'text-amber-500' : ''}">
-                ${state.activeCampaign.name}
-            </button>
-        `;
-    }
-
-    if ((state.activeAdventure || state.currentView === 'pc-manager' || state.currentView === 'pc-edit' || state.currentView === 'codex' || state.currentView === 'adv-roster' || state.currentView === 'calendar' || state.currentView === 'rules' || state.currentView === 'activity-log') && state.activeCampaign && state.currentView !== 'campaign') {
-        html += `<i class="fa-solid fa-chevron-right mx-1 sm:mx-2 text-stone-600 flex-shrink-0 text-[8px] sm:text-xs"></i>`;
-        if (state.currentView === 'pc-manager' || state.currentView === 'pc-edit') {
-            html += `<button onclick="window.appActions.setView('pc-manager')" class="hover:text-amber-400 uppercase tracking-wider font-bold transition flex-shrink-0 ${state.currentView === 'pc-manager' ? 'text-amber-500' : ''}">Party Manifest</button>`;
-        } else if (state.currentView === 'codex') {
-            html += `<span class="uppercase tracking-wider font-bold text-amber-500 flex-shrink-0">Campaign Codex</span>`;
-        } else if (state.currentView === 'calendar') {
-            html += `<span class="uppercase tracking-wider font-bold text-amber-500 flex-shrink-0">Chronicle</span>`;
-        } else if (state.currentView === 'rules') {
-            html += `<span class="uppercase tracking-wider font-bold text-amber-500 flex-shrink-0">Rules Glossary</span>`;
-        } else if (state.currentView === 'activity-log') {
-            html += `<span class="uppercase tracking-wider font-bold text-amber-500 flex-shrink-0">Activity Log</span>`;
-        } else {
-            html += `
-                <button onclick="window.appActions.setView('adventure')" class="hover:text-amber-400 uppercase tracking-wider font-bold truncate max-w-[100px] sm:max-w-xs transition flex-shrink-0 ${state.currentView === 'adventure' ? 'text-amber-500' : ''}">
-                    ${state.activeAdventure?.name || 'Adventure'}
-                </button>
-            `;
-        }
-    }
-
-    if (state.currentView === 'session-edit' || state.currentView === 'journal' || state.currentView === 'pc-edit' || state.currentView === 'adv-roster') {
-        html += `<i class="fa-solid fa-chevron-right mx-1 sm:mx-2 text-stone-600 flex-shrink-0 text-[8px] sm:text-xs"></i>`;
-        html += `<span class="uppercase tracking-wider font-bold text-amber-500 flex-shrink-0">`;
-        if (state.currentView === 'session-edit') {
-            html += state.activeSessionId ? 'Amend Record' : 'New Record';
-        } else if (state.currentView === 'journal') {
-            html += state.activeSessionId ? 'Session Scroll' : (state.activeAdventureId ? 'Arc Scroll' : 'Campaign Tome');
-        } else if (state.currentView === 'pc-edit') {
-            html += state.activePcId ? 'Edit Hero' : 'New Hero';
-        } else if (state.currentView === 'adv-roster') {
-            html += 'Arc Roster';
-        }
-        html += `</span>`;
-    }
-
-    html += `</div>`;
-    container.innerHTML = html;
 }
 
 // --- UI HELPER FUNCTIONS ---
