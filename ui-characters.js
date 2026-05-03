@@ -49,7 +49,9 @@ export function getPCManagerHTML(state) {
             
             // Legacy support: if inspiration was saved as a boolean previously, convert it to 1 or 0 for display
             const currentInsp = pc.inspiration === true ? 1 : (parseInt(pc.inspiration) || 0);
-            const hasAutoSuccess = pc.automaticSuccess === true;
+            
+            // The badge only shows if the player has unlocked the feature AND it is currently available to use!
+            const hasAutoSuccess = pc.automaticSuccess === true && pc.unlockAutoSuccess === true;
             
             const activeBoons = [];
             if (pc.boon1stBday) activeBoons.push(`1st B-Day: ${pc.boon1stBday}`);
@@ -157,10 +159,9 @@ export function getPCEditHTML(state) {
     const camp = state.activeCampaign;
     const isNew = !state.activePcId;
     
-    // Updated fallback to include boon trackers
     const pc = !isNew && camp?.playerCharacters 
         ? camp.playerCharacters.find(p => p.id === state.activePcId) 
-        : { name: '', race: '', classLevel: '', background: '', alignment: '', faith: '', gender: '', age: '', size: '', height: '', weight: '', eyes: '', hair: '', skin: '', traits: '', ideals: '', bonds: '', flaws: '', appearance: '', backstory: '', organizations: '', allies: '', enemies: '', dmNotes: '', playerId: '', image: '', boonBackstory: false, boon1stBday: '', boon2ndBday: '' };
+        : { name: '', race: '', classLevel: '', background: '', alignment: '', faith: '', gender: '', age: '', size: '', height: '', weight: '', eyes: '', hair: '', skin: '', traits: '', ideals: '', bonds: '', flaws: '', appearance: '', backstory: '', organizations: '', allies: '', enemies: '', dmNotes: '', playerId: '', image: '', boonBackstory: false, boon1stBday: '', boon2ndBday: '', unlockAutoSuccess: false };
 
     if (!pc && !isNew) return `<div class="text-center text-red-500 p-8 font-serif font-bold text-xl">Hero not found in the archives.</div>`;
 
@@ -327,11 +328,15 @@ export function getPCEditHTML(state) {
                 <!-- DM ONLY: BOONS & UNLOCKS -->
                 ${isDM ? `
                 <div class="mt-6 bg-amber-50 p-4 sm:p-5 rounded-sm border border-amber-300 shadow-inner">
-                    <h3 class="text-xs sm:text-sm font-bold text-amber-900 font-serif mb-3 border-b border-amber-300 pb-1"><i class="fa-solid fa-gift mr-2"></i> Player Boons & Unlocks</h3>
+                    <h3 class="text-xs sm:text-sm font-bold text-amber-900 font-serif mb-3 border-b border-amber-300 pb-1"><i class="fa-solid fa-lock-open mr-2"></i> Player Unlocks & Boons</h3>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div class="col-span-1 sm:col-span-2 flex items-center gap-2">
                             <input type="checkbox" id="pc-edit-boon-backstory" ${pc.boonBackstory ? 'checked' : ''} class="w-4 h-4 text-amber-600 rounded-sm cursor-pointer shadow-sm border-amber-400">
                             <label class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-amber-900 cursor-pointer" for="pc-edit-boon-backstory">Backstory Completed (+1 Max Inspiration)</label>
+                        </div>
+                        <div class="col-span-1 sm:col-span-2 flex items-center gap-2">
+                            <input type="checkbox" id="pc-edit-unlock-auto-success" ${pc.unlockAutoSuccess ? 'checked' : ''} class="w-4 h-4 text-emerald-600 rounded-sm cursor-pointer shadow-sm border-emerald-400 focus:ring-emerald-500">
+                            <label class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-emerald-900 cursor-pointer" for="pc-edit-unlock-auto-success">Chronicle Contributor (Unlocks 1 Auto-Success per Arc)</label>
                         </div>
                         <div class="col-span-1 sm:col-span-2">
                             <label class="block text-[10px] font-bold text-amber-700 uppercase tracking-widest mb-1.5">1st Birthday Boon (Custom Ability)</label>
