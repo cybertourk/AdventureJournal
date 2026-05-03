@@ -86,15 +86,15 @@ export function updateHeaderUI(state) {
 
     // Smart logic for breadcrumb text and deciding if we need the back button
     switch (state.currentView) {
-        case 'campaign': breadcrumbText = 'Story Arcs'; break;
+        case 'campaign': breadcrumbText = 'Story Arcs'; showBack = true; break;
         case 'adventure': breadcrumbText = state.activeAdventure?.name || 'Adventure Arc'; showBack = true; break;
         case 'adv-roster': breadcrumbText = 'Arc Roster'; showBack = true; break;
         case 'session-edit': breadcrumbText = state.activeSessionId ? 'Amend Record' : 'New Record'; showBack = true; break;
-        case 'pc-manager': breadcrumbText = 'Party Manifest'; break;
+        case 'pc-manager': breadcrumbText = 'Party Manifest'; showBack = true; break;
         case 'pc-edit': breadcrumbText = state.activePcId ? 'Edit Hero' : 'New Hero'; showBack = true; break;
-        case 'codex': breadcrumbText = 'Campaign Codex'; break;
+        case 'codex': breadcrumbText = 'Campaign Codex'; showBack = true; break;
         case 'rules': breadcrumbText = 'Rules Glossary'; showBack = true; break;
-        case 'calendar': breadcrumbText = 'Chronicle Timeline'; break;
+        case 'calendar': breadcrumbText = 'Chronicle Timeline'; showBack = true; break;
         case 'journal': breadcrumbText = state.activeSessionId ? 'Session Scroll' : (state.activeAdventureId ? 'Arc Scroll' : 'Campaign Tome'); showBack = true; break;
         case 'activity-log': breadcrumbText = 'Activity Log'; showBack = true; break;
     }
@@ -140,13 +140,18 @@ export function updateDockUI(state) {
     }
 }
 
-// Global hook for the Back Button
-window.appActions = window.appActions || {};
-window.appActions.navigateBack = function() {
+// --- NAVIGATION & ACTION MENU HOOKS ---
+export const navigateBack = () => {
     const state = window.appData;
     if (!state) return;
     
     switch(state.currentView) {
+        case 'campaign': 
+        case 'pc-manager':
+        case 'codex':
+        case 'calendar':
+            window.appActions.setView('home'); 
+            break;
         case 'adventure': window.appActions.setView('campaign'); break;
         case 'adv-roster': window.appActions.setView('adventure'); break;
         case 'session-edit': window.appActions.setView('adventure'); break;
@@ -163,6 +168,26 @@ window.appActions.navigateBack = function() {
                 window.appActions.setView('campaign'); 
             }
             break;
+    }
+};
+
+export const toggleActionMenu = () => {
+    const sheet = document.getElementById('action-sheet');
+    const overlay = document.getElementById('action-overlay');
+    const icon = document.getElementById('center-action-icon');
+    
+    if (!sheet || !overlay || !icon) return;
+    
+    if (sheet.classList.contains('open')) {
+        sheet.classList.remove('open');
+        overlay.style.opacity = '0';
+        icon.className = 'fa-solid fa-pen-nib text-xl transition-all duration-300';
+        setTimeout(() => overlay.classList.add('hidden'), 300);
+    } else {
+        sheet.classList.add('open');
+        overlay.classList.remove('hidden');
+        icon.className = 'fa-solid fa-xmark text-xl transition-all duration-300 rotate-90';
+        setTimeout(() => overlay.style.opacity = '1', 10);
     }
 };
 
