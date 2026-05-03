@@ -253,7 +253,7 @@ export const createAdventure = async () => {
       return {
           ...pc,
           inspiration: maxInsp,
-          automaticSuccess: true
+          automaticSuccess: pc.unlockAutoSuccess ? true : false
       };
   });
 
@@ -420,7 +420,7 @@ export const refreshPartyBoons = async () => {
     const camp = window.appData.activeCampaign;
     if (!camp || !camp._isDM) return;
 
-    if (!confirm("This will restore Inspiration to maximum and grant 1 Auto-Success for all heroes. Proceed?")) return;
+    if (!confirm("This will restore Inspiration to maximum and grant 1 Auto-Success for eligible heroes. Proceed?")) return;
 
     const updatedPCs = (camp.playerCharacters || []).map(pc => {
         let maxInsp = 0;
@@ -429,7 +429,7 @@ export const refreshPartyBoons = async () => {
         return {
             ...pc,
             inspiration: maxInsp,
-            automaticSuccess: true
+            automaticSuccess: pc.unlockAutoSuccess ? true : false
         };
     });
 
@@ -635,6 +635,7 @@ export const savePCEdit = async () => {
     playerId: isDM ? (document.getElementById('pc-edit-player-id')?.value || '') : (existingPC.playerId || ''),
     dmNotes: isDM ? (document.getElementById('input-pc-edit-dmnotes')?.value || '') : (existingPC.dmNotes || ''),
     boonBackstory: isDM ? (document.getElementById('pc-edit-boon-backstory')?.checked || false) : (existingPC.boonBackstory || false),
+    unlockAutoSuccess: isDM ? (document.getElementById('pc-edit-unlock-auto-success')?.checked || false) : (existingPC.unlockAutoSuccess || false),
     boon1stBday: isDM ? (document.getElementById('pc-edit-boon-1st')?.value.trim() || '') : (existingPC.boon1stBday || ''),
     boon2ndBday: isDM ? (document.getElementById('pc-edit-boon-2nd')?.value.trim() || '') : (existingPC.boon2ndBday || '')
   };
