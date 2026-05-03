@@ -106,9 +106,31 @@ export const closeMonthInfo = () => {
 };
 
 // --- Day Actions ---
-export const openCalendarDay = (year, monthIndex, day) => {
+export const openCalendarDay = async (year, monthIndex, day) => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    if (!camp) {
+        notify("You must open a campaign tome first.", "error");
+        return;
+    }
+
+    // Initialize calendar if it doesn't exist yet (in case they haven't opened it normally)
+    if (!camp.calendar) {
+        camp.calendar = JSON.parse(JSON.stringify(DEFAULT_CALENDAR));
+        camp.calendar.currentMonth = 0;
+        camp.calendar.currentDay = 1;
+        await saveCampaign(camp);
+    }
+
+    // Align the background view grid so it matches the note being opened
+    window.appData.calendarViewYear = year;
+    window.appData.calendarViewMonth = monthIndex;
+
+    // Set the active date to trigger the modal overlay
     window.appData.activeCalendarDate = { year, monthIndex, day };
-    reRender();
+    
+    // Switch to calendar view (if called from the global dock, this ensures the HTML actually renders)
+    window.appActions.setView('calendar');
 };
 
 export const closeCalendarDay = () => {
