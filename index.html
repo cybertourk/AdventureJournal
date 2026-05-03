@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- viewport-fit=cover is CRITICAL for handling the iPhone/Android safe area insets! -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Adventure Journal</title>
     
     <!-- Fonts: Merriweather for Serif/Headings, Inter for Sans/UI -->
@@ -19,6 +20,10 @@
                     fontFamily: {
                         sans: ['Inter', 'sans-serif'],
                         serif: ['Merriweather', 'serif'],
+                    },
+                    colors: {
+                        parchment: '#f4ebd8',
+                        parchmentLight: '#fdfbf7',
                     }
                 }
             }
@@ -31,14 +36,14 @@
     <!-- Custom Styles -->
     <link rel="stylesheet" href="styles.css">
 </head>
-<body class="min-h-screen bg-stone-950 text-stone-900 font-sans bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-stone-800 to-stone-950 selection:bg-red-900 selection:text-amber-50">
+<body class="min-h-screen bg-parchment text-stone-900 font-sans selection:bg-red-900 selection:text-amber-50">
     
     <!-- Global Notifications Container -->
-    <div id="notification-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+    <div id="notification-container" class="fixed top-[max(env(safe-area-inset-top),16px)] right-4 z-[20000] flex flex-col gap-2 pointer-events-none"></div>
 
     <!-- AUTHENTICATION SCREEN -->
-    <div id="auth-screen" class="min-h-screen flex items-center justify-center p-4">
-        <div class="bg-[#f4ebd8] p-8 rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] max-w-md w-full relative overflow-hidden">
+    <div id="auth-screen" class="min-h-screen flex items-center justify-center p-4 bg-stone-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-stone-800 to-stone-950">
+        <div class="bg-parchment p-8 rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] max-w-md w-full relative overflow-hidden">
             <div class="absolute top-0 left-0 w-full h-2 bg-red-900"></div>
             
             <div class="text-center mb-8 mt-2">
@@ -90,59 +95,111 @@
         </div>
     </div>
 
-    <!-- MAIN APP SCREEN -->
-    <div id="app-screen" class="hidden max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
+    <!-- MAIN APP SCREEN (MOBILE-FIRST UI) -->
+    <div id="app-screen" class="hidden h-screen w-screen overflow-hidden text-stone-900 flex flex-col relative">
         
-        <!-- Top Header -->
-        <header class="mb-6 pb-6 border-b border-stone-800 flex flex-col gap-4">
-            <div class="flex items-center justify-between w-full flex-wrap sm:flex-nowrap gap-4">
-                <div class="flex items-center gap-4">
-                    <div class="bg-red-900 p-3 rounded-sm text-amber-50 shadow-[0_4px_10px_rgba(0,0,0,0.5)] border border-red-950 transform rotate-3">
-                        <i class="fa-solid fa-scroll text-2xl"></i>
-                    </div>
-                    <div>
-                        <h1 class="text-3xl sm:text-4xl font-serif font-black tracking-tight text-amber-500 leading-none drop-shadow-md">Adventure Journal</h1>
-                        <p class="text-stone-400 text-sm font-bold uppercase tracking-widest mt-2" id="auth-status-text">Access Granted</p>
-                    </div>
+        <!-- 1. THEMATIC HEADER -->
+        <header id="main-header" class="bg-stone-950 px-5 py-4 pt-[max(env(safe-area-inset-top),16px)] flex justify-between items-center z-20 shrink-0 border-b-2 border-amber-700 shadow-[0_4px_15px_rgba(0,0,0,0.5)] thematic-bg transition-all duration-300">
+            <div class="flex items-center gap-3 w-full">
+                <!-- Back Button (Only visible deep in views) -->
+                <button id="header-back-btn" onclick="window.appActions.navigateBack()" class="hidden w-10 h-10 rounded-sm bg-stone-800 text-stone-400 border border-stone-700 shadow-sm flex items-center justify-center hover:text-amber-400 transition flex-shrink-0">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                
+                <!-- App Icon -->
+                <div id="header-icon" class="bg-red-900 w-10 h-10 rounded-sm shadow-inner border border-red-950 flex items-center justify-center text-amber-50 transform -rotate-3 flex-shrink-0">
+                    <i class="fa-solid fa-scroll text-xl"></i>
                 </div>
-                <div class="flex items-center gap-2 flex-wrap justify-end">
-                    <!-- Chronicle / Calendar Button -->
-                    <button id="header-calendar-btn" onclick="window.appActions.openCalendar()" class="hidden px-4 py-2 border border-stone-700 text-stone-400 hover:text-amber-50 hover:border-stone-500 rounded-sm transition font-bold uppercase tracking-wider text-xs flex items-center gap-2">
-                        <i class="fa-solid fa-calendar-days"></i> <span class="hidden sm:inline">Chronicle</span>
-                    </button>
-                    
-                    <!-- Rules Glossary Button -->
-                    <button id="header-rules-btn" onclick="window.appActions.openRulesGlossary()" class="hidden px-4 py-2 border border-stone-700 text-stone-400 hover:text-amber-50 hover:border-stone-500 rounded-sm transition font-bold uppercase tracking-wider text-xs flex items-center gap-2">
-                        <i class="fa-solid fa-scale-balanced"></i> <span class="hidden sm:inline">Rules</span>
-                    </button>
-                    
-                    <button id="header-checklist-btn" onclick="window.appActions.openChecklistMenu()" class="relative px-4 py-2 border border-amber-700/50 bg-amber-900/10 text-amber-500 hover:bg-amber-900/30 hover:text-amber-400 hover:border-amber-600 rounded-sm transition font-bold uppercase tracking-wider text-xs flex items-center gap-2 hidden shadow-sm">
-                        <i class="fa-solid fa-list-check"></i> <span class="hidden sm:inline">Tasks</span>
-                        <span id="header-checklist-badge" class="hidden absolute -top-2 -right-2 bg-red-600 text-white text-[9px] px-1.5 py-0.5 rounded-full shadow-md border border-red-800 animate-pulse">0</span>
-                    </button>
-                    <button id="settings-btn" class="px-4 py-2 border border-stone-700 text-stone-400 hover:text-amber-50 hover:border-stone-500 rounded-sm transition font-bold uppercase tracking-wider text-xs flex items-center gap-2">
-                        <i class="fa-solid fa-gear"></i> <span class="hidden sm:inline">Settings</span>
-                    </button>
-                    <button id="logout-btn" class="px-4 py-2 border border-stone-700 text-stone-400 hover:text-amber-50 hover:border-stone-500 rounded-sm transition font-bold uppercase tracking-wider text-xs flex items-center gap-2">
-                        <i class="fa-solid fa-door-open"></i> <span class="hidden sm:inline">Leave</span>
-                    </button>
+                
+                <!-- Title & Breadcrumb -->
+                <div class="min-w-0 flex-grow">
+                    <h1 id="header-title" class="text-lg sm:text-xl font-serif font-black text-amber-500 leading-none drop-shadow-md truncate">Adventure Journal</h1>
+                    <p id="header-breadcrumb" class="text-[10px] uppercase tracking-widest text-stone-400 mt-1 font-bold truncate">Library</p>
                 </div>
+                
+                <!-- Settings Button -->
+                <button id="settings-btn" class="w-10 h-10 rounded-full bg-stone-800 text-stone-400 border border-stone-700 shadow-sm flex items-center justify-center hover:text-amber-400 transition flex-shrink-0">
+                    <i class="fa-solid fa-gear"></i>
+                </button>
             </div>
-            
-            <!-- Dynamic Player Resource Bar -->
-            <div id="player-resource-bar" class="w-full empty:hidden transition-all duration-300"></div>
         </header>
 
-        <!-- Navigation Breadcrumbs -->
-        <div id="breadcrumbs-container"></div>
-
-        <!-- Dynamic View Rendering -->
-        <main id="app-container" class="relative min-h-[400px]">
-            <div id="loading-spinner" class="absolute inset-0 flex flex-col items-center justify-center text-amber-500">
+        <!-- Dynamic Player Resource Bar -->
+        <div id="player-resource-bar" class="w-full empty:hidden transition-all duration-300 z-10 shrink-0"></div>
+        
+        <!-- 2. SCROLLABLE CONTENT AREA -->
+        <main id="app-container" class="flex-1 overflow-y-auto pb-40 pt-4 px-4 sm:px-6 md:px-8 max-w-5xl mx-auto w-full custom-scrollbar relative">
+            <div id="loading-spinner" class="absolute inset-0 flex flex-col items-center justify-center text-amber-700">
                 <i class="fa-solid fa-circle-notch fa-spin text-4xl mb-4 text-red-900"></i>
-                <h2 class="text-xl font-serif font-bold tracking-widest uppercase text-amber-600">Unsealing the Vault...</h2>
+                <h2 class="text-xl font-serif font-bold tracking-widest uppercase text-amber-800">Unsealing the Vault...</h2>
             </div>
         </main>
+
+        <!-- 3. FLOATING ACTION DOCK (Replaces standard bottom nav) -->
+        <div id="floating-dock-container" class="fixed left-0 right-0 floating-dock flex justify-center z-40 px-4 pointer-events-none transition-transform duration-300">
+            <!-- The Pill Container -->
+            <nav class="bg-stone-900 thematic-bg border-2 border-stone-700 shadow-[0_15px_30px_rgba(0,0,0,0.6)] rounded-full w-full max-w-md h-16 flex items-center justify-between px-2 pointer-events-auto relative">
+                
+                <!-- Left Tabs -->
+                <button onclick="window.appActions.setView('campaign')" id="dock-tab-campaign" class="dock-tab flex flex-col items-center justify-center w-[20%] text-stone-400 hover:text-amber-300 transition-colors">
+                    <i class="fa-solid fa-map-location-dot text-lg mb-1"></i>
+                    <span class="text-[8px] font-bold uppercase tracking-wider">Arcs</span>
+                </button>
+                <button onclick="window.appActions.setView('calendar')" id="dock-tab-calendar" class="dock-tab flex flex-col items-center justify-center w-[20%] text-stone-400 hover:text-amber-300 transition-colors">
+                    <i class="fa-solid fa-clock-rotate-left text-lg mb-1"></i>
+                    <span class="text-[8px] font-bold uppercase tracking-wider">Time</span>
+                </button>
+
+                <!-- Center Action Button (Breaks out of the pill) -->
+                <div class="w-[20%] flex justify-center">
+                    <button onclick="window.appActions.toggleActionMenu()" id="dock-center-btn" class="center-action-btn w-14 h-14 bg-red-900 border-4 border-[#f4ebd8] rounded-full text-amber-50 flex items-center justify-center shadow-lg relative z-50">
+                        <i class="fa-solid fa-pen-nib text-xl" id="center-action-icon"></i>
+                    </button>
+                </div>
+
+                <!-- Right Tabs -->
+                <button onclick="window.appActions.setView('pc-manager')" id="dock-tab-pc-manager" class="dock-tab flex flex-col items-center justify-center w-[20%] text-stone-400 hover:text-amber-300 transition-colors">
+                    <i class="fa-solid fa-users text-lg mb-1"></i>
+                    <span class="text-[8px] font-bold uppercase tracking-wider">Party</span>
+                </button>
+                <button onclick="window.appActions.setView('codex')" id="dock-tab-codex" class="dock-tab flex flex-col items-center justify-center w-[20%] text-stone-400 hover:text-amber-300 transition-colors relative">
+                    <i class="fa-solid fa-book-journal-whills text-lg mb-1"></i>
+                    <span class="text-[8px] font-bold uppercase tracking-wider">Library</span>
+                    <span id="dock-badge-tasks" class="hidden absolute top-0 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border border-stone-900 animate-pulse"></span>
+                </button>
+                
+            </nav>
+        </div>
+
+        <!-- 4. BOTTOM SHEET (Action Menu) -->
+        <div id="action-overlay" onclick="window.appActions.toggleActionMenu()" class="fixed inset-0 bg-stone-950/70 z-40 hidden opacity-0 transition-opacity duration-300 backdrop-blur-sm"></div>
+        
+        <div id="action-sheet" class="bottom-sheet fixed bottom-0 left-0 right-0 bg-parchment border-t-2 border-[#d4c5a9] rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-50 pt-2 pb-[calc(var(--sab)+3rem)] px-6 max-w-md mx-auto">
+            <!-- Drag Handle Indicator -->
+            <div class="w-12 h-1.5 bg-stone-300 rounded-full mx-auto mb-6 mt-2"></div>
+            
+            <h3 class="text-center font-serif font-bold text-amber-900 text-lg mb-6">Scribe to the Archives</h3>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="window.appActions.toggleActionMenu(); window.appActions.openSessionEdit(null);" class="bg-white p-4 rounded-xl shadow-sm border border-[#d4c5a9] flex flex-col items-center gap-3 active:scale-95 transition-transform">
+                    <div class="w-12 h-12 rounded-full bg-red-100 text-red-800 flex items-center justify-center text-xl"><i class="fa-solid fa-feather-pointed"></i></div>
+                    <span class="text-[11px] font-bold uppercase tracking-widest text-stone-700">New Session</span>
+                </button>
+                <button onclick="window.appActions.toggleActionMenu(); window.appActions._openCodexModal({isNew: true});" class="bg-white p-4 rounded-xl shadow-sm border border-[#d4c5a9] flex flex-col items-center gap-3 active:scale-95 transition-transform">
+                    <div class="w-12 h-12 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center text-xl"><i class="fa-solid fa-book-medical"></i></div>
+                    <span class="text-[11px] font-bold uppercase tracking-widest text-stone-700">New Codex</span>
+                </button>
+                <button onclick="window.appActions.toggleActionMenu(); window.appActions.openChecklistMenu();" class="bg-white p-4 rounded-xl shadow-sm border border-[#d4c5a9] flex flex-col items-center gap-3 active:scale-95 transition-transform relative">
+                    <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center text-xl"><i class="fa-solid fa-list-check"></i></div>
+                    <span class="text-[11px] font-bold uppercase tracking-widest text-stone-700">Tasks</span>
+                    <span id="sheet-badge-tasks" class="hidden absolute top-2 right-4 bg-red-600 text-white text-[9px] px-1.5 py-0.5 rounded-full shadow-md border border-red-800">0</span>
+                </button>
+                <button onclick="window.appActions.toggleActionMenu(); window.appActions.openCalendarDay(window.appData.activeCampaign?.calendar?.currentYear || 1492, window.appData.activeCampaign?.calendar?.currentMonth || 0, window.appData.activeCampaign?.calendar?.currentDay || 1);" class="bg-white p-4 rounded-xl shadow-sm border border-[#d4c5a9] flex flex-col items-center gap-3 active:scale-95 transition-transform">
+                    <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-xl"><i class="fa-regular fa-calendar-plus"></i></div>
+                    <span class="text-[11px] font-bold uppercase tracking-widest text-stone-700">Calendar Note</span>
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- GLOBAL MODALS & OVERLAYS -->
@@ -160,13 +217,15 @@
             <button id="close-settings-btn" class="absolute top-4 right-4 text-stone-400 hover:text-red-900 transition"><i class="fa-solid fa-xmark text-xl"></i></button>
             
             <h2 class="text-2xl font-serif font-bold text-stone-900 mb-6 flex items-center border-b border-[#d4c5a9] pb-2">
-                <i class="fa-solid fa-gear mr-3 text-stone-700"></i> Account Settings
+                <i class="fa-solid fa-gear mr-3 text-stone-700"></i> Settings
             </h2>
             
             <div class="space-y-6">
-                <p class="text-sm text-stone-600 italic">More settings will be scribed here in future updates.</p>
+                <button id="logout-btn" class="w-full py-3 bg-stone-800 text-amber-50 font-bold uppercase tracking-wider text-xs rounded-sm hover:bg-stone-700 transition shadow-md flex justify-center items-center">
+                    <i class="fa-solid fa-door-open mr-2"></i> Log Out
+                </button>
 
-                <div>
+                <div class="pt-6 mt-6 border-t border-[#d4c5a9]">
                     <h3 class="text-[10px] font-bold text-red-900 uppercase tracking-widest mb-2 border-b border-red-900/20 pb-1">Danger Zone</h3>
                     <div class="p-4 bg-red-900/5 border border-red-900/20 rounded-sm">
                         <p class="text-xs text-stone-700 mb-4 leading-relaxed">Permanently delete your account and remove your personal data from the database. <strong>This action cannot be undone.</strong></p>
@@ -181,7 +240,7 @@
 
     <!-- GLOBAL CHECKLIST MODAL -->
     <div id="checklist-modal" class="hidden fixed inset-0 bg-stone-950/90 z-[14000] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-300">
-        <div class="bg-[#f4ebd8] p-6 sm:p-8 rounded-sm border-2 border-amber-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] max-w-2xl w-full relative overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="bg-[#f4ebd8] p-5 sm:p-8 rounded-sm border-2 border-amber-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] max-w-2xl w-full relative overflow-hidden flex flex-col max-h-[90vh]">
             <div class="absolute top-0 left-0 w-full h-2 bg-amber-600"></div>
             <button onclick="window.appActions.closeChecklistMenu()" class="absolute top-4 right-4 text-stone-500 hover:text-red-900 transition text-2xl"><i class="fa-solid fa-xmark"></i></button>
             
@@ -246,12 +305,12 @@
     </div>
 
     <!-- UNIVERSAL ZEN EDITOR -->
-    <div id="universal-editor-modal" class="hidden fixed inset-0 bg-stone-950/95 z-[11000] flex flex-col backdrop-blur-sm transition-opacity duration-300">
+    <div id="universal-editor-modal" class="hidden fixed inset-0 bg-stone-950/95 z-[11000] flex flex-col backdrop-blur-sm transition-opacity duration-300 pt-[max(env(safe-area-inset-top),16px)]">
         <!-- Header -->
-        <div class="bg-stone-900 p-3 sm:p-4 border-b-2 border-red-900 flex justify-between items-center text-amber-500 shadow-md">
+        <div class="bg-stone-900 p-3 sm:p-4 border-b-2 border-red-900 flex justify-between items-center text-amber-500 shadow-md shrink-0">
             <h2 class="text-lg sm:text-xl font-serif font-bold flex items-center">
                 <i class="fa-solid fa-feather mr-2 sm:mr-3 text-red-700"></i> 
-                <span id="ue-title-text">Edit Content</span>
+                <span id="ue-title-text" class="truncate">Edit Content</span>
             </h2>
             <div class="flex gap-2">
                 <button onclick="window.appActions.closeUniversalEditor()" class="px-3 sm:px-4 py-2 text-stone-400 hover:text-white transition font-bold uppercase tracking-wider text-[10px] sm:text-xs">Cancel</button>
@@ -259,7 +318,7 @@
             </div>
         </div>
         <!-- Format Toolbar -->
-        <div class="flex gap-1 sm:gap-2 bg-[#e8dec7] p-2 border-b border-[#d4c5a9] justify-center sm:justify-start overflow-x-auto shadow-sm hide-scrollbar">
+        <div class="flex gap-1 sm:gap-2 bg-[#e8dec7] p-2 border-b border-[#d4c5a9] justify-center sm:justify-start overflow-x-auto shadow-sm hide-scrollbar shrink-0">
             <button type="button" onclick="window.appActions.formatText('ue-textarea', 'bold')" class="w-8 h-8 flex flex-shrink-0 items-center justify-center text-sm text-stone-700 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bold"><i class="fa-solid fa-bold"></i></button>
             <button type="button" onclick="window.appActions.formatText('ue-textarea', 'italic')" class="w-8 h-8 flex flex-shrink-0 items-center justify-center text-sm text-stone-700 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Italic"><i class="fa-solid fa-italic"></i></button>
             <button type="button" onclick="window.appActions.formatText('ue-textarea', 'underline')" class="w-8 h-8 flex flex-shrink-0 items-center justify-center text-sm text-stone-700 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Underline"><i class="fa-solid fa-underline"></i></button>
@@ -273,13 +332,37 @@
             <button type="button" onclick="window.appActions.defineEntryFromSelection('ue-textarea')" class="px-2 h-8 flex flex-shrink-0 items-center justify-center text-[10px] sm:text-xs font-bold text-amber-700 hover:text-amber-900 hover:bg-[#d4c5a9] rounded-sm transition uppercase tracking-wider" title="Define Highlighted Text"><i class="fa-solid fa-book-medical mr-1 sm:mr-2"></i> Define</button>
         </div>
         <!-- Text Area -->
-        <div class="flex-grow p-2 sm:p-4 md:p-8 bg-[#f4ebd8] flex justify-center overflow-hidden">
-            <textarea id="ue-textarea" class="w-full max-w-4xl h-full bg-[#fdfbf7] text-stone-900 p-4 sm:p-6 text-sm sm:text-base resize-none border border-[#d4c5a9] shadow-inner rounded-sm outline-none focus:ring-2 focus:ring-red-900 custom-scrollbar" placeholder="Scribe your notes here... Codex names link automatically." oninput="window.appActions.handleSmartInput(this)" spellcheck="false"></textarea>
+        <div class="flex-grow p-0 sm:p-4 md:p-8 bg-parchment flex justify-center overflow-hidden pb-[env(safe-area-inset-bottom)]">
+            <textarea id="ue-textarea" class="w-full max-w-4xl h-full bg-[#fdfbf7] text-stone-900 p-4 sm:p-6 text-sm sm:text-base resize-none border-x-0 border-y sm:border border-[#d4c5a9] shadow-inner sm:rounded-sm outline-none focus:ring-2 focus:ring-red-900 custom-scrollbar" placeholder="Scribe your notes here... Codex names link automatically." oninput="window.appActions.handleSmartInput(this)" spellcheck="false"></textarea>
         </div>
         <input type="hidden" id="ue-target-id">
     </div>
 
     <!-- Application Entry Point -->
     <script type="module" src="main.js"></script>
+    
+    <!-- Script to toggle the Action Menu globally -->
+    <script>
+        window.appActions = window.appActions || {};
+        window.appActions.toggleActionMenu = function() {
+            const sheet = document.getElementById('action-sheet');
+            const overlay = document.getElementById('action-overlay');
+            const icon = document.getElementById('center-action-icon');
+            
+            if (!sheet || !overlay || !icon) return;
+            
+            if (sheet.classList.contains('open')) {
+                sheet.classList.remove('open');
+                overlay.style.opacity = '0';
+                icon.className = 'fa-solid fa-pen-nib text-xl transition-all duration-300';
+                setTimeout(() => overlay.classList.add('hidden'), 300);
+            } else {
+                sheet.classList.add('open');
+                overlay.classList.remove('hidden');
+                icon.className = 'fa-solid fa-xmark text-xl transition-all duration-300 rotate-90';
+                setTimeout(() => overlay.style.opacity = '1', 10);
+            }
+        };
+    </script>
 </body>
 </html>
