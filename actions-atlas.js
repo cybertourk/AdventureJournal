@@ -1,16 +1,16 @@
-import { generateId, updateDerivedState } from './state.js';
+import { generateId, updateDerivedState, reRender } from './state.js';
 import { saveCampaign, notify } from './firebase-manager.js';
 
 // --- LEAFLET ATLAS STATE ---
 let mapInstance = null;
 let imageOverlay = null;
 let gridOverlayLayer = null;
-let entityLayer = null; // NEW: Dedicated layer group just for Pins and Routes
+let entityLayer = null; 
 let currentMode = 'pan'; 
 let drawingPolyline = null;
 let drawingPoints = [];
 
-// NEW: Memory trackers for preserving your viewport!
+// Memory trackers for preserving your viewport!
 let savedMapCenter = null;
 let savedMapZoom = null;
 
@@ -98,12 +98,13 @@ export const initAtlas = () => {
             }
         } 
         // --- SEAMLESS MEMORY RESTORE ---
-        else if (savedMapCenter !== null && savedMapZoom !== null) {
+        else if (savedMapCenter !== null && savedMapZoom !== null && !window.appData.forceAtlasResize) {
             // Restore the exact spot the user was looking at before the database saved
             mapInstance.setView(savedMapCenter, savedMapZoom, { animate: false });
         } 
-        // --- DEFAULT BEHAVIOR (First Load) ---
+        // --- DEFAULT BEHAVIOR (First Load or Full Screen Toggle) ---
         else {
+            window.appData.forceAtlasResize = false;
             mapInstance.fitBounds(bounds);
         }
     };
@@ -237,7 +238,6 @@ const renderAtlasEntities = (camp) => {
             iconAnchor: [15, 30] 
         });
 
-        // Notice we are adding it to entityLayer instead of mapInstance!
         const marker = L.marker([pin.lat, pin.lng], { icon: customIcon }).addTo(entityLayer);
         
         marker.on('click', () => {
@@ -282,7 +282,6 @@ const renderAtlasEntities = (camp) => {
     const activeRoutes = window.appData.activeAtlasRoutes || [];
     
     (camp.atlasRoutes || []).filter(r => activeRoutes.includes(r.id)).forEach(route => {
-        // Notice we are adding it to entityLayer instead of mapInstance!
         const polyline = L.polyline(route.points, { color: '#ef4444', weight: 4, dashArray: '5, 10' }).addTo(entityLayer);
         
         polyline.on('click', () => {
@@ -556,7 +555,6 @@ export const confirmAtlasPin = async () => {
     window.appActions.setAtlasMode('pan');
     notify("Pin dropped securely on the Atlas.", "success");
     
-    // Instantly refresh the pins without tearing down the map!
     window.appActions.refreshAtlasEntities();
 };
 
@@ -614,7 +612,6 @@ export const confirmAtlasRoute = async () => {
     window.appActions.setAtlasMode('pan');
     notify(`Route inscribed into the Atlas & Codex.`, "success");
     
-    // Instantly refresh the routes without tearing down the map!
     window.appActions.refreshAtlasEntities();
 };
 
@@ -635,7 +632,25 @@ export const viewOnMap = (codexId) => {
     window.appActions.setView('atlas');
 };
 
-// --- MAP LAYERS UI ---
+// --- MAP LAYERS & DISPLAY UI ---
+
+export const toggleAtlasFullScreen = () => {
+    // Flip the state
+    window.appData.isAtlasFullScreen = !window.appData.isAtlasFullScreen;
+    
+    // We force the map to re-evaluate its bounds so it fits properly on the next load
+    window.appData.forceAtlasResize = true; 
+    
+    // Completely tear down and re-render the app wrapper to apply the fixed overlay classes
+    reRender(); 
+    
+    // Re-mount the Leaflet map onto the new full-screen container
+    setTimeout(() => {
+        window.appActions.initAtlas();
+        // Fire a synthetic resize event just in case Leaflet gets stuck parsing the 100dvh size
+        window.dispatchEvent(new Event('resize'));
+    }, 50);
+};
 
 export const toggleAtlasLayers = () => {
     const panel = document.getElementById('atlas-layers-panel');
@@ -652,7 +667,6 @@ export const toggleAtlasRouteVis = (routeId) => {
         window.appData.activeAtlasRoutes.splice(idx, 1);
     }
     
-    // Instead of rebuilding the entire map, we just instantly update the drawing vectors!
     window.appActions.refreshAtlasEntities();
 };
 
@@ -669,8 +683,6 @@ export const deleteAtlasPin = async (id) => {
     };
     await saveCampaign(updatedCamp);
     notify("Pin removed.", "success");
-    
-    // Instantly refresh without tearing down the map
     window.appActions.refreshAtlasEntities();
 };
 
@@ -687,8 +699,6 @@ export const deleteAtlasRoute = async (id) => {
     };
     await saveCampaign(updatedCamp);
     notify("Route removed.", "success");
-    
-    // Instantly refresh without tearing down the map
     window.appActions.refreshAtlasEntities();
 };
 
@@ -717,7 +727,6 @@ export const saveAtlasSettings = async () => {
         }
     };
 
-    // Because this changes the base image and grid math, we DO want to wipe the viewport memory
     savedMapCenter = null;
     savedMapZoom = null;
 
