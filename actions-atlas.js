@@ -161,7 +161,7 @@ const renderAtlasEntities = (camp) => {
                         title = cEntry.name;
                         descHtml = `
                             <span class="text-[9px] uppercase tracking-wider font-bold text-stone-500 bg-stone-200 px-1.5 py-0.5 rounded-sm">${cEntry.type}</span>
-                            <button onclick="document.getElementById('codex-popup').classList.add('hidden'); window.appActions.viewCodex('${cEntry.id}');" class="w-full mt-4 py-2 border border-stone-400 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm bg-[#fdfbf7]">Open Full Codex Entry</button>
+                            <button onclick="document.getElementById('global-popup-container').innerHTML = ''; window.appActions.viewCodex('${cEntry.id}');" class="w-full mt-4 py-2 border border-stone-400 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm bg-[#fdfbf7]">Open Full Codex Entry</button>
                         `;
                     }
                 } else {
@@ -171,18 +171,19 @@ const renderAtlasEntities = (camp) => {
                 // Append DM Delete Permissions
                 const isDM = camp._isDM;
                 const canDelete = isDM || pin.authorId === window.appData.currentUserUid;
-                const deleteBtn = canDelete ? `<button onclick="window.appActions.deleteAtlasPin('${pin.id}'); document.getElementById('codex-popup').classList.add('hidden');" class="absolute top-3.5 right-12 text-stone-400 hover:text-red-700 transition" title="Delete Pin"><i class="fa-solid fa-trash text-lg p-1"></i></button>` : '';
+                const deleteBtn = canDelete ? `<button onclick="window.appActions.deleteAtlasPin('${pin.id}'); document.getElementById('global-popup-container').innerHTML = '';" class="absolute top-3.5 right-12 text-stone-400 hover:text-red-700 transition" title="Delete Pin"><i class="fa-solid fa-trash text-lg p-1"></i></button>` : '';
 
-                const popup = document.getElementById('codex-popup');
+                const popup = document.getElementById('global-popup-container');
                 popup.innerHTML = `
-                    <div class="bg-[#f4ebd8] p-5 rounded-sm w-full max-w-sm border border-[#d4c5a9] shadow-2xl relative animate-in border-t-4 border-t-amber-700">
-                        ${deleteBtn}
-                        <button onclick="document.getElementById('codex-popup').classList.add('hidden')" class="absolute top-3.5 right-3 text-stone-400 hover:text-red-900 transition"><i class="fa-solid fa-xmark text-xl p-1"></i></button>
-                        <h3 class="font-serif font-bold text-lg text-amber-900 mb-1 pr-16">${title}</h3>
-                        ${descHtml}
+                    <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[17000] backdrop-blur-sm animate-in">
+                        <div class="bg-[#f4ebd8] p-5 rounded-sm w-full max-w-sm border border-[#d4c5a9] shadow-2xl relative animate-in border-t-4 border-t-amber-700">
+                            ${deleteBtn}
+                            <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="absolute top-3.5 right-3 text-stone-400 hover:text-red-900 transition"><i class="fa-solid fa-xmark text-xl p-1"></i></button>
+                            <h3 class="font-serif font-bold text-lg text-amber-900 mb-1 pr-16">${title}</h3>
+                            ${descHtml}
+                        </div>
                     </div>
                 `;
-                popup.classList.remove('hidden');
             }
         });
     });
@@ -195,21 +196,22 @@ const renderAtlasEntities = (camp) => {
             if (currentMode === 'pan') {
                 const isDM = camp._isDM;
                 const canDelete = isDM || route.authorId === window.appData.currentUserUid;
-                const deleteBtn = canDelete ? `<button onclick="window.appActions.deleteAtlasRoute('${route.id}'); document.getElementById('codex-popup').classList.add('hidden');" class="w-full mt-4 py-2 bg-red-900/10 text-red-800 border border-red-900/30 hover:bg-red-900 hover:text-white rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm"><i class="fa-solid fa-trash mr-1"></i> Delete Route</button>` : '';
+                const deleteBtn = canDelete ? `<button onclick="window.appActions.deleteAtlasRoute('${route.id}'); document.getElementById('global-popup-container').innerHTML = '';" class="w-full mt-4 py-2 bg-red-900/10 text-red-800 border border-red-900/30 hover:bg-red-900 hover:text-white rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm"><i class="fa-solid fa-trash mr-1"></i> Delete Route</button>` : '';
 
-                const popup = document.getElementById('codex-popup');
+                const popup = document.getElementById('global-popup-container');
                 popup.innerHTML = `
-                    <div class="bg-[#f4ebd8] p-5 rounded-sm w-full max-w-sm border border-[#d4c5a9] shadow-2xl relative animate-in border-t-4 border-t-amber-700">
-                        <button onclick="document.getElementById('codex-popup').classList.add('hidden')" class="absolute top-3.5 right-3 text-stone-400 hover:text-red-900 transition"><i class="fa-solid fa-xmark text-xl p-1"></i></button>
-                        <h3 class="font-serif font-bold text-lg text-amber-900 mb-1 pr-8"><i class="fa-solid fa-route text-amber-600 mr-1.5"></i> ${route.name}</h3>
-                        <div class="bg-[#fdfbf7] p-3 rounded-sm border border-[#d4c5a9] mt-3 shadow-inner">
-                            <p class="text-[10px] uppercase font-bold text-stone-500 tracking-widest mb-0.5">Calculated Distance</p>
-                            <p class="text-base font-bold text-emerald-600">${route.distanceMiles} Miles</p>
+                    <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[17000] backdrop-blur-sm animate-in">
+                        <div class="bg-[#f4ebd8] p-5 rounded-sm w-full max-w-sm border border-[#d4c5a9] shadow-2xl relative animate-in border-t-4 border-t-amber-700">
+                            <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="absolute top-3.5 right-3 text-stone-400 hover:text-red-900 transition"><i class="fa-solid fa-xmark text-xl p-1"></i></button>
+                            <h3 class="font-serif font-bold text-lg text-amber-900 mb-1 pr-8"><i class="fa-solid fa-route text-amber-600 mr-1.5"></i> ${route.name}</h3>
+                            <div class="bg-[#fdfbf7] p-3 rounded-sm border border-[#d4c5a9] mt-3 shadow-inner">
+                                <p class="text-[10px] uppercase font-bold text-stone-500 tracking-widest mb-0.5">Calculated Distance</p>
+                                <p class="text-base font-bold text-emerald-600">${route.distanceMiles} Miles</p>
+                            </div>
+                            ${deleteBtn}
                         </div>
-                        ${deleteBtn}
                     </div>
                 `;
-                popup.classList.remove('hidden');
             }
         });
     });
