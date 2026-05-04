@@ -146,6 +146,9 @@ export function getCampaignHTML(state) {
                 <button onclick="window.appActions.openJournal('campaign')" class="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-stone-800 text-amber-50 border border-stone-900 rounded-sm hover:bg-stone-700 transition font-bold uppercase tracking-wider text-[10px] shadow-sm active:scale-95" title="Read full campaign tome">
                     <i class="fa-solid fa-book mr-1.5"></i> Grand Tome
                 </button>
+                <button onclick="window.appActions.setView('atlas')" class="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-stone-800 text-amber-50 border border-stone-900 rounded-sm hover:bg-stone-700 transition font-bold uppercase tracking-wider text-[10px] shadow-sm active:scale-95" title="Explore the Atlas">
+                    <i class="fa-solid fa-map mr-1.5"></i> Atlas
+                </button>
                 ${isDM ? `
                 <button onclick="window.appActions.openActivityLog()" class="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-white text-stone-700 border border-[#d4c5a9] rounded-sm hover:bg-stone-100 transition font-bold uppercase tracking-wider text-[10px] shadow-sm active:scale-95" title="View Player Activity Log">
                     <i class="fa-solid fa-clock-rotate-left mr-1.5"></i> Activity
