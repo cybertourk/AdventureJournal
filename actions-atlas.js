@@ -477,10 +477,17 @@ export const confirmAtlasRoute = async () => {
         return;
     }
 
+    // FIX: Convert Leaflet's custom LatLng class objects into plain JavaScript objects 
+    // so Firestore can save them without throwing an "Unsupported field value" error.
+    const plainPoints = drawingPoints.map(p => ({
+        lat: p.lat,
+        lng: p.lng
+    }));
+
     const newRoute = {
         id: generateId(),
         name,
-        points: drawingPoints,
+        points: plainPoints,
         distanceMiles: parseFloat(distStr) || 0,
         authorId: window.appData.currentUserUid
     };
