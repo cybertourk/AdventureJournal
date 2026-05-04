@@ -185,13 +185,27 @@ const renderAtlasLayerCheckboxes = (camp) => {
     if (!container) return;
     
     const activeRoutes = window.appData.activeAtlasRoutes || [];
-    
-    if ((camp.atlasRoutes || []).length === 0) {
+    const cal = camp.calendar;
+
+    const getSortVal = (dateObj) => {
+        if (!dateObj) return 0;
+        const monthIndex = cal?.months?.findIndex(m => m.id === dateObj.month) || 0;
+        return (parseInt(dateObj.year) * 10000) + (monthIndex * 100) + parseInt(dateObj.day);
+    };
+
+    const sortedRoutes = [...(camp.atlasRoutes || [])].sort((a, b) => {
+        const aVal = getSortVal(a.startDate);
+        const bVal = getSortVal(b.startDate);
+        if (aVal !== bVal) return aVal - bVal; 
+        return (a.name || "").localeCompare(b.name || ""); 
+    });
+
+    if (sortedRoutes.length === 0) {
         container.innerHTML = '<p class="p-3 text-[10px] italic text-stone-400">No routes inscribed yet.</p>';
         return;
     }
 
-    container.innerHTML = (camp.atlasRoutes || []).map(r => {
+    container.innerHTML = sortedRoutes.map(r => {
         let routeName = r.name; 
         if (r.codexId) {
             const cEntry = (camp.codex || []).find(c => c.id === r.codexId);
@@ -200,29 +214,38 @@ const renderAtlasLayerCheckboxes = (camp) => {
         if (!routeName) routeName = "Unknown Route";
         const safeName = routeName.replace(/"/g, '&quot;');
         
+        let dateStr = "";
+        if (r.startDate) {
+            const rMonth = cal?.months?.find(m => m.id === r.startDate.month);
+            if (rMonth) {
+                dateStr = `<div class="text-[9px] text-stone-400 font-sans italic mt-0.5"><i class="fa-solid fa-calendar-days mr-1 text-stone-300"></i>${rMonth.name} ${r.startDate.day}, ${r.startDate.year} • ${r.durationDays || 0} Days</div>`;
+            }
+        }
+
         return `
         <div class="flex items-center justify-between p-2 border-b border-[#d4c5a9] last:border-b-0 hover:bg-stone-50 transition">
-            <label class="flex items-center gap-2 cursor-pointer w-full text-[10px] font-bold uppercase tracking-widest text-stone-700 hover:text-amber-700 transition">
-                <input type="checkbox" ${activeRoutes.includes(r.id) ? 'checked' : ''} onchange="window.appActions.toggleAtlasRouteVis('${r.id}')" class="w-4 h-4 text-amber-600 rounded-sm shadow-sm border-[#d4c5a9] focus:ring-amber-500 cursor-pointer shrink-0">
-                <span class="truncate" title="${safeName}">${safeName}</span>
+            <label class="flex items-start gap-2 cursor-pointer w-full text-[10px] font-bold uppercase tracking-widest text-stone-700 hover:text-amber-700 transition">
+                <input type="checkbox" ${activeRoutes.includes(r.id) ? 'checked' : ''} onchange="window.appActions.toggleAtlasRouteVis('${r.id}')" class="w-4 h-4 mt-0.5 text-amber-600 rounded-sm shadow-sm border-[#d4c5a9] focus:ring-amber-500 cursor-pointer shrink-0">
+                <div class="flex flex-col min-w-0">
+                    <span class="truncate" title="${safeName}">${safeName}</span>
+                    ${dateStr}
+                </div>
             </label>
         </div>
         `;
     }).join('');
 };
 
-// NEW FAST-REFRESH FUNCTION: Clears only the pins/routes and redraws them instantly!
 export const refreshAtlasEntities = () => {
     if (!mapInstance || !entityLayer) return;
     
-    // Instantly wipe the old pins without touching the image or the camera view
     entityLayer.clearLayers();
     
     updateDerivedState();
     const camp = window.appData.activeCampaign;
     if (camp) {
         renderAtlasEntities(camp);
-        renderAtlasLayerCheckboxes(camp); // Re-sync the Layers panel!
+        renderAtlasLayerCheckboxes(camp); 
     }
 };
 
@@ -278,7 +301,7 @@ const renderAtlasEntities = (camp) => {
         });
     });
 
-    // Render Database Routes (ONLY those toggled ON in the layers panel)
+    // Render Database Routes 
     const activeRoutes = window.appData.activeAtlasRoutes || [];
     
     (camp.atlasRoutes || []).filter(r => activeRoutes.includes(r.id)).forEach(route => {
@@ -558,6 +581,8 @@ export const confirmAtlasPin = async () => {
     window.appActions.refreshAtlasEntities();
 };
 
+
+// --- TRAVEL MATH INTEGRATION ---
 export const confirmAtlasRoute = async () => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
@@ -566,35 +591,82 @@ export const confirmAtlasRoute = async () => {
     const distStr = document.getElementById('dist-val').innerText;
     let codexId = document.getElementById('atlas-route-codex-id').value;
     const searchInput = document.getElementById('atlas-route-search').value.trim();
+    
+    // Extract math data
+    const distanceMiles = parseFloat(distStr) || 0;
+    const mode = document.getElementById('atlas-route-mode').value;
+    const pace = document.getElementById('atlas-route-pace').value;
 
     if (!codexId && !searchInput) {
         notify("You must select or type a name for the route.", "error");
         return;
     }
 
+    // CALCULATE DURATION
+    // 1. Establish base miles per day depending on mode
+    let milesPerDay = 24; // Default foot travel
+    let modeText = "On Foot";
+    if (mode === 'horse') { milesPerDay = 30; modeText = "Horse / Mount"; }
+    else if (mode === 'cart') { milesPerDay = 18; modeText = "Cart / Wagon"; }
+    else if (mode === 'boat') { milesPerDay = 24; modeText = "Rowboat"; }
+    else if (mode === 'ship') { milesPerDay = 48; modeText = "Sailing Ship"; }
+
+    // 2. Adjust for Pace
+    let paceMultiplier = 1.0;
+    let paceText = "Normal";
+    if (pace === 'fast') { paceMultiplier = 1.33; paceText = "Fast (x1.33)"; }
+    else if (pace === 'slow') { paceMultiplier = 0.66; paceText = "Slow (x0.66)"; }
+
+    let calculatedMilesPerDay = milesPerDay * paceMultiplier;
+    
+    // Sailing ships operate 24 hours a day, so pace doesn't heavily affect them in core rules
+    if (mode === 'ship' && pace === 'normal') calculatedMilesPerDay = 48;
+
+    let daysToTravel = Math.ceil(distanceMiles / calculatedMilesPerDay);
+    if (daysToTravel < 1) daysToTravel = 1;
+
     let updatedCodex = camp.codex || [];
     
+    let descriptionText = `A journey logged on the Atlas.\n\n**Total Distance:** ${distanceMiles.toFixed(1)} Miles\n**Travel Mode:** ${modeText}\n**Travel Pace:** ${paceText}\n**Calculated Travel Time:** ${daysToTravel} Day(s)`;
+
     if (!codexId && searchInput) {
         codexId = generateId();
         const newEntry = {
             id: codexId,
             name: searchInput,
             type: 'Route',
-            tags: ['Travel Path'],
-            desc: `A travel route recorded on the Atlas.\n\n**Total Distance:** ${distStr}`,
+            tags: ['Travel Log'],
+            desc: descriptionText,
             authorId: window.appData.currentUserUid,
             visibility: { mode: 'public' }
         };
         updatedCodex = [...updatedCodex, newEntry];
+    } else {
+        // If an entry already exists, append the math to the bottom!
+        const existingEntryIndex = updatedCodex.findIndex(c => c.id === codexId);
+        if (existingEntryIndex > -1) {
+            updatedCodex[existingEntryIndex] = {
+                ...updatedCodex[existingEntryIndex],
+                desc: updatedCodex[existingEntryIndex].desc + `\n\n---\n\n` + descriptionText
+            };
+        }
     }
 
     const plainPoints = drawingPoints.map(p => ({ lat: p.lat, lng: p.lng }));
+
+    // Capture the current Calendar Date (if the feature is being used)
+    let departureDate = null;
+    if (camp.calendar && camp.calendar.currentDate) {
+        departureDate = { ...camp.calendar.currentDate };
+    }
 
     const newRoute = {
         id: generateId(),
         codexId: codexId, 
         points: plainPoints,
-        distanceMiles: parseFloat(distStr) || 0,
+        distanceMiles: distanceMiles,
+        durationDays: daysToTravel,
+        startDate: departureDate,
         authorId: window.appData.currentUserUid
     };
 
@@ -635,16 +707,13 @@ export const viewOnMap = (codexId) => {
 // --- MAP LAYERS & DISPLAY UI ---
 
 export const toggleAtlasFullScreen = () => {
-    // Flip the state
     window.appData.isAtlasFullScreen = !window.appData.isAtlasFullScreen;
     const isFull = window.appData.isAtlasFullScreen;
 
-    // Grab Global UI Elements
     const mainHeader = document.getElementById('main-header');
     const dock = document.getElementById('floating-dock-container');
     const resourceBar = document.getElementById('player-resource-bar');
     
-    // Grab Atlas specific UI elements
     const atlasWrapper = document.getElementById('atlas-wrapper');
     if (!atlasWrapper) return;
     
@@ -652,23 +721,18 @@ export const toggleAtlasFullScreen = () => {
     const atlasHeader = atlasWrapper.previousElementSibling;
     const scaleInd = document.getElementById('scale-indicator');
     
-    // Safely find the map tools dock (the floating pill at the top/bottom)
     const mapToolsBtn = document.getElementById('mode-pan');
     const mapTools = mapToolsBtn ? mapToolsBtn.closest('.z-40.absolute') : null;
     
-    // Find the toggle button we just clicked so we can change its icon
     const fullscreenBtn = document.querySelector('button[onclick="window.appActions.toggleAtlasFullScreen()"]');
 
     if (isFull) {
-        // Hide global app UI
         if (mainHeader) mainHeader.style.display = 'none';
         if (dock) dock.style.display = 'none';
         if (resourceBar) resourceBar.style.display = 'none';
         
-        // Hide the inner "Atlas of..." title bar
         if (atlasHeader) atlasHeader.style.display = 'none';
         
-        // Expand the container to take up exactly 100% of the phone screen's dynamic height
         if (atlasContainer) {
             atlasContainer.className = "fixed inset-0 z-[60] w-full h-[100dvh] bg-[#1c1917] flex flex-col";
         }
@@ -676,7 +740,6 @@ export const toggleAtlasFullScreen = () => {
             atlasWrapper.className = "flex-grow relative bg-[#1c1917] overflow-hidden";
         }
         
-        // Move floating UI elements to adjust for full screen
         if (scaleInd) {
             scaleInd.classList.remove('bottom-32', 'sm:bottom-28');
             scaleInd.classList.add('bottom-24', 'sm:bottom-20');
@@ -690,15 +753,12 @@ export const toggleAtlasFullScreen = () => {
             fullscreenBtn.title = "Exit Full Screen";
         }
     } else {
-        // Restore global app UI
         if (mainHeader) mainHeader.style.display = '';
         if (dock) dock.style.display = '';
         if (resourceBar) resourceBar.style.display = '';
         
-        // Restore the inner "Atlas of..." title bar
         if (atlasHeader) atlasHeader.style.display = '';
         
-        // Return container to its normal boxed layout
         if (atlasContainer) {
             atlasContainer.className = "animate-in fade-in duration-300 w-full max-w-6xl mx-auto flex flex-col h-[calc(100vh-120px)] sm:h-[calc(100vh-140px)] relative";
         }
@@ -706,7 +766,6 @@ export const toggleAtlasFullScreen = () => {
             atlasWrapper.className = "flex-grow relative bg-[#1c1917] overflow-hidden rounded-b-sm border-x-2 border-b-2 border-stone-800 shadow-[0_15px_40px_rgba(0,0,0,0.7)]";
         }
         
-        // Restore floating UI positions
         if (scaleInd) {
             scaleInd.classList.remove('bottom-24', 'sm:bottom-20');
             scaleInd.classList.add('bottom-32', 'sm:bottom-28');
@@ -721,7 +780,6 @@ export const toggleAtlasFullScreen = () => {
         }
     }
 
-    // Force Leaflet to recognize its container has radically changed sizes so it fills the void
     setTimeout(() => {
         if (mapInstance) {
             mapInstance.invalidateSize();
