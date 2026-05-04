@@ -120,7 +120,7 @@ export function getAtlasHTML(state) {
                     
                     <div class="relative mb-5">
                         <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Location Name</label>
-                        <input type="text" id="atlas-pin-search" oninput="window.appActions.searchAtlasCodex(this.value)" placeholder="Search codex or type name..." class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white" autocomplete="off">
+                        <input type="text" id="atlas-pin-search" oninput="window.appActions.searchAtlasCodex(this.value, 'Location')" placeholder="Search codex or type name..." class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white" autocomplete="off">
                         <input type="hidden" id="atlas-pin-codex-id">
                         
                         <div id="atlas-pin-search-results" class="absolute z-10 w-full bg-white border border-[#d4c5a9] rounded-b-sm shadow-xl max-h-48 overflow-y-auto hidden top-[58px] custom-scrollbar"></div>
@@ -139,13 +139,16 @@ export function getAtlasHTML(state) {
             
             <!-- Route Save Modal (Used by DM when saving a drawn path) -->
             <div id="atlas-route-modal" class="hidden absolute inset-0 bg-stone-900/80 z-[18000] flex items-center justify-center p-4 backdrop-blur-sm animate-in">
-                <div class="bg-[#f4ebd8] p-5 rounded-sm w-full max-w-sm border border-[#d4c5a9] shadow-2xl relative">
+                <div class="bg-[#f4ebd8] p-5 rounded-sm w-full max-w-sm border border-[#d4c5a9] shadow-2xl relative overflow-visible">
                     <h3 class="font-serif font-bold text-lg text-amber-900 mb-3 border-b border-[#d4c5a9] pb-2"><i class="fa-solid fa-route text-amber-600 mr-2"></i> Save Travel Route</h3>
-                    <p class="text-xs text-stone-600 mb-4 font-sans">Name this route to save it to the Atlas history. Total Distance: <span id="atlas-route-dist" class="font-bold text-amber-700 border-b border-amber-300"></span></p>
+                    <p class="text-[10px] text-stone-600 mb-4 font-sans italic leading-snug">Link this route to the Codex to add lore and details to the journey. Total Distance: <span id="atlas-route-dist" class="font-bold text-amber-700 border-b border-amber-300"></span></p>
                     
-                    <div class="mb-5">
+                    <div class="relative mb-5">
                         <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Route Name</label>
-                        <input type="text" id="atlas-route-name" placeholder="e.g. Journey to Phandalin" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white">
+                        <input type="text" id="atlas-route-search" oninput="window.appActions.searchAtlasCodex(this.value, 'Route')" placeholder="Search codex or type name..." class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white" autocomplete="off">
+                        <input type="hidden" id="atlas-route-codex-id">
+                        
+                        <div id="atlas-route-search-results" class="absolute z-10 w-full bg-white border border-[#d4c5a9] rounded-b-sm shadow-xl max-h-48 overflow-y-auto hidden top-[58px] custom-scrollbar"></div>
                     </div>
 
                     <div class="flex justify-end gap-2 pt-2 border-t border-[#d4c5a9]">
