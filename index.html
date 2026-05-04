@@ -38,6 +38,10 @@
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
+    <!-- LEAFLET JS (For Interactive Maps) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
     <!-- Custom Styles -->
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -54,7 +58,7 @@
             <div class="text-center mb-8 mt-2">
                 <i class="fa-solid fa-scroll text-4xl text-red-900 mb-3 drop-shadow-md transform -rotate-3"></i>
                 <h1 class="text-3xl font-serif font-black text-stone-900 tracking-tight">Adventure Journal</h1>
-                <p class="text-stone-500 text-xs font-bold uppercase tracking-widest mt-2">Identify Yourself</p>
+                <p class="text-stone-500 text-xs font-bold uppercase tracking-widest mt-2" id="auth-status-text">Identify Yourself</p>
             </div>
 
             <!-- Login Form -->
