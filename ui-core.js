@@ -4,6 +4,7 @@ import { getSessionEditHTML } from './ui-session.js';
 import { getCodexHTML, getJournalHTML } from './ui-codex.js';
 import { getCalendarHTML } from './ui-calendar.js';
 import { getRulesHTML } from './ui-rules.js';
+import { getAtlasHTML } from './ui-atlas.js'; // NEW: Import Atlas UI
 
 // --- CONSTANTS & HELPERS ---
 export const BUDGET_BY_LEVEL = { 
@@ -79,7 +80,6 @@ export function getLibraryTabsHTML(activeTab) {
     `;
 }
 
-
 // --- GLOBAL HEADER & NAVIGATION VISIBILITY ---
 export function updateHeaderUI(state) {
     const titleEl = document.getElementById('header-title');
@@ -120,6 +120,7 @@ export function updateHeaderUI(state) {
         case 'pc-edit': breadcrumbText = state.activePcId ? 'Edit Hero' : 'New Hero'; showBack = true; break;
         case 'codex': breadcrumbText = 'Library • Codex'; showBack = true; break;
         case 'rules': breadcrumbText = 'Library • Rules'; showBack = true; break;
+        case 'atlas': breadcrumbText = 'Library • Atlas'; showBack = true; break; // NEW
         case 'calendar': breadcrumbText = 'Chronicle Timeline'; showBack = true; break;
         case 'journal': 
             breadcrumbText = state.activeSessionId ? 'Session Scroll' : (state.activeAdventureId ? 'Arc Scroll' : 'Library • Tome'); 
@@ -155,7 +156,7 @@ export function updateDockUI(state) {
     let activeTab = 'campaign';
     if (['calendar'].includes(state.currentView)) activeTab = 'calendar';
     if (['pc-manager', 'pc-edit'].includes(state.currentView)) activeTab = 'pc-manager';
-    if (['codex', 'rules'].includes(state.currentView)) activeTab = 'codex';
+    if (['codex', 'rules', 'atlas'].includes(state.currentView)) activeTab = 'codex'; // Atlas falls under the Library/Codex dock highlight
     
     // The Grand Tome is now officially part of the Library Hub, so keep the Library dock icon highlighted
     if (state.currentView === 'journal' && !state.activeAdventureId && !state.activeSessionId) {
@@ -182,6 +183,7 @@ export const navigateBack = () => {
         case 'calendar':
             window.appActions.setView('home'); 
             break;
+        case 'atlas': window.appActions.setView('campaign'); break; // Back from Atlas goes to Campaign
         case 'adventure': window.appActions.setView('campaign'); break;
         case 'adv-roster': window.appActions.setView('adventure'); break;
         case 'session-edit': window.appActions.setView('adventure'); break;
@@ -422,8 +424,11 @@ export function renderApp(state) {
     const container = document.getElementById('app-container');
     if (!container) return;
 
-    // Reset scroll position gracefully
-    container.scrollTo({ top: 0, behavior: 'instant' });
+    // Only reset scroll position if we are NOT on the Atlas view 
+    // (Leaflet needs to retain its drag position when the DOM re-renders)
+    if (state.currentView !== 'atlas') {
+        container.scrollTo({ top: 0, behavior: 'instant' });
+    }
 
     let html = '';
     switch (state.currentView) {
@@ -438,6 +443,7 @@ export function renderApp(state) {
         case 'codex': html = getCodexHTML(state); break;
         case 'calendar': html = getCalendarHTML(state); break;
         case 'rules': html = getRulesHTML(state); break;
+        case 'atlas': html = getAtlasHTML(state); break; // NEW: Call the Atlas renderer
         case 'activity-log': html = getActivityLogHTML(state); break;
         default: html = `<div class="text-center text-red-500">Unknown View: ${state.currentView}</div>`;
     }
