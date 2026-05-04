@@ -5,9 +5,14 @@ import { saveCampaign, notify } from './firebase-manager.js';
 let mapInstance = null;
 let imageOverlay = null;
 let gridOverlayLayer = null;
-let currentMode = 'pan'; // 'pan', 'pin', or 'draw'
+let entityLayer = null; // NEW: Dedicated layer group just for Pins and Routes
+let currentMode = 'pan'; 
 let drawingPolyline = null;
 let drawingPoints = [];
+
+// NEW: Memory trackers for preserving your viewport!
+let savedMapCenter = null;
+let savedMapZoom = null;
 
 export const initAtlas = () => {
     const container = document.getElementById('map-container');
@@ -17,12 +22,17 @@ export const initAtlas = () => {
     const camp = window.appData.activeCampaign;
     if (!camp) return;
 
-    // Purge the old Leaflet instance to prevent initialization conflicts when switching views or toggling layers
+    // Purge the old Leaflet instance to prevent initialization conflicts
     if (mapInstance) {
+        // Backup the view state before destroying the instance (safety catch)
+        savedMapCenter = mapInstance.getCenter();
+        savedMapZoom = mapInstance.getZoom();
+        
         mapInstance.remove();
         mapInstance = null;
         imageOverlay = null;
         gridOverlayLayer = null;
+        entityLayer = null;
         drawingPolyline = null;
         drawingPoints = [];
     }
@@ -49,6 +59,12 @@ export const initAtlas = () => {
     // Top Right Zoom Controls to avoid overlapping our Safe Areas / Docks
     L.control.zoom({ position: 'topright' }).addTo(mapInstance);
 
+    // Track every movement the user makes so we never lose their spot
+    mapInstance.on('moveend', () => {
+        savedMapCenter = mapInstance.getCenter();
+        savedMapZoom = mapInstance.getZoom();
+    });
+
     // 2. Load the source image to extract natural pixel boundaries
     const img = new Image();
     img.onload = function() {
@@ -58,32 +74,36 @@ export const initAtlas = () => {
         const bounds = [[0, 0], [h, w]];
         imageOverlay = L.imageOverlay(config.url, bounds).addTo(mapInstance);
         
-        // Render the Grid, Scale Bar, Pins, and Routes
+        // Render the Grid and initialize the Entity Layer Group
         window.appActions.updateAtlasGridAndScale(w, h);
+        entityLayer = L.layerGroup().addTo(mapInstance);
         renderAtlasEntities(camp);
 
-        // --- NEW: DYNAMIC JUMP-TO-TARGET FOCUS LOGIC ---
-        // If the user clicked "View on Map" from the Codex, we intercept the load and pan to it!
+        // --- DYNAMIC JUMP-TO-TARGET FOCUS LOGIC ---
         if (window.appData.pendingAtlasFocus) {
             const focusId = window.appData.pendingAtlasFocus;
-            window.appData.pendingAtlasFocus = null; // Clear the pending action
+            window.appData.pendingAtlasFocus = null; 
 
             const focusPin = (camp.atlasPins || []).find(p => p.codexId === focusId);
             if (focusPin) {
-                // Zoom closely onto the specific map pin
                 mapInstance.setView([focusPin.lat, focusPin.lng], 1); 
             } else {
                 const focusRoute = (camp.atlasRoutes || []).find(r => r.codexId === focusId);
                 if (focusRoute && focusRoute.points && focusRoute.points.length > 0) {
-                    // Extract bounds of the route and fit the camera beautifully over the whole path
                     const polyline = L.polyline(focusRoute.points);
                     mapInstance.fitBounds(polyline.getBounds(), { padding: [50, 50] });
                 } else {
-                    mapInstance.fitBounds(bounds); // Fallback to full map
+                    mapInstance.fitBounds(bounds); 
                 }
             }
-        } else {
-            // Default view: fit the whole image on the screen
+        } 
+        // --- SEAMLESS MEMORY RESTORE ---
+        else if (savedMapCenter !== null && savedMapZoom !== null) {
+            // Restore the exact spot the user was looking at before the database saved
+            mapInstance.setView(savedMapCenter, savedMapZoom, { animate: false });
+        } 
+        // --- DEFAULT BEHAVIOR (First Load) ---
+        else {
             mapInstance.fitBounds(bounds);
         }
     };
@@ -122,20 +142,18 @@ export const initAtlas = () => {
         }
     });
 
-    // --- 4. ACTION LEFT-CLICKS (Logic controlled by the Tool Dock) ---
+    // --- 4. ACTION LEFT-CLICKS ---
     mapInstance.on('click', function(e) {
         if (e.originalEvent.button === 0 || e.originalEvent.type === 'touchend') {
             if (currentMode === 'pin') {
                 document.getElementById('atlas-pin-lat').value = e.latlng.lat;
                 document.getElementById('atlas-pin-lng').value = e.latlng.lng;
                 
-                // Reset inputs and open modal
                 document.getElementById('atlas-pin-codex-id').value = "";
                 document.getElementById('atlas-pin-search').value = "";
                 document.getElementById('atlas-pin-search-results').classList.add('hidden');
                 document.getElementById('atlas-pin-modal').classList.remove('hidden');
                 
-                // Auto-focus the search bar
                 setTimeout(() => document.getElementById('atlas-pin-search').focus(), 100);
             } 
             else if (currentMode === 'draw') {
@@ -150,52 +168,61 @@ export const initAtlas = () => {
         }
     });
 
-    // Sync the dynamic scale bar and SVG grid when zooming
     mapInstance.on('zoomend', () => {
         if(imageOverlay) {
             const bounds = imageOverlay.getBounds();
-            // Pass the extracted width/height bounds into the math generator
             window.appActions.updateAtlasGridAndScale(bounds.getEast(), bounds.getNorth());
         }
     });
 
-    // Set default mode
     window.appActions.setAtlasMode('pan');
 };
 
+// NEW FAST-REFRESH FUNCTION: Clears only the pins/routes and redraws them instantly!
+export const refreshAtlasEntities = () => {
+    if (!mapInstance || !entityLayer) return;
+    
+    // Instantly wipe the old pins without touching the image or the camera view
+    entityLayer.clearLayers();
+    
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    if (camp) renderAtlasEntities(camp);
+};
+
 const renderAtlasEntities = (camp) => {
+    if (!entityLayer) return;
+
     // Render Database Pins
     (camp.atlasPins || []).forEach(pin => {
         const customIcon = L.divIcon({
             className: 'custom-map-pin',
             html: '<i class="fa-solid fa-star"></i>',
             iconSize: [30, 30],
-            iconAnchor: [15, 30] // Centers the sharp tip exactly on the coordinate!
+            iconAnchor: [15, 30] 
         });
 
-        const marker = L.marker([pin.lat, pin.lng], { icon: customIcon }).addTo(mapInstance);
+        // Notice we are adding it to entityLayer instead of mapInstance!
+        const marker = L.marker([pin.lat, pin.lng], { icon: customIcon }).addTo(entityLayer);
         
         marker.on('click', () => {
             const isDM = camp._isDM;
             const canDelete = isDM || pin.authorId === window.appData.currentUserUid;
 
-            // If in Pin mode, clicking an existing pin acts as an eraser!
             if (currentMode === 'pin' && canDelete) {
                 window.appActions.deleteAtlasPin(pin.id);
                 return;
             }
 
             if (currentMode === 'pan') {
-                // Instantly open the Codex Entry if it's linked!
                 if (pin.codexId) {
                     const cEntry = camp.codex?.find(c => c.id === pin.codexId);
                     if (cEntry) {
                         window.appActions.viewCodex(cEntry.id);
-                        return; // Bypass the mini-popup entirely
+                        return; 
                     }
                 }
 
-                // Fallback: If it's just a Custom Map Pin (no codex link), show the mini-label
                 let title = pin.customLabel || 'Unknown Location';
                 let descHtml = `<span class="text-[9px] uppercase tracking-wider font-bold text-stone-500 bg-stone-200 px-1.5 py-0.5 rounded-sm">Custom Map Pin</span>`;
 
@@ -220,23 +247,22 @@ const renderAtlasEntities = (camp) => {
     const activeRoutes = window.appData.activeAtlasRoutes || [];
     
     (camp.atlasRoutes || []).filter(r => activeRoutes.includes(r.id)).forEach(route => {
-        const polyline = L.polyline(route.points, { color: '#ef4444', weight: 4, dashArray: '5, 10' }).addTo(mapInstance);
+        // Notice we are adding it to entityLayer instead of mapInstance!
+        const polyline = L.polyline(route.points, { color: '#ef4444', weight: 4, dashArray: '5, 10' }).addTo(entityLayer);
         
         polyline.on('click', () => {
             if (currentMode === 'pan') {
                 const isDM = camp._isDM;
                 const canDelete = isDM || route.authorId === window.appData.currentUserUid;
 
-                // Instantly open the Codex Entry if the Route is linked!
                 if (route.codexId) {
                     const cEntry = camp.codex?.find(c => c.id === route.codexId);
                     if (cEntry) {
                         window.appActions.viewCodex(cEntry.id);
-                        return; // Bypass the mini-popup entirely
+                        return; 
                     }
                 }
 
-                // Fallback for older legacy routes that don't have a Codex Link
                 let title = route.name || 'Unknown Route';
                 const deleteBtn = canDelete ? `<button onclick="window.appActions.deleteAtlasRoute('${route.id}'); document.getElementById('global-popup-container').innerHTML = '';" class="w-full mt-4 py-2 bg-red-900/10 text-red-800 border border-red-900/30 hover:bg-red-900 hover:text-white rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm"><i class="fa-solid fa-trash mr-1"></i> Delete Route</button>` : '';
 
@@ -263,7 +289,6 @@ export const setAtlasMode = (mode) => {
     currentMode = mode;
     
     document.querySelectorAll('.tool-btn').forEach(btn => {
-        // Reset styles and check if it's the 2-button layout (Player) or 3-button (DM)
         const baseClasses = "tool-btn flex items-center justify-center text-stone-400 transition-colors h-full rounded-full";
         const widthClass = document.querySelectorAll('.tool-btn').length === 2 && btn.id === 'mode-draw' ? 'w-1/2' : 'w-1/3';
         btn.className = `${baseClasses} ${widthClass}`;
@@ -279,7 +304,6 @@ export const setAtlasMode = (mode) => {
     } else if (mode === 'draw') {
         if (activeBtn) activeBtn.classList.add('text-blue-500', 'bg-blue-900/20');
         
-        // Initialize the drawing stat UI
         const stats = document.getElementById('drawing-stats');
         if (stats) stats.classList.remove('hidden');
         
@@ -300,7 +324,6 @@ export const setAtlasMode = (mode) => {
 export const updateAtlasGridAndScale = (imgW, imgH) => {
     if (!mapInstance) return;
     
-    // Cache the image bounds globally so recalculations (like typing in settings) don't lose the boundaries!
     if (imgW !== undefined) window.appData.atlasDimensions = { w: imgW, h: imgH };
     const w = window.appData.atlasDimensions?.w || 2000;
     const h = window.appData.atlasDimensions?.h || 1500;
@@ -308,7 +331,6 @@ export const updateAtlasGridAndScale = (imgW, imgH) => {
     const pxSq = parseFloat(document.getElementById('cfg-px')?.value) || 50;
     const miSq = parseFloat(document.getElementById('cfg-miles')?.value) || 10;
     
-    // 1. UPDATE SCALE BAR
     const multiplier = Math.pow(2, mapInstance.getZoom());
     const visualWidthInPixels = pxSq * multiplier;
     
@@ -317,7 +339,6 @@ export const updateAtlasGridAndScale = (imgW, imgH) => {
     if (scaleBar) scaleBar.style.width = `${visualWidthInPixels}px`;
     if (scaleText) scaleText.innerText = `${miSq} Miles`;
 
-    // 2. UPDATE GRID OVERLAY
     if (gridOverlayLayer) mapInstance.removeLayer(gridOverlayLayer);
     
     const showGridEl = document.getElementById('cfg-show-grid');
@@ -391,9 +412,7 @@ export const atlasFinishDrawing = () => {
     document.getElementById('atlas-route-modal').classList.remove('hidden');
 };
 
-// --- PIN & ROUTE CODEX SEARCH INTERFACE ---
 export const searchAtlasCodex = (query, filterType = 'Location') => {
-    // Dynamic handling based on whether we are assigning a Pin or a Route!
     const isRoute = filterType === 'Route';
     const prefix = isRoute ? 'atlas-route' : 'atlas-pin';
     
@@ -402,7 +421,7 @@ export const searchAtlasCodex = (query, filterType = 'Location') => {
     
     if (!query || query.trim() === '') {
         resultsContainer.classList.add('hidden');
-        document.getElementById(`${prefix}-codex-id`).value = ""; // Clear ID if they backspace
+        document.getElementById(`${prefix}-codex-id`).value = ""; 
         return;
     }
 
@@ -410,7 +429,6 @@ export const searchAtlasCodex = (query, filterType = 'Location') => {
     const camp = window.appData.activeCampaign;
     const codex = camp?.codex || [];
     
-    // Filter by the requested type
     const matches = codex.filter(c => {
         if (isRoute) {
             return c.type === 'Route' && c.name.toLowerCase().includes(query.toLowerCase());
@@ -430,7 +448,6 @@ export const searchAtlasCodex = (query, filterType = 'Location') => {
         `;
     });
 
-    // The option to create a brand new entry seamlessly
     const safeQuery = query.replace(/'/g, "\\'").replace(/"/g, '&quot;');
     const typeLabel = isRoute ? 'Route' : 'Location';
     
@@ -450,7 +467,7 @@ export const selectAtlasCodexEntry = (id, name, prefix) => {
     const resultsContainer = document.getElementById(`${prefix}-search-results`);
 
     if (searchInput) searchInput.value = name;
-    if (idInput) idInput.value = id; // Will be empty string if creating a new one
+    if (idInput) idInput.value = id; 
     if (resultsContainer) resultsContainer.classList.add('hidden');
 };
 
@@ -471,7 +488,6 @@ export const confirmAtlasPin = async () => {
 
     let updatedCodex = camp.codex || [];
     
-    // Auto-create new entry if they typed a name but didn't pick an existing ID
     if (!codexId && searchInput) {
         codexId = generateId();
         const newEntry = {
@@ -505,8 +521,7 @@ export const confirmAtlasPin = async () => {
     window.appActions.setAtlasMode('pan');
     notify("Pin dropped securely on the Atlas.", "success");
     
-    // Explicitly call initAtlas to force Leaflet to mount the new pin over the image
-    window.appActions.initAtlas();
+    setTimeout(() => window.appActions.initAtlas(), 50); // Small delay to let the DOM wipe complete before restoring view
 };
 
 export const confirmAtlasRoute = async () => {
@@ -525,7 +540,6 @@ export const confirmAtlasRoute = async () => {
 
     let updatedCodex = camp.codex || [];
     
-    // Auto-create new entry if they typed a name but didn't pick an existing ID
     if (!codexId && searchInput) {
         codexId = generateId();
         const newEntry = {
@@ -540,16 +554,11 @@ export const confirmAtlasRoute = async () => {
         updatedCodex = [...updatedCodex, newEntry];
     }
 
-    // Convert Leaflet's custom LatLng class objects into plain JavaScript objects 
-    // so Firestore can save them without throwing an "Unsupported field value" error.
-    const plainPoints = drawingPoints.map(p => ({
-        lat: p.lat,
-        lng: p.lng
-    }));
+    const plainPoints = drawingPoints.map(p => ({ lat: p.lat, lng: p.lng }));
 
     const newRoute = {
         id: generateId(),
-        codexId: codexId, // NOW LINKED TO THE CODEX!
+        codexId: codexId, 
         points: plainPoints,
         distanceMiles: parseFloat(distStr) || 0,
         authorId: window.appData.currentUserUid
@@ -561,7 +570,6 @@ export const confirmAtlasRoute = async () => {
         atlasRoutes: [...(camp.atlasRoutes || []), newRoute]
     };
 
-    // Auto-toggle the newly created route "ON" so the user instantly sees what they just drew!
     if (!window.appData.activeAtlasRoutes) window.appData.activeAtlasRoutes = [];
     window.appData.activeAtlasRoutes.push(newRoute.id);
 
@@ -570,14 +578,12 @@ export const confirmAtlasRoute = async () => {
     window.appActions.setAtlasMode('pan');
     notify(`Route inscribed into the Atlas & Codex.`, "success");
     
-    window.appActions.initAtlas();
+    setTimeout(() => window.appActions.initAtlas(), 50); 
 };
 
 export const viewOnMap = (codexId) => {
-    // 1. Close any open Codex modal overlay
     document.getElementById('global-popup-container').innerHTML = '';
     
-    // 2. Check if the requested Codex ID is attached to a Route. If it is, Auto-Toggle it ON!
     updateDerivedState();
     const camp = window.appData.activeCampaign;
     const targetRoute = camp?.atlasRoutes?.find(r => r.codexId === codexId);
@@ -588,10 +594,7 @@ export const viewOnMap = (codexId) => {
         }
     }
 
-    // 3. Queue the focus ID so the Atlas knows to zoom in when it finishes mounting!
     window.appData.pendingAtlasFocus = codexId;
-    
-    // 4. Switch the view (which triggers data.js to call initAtlas via a tiny timeout)
     window.appActions.setView('atlas');
 };
 
@@ -612,11 +615,9 @@ export const toggleAtlasRouteVis = (routeId) => {
         window.appData.activeAtlasRoutes.splice(idx, 1);
     }
     
-    // Completely tearing down the DOM here with a reRender would abruptly close the Layers panel.
-    // Instead, we just instantly call initAtlas() which natively re-draws the map entities in the background!
-    window.appActions.initAtlas();
+    // Instead of rebuilding the entire map, we just instantly update the drawing vectors!
+    window.appActions.refreshAtlasEntities();
 };
-
 
 export const deleteAtlasPin = async (id) => {
     if (!confirm("Are you sure you want to remove this pin? (The Codex entry will remain safely in the archives)")) return;
@@ -631,7 +632,7 @@ export const deleteAtlasPin = async (id) => {
     };
     await saveCampaign(updatedCamp);
     notify("Pin removed.", "success");
-    window.appActions.initAtlas();
+    setTimeout(() => window.appActions.initAtlas(), 50);
 };
 
 export const deleteAtlasRoute = async (id) => {
@@ -647,7 +648,7 @@ export const deleteAtlasRoute = async (id) => {
     };
     await saveCampaign(updatedCamp);
     notify("Route removed.", "success");
-    window.appActions.initAtlas();
+    setTimeout(() => window.appActions.initAtlas(), 50);
 };
 
 export const toggleAtlasSettings = () => {
@@ -675,9 +676,13 @@ export const saveAtlasSettings = async () => {
         }
     };
 
+    // Because this changes the base image and grid math, we DO want to wipe the viewport memory
+    savedMapCenter = null;
+    savedMapZoom = null;
+
     await saveCampaign(updatedCamp);
     window.appActions.toggleAtlasSettings();
     notify("Atlas configuration updated.", "success");
     
-    window.appActions.initAtlas();
+    setTimeout(() => window.appActions.initAtlas(), 50);
 };
