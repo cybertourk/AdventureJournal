@@ -33,13 +33,13 @@ export function getAtlasHTML(state) {
             <div id="map-container" class="absolute inset-0 z-0 cursor-crosshair"></div>
             
             <!-- Dynamic Scale Indicator -->
-            <div class="absolute bottom-20 sm:bottom-6 left-4 z-30 bg-stone-900/90 text-amber-50 px-3 py-2 rounded-sm shadow-md border border-stone-600 flex flex-col gap-1 pointer-events-none transition-opacity" id="scale-indicator">
+            <div class="absolute bottom-32 sm:bottom-28 left-4 z-30 bg-stone-900/90 text-amber-50 px-3 py-2 rounded-sm shadow-md border border-stone-600 flex flex-col gap-1 pointer-events-none transition-opacity" id="scale-indicator">
                 <div class="text-[10px] uppercase tracking-widest font-bold text-stone-400 text-center" id="scale-text">${config.milesPerSquare} Miles</div>
                 <div class="h-1.5 border-x-2 border-b-2 border-amber-500 transition-all duration-100 ease-linear" id="scale-bar" style="width: ${config.pixelsPerSquare}px;"></div>
             </div>
 
             <!-- Active Drawing Display -->
-            <div id="drawing-stats" class="hidden absolute top-4 left-1/2 transform -translate-x-1/2 bg-stone-900 border-2 border-amber-600 text-amber-50 px-3 sm:px-4 py-2 rounded-sm shadow-xl z-40 font-bold flex flex-wrap items-center justify-center gap-3 animate-in whitespace-nowrap w-max max-w-[90vw]">
+            <div id="drawing-stats" class="hidden absolute top-20 left-1/2 transform -translate-x-1/2 bg-stone-900 border-2 border-amber-600 text-amber-50 px-3 sm:px-4 py-2 rounded-sm shadow-xl z-40 font-bold flex flex-wrap items-center justify-center gap-3 animate-in whitespace-nowrap w-max max-w-[90vw]">
                 <div class="flex items-center gap-2 sm:gap-3 justify-center">
                     <i class="fa-solid fa-route text-amber-500 text-lg sm:text-xl"></i>
                     <div class="flex flex-col">
@@ -55,7 +55,7 @@ export function getAtlasHTML(state) {
             </div>
 
             <!-- Map Tools Dock -->
-            <div class="absolute bottom-4 left-0 right-0 flex justify-center z-40 px-4 pointer-events-none">
+            <div class="absolute top-4 left-0 right-0 flex justify-center z-40 px-4 pointer-events-none">
                 <nav class="bg-stone-900 border-2 border-stone-700 shadow-[0_15px_30px_rgba(0,0,0,0.8)] rounded-full w-full max-w-xs h-12 sm:h-14 flex items-center justify-between px-2 pointer-events-auto bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')]">
                     <button onclick="window.appActions.setAtlasMode('pan')" id="mode-pan" class="tool-btn flex items-center justify-center w-1/3 text-amber-500 bg-stone-800 transition-colors h-full rounded-full">
                         <i class="fa-solid fa-hand text-base sm:text-lg"></i>
