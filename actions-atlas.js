@@ -58,12 +58,34 @@ export const initAtlas = () => {
         const bounds = [[0, 0], [h, w]];
         imageOverlay = L.imageOverlay(config.url, bounds).addTo(mapInstance);
         
-        // Fit the view on the very first load
-        mapInstance.fitBounds(bounds);
-
         // Render the Grid, Scale Bar, Pins, and Routes
         window.appActions.updateAtlasGridAndScale(w, h);
         renderAtlasEntities(camp);
+
+        // --- NEW: DYNAMIC JUMP-TO-TARGET FOCUS LOGIC ---
+        // If the user clicked "View on Map" from the Codex, we intercept the load and pan to it!
+        if (window.appData.pendingAtlasFocus) {
+            const focusId = window.appData.pendingAtlasFocus;
+            window.appData.pendingAtlasFocus = null; // Clear the pending action
+
+            const focusPin = (camp.atlasPins || []).find(p => p.codexId === focusId);
+            if (focusPin) {
+                // Zoom closely onto the specific map pin
+                mapInstance.setView([focusPin.lat, focusPin.lng], 1); 
+            } else {
+                const focusRoute = (camp.atlasRoutes || []).find(r => r.codexId === focusId);
+                if (focusRoute && focusRoute.points && focusRoute.points.length > 0) {
+                    // Extract bounds of the route and fit the camera beautifully over the whole path
+                    const polyline = L.polyline(focusRoute.points);
+                    mapInstance.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+                } else {
+                    mapInstance.fitBounds(bounds); // Fallback to full map
+                }
+            }
+        } else {
+            // Default view: fit the whole image on the screen
+            mapInstance.fitBounds(bounds);
+        }
     };
     img.onerror = function() {
         notify("Failed to load map image. Check the URL in Atlas Settings.", "error");
@@ -157,14 +179,14 @@ const renderAtlasEntities = (camp) => {
             const isDM = camp._isDM;
             const canDelete = isDM || pin.authorId === window.appData.currentUserUid;
 
-            // NEW: If in Pin mode, clicking an existing pin acts as an eraser!
+            // If in Pin mode, clicking an existing pin acts as an eraser!
             if (currentMode === 'pin' && canDelete) {
                 window.appActions.deleteAtlasPin(pin.id);
                 return;
             }
 
             if (currentMode === 'pan') {
-                // NEW: Instantly open the Codex Entry if it's linked!
+                // Instantly open the Codex Entry if it's linked!
                 if (pin.codexId) {
                     const cEntry = camp.codex?.find(c => c.id === pin.codexId);
                     if (cEntry) {
@@ -202,6 +224,18 @@ const renderAtlasEntities = (camp) => {
             if (currentMode === 'pan') {
                 const isDM = camp._isDM;
                 const canDelete = isDM || route.authorId === window.appData.currentUserUid;
+
+                // Instantly open the Codex Entry if the Route is linked!
+                if (route.codexId) {
+                    const cEntry = camp.codex?.find(c => c.id === route.codexId);
+                    if (cEntry) {
+                        window.appActions.viewCodex(cEntry.id);
+                        return; // Bypass the mini-popup entirely
+                    }
+                }
+
+                // Fallback for older legacy routes that don't have a Codex Link
+                let title = route.name || 'Unknown Route';
                 const deleteBtn = canDelete ? `<button onclick="window.appActions.deleteAtlasRoute('${route.id}'); document.getElementById('global-popup-container').innerHTML = '';" class="w-full mt-4 py-2 bg-red-900/10 text-red-800 border border-red-900/30 hover:bg-red-900 hover:text-white rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm"><i class="fa-solid fa-trash mr-1"></i> Delete Route</button>` : '';
 
                 const popup = document.getElementById('global-popup-container');
@@ -209,7 +243,7 @@ const renderAtlasEntities = (camp) => {
                     <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[17000] backdrop-blur-sm animate-in">
                         <div class="bg-[#f4ebd8] p-5 rounded-sm w-full max-w-sm border border-[#d4c5a9] shadow-2xl relative animate-in border-t-4 border-t-amber-700">
                             <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="absolute top-3.5 right-3 text-stone-400 hover:text-red-900 transition"><i class="fa-solid fa-xmark text-xl p-1"></i></button>
-                            <h3 class="font-serif font-bold text-lg text-amber-900 mb-1 pr-8"><i class="fa-solid fa-route text-amber-600 mr-1.5"></i> ${route.name}</h3>
+                            <h3 class="font-serif font-bold text-lg text-amber-900 mb-1 pr-8"><i class="fa-solid fa-route text-amber-600 mr-1.5"></i> ${title}</h3>
                             <div class="bg-[#fdfbf7] p-3 rounded-sm border border-[#d4c5a9] mt-3 shadow-inner">
                                 <p class="text-[10px] uppercase font-bold text-stone-500 tracking-widest mb-0.5">Calculated Distance</p>
                                 <p class="text-base font-bold text-emerald-600">${route.distanceMiles} Miles</p>
@@ -355,14 +389,18 @@ export const atlasFinishDrawing = () => {
     document.getElementById('atlas-route-modal').classList.remove('hidden');
 };
 
-// --- PIN CODEX SEARCH INTERFACE ---
-export const searchAtlasCodex = (query) => {
-    const resultsContainer = document.getElementById('atlas-pin-search-results');
+// --- PIN & ROUTE CODEX SEARCH INTERFACE ---
+export const searchAtlasCodex = (query, filterType = 'Location') => {
+    // Dynamic handling based on whether we are assigning a Pin or a Route!
+    const isRoute = filterType === 'Route';
+    const prefix = isRoute ? 'atlas-route' : 'atlas-pin';
+    
+    const resultsContainer = document.getElementById(`${prefix}-search-results`);
     if (!resultsContainer) return;
     
     if (!query || query.trim() === '') {
         resultsContainer.classList.add('hidden');
-        document.getElementById('atlas-pin-codex-id').value = ""; // Clear ID if they backspace
+        document.getElementById(`${prefix}-codex-id`).value = ""; // Clear ID if they backspace
         return;
     }
 
@@ -370,17 +408,20 @@ export const searchAtlasCodex = (query) => {
     const camp = window.appData.activeCampaign;
     const codex = camp?.codex || [];
     
-    // Filter locations and factions that match the query
-    const matches = codex.filter(c => 
-        (c.type === 'Location' || c.type === 'Faction') && 
-        c.name.toLowerCase().includes(query.toLowerCase())
-    );
+    // Filter by the requested type
+    const matches = codex.filter(c => {
+        if (isRoute) {
+            return c.type === 'Route' && c.name.toLowerCase().includes(query.toLowerCase());
+        } else {
+            return (c.type === 'Location' || c.type === 'Faction') && c.name.toLowerCase().includes(query.toLowerCase());
+        }
+    });
 
     let html = '';
     matches.forEach(m => {
         const safeName = m.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
         html += `
-            <div class="p-3 border-b border-[#d4c5a9] hover:bg-amber-50 cursor-pointer transition-colors" onclick="window.appActions.selectAtlasCodexEntry('${m.id}', '${safeName}')">
+            <div class="p-3 border-b border-[#d4c5a9] hover:bg-amber-50 cursor-pointer transition-colors" onclick="window.appActions.selectAtlasCodexEntry('${m.id}', '${safeName}', '${prefix}')">
                 <span class="font-bold text-stone-900">${m.name}</span> 
                 <span class="text-[9px] uppercase font-bold text-stone-500 ml-2 bg-stone-200 px-1.5 py-0.5 rounded-sm">${m.type}</span>
             </div>
@@ -389,9 +430,11 @@ export const searchAtlasCodex = (query) => {
 
     // The option to create a brand new entry seamlessly
     const safeQuery = query.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    const typeLabel = isRoute ? 'Route' : 'Location';
+    
     html += `
-        <div class="p-3 bg-stone-100 hover:bg-amber-100 cursor-pointer text-amber-900 font-bold text-xs flex items-center transition-colors border-b border-[#d4c5a9]" onclick="window.appActions.selectAtlasCodexEntry('', '${safeQuery}')">
-            <i class="fa-solid fa-plus-circle mr-2 text-amber-600"></i> Create New Location: "${query}"
+        <div class="p-3 bg-stone-100 hover:bg-amber-100 cursor-pointer text-amber-900 font-bold text-xs flex items-center transition-colors border-b border-[#d4c5a9]" onclick="window.appActions.selectAtlasCodexEntry('', '${safeQuery}', '${prefix}')">
+            <i class="fa-solid fa-plus-circle mr-2 text-amber-600"></i> Create New ${typeLabel}: "${query}"
         </div>
     `;
 
@@ -399,10 +442,10 @@ export const searchAtlasCodex = (query) => {
     resultsContainer.classList.remove('hidden');
 };
 
-export const selectAtlasCodexEntry = (id, name) => {
-    const searchInput = document.getElementById('atlas-pin-search');
-    const idInput = document.getElementById('atlas-pin-codex-id');
-    const resultsContainer = document.getElementById('atlas-pin-search-results');
+export const selectAtlasCodexEntry = (id, name, prefix) => {
+    const searchInput = document.getElementById(`${prefix}-search`);
+    const idInput = document.getElementById(`${prefix}-codex-id`);
+    const resultsContainer = document.getElementById(`${prefix}-search-results`);
 
     if (searchInput) searchInput.value = name;
     if (idInput) idInput.value = id; // Will be empty string if creating a new one
@@ -469,15 +512,33 @@ export const confirmAtlasRoute = async () => {
     const camp = window.appData.activeCampaign;
     if (!camp) return;
 
-    const name = document.getElementById('atlas-route-name').value.trim();
     const distStr = document.getElementById('dist-val').innerText;
+    let codexId = document.getElementById('atlas-route-codex-id').value;
+    const searchInput = document.getElementById('atlas-route-search').value.trim();
 
-    if (!name) {
-        notify("You must name the route to save it.", "error");
+    if (!codexId && !searchInput) {
+        notify("You must select or type a name for the route.", "error");
         return;
     }
 
-    // FIX: Convert Leaflet's custom LatLng class objects into plain JavaScript objects 
+    let updatedCodex = camp.codex || [];
+    
+    // Auto-create new entry if they typed a name but didn't pick an existing ID
+    if (!codexId && searchInput) {
+        codexId = generateId();
+        const newEntry = {
+            id: codexId,
+            name: searchInput,
+            type: 'Route',
+            tags: ['Travel Path'],
+            desc: `A travel route recorded on the Atlas.\n\n**Total Distance:** ${distStr}`,
+            authorId: window.appData.currentUserUid,
+            visibility: { mode: 'public' }
+        };
+        updatedCodex = [...updatedCodex, newEntry];
+    }
+
+    // Convert Leaflet's custom LatLng class objects into plain JavaScript objects 
     // so Firestore can save them without throwing an "Unsupported field value" error.
     const plainPoints = drawingPoints.map(p => ({
         lat: p.lat,
@@ -486,7 +547,7 @@ export const confirmAtlasRoute = async () => {
 
     const newRoute = {
         id: generateId(),
-        name,
+        codexId: codexId, // NOW LINKED TO THE CODEX!
         points: plainPoints,
         distanceMiles: parseFloat(distStr) || 0,
         authorId: window.appData.currentUserUid
@@ -494,15 +555,27 @@ export const confirmAtlasRoute = async () => {
 
     const updatedCamp = {
         ...camp,
+        codex: updatedCodex,
         atlasRoutes: [...(camp.atlasRoutes || []), newRoute]
     };
 
     await saveCampaign(updatedCamp);
     document.getElementById('atlas-route-modal').classList.add('hidden');
     window.appActions.setAtlasMode('pan');
-    notify(`Route '${name}' inscribed into the Atlas.`, "success");
+    notify(`Route inscribed into the Atlas & Codex.`, "success");
     
     window.appActions.initAtlas();
+};
+
+export const viewOnMap = (codexId) => {
+    // 1. Close any open Codex modal overlay
+    document.getElementById('global-popup-container').innerHTML = '';
+    
+    // 2. Queue the focus ID so the Atlas knows to zoom in when it finishes mounting!
+    window.appData.pendingAtlasFocus = codexId;
+    
+    // 3. Switch the view (which triggers data.js to call initAtlas via a tiny timeout)
+    window.appActions.setView('atlas');
 };
 
 export const deleteAtlasPin = async (id) => {
@@ -522,7 +595,7 @@ export const deleteAtlasPin = async (id) => {
 };
 
 export const deleteAtlasRoute = async (id) => {
-    if (!confirm("Are you sure you want to remove this travel route?")) return;
+    if (!confirm("Are you sure you want to remove this travel route? (The Codex entry will remain safely in the archives)")) return;
     
     updateDerivedState();
     const camp = window.appData.activeCampaign;
