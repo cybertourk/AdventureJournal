@@ -19,7 +19,7 @@ import { openCalendar, navCalendarMonth, jumpToCurrentDate, jumpToSpecificDate, 
 import { openRulesGlossary, viewRule, openRuleModal, saveRule, deleteRule, updateTravelPresets, calculateTravel, calculateEncumbrance, calculateJump } from './actions-rules.js';
 
 // Import Atlas & Map Functionality
-import { initAtlas, setAtlasMode, updateAtlasGridAndScale, updateAtlasDistanceCalc, atlasUndoLastPoint, atlasFinishDrawing, confirmAtlasPin, confirmAtlasRoute, deleteAtlasPin, deleteAtlasRoute, toggleAtlasSettings, saveAtlasSettings, searchAtlasCodex, selectAtlasCodexEntry, viewOnMap, toggleAtlasLayers, toggleAtlasRouteVis, refreshAtlasEntities } from './actions-atlas.js';
+import { initAtlas, setAtlasMode, updateAtlasGridAndScale, updateAtlasDistanceCalc, atlasUndoLastPoint, atlasFinishDrawing, confirmAtlasPin, confirmAtlasRoute, deleteAtlasPin, deleteAtlasRoute, toggleAtlasSettings, saveAtlasSettings, searchAtlasCodex, selectAtlasCodexEntry, viewOnMap, toggleAtlasLayers, toggleAtlasRouteVis, refreshAtlasEntities, toggleAtlasFullScreen } from './actions-atlas.js';
 
 // --- APP ACTIONS HUB --- 
 // We bind all our imported modular functions back to the global window.appActions 
@@ -162,7 +162,8 @@ window.appActions = {
   viewOnMap,
   toggleAtlasLayers,
   toggleAtlasRouteVis,
-  refreshAtlasEntities
+  refreshAtlasEntities,
+  toggleAtlasFullScreen
 }; 
 
 // ============================================================================
@@ -180,6 +181,11 @@ history.replaceState({
 // 2. Intercept our internal navigation router to push states automatically
 const originalSetView = window.appActions.setView;
 window.appActions.setView = function(viewName, skipHistory = false) {
+    // If we are leaving the Atlas, automatically compress it out of Full Screen mode
+    if (viewName !== 'atlas' && window.appData?.isAtlasFullScreen) {
+        window.appData.isAtlasFullScreen = false;
+    }
+
     // Execute the visual change first
     originalSetView(viewName);
     
@@ -218,7 +224,11 @@ window.addEventListener('popstate', (event) => {
     
     let modalClosed = false;
     
-    if (visibilityModal && !visibilityModal.classList.contains('hidden')) {
+    // Check if Atlas is in Full Screen Mode
+    if (window.appData && window.appData.isAtlasFullScreen) {
+        window.appActions.toggleAtlasFullScreen();
+        modalClosed = true;
+    } else if (visibilityModal && !visibilityModal.classList.contains('hidden')) {
         visibilityModal.classList.add('hidden');
         modalClosed = true;
     } else if (popupContainer && popupContainer.innerHTML.trim() !== '') {
@@ -239,7 +249,7 @@ window.addEventListener('popstate', (event) => {
     }
 
     if (modalClosed) {
-        // We intercepted the back button to close a modal. 
+        // We intercepted the back button to close a modal or exit Full Screen.
         // We must push the current state back onto the stack so the underlying page doesn't change.
         const recoveredState = {
             currentView: window.appData?.currentView || 'home',
