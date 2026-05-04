@@ -154,27 +154,29 @@ const renderAtlasEntities = (camp) => {
         const marker = L.marker([pin.lat, pin.lng], { icon: customIcon }).addTo(mapInstance);
         
         marker.on('click', () => {
+            const isDM = camp._isDM;
+            const canDelete = isDM || pin.authorId === window.appData.currentUserUid;
+
+            // NEW: If in Pin mode, clicking an existing pin acts as an eraser!
+            if (currentMode === 'pin' && canDelete) {
+                window.appActions.deleteAtlasPin(pin.id);
+                return;
+            }
+
             if (currentMode === 'pan') {
-                let title = pin.customLabel || 'Unknown Location';
-                let descHtml = '';
-                
-                // If it's linked to the Codex, construct the jump-link
+                // NEW: Instantly open the Codex Entry if it's linked!
                 if (pin.codexId) {
                     const cEntry = camp.codex?.find(c => c.id === pin.codexId);
                     if (cEntry) {
-                        title = cEntry.name;
-                        descHtml = `
-                            <span class="text-[9px] uppercase tracking-wider font-bold text-stone-500 bg-stone-200 px-1.5 py-0.5 rounded-sm">${cEntry.type}</span>
-                            <button onclick="document.getElementById('global-popup-container').innerHTML = ''; window.appActions.viewCodex('${cEntry.id}');" class="w-full mt-4 py-2 border border-stone-400 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm bg-[#fdfbf7]">Open Full Codex Entry</button>
-                        `;
+                        window.appActions.viewCodex(cEntry.id);
+                        return; // Bypass the mini-popup entirely
                     }
-                } else {
-                    descHtml = `<span class="text-[9px] uppercase tracking-wider font-bold text-stone-500 bg-stone-200 px-1.5 py-0.5 rounded-sm">Custom Map Pin</span>`;
                 }
 
-                // Append DM Delete Permissions
-                const isDM = camp._isDM;
-                const canDelete = isDM || pin.authorId === window.appData.currentUserUid;
+                // Fallback: If it's just a Custom Map Pin (no codex link), show the mini-label
+                let title = pin.customLabel || 'Unknown Location';
+                let descHtml = `<span class="text-[9px] uppercase tracking-wider font-bold text-stone-500 bg-stone-200 px-1.5 py-0.5 rounded-sm">Custom Map Pin</span>`;
+
                 const deleteBtn = canDelete ? `<button onclick="window.appActions.deleteAtlasPin('${pin.id}'); document.getElementById('global-popup-container').innerHTML = '';" class="absolute top-3.5 right-12 text-stone-400 hover:text-red-700 transition" title="Delete Pin"><i class="fa-solid fa-trash text-lg p-1"></i></button>` : '';
 
                 const popup = document.getElementById('global-popup-container');
