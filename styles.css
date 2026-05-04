@@ -142,3 +142,53 @@ textarea {
     margin-right: 4px;
     margin-bottom: 4px;
 }
+
+/* =========================================
+   ATLAS & LEAFLET MAP STYLES 
+   ========================================= */
+
+/* Strip default borders and background from Leaflet */
+.leaflet-container { 
+    background: transparent; 
+    outline: 0; 
+}
+
+/* Thematic styling for the zoom controls (+/- buttons) */
+.leaflet-control-zoom { 
+    border: 2px solid #78716c !important; 
+    border-radius: 4px !important; 
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5) !important; 
+    margin-right: 16px !important; 
+    margin-top: 16px !important; 
+}
+
+.leaflet-control-zoom a { 
+    background-color: #292524 !important; 
+    color: #d6d3d1 !important; 
+    border-bottom: 1px solid #44403c !important; 
+}
+
+.leaflet-control-zoom a:hover { 
+    background-color: #44403c !important; 
+    color: #fbbf24 !important; 
+}
+
+/* Custom interactive map pin that points exactly at the coordinate */
+.custom-map-pin {
+    background-color: #7f1d1d;
+    border: 2px solid #fef3c7;
+    color: #fef3c7;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: -2px 2px 5px rgba(0,0,0,0.5);
+}
+
+.custom-map-pin i { 
+    transform: rotate(45deg); 
+    font-size: 12px; 
+}
