@@ -637,19 +637,96 @@ export const viewOnMap = (codexId) => {
 export const toggleAtlasFullScreen = () => {
     // Flip the state
     window.appData.isAtlasFullScreen = !window.appData.isAtlasFullScreen;
+    const isFull = window.appData.isAtlasFullScreen;
+
+    // Grab Global UI Elements
+    const mainHeader = document.getElementById('main-header');
+    const dock = document.getElementById('floating-dock-container');
+    const resourceBar = document.getElementById('player-resource-bar');
     
-    // We force the map to re-evaluate its bounds so it fits properly on the next load
-    window.appData.forceAtlasResize = true; 
+    // Grab Atlas specific UI elements
+    const atlasWrapper = document.getElementById('atlas-wrapper');
+    if (!atlasWrapper) return;
     
-    // Completely tear down and re-render the app wrapper to apply the fixed overlay classes
-    reRender(); 
+    const atlasContainer = atlasWrapper.parentElement;
+    const atlasHeader = atlasWrapper.previousElementSibling;
+    const scaleInd = document.getElementById('scale-indicator');
     
-    // Re-mount the Leaflet map onto the new full-screen container
+    // Safely find the map tools dock (the floating pill at the top/bottom)
+    const mapToolsBtn = document.getElementById('mode-pan');
+    const mapTools = mapToolsBtn ? mapToolsBtn.closest('.z-40.absolute') : null;
+    
+    // Find the toggle button we just clicked so we can change its icon
+    const fullscreenBtn = document.querySelector('button[onclick="window.appActions.toggleAtlasFullScreen()"]');
+
+    if (isFull) {
+        // Hide global app UI
+        if (mainHeader) mainHeader.style.display = 'none';
+        if (dock) dock.style.display = 'none';
+        if (resourceBar) resourceBar.style.display = 'none';
+        
+        // Hide the inner "Atlas of..." title bar
+        if (atlasHeader) atlasHeader.style.display = 'none';
+        
+        // Expand the container to take up exactly 100% of the phone screen's dynamic height
+        if (atlasContainer) {
+            atlasContainer.className = "fixed inset-0 z-[60] w-full h-[100dvh] bg-[#1c1917] flex flex-col";
+        }
+        if (atlasWrapper) {
+            atlasWrapper.className = "flex-grow relative bg-[#1c1917] overflow-hidden";
+        }
+        
+        // Move floating UI elements to adjust for full screen
+        if (scaleInd) {
+            scaleInd.classList.remove('bottom-32', 'sm:bottom-28');
+            scaleInd.classList.add('bottom-24', 'sm:bottom-20');
+        }
+        if (mapTools) {
+            mapTools.classList.remove('top-4');
+            mapTools.classList.add('bottom-6', 'sm:bottom-8');
+        }
+        if (fullscreenBtn) {
+            fullscreenBtn.innerHTML = '<i class="fa-solid fa-compress"></i>';
+            fullscreenBtn.title = "Exit Full Screen";
+        }
+    } else {
+        // Restore global app UI
+        if (mainHeader) mainHeader.style.display = '';
+        if (dock) dock.style.display = '';
+        if (resourceBar) resourceBar.style.display = '';
+        
+        // Restore the inner "Atlas of..." title bar
+        if (atlasHeader) atlasHeader.style.display = '';
+        
+        // Return container to its normal boxed layout
+        if (atlasContainer) {
+            atlasContainer.className = "animate-in fade-in duration-300 w-full max-w-6xl mx-auto flex flex-col h-[calc(100vh-120px)] sm:h-[calc(100vh-140px)] relative";
+        }
+        if (atlasWrapper) {
+            atlasWrapper.className = "flex-grow relative bg-[#1c1917] overflow-hidden rounded-b-sm border-x-2 border-b-2 border-stone-800 shadow-[0_15px_40px_rgba(0,0,0,0.7)]";
+        }
+        
+        // Restore floating UI positions
+        if (scaleInd) {
+            scaleInd.classList.remove('bottom-24', 'sm:bottom-20');
+            scaleInd.classList.add('bottom-32', 'sm:bottom-28');
+        }
+        if (mapTools) {
+            mapTools.classList.remove('bottom-6', 'sm:bottom-8');
+            mapTools.classList.add('top-4');
+        }
+        if (fullscreenBtn) {
+            fullscreenBtn.innerHTML = '<i class="fa-solid fa-expand"></i>';
+            fullscreenBtn.title = "Full Screen";
+        }
+    }
+
+    // Force Leaflet to recognize its container has radically changed sizes so it fills the void
     setTimeout(() => {
-        window.appActions.initAtlas();
-        // Fire a synthetic resize event just in case Leaflet gets stuck parsing the 100dvh size
-        window.dispatchEvent(new Event('resize'));
-    }, 50);
+        if (mapInstance) {
+            mapInstance.invalidateSize();
+        }
+    }, 100);
 };
 
 export const toggleAtlasLayers = () => {
