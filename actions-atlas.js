@@ -521,7 +521,8 @@ export const confirmAtlasPin = async () => {
     window.appActions.setAtlasMode('pan');
     notify("Pin dropped securely on the Atlas.", "success");
     
-    setTimeout(() => window.appActions.initAtlas(), 50); // Small delay to let the DOM wipe complete before restoring view
+    // Instantly refresh the pins without tearing down the map!
+    window.appActions.refreshAtlasEntities();
 };
 
 export const confirmAtlasRoute = async () => {
@@ -578,7 +579,8 @@ export const confirmAtlasRoute = async () => {
     window.appActions.setAtlasMode('pan');
     notify(`Route inscribed into the Atlas & Codex.`, "success");
     
-    setTimeout(() => window.appActions.initAtlas(), 50); 
+    // Instantly refresh the routes without tearing down the map!
+    window.appActions.refreshAtlasEntities();
 };
 
 export const viewOnMap = (codexId) => {
@@ -632,7 +634,9 @@ export const deleteAtlasPin = async (id) => {
     };
     await saveCampaign(updatedCamp);
     notify("Pin removed.", "success");
-    setTimeout(() => window.appActions.initAtlas(), 50);
+    
+    // Instantly refresh without tearing down the map
+    window.appActions.refreshAtlasEntities();
 };
 
 export const deleteAtlasRoute = async (id) => {
@@ -648,7 +652,9 @@ export const deleteAtlasRoute = async (id) => {
     };
     await saveCampaign(updatedCamp);
     notify("Route removed.", "success");
-    setTimeout(() => window.appActions.initAtlas(), 50);
+    
+    // Instantly refresh without tearing down the map
+    window.appActions.refreshAtlasEntities();
 };
 
 export const toggleAtlasSettings = () => {
