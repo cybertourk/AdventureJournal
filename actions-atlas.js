@@ -109,8 +109,12 @@ export const initAtlas = () => {
                 
                 // Reset inputs and open modal
                 document.getElementById('atlas-pin-codex-id').value = "";
-                document.getElementById('atlas-pin-custom-label').value = "";
+                document.getElementById('atlas-pin-search').value = "";
+                document.getElementById('atlas-pin-search-results').classList.add('hidden');
                 document.getElementById('atlas-pin-modal').classList.remove('hidden');
+                
+                // Auto-focus the search bar
+                setTimeout(() => document.getElementById('atlas-pin-search').focus(), 100);
             } 
             else if (currentMode === 'draw') {
                 drawingPoints.push(e.latlng);
@@ -349,6 +353,60 @@ export const atlasFinishDrawing = () => {
     document.getElementById('atlas-route-modal').classList.remove('hidden');
 };
 
+// --- PIN CODEX SEARCH INTERFACE ---
+export const searchAtlasCodex = (query) => {
+    const resultsContainer = document.getElementById('atlas-pin-search-results');
+    if (!resultsContainer) return;
+    
+    if (!query || query.trim() === '') {
+        resultsContainer.classList.add('hidden');
+        document.getElementById('atlas-pin-codex-id').value = ""; // Clear ID if they backspace
+        return;
+    }
+
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    const codex = camp?.codex || [];
+    
+    // Filter locations and factions that match the query
+    const matches = codex.filter(c => 
+        (c.type === 'Location' || c.type === 'Faction') && 
+        c.name.toLowerCase().includes(query.toLowerCase())
+    );
+
+    let html = '';
+    matches.forEach(m => {
+        const safeName = m.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        html += `
+            <div class="p-3 border-b border-[#d4c5a9] hover:bg-amber-50 cursor-pointer transition-colors" onclick="window.appActions.selectAtlasCodexEntry('${m.id}', '${safeName}')">
+                <span class="font-bold text-stone-900">${m.name}</span> 
+                <span class="text-[9px] uppercase font-bold text-stone-500 ml-2 bg-stone-200 px-1.5 py-0.5 rounded-sm">${m.type}</span>
+            </div>
+        `;
+    });
+
+    // The option to create a brand new entry seamlessly
+    const safeQuery = query.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    html += `
+        <div class="p-3 bg-stone-100 hover:bg-amber-100 cursor-pointer text-amber-900 font-bold text-xs flex items-center transition-colors border-b border-[#d4c5a9]" onclick="window.appActions.selectAtlasCodexEntry('', '${safeQuery}')">
+            <i class="fa-solid fa-plus-circle mr-2 text-amber-600"></i> Create New Location: "${query}"
+        </div>
+    `;
+
+    resultsContainer.innerHTML = html;
+    resultsContainer.classList.remove('hidden');
+};
+
+export const selectAtlasCodexEntry = (id, name) => {
+    const searchInput = document.getElementById('atlas-pin-search');
+    const idInput = document.getElementById('atlas-pin-codex-id');
+    const resultsContainer = document.getElementById('atlas-pin-search-results');
+
+    if (searchInput) searchInput.value = name;
+    if (idInput) idInput.value = id; // Will be empty string if creating a new one
+    if (resultsContainer) resultsContainer.classList.add('hidden');
+};
+
 export const confirmAtlasPin = async () => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
@@ -356,12 +414,29 @@ export const confirmAtlasPin = async () => {
 
     const lat = parseFloat(document.getElementById('atlas-pin-lat').value);
     const lng = parseFloat(document.getElementById('atlas-pin-lng').value);
-    const codexId = document.getElementById('atlas-pin-codex-id').value;
-    const customLabel = document.getElementById('atlas-pin-custom-label').value.trim();
+    let codexId = document.getElementById('atlas-pin-codex-id').value;
+    const searchInput = document.getElementById('atlas-pin-search').value.trim();
 
-    if (!codexId && !customLabel) {
-        notify("You must link a Codex entry or provide a custom label.", "error");
+    if (!codexId && !searchInput) {
+        notify("You must select or type a name for the location.", "error");
         return;
+    }
+
+    let updatedCodex = camp.codex || [];
+    
+    // Auto-create new entry if they typed a name but didn't pick an existing ID
+    if (!codexId && searchInput) {
+        codexId = generateId();
+        const newEntry = {
+            id: codexId,
+            name: searchInput,
+            type: 'Location',
+            tags: ['Map Pin'],
+            desc: 'A newly discovered location on the Atlas.',
+            authorId: window.appData.currentUserUid,
+            visibility: { mode: 'public' }
+        };
+        updatedCodex = [...updatedCodex, newEntry];
     }
 
     const newPin = {
@@ -369,12 +444,12 @@ export const confirmAtlasPin = async () => {
         lat,
         lng,
         codexId,
-        customLabel,
         authorId: window.appData.currentUserUid
     };
 
     const updatedCamp = {
         ...camp,
+        codex: updatedCodex,
         atlasPins: [...(camp.atlasPins || []), newPin]
     };
 
@@ -383,7 +458,7 @@ export const confirmAtlasPin = async () => {
     window.appActions.setAtlasMode('pan');
     notify("Pin dropped securely on the Atlas.", "success");
     
-    // We explicitly call initAtlas to force Leaflet to mount the new pin over the image
+    // Explicitly call initAtlas to force Leaflet to mount the new pin over the image
     window.appActions.initAtlas();
 };
 
@@ -422,7 +497,7 @@ export const confirmAtlasRoute = async () => {
 };
 
 export const deleteAtlasPin = async (id) => {
-    if (!confirm("Are you sure you want to remove this pin?")) return;
+    if (!confirm("Are you sure you want to remove this pin? (The Codex entry will remain safely in the archives)")) return;
     
     updateDerivedState();
     const camp = window.appData.activeCampaign;
