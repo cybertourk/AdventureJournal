@@ -13,8 +13,30 @@ export function getAtlasHTML(state) {
     const activeRoutes = state.activeAtlasRoutes || [];
     const isFullScreen = state.isAtlasFullScreen;
 
-    // By removing 'animate-in' while in full screen, we remove the CSS 'transform' property.
-    // This allows the 'fixed' positioning to successfully break out of the main container and cover the global UI!
+    // --- CALENDAR & DATE INTEGRATION ---
+    const cal = camp.calendar;
+    let currentDateDisplay = "Date Unknown";
+    if (cal && cal.currentDate) {
+        const m = cal.months?.find(m => m.id === cal.currentDate.month);
+        if (m) {
+            currentDateDisplay = `Day ${cal.currentDate.day} of ${m.name}, Year ${cal.currentDate.year}`;
+        }
+    }
+
+    // Helper to sort routes chronologically
+    const getSortVal = (dateObj) => {
+        if (!dateObj) return 0;
+        const monthIndex = cal?.months?.findIndex(m => m.id === dateObj.month) || 0;
+        return (parseInt(dateObj.year) * 10000) + (monthIndex * 100) + parseInt(dateObj.day);
+    };
+
+    const sortedRoutes = [...(camp.atlasRoutes || [])].sort((a, b) => {
+        const aVal = getSortVal(a.startDate);
+        const bVal = getSortVal(b.startDate);
+        if (aVal !== bVal) return aVal - bVal; // Oldest dates first
+        return (a.name || "").localeCompare(b.name || ""); // Alphabetical fallback
+    });
+
     const containerClasses = isFullScreen 
         ? "fixed inset-0 z-[60] w-full h-[100dvh] bg-[#1c1917] flex flex-col"
         : "animate-in fade-in duration-300 w-full max-w-6xl mx-auto flex flex-col h-[calc(100vh-120px)] sm:h-[calc(100vh-140px)] relative";
@@ -41,7 +63,7 @@ export function getAtlasHTML(state) {
         <div class="flex-grow relative bg-[#1c1917] overflow-hidden ${isFullScreen ? '' : 'rounded-b-sm border-x-2 border-b-2 border-stone-800 shadow-[0_15px_40px_rgba(0,0,0,0.7)]'}" id="atlas-wrapper">
             <div id="map-container" class="absolute inset-0 z-0 cursor-crosshair"></div>
             
-            <!-- Native-style Map Full Screen Toggle (Styled to match Leaflet Zoom Controls) -->
+            <!-- Native-style Map Full Screen Toggle -->
             <button onclick="window.appActions.toggleAtlasFullScreen()" class="absolute top-[90px] right-[16px] z-[400] w-[34px] h-[34px] bg-[#292524] text-[#d6d3d1] border-2 border-[#78716c] rounded flex items-center justify-center hover:bg-[#44403c] hover:text-[#fbbf24] shadow-[0_4px_10px_rgba(0,0,0,0.5)] transition" title="${isFullScreen ? 'Exit Full Screen' : 'Full Screen'}">
                 <i class="fa-solid ${isFullScreen ? 'fa-compress' : 'fa-expand'}"></i>
             </button>
@@ -99,10 +121,10 @@ export function getAtlasHTML(state) {
                     
                     <div class="overflow-y-auto custom-scrollbar pr-1 flex-grow space-y-4">
                         <div>
-                            <h3 class="text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Travel Routes</h3>
+                            <h3 class="text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Travel Logs</h3>
                             <div id="atlas-route-checkboxes" class="bg-white border border-[#d4c5a9] rounded-sm shadow-inner overflow-hidden">
-                                ${(camp.atlasRoutes || []).length === 0 ? '<p class="p-3 text-[10px] italic text-stone-400">No routes inscribed yet.</p>' : ''}
-                                ${(camp.atlasRoutes || []).map(r => {
+                                ${sortedRoutes.length === 0 ? '<p class="p-3 text-[10px] italic text-stone-400">No routes inscribed yet.</p>' : ''}
+                                ${sortedRoutes.map(r => {
                                     let routeName = r.name; 
                                     if (r.codexId) {
                                         const cEntry = (camp.codex || []).find(c => c.id === r.codexId);
@@ -111,11 +133,22 @@ export function getAtlasHTML(state) {
                                     if (!routeName) routeName = "Unknown Route";
                                     const safeName = routeName.replace(/"/g, '&quot;');
                                     
+                                    let dateStr = "";
+                                    if (r.startDate) {
+                                        const rMonth = cal?.months?.find(m => m.id === r.startDate.month);
+                                        if (rMonth) {
+                                            dateStr = `<div class="text-[9px] text-stone-400 font-sans italic mt-0.5"><i class="fa-solid fa-calendar-days mr-1 text-stone-300"></i>${rMonth.name} ${r.startDate.day}, ${r.startDate.year} • ${r.durationDays || 0} Days</div>`;
+                                        }
+                                    }
+
                                     return `
                                     <div class="flex items-center justify-between p-2 border-b border-[#d4c5a9] last:border-b-0 hover:bg-stone-50 transition">
-                                        <label class="flex items-center gap-2 cursor-pointer w-full text-[10px] font-bold uppercase tracking-widest text-stone-700 hover:text-amber-700 transition">
-                                            <input type="checkbox" ${activeRoutes.includes(r.id) ? 'checked' : ''} onchange="window.appActions.toggleAtlasRouteVis('${r.id}')" class="w-4 h-4 text-amber-600 rounded-sm shadow-sm border-[#d4c5a9] focus:ring-amber-500 cursor-pointer shrink-0">
-                                            <span class="truncate" title="${safeName}">${safeName}</span>
+                                        <label class="flex items-start gap-2 cursor-pointer w-full text-[10px] font-bold uppercase tracking-widest text-stone-700 hover:text-amber-700 transition">
+                                            <input type="checkbox" ${activeRoutes.includes(r.id) ? 'checked' : ''} onchange="window.appActions.toggleAtlasRouteVis('${r.id}')" class="w-4 h-4 mt-0.5 text-amber-600 rounded-sm shadow-sm border-[#d4c5a9] focus:ring-amber-500 cursor-pointer shrink-0">
+                                            <div class="flex flex-col min-w-0">
+                                                <span class="truncate" title="${safeName}">${safeName}</span>
+                                                ${dateStr}
+                                            </div>
                                         </label>
                                     </div>
                                     `;
@@ -191,8 +224,42 @@ export function getAtlasHTML(state) {
             <div id="atlas-route-modal" class="hidden absolute inset-0 bg-stone-900/80 z-[18000] flex items-center justify-center p-4 backdrop-blur-sm animate-in">
                 <div class="bg-[#f4ebd8] p-5 rounded-sm w-full max-w-sm border border-[#d4c5a9] shadow-2xl relative overflow-visible">
                     <h3 class="font-serif font-bold text-lg text-amber-900 mb-3 border-b border-[#d4c5a9] pb-2"><i class="fa-solid fa-route text-amber-600 mr-2"></i> Save Travel Route</h3>
-                    <p class="text-[10px] text-stone-600 mb-4 font-sans italic leading-snug">Link this route to the Codex to add lore and details to the journey. Total Distance: <span id="atlas-route-dist" class="font-bold text-amber-700 border-b border-amber-300"></span></p>
+                    <p class="text-[10px] text-stone-600 mb-4 font-sans italic leading-snug">Link this route to the Codex to auto-calculate travel times and log the journey.</p>
                     
+                    <!-- NEW: Travel Stats Readout -->
+                    <div class="bg-white p-3 rounded-sm border border-[#d4c5a9] mb-4 shadow-sm text-xs">
+                        <div class="flex justify-between mb-1.5 border-b border-stone-100 pb-1.5">
+                            <span class="font-bold text-stone-500 uppercase tracking-widest text-[9px]">Calculated Distance:</span>
+                            <span id="atlas-route-dist" class="font-bold text-amber-700 text-[11px]"></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="font-bold text-stone-500 uppercase tracking-widest text-[9px]">Departure Date:</span>
+                            <span class="font-bold text-stone-900 text-[10px]">${currentDateDisplay}</span>
+                        </div>
+                    </div>
+
+                    <!-- NEW: Travel Math Inputs -->
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <div>
+                            <label class="block text-[9px] font-bold text-stone-500 uppercase tracking-widest mb-1">Travel Mode</label>
+                            <select id="atlas-route-mode" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-[11px] font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white">
+                                <option value="foot">On Foot</option>
+                                <option value="horse">Mount / Horse</option>
+                                <option value="cart">Cart / Wagon</option>
+                                <option value="boat">Rowboat</option>
+                                <option value="ship">Sailing Ship</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-bold text-stone-500 uppercase tracking-widest mb-1">Travel Pace</label>
+                            <select id="atlas-route-pace" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-[11px] font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white">
+                                <option value="slow">Slow</option>
+                                <option value="normal" selected>Normal</option>
+                                <option value="fast">Fast</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <div class="relative mb-5">
                         <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Route Name</label>
                         <input type="text" id="atlas-route-search" oninput="window.appActions.searchAtlasCodex(this.value, 'Route')" placeholder="Search codex or type name..." class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white" autocomplete="off">
