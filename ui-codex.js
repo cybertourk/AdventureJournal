@@ -72,7 +72,7 @@ export function getCodexHTML(state) {
 
     // --- GROUPING BY TYPE ---
     const groups = {
-        'PC': [], 'NPC': [], 'Location': [], 'Faction': [], 'Item': [], 'Lore': [], 'Other': []
+        'PC': [], 'NPC': [], 'Location': [], 'Faction': [], 'Route': [], 'Item': [], 'Lore': [], 'Other': []
     };
     
     visibleCodex.forEach(c => {
@@ -89,6 +89,7 @@ export function getCodexHTML(state) {
         { id: 'NPC', name: 'Non-Player Characters', icon: 'fa-users' },
         { id: 'Location', name: 'Locations & Landmarks', icon: 'fa-map-location-dot' },
         { id: 'Faction', name: 'Factions & Organizations', icon: 'fa-flag' },
+        { id: 'Route', name: 'Travel Routes', icon: 'fa-route' },
         { id: 'Item', name: 'Notable Items & Artifacts', icon: 'fa-gem' },
         { id: 'Lore', name: 'World Lore & History', icon: 'fa-book-journal-whills' },
         { id: 'Other', name: 'Uncategorized Records', icon: 'fa-folder' }
@@ -298,6 +299,18 @@ export const _openCodexModal = (entry) => {
     const descLabel = linkedPC ? "Public Knowledge (Rumors & Repute)" : "Description";
     const descPlaceholder = linkedPC ? "What do people know about this hero? Scribe their rumors, repute, and public knowledge..." : "Description... Codex names link automatically.";
 
+    // --- ATLAS MAP INTEGRATION ---
+    let mapBtnHtml = '';
+    const linkedPin = camp.atlasPins?.find(p => p.codexId === id);
+    const linkedRoute = camp.atlasRoutes?.find(r => r.codexId === id);
+    if ((linkedPin || linkedRoute) && !isNew) {
+        mapBtnHtml = `
+            <button onclick="document.getElementById('global-popup-container').innerHTML = ''; window.appActions.viewOnMap('${id}')" class="mt-4 w-full py-2 border border-amber-400 bg-amber-50 text-amber-900 hover:bg-amber-100 rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm flex items-center justify-center">
+                <i class="fa-solid fa-map-location-dot mr-2"></i> View on Atlas
+            </button>
+        `;
+    }
+
     container.innerHTML = `
         <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[17000] backdrop-blur-sm animate-in">
             <div class="bg-[#f4ebd8] rounded-sm shadow-2xl w-full max-w-lg border border-[#d4c5a9] overflow-hidden flex flex-col max-h-[90vh]">
@@ -323,6 +336,7 @@ export const _openCodexModal = (entry) => {
                     <div class="mb-4">
                         <h3 class="text-2xl font-serif font-bold text-stone-900">${name}</h3>
                         <div class="mt-2">${tagsHTML}</div>
+                        ${mapBtnHtml}
                     </div>
                     ${pcDataHTML}
                     <h4 class="font-bold text-red-900 border-b border-[#d4c5a9] pb-1 mb-2">${descLabel}</h4>
@@ -348,6 +362,7 @@ export const _openCodexModal = (entry) => {
                             <option value="NPC" ${type==='NPC'?'selected':''}>NPC</option>
                             <option value="Location" ${type==='Location'?'selected':''}>Location</option>
                             <option value="Faction" ${type==='Faction'?'selected':''}>Faction</option>
+                            <option value="Route" ${type==='Route'?'selected':''}>Route</option>
                             <option value="Item" ${type==='Item'?'selected':''}>Item</option>
                             <option value="Lore" ${type==='Lore'?'selected':''}>Lore</option>
                         </select>
