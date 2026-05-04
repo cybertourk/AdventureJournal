@@ -113,20 +113,17 @@ export function getAtlasHTML(state) {
             ` : ''}
             
             <!-- Pin Assignment Modal (Used by DM when dropping a pin) -->
-            <div id="atlas-pin-modal" class="hidden absolute inset-0 bg-stone-900/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in">
-                <div class="bg-[#f4ebd8] p-5 rounded-sm w-full max-w-sm border border-[#d4c5a9] shadow-2xl relative">
-                    <h3 class="font-serif font-bold text-lg text-amber-900 mb-3 border-b border-[#d4c5a9] pb-2"><i class="fa-solid fa-location-dot text-amber-600 mr-2"></i> Link Map Pin</h3>
-                    <p class="text-xs text-stone-600 mb-4 font-sans">Select a Codex Entry (Location/Faction) to link this pin to, or assign a custom label.</p>
+            <div id="atlas-pin-modal" class="hidden absolute inset-0 bg-stone-900/80 z-[18000] flex items-center justify-center p-4 backdrop-blur-sm animate-in">
+                <div class="bg-[#f4ebd8] p-5 rounded-sm w-full max-w-sm border border-[#d4c5a9] shadow-2xl relative overflow-visible">
+                    <h3 class="font-serif font-bold text-lg text-amber-900 mb-2 border-b border-[#d4c5a9] pb-2"><i class="fa-solid fa-location-dot text-amber-600 mr-2"></i> Link Map Pin</h3>
+                    <p class="text-[10px] text-stone-600 mb-4 font-sans italic leading-snug">Search for a Codex Entry to link, type a custom label, or create a brand new Codex Entry right here.</p>
                     
-                    <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Codex Link</label>
-                    <select id="atlas-pin-codex-id" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white mb-4">
-                        <option value="">-- Custom Label Only (No Link) --</option>
-                        ${(camp.codex || []).filter(c => c.type === 'Location' || c.type === 'Faction').sort((a,b)=>a.name.localeCompare(b.name)).map(c => `<option value="${c.id}">${c.name} (${c.type})</option>`).join('')}
-                    </select>
-                    
-                    <div id="atlas-pin-custom-label-container">
-                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Custom Label (Optional)</label>
-                        <input type="text" id="atlas-pin-custom-label" placeholder="e.g., Hidden Cave" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white mb-5">
+                    <div class="relative mb-5">
+                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Location Name</label>
+                        <input type="text" id="atlas-pin-search" oninput="window.appActions.searchAtlasCodex(this.value)" placeholder="Search codex or type name..." class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white" autocomplete="off">
+                        <input type="hidden" id="atlas-pin-codex-id">
+                        
+                        <div id="atlas-pin-search-results" class="absolute z-10 w-full bg-white border border-[#d4c5a9] rounded-b-sm shadow-xl max-h-48 overflow-y-auto hidden top-[58px] custom-scrollbar"></div>
                     </div>
 
                     <!-- Hidden inputs for coordinates -->
@@ -141,7 +138,7 @@ export function getAtlasHTML(state) {
             </div>
             
             <!-- Route Save Modal (Used by DM when saving a drawn path) -->
-            <div id="atlas-route-modal" class="hidden absolute inset-0 bg-stone-900/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in">
+            <div id="atlas-route-modal" class="hidden absolute inset-0 bg-stone-900/80 z-[18000] flex items-center justify-center p-4 backdrop-blur-sm animate-in">
                 <div class="bg-[#f4ebd8] p-5 rounded-sm w-full max-w-sm border border-[#d4c5a9] shadow-2xl relative">
                     <h3 class="font-serif font-bold text-lg text-amber-900 mb-3 border-b border-[#d4c5a9] pb-2"><i class="fa-solid fa-route text-amber-600 mr-2"></i> Save Travel Route</h3>
                     <p class="text-xs text-stone-600 mb-4 font-sans">Name this route to save it to the Atlas history. Total Distance: <span id="atlas-route-dist" class="font-bold text-amber-700 border-b border-amber-300"></span></p>
