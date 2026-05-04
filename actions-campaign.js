@@ -232,7 +232,19 @@ export const createAdventure = async () => {
 
   const startLevel = parseInt(startLevelSelect.value) || 1;
   const endLevel = parseInt(endLevelSelect.value) || 2;
-  const defaultRoster = camp.playerCharacters?.map(pc => pc.id) || [];
+  
+  // Intelligent default roster: One PC per player
+  const defaultRoster = [];
+  const assignedPlayers = new Set();
+  (camp.playerCharacters || []).forEach(pc => {
+      if (pc.playerId && !assignedPlayers.has(pc.playerId)) {
+          defaultRoster.push(pc.id);
+          assignedPlayers.add(pc.playerId);
+      } else if (!pc.playerId) {
+          // If unassigned (NPC), throw it in by default
+          defaultRoster.push(pc.id);
+      }
+  });
 
   const newAdv = {
     id: generateId(),
@@ -447,16 +459,49 @@ export const openAdvRoster = () => {
   const camp = window.appData.activeCampaign;
   if (!adv || !camp || !camp._isDM) return;
   
-  // If the adventure doesn't have an activePcIds array yet (from older save), default to all PCs
-  window.appData.tempAdvRoster = adv.activePcIds ? [...adv.activePcIds] : camp.playerCharacters.map(pc => pc.id);
+  // If the adventure doesn't have an activePcIds array yet (from older save), populate it with 1 PC per player
+  if (adv.activePcIds) {
+      window.appData.tempAdvRoster = [...adv.activePcIds];
+  } else {
+      window.appData.tempAdvRoster = [];
+      const assignedPlayers = new Set();
+      camp.playerCharacters.forEach(pc => {
+          if (pc.playerId && !assignedPlayers.has(pc.playerId)) {
+              window.appData.tempAdvRoster.push(pc.id);
+              assignedPlayers.add(pc.playerId);
+          } else if (!pc.playerId) {
+              window.appData.tempAdvRoster.push(pc.id);
+          }
+      });
+  }
   window.appActions.setView('adv-roster');
 };
 
 export const toggleAdvRosterPc = (pcId) => {
+  const camp = window.appData.activeCampaign;
+  const targetPc = camp.playerCharacters.find(p => p.id === pcId);
   const idx = window.appData.tempAdvRoster.indexOf(pcId);
+
   if (idx === -1) {
+    // We are checking this hero. First, ensure the player doesn't already have an active hero in this adventure.
+    if (targetPc && targetPc.playerId) {
+        const existingPcIdx = window.appData.tempAdvRoster.findIndex(id => {
+            const p = camp.playerCharacters.find(c => c.id === id);
+            return p && p.playerId === targetPc.playerId;
+        });
+        
+        if (existingPcIdx !== -1) {
+            const oldPcId = window.appData.tempAdvRoster[existingPcIdx];
+            const oldPc = camp.playerCharacters.find(c => c.id === oldPcId);
+            // Remove the old hero
+            window.appData.tempAdvRoster.splice(existingPcIdx, 1);
+            notify(`Swapped active hero (Removed ${oldPc.name}).`, 'info');
+        }
+    }
+    // Add the new hero
     window.appData.tempAdvRoster.push(pcId);
   } else {
+    // We are unchecking this hero
     window.appData.tempAdvRoster.splice(idx, 1);
   }
   reRender(); // Re-render to update checkbox visuals
