@@ -13,13 +13,16 @@ export function getAtlasHTML(state) {
     const activeRoutes = state.activeAtlasRoutes || [];
     const isFullScreen = state.isAtlasFullScreen;
 
+    // By removing 'animate-in' while in full screen, we remove the CSS 'transform' property.
+    // This allows the 'fixed' positioning to successfully break out of the main container and cover the global UI!
     const containerClasses = isFullScreen 
-        ? "fixed inset-0 z-[9000] w-full h-[100dvh] bg-[#1c1917] flex flex-col animate-in zoom-in-95 duration-200"
+        ? "fixed inset-0 z-[60] w-full h-[100dvh] bg-[#1c1917] flex flex-col"
         : "animate-in fade-in duration-300 w-full max-w-6xl mx-auto flex flex-col h-[calc(100vh-120px)] sm:h-[calc(100vh-140px)] relative";
 
     return `
     <div class="${containerClasses}">
         
+        <!-- Header / Toolbar -->
         <div class="bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-[#292524] p-3 sm:p-4 flex justify-between items-center text-amber-500 shrink-0 border-b-2 sm:border-b-4 border-amber-700 shadow-md z-10 rounded-t-sm">
             <div class="flex items-center min-w-0">
                 <i class="fa-solid fa-map-location-dot mr-2 sm:mr-3 text-amber-600 flex-shrink-0 text-lg sm:text-xl"></i> 
@@ -29,20 +32,27 @@ export function getAtlasHTML(state) {
                 </div>
             </div>
             <div class="flex gap-2 shrink-0">
-                <button onclick="window.appActions.toggleAtlasFullScreen()" class="w-8 h-8 sm:w-10 sm:h-10 rounded-sm bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-amber-400 border border-stone-600 transition flex justify-center items-center shadow-sm" title="${isFullScreen ? 'Exit Full Screen' : 'Full Screen'}"><i class="fa-solid ${isFullScreen ? 'fa-compress' : 'fa-expand'}"></i></button>
                 <button onclick="window.appActions.toggleAtlasLayers()" class="w-8 h-8 sm:w-10 sm:h-10 rounded-sm bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-amber-400 border border-stone-600 transition flex justify-center items-center shadow-sm" title="Map Layers & Routes"><i class="fa-solid fa-layer-group"></i></button>
                 ${isDM ? `<button onclick="window.appActions.toggleAtlasSettings()" class="w-8 h-8 sm:w-10 sm:h-10 rounded-sm bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-amber-400 border border-stone-600 transition flex justify-center items-center shadow-sm" title="Map Settings"><i class="fa-solid fa-gear"></i></button>` : ''}
             </div>
         </div>
 
+        <!-- Map Area -->
         <div class="flex-grow relative bg-[#1c1917] overflow-hidden ${isFullScreen ? '' : 'rounded-b-sm border-x-2 border-b-2 border-stone-800 shadow-[0_15px_40px_rgba(0,0,0,0.7)]'}" id="atlas-wrapper">
             <div id="map-container" class="absolute inset-0 z-0 cursor-crosshair"></div>
             
+            <!-- Native-style Map Full Screen Toggle (Styled to match Leaflet Zoom Controls) -->
+            <button onclick="window.appActions.toggleAtlasFullScreen()" class="absolute top-[90px] right-[16px] z-[400] w-[34px] h-[34px] bg-[#292524] text-[#d6d3d1] border-2 border-[#78716c] rounded flex items-center justify-center hover:bg-[#44403c] hover:text-[#fbbf24] shadow-[0_4px_10px_rgba(0,0,0,0.5)] transition" title="${isFullScreen ? 'Exit Full Screen' : 'Full Screen'}">
+                <i class="fa-solid ${isFullScreen ? 'fa-compress' : 'fa-expand'}"></i>
+            </button>
+
+            <!-- Dynamic Scale Indicator -->
             <div class="absolute ${isFullScreen ? 'bottom-24 sm:bottom-20' : 'bottom-32 sm:bottom-28'} left-4 z-30 bg-stone-900/90 text-amber-50 px-3 py-2 rounded-sm shadow-md border border-stone-600 flex flex-col gap-1 pointer-events-none transition-all duration-300" id="scale-indicator">
                 <div class="text-[10px] uppercase tracking-widest font-bold text-stone-400 text-center" id="scale-text">${config.milesPerSquare} Miles</div>
                 <div class="h-1.5 border-x-2 border-b-2 border-amber-500 transition-all duration-100 ease-linear" id="scale-bar" style="width: ${config.pixelsPerSquare}px;"></div>
             </div>
 
+            <!-- Active Drawing Display -->
             <div id="drawing-stats" class="hidden absolute top-20 left-1/2 transform -translate-x-1/2 bg-stone-900 border-2 border-amber-600 text-amber-50 px-3 sm:px-4 py-2 rounded-sm shadow-xl z-40 font-bold flex flex-wrap items-center justify-center gap-3 animate-in whitespace-nowrap w-max max-w-[90vw]">
                 <div class="flex items-center gap-2 sm:gap-3 justify-center">
                     <i class="fa-solid fa-route text-amber-500 text-lg sm:text-xl"></i>
@@ -58,6 +68,7 @@ export function getAtlasHTML(state) {
                 </div>
             </div>
 
+            <!-- Map Tools Dock -->
             <div class="absolute ${isFullScreen ? 'bottom-6 sm:bottom-8' : 'top-4'} left-0 right-0 flex justify-center z-40 px-4 pointer-events-none transition-all duration-300">
                 <nav class="bg-stone-900 border-2 border-stone-700 shadow-[0_15px_30px_rgba(0,0,0,0.8)] rounded-full w-full max-w-xs h-12 sm:h-14 flex items-center justify-between px-2 pointer-events-auto bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')]">
                     <button onclick="window.appActions.setAtlasMode('pan')" id="mode-pan" class="tool-btn flex items-center justify-center w-1/3 text-amber-500 bg-stone-800 transition-colors h-full rounded-full">
@@ -80,6 +91,7 @@ export function getAtlasHTML(state) {
                 </nav>
             </div>
             
+            <!-- Map Layers / Routes Floating Panel -->
             <div id="atlas-layers-panel" class="hidden absolute top-4 right-4 z-50 animate-in pointer-events-auto shadow-2xl">
                 <div class="bg-[#f4ebd8] p-4 sm:p-5 rounded-sm w-72 sm:w-80 border border-[#d4c5a9] border-t-4 border-t-amber-700 relative max-h-[80vh] flex flex-col">
                     <button onclick="window.appActions.toggleAtlasLayers()" class="absolute top-2 right-3 text-stone-500 hover:text-red-900"><i class="fa-solid fa-xmark text-lg"></i></button>
@@ -115,6 +127,7 @@ export function getAtlasHTML(state) {
                 </div>
             </div>
 
+            <!-- Settings Floating Panel -->
             ${isDM ? `
             <div id="atlas-settings-panel" class="hidden absolute top-4 right-4 z-50 animate-in pointer-events-auto shadow-2xl">
                 <div class="bg-[#f4ebd8] p-4 sm:p-5 rounded-sm w-72 sm:w-80 border border-[#d4c5a9] border-t-4 border-t-amber-700 relative">
@@ -149,6 +162,7 @@ export function getAtlasHTML(state) {
             </div>
             ` : ''}
             
+            <!-- Pin Assignment Modal (Used by DM when dropping a pin) -->
             <div id="atlas-pin-modal" class="hidden absolute inset-0 bg-stone-900/80 z-[18000] flex items-center justify-center p-4 backdrop-blur-sm animate-in">
                 <div class="bg-[#f4ebd8] p-5 rounded-sm w-full max-w-sm border border-[#d4c5a9] shadow-2xl relative overflow-visible">
                     <h3 class="font-serif font-bold text-lg text-amber-900 mb-2 border-b border-[#d4c5a9] pb-2"><i class="fa-solid fa-location-dot text-amber-600 mr-2"></i> Link Map Pin</h3>
@@ -162,6 +176,7 @@ export function getAtlasHTML(state) {
                         <div id="atlas-pin-search-results" class="absolute z-10 w-full bg-white border border-[#d4c5a9] rounded-b-sm shadow-xl max-h-48 overflow-y-auto hidden top-[58px] custom-scrollbar"></div>
                     </div>
 
+                    <!-- Hidden inputs for coordinates -->
                     <input type="hidden" id="atlas-pin-lat">
                     <input type="hidden" id="atlas-pin-lng">
 
@@ -172,6 +187,7 @@ export function getAtlasHTML(state) {
                 </div>
             </div>
             
+            <!-- Route Save Modal (Used by DM when saving a drawn path) -->
             <div id="atlas-route-modal" class="hidden absolute inset-0 bg-stone-900/80 z-[18000] flex items-center justify-center p-4 backdrop-blur-sm animate-in">
                 <div class="bg-[#f4ebd8] p-5 rounded-sm w-full max-w-sm border border-[#d4c5a9] shadow-2xl relative overflow-visible">
                     <h3 class="font-serif font-bold text-lg text-amber-900 mb-3 border-b border-[#d4c5a9] pb-2"><i class="fa-solid fa-route text-amber-600 mr-2"></i> Save Travel Route</h3>
