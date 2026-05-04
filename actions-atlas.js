@@ -17,7 +17,7 @@ export const initAtlas = () => {
     const camp = window.appData.activeCampaign;
     if (!camp) return;
 
-    // Purge the old Leaflet instance to prevent initialization conflicts when switching views
+    // Purge the old Leaflet instance to prevent initialization conflicts when switching views or toggling layers
     if (mapInstance) {
         mapInstance.remove();
         mapInstance = null;
@@ -216,8 +216,10 @@ const renderAtlasEntities = (camp) => {
         });
     });
 
-    // Render Database Routes
-    (camp.atlasRoutes || []).forEach(route => {
+    // Render Database Routes (ONLY those toggled ON in the layers panel)
+    const activeRoutes = window.appData.activeAtlasRoutes || [];
+    
+    (camp.atlasRoutes || []).filter(r => activeRoutes.includes(r.id)).forEach(route => {
         const polyline = L.polyline(route.points, { color: '#ef4444', weight: 4, dashArray: '5, 10' }).addTo(mapInstance);
         
         polyline.on('click', () => {
@@ -559,6 +561,10 @@ export const confirmAtlasRoute = async () => {
         atlasRoutes: [...(camp.atlasRoutes || []), newRoute]
     };
 
+    // Auto-toggle the newly created route "ON" so the user instantly sees what they just drew!
+    if (!window.appData.activeAtlasRoutes) window.appData.activeAtlasRoutes = [];
+    window.appData.activeAtlasRoutes.push(newRoute.id);
+
     await saveCampaign(updatedCamp);
     document.getElementById('atlas-route-modal').classList.add('hidden');
     window.appActions.setAtlasMode('pan');
@@ -571,12 +577,46 @@ export const viewOnMap = (codexId) => {
     // 1. Close any open Codex modal overlay
     document.getElementById('global-popup-container').innerHTML = '';
     
-    // 2. Queue the focus ID so the Atlas knows to zoom in when it finishes mounting!
+    // 2. Check if the requested Codex ID is attached to a Route. If it is, Auto-Toggle it ON!
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    const targetRoute = camp?.atlasRoutes?.find(r => r.codexId === codexId);
+    if (targetRoute) {
+        if (!window.appData.activeAtlasRoutes) window.appData.activeAtlasRoutes = [];
+        if (!window.appData.activeAtlasRoutes.includes(targetRoute.id)) {
+            window.appData.activeAtlasRoutes.push(targetRoute.id);
+        }
+    }
+
+    // 3. Queue the focus ID so the Atlas knows to zoom in when it finishes mounting!
     window.appData.pendingAtlasFocus = codexId;
     
-    // 3. Switch the view (which triggers data.js to call initAtlas via a tiny timeout)
+    // 4. Switch the view (which triggers data.js to call initAtlas via a tiny timeout)
     window.appActions.setView('atlas');
 };
+
+// --- MAP LAYERS UI ---
+
+export const toggleAtlasLayers = () => {
+    const panel = document.getElementById('atlas-layers-panel');
+    if (panel) panel.classList.toggle('hidden');
+};
+
+export const toggleAtlasRouteVis = (routeId) => {
+    if (!window.appData.activeAtlasRoutes) window.appData.activeAtlasRoutes = [];
+    
+    const idx = window.appData.activeAtlasRoutes.indexOf(routeId);
+    if (idx === -1) {
+        window.appData.activeAtlasRoutes.push(routeId);
+    } else {
+        window.appData.activeAtlasRoutes.splice(idx, 1);
+    }
+    
+    // Completely tearing down the DOM here with a reRender would abruptly close the Layers panel.
+    // Instead, we just instantly call initAtlas() which natively re-draws the map entities in the background!
+    window.appActions.initAtlas();
+};
+
 
 export const deleteAtlasPin = async (id) => {
     if (!confirm("Are you sure you want to remove this pin? (The Codex entry will remain safely in the archives)")) return;
