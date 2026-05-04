@@ -88,7 +88,7 @@ export function getAtlasHTML(state) {
                     <div class="overflow-y-auto custom-scrollbar pr-1 flex-grow space-y-4">
                         <div>
                             <h3 class="text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Travel Routes</h3>
-                            <div class="bg-white border border-[#d4c5a9] rounded-sm shadow-inner overflow-hidden">
+                            <div id="atlas-route-checkboxes" class="bg-white border border-[#d4c5a9] rounded-sm shadow-inner overflow-hidden">
                                 ${(camp.atlasRoutes || []).length === 0 ? '<p class="p-3 text-[10px] italic text-stone-400">No routes inscribed yet.</p>' : ''}
                                 ${(camp.atlasRoutes || []).map(r => {
                                     // SAFELY fetch the route name from the linked Codex entry!
