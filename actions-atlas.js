@@ -178,6 +178,38 @@ export const initAtlas = () => {
     window.appActions.setAtlasMode('pan');
 };
 
+// Helper to dynamically re-render the layers panel checkboxes so the UI stays in sync without tearing down the DOM
+const renderAtlasLayerCheckboxes = (camp) => {
+    const container = document.getElementById('atlas-route-checkboxes');
+    if (!container) return;
+    
+    const activeRoutes = window.appData.activeAtlasRoutes || [];
+    
+    if ((camp.atlasRoutes || []).length === 0) {
+        container.innerHTML = '<p class="p-3 text-[10px] italic text-stone-400">No routes inscribed yet.</p>';
+        return;
+    }
+
+    container.innerHTML = (camp.atlasRoutes || []).map(r => {
+        let routeName = r.name; 
+        if (r.codexId) {
+            const cEntry = (camp.codex || []).find(c => c.id === r.codexId);
+            if (cEntry) routeName = cEntry.name;
+        }
+        if (!routeName) routeName = "Unknown Route";
+        const safeName = routeName.replace(/"/g, '&quot;');
+        
+        return `
+        <div class="flex items-center justify-between p-2 border-b border-[#d4c5a9] last:border-b-0 hover:bg-stone-50 transition">
+            <label class="flex items-center gap-2 cursor-pointer w-full text-[10px] font-bold uppercase tracking-widest text-stone-700 hover:text-amber-700 transition">
+                <input type="checkbox" ${activeRoutes.includes(r.id) ? 'checked' : ''} onchange="window.appActions.toggleAtlasRouteVis('${r.id}')" class="w-4 h-4 text-amber-600 rounded-sm shadow-sm border-[#d4c5a9] focus:ring-amber-500 cursor-pointer shrink-0">
+                <span class="truncate" title="${safeName}">${safeName}</span>
+            </label>
+        </div>
+        `;
+    }).join('');
+};
+
 // NEW FAST-REFRESH FUNCTION: Clears only the pins/routes and redraws them instantly!
 export const refreshAtlasEntities = () => {
     if (!mapInstance || !entityLayer) return;
@@ -187,7 +219,10 @@ export const refreshAtlasEntities = () => {
     
     updateDerivedState();
     const camp = window.appData.activeCampaign;
-    if (camp) renderAtlasEntities(camp);
+    if (camp) {
+        renderAtlasEntities(camp);
+        renderAtlasLayerCheckboxes(camp); // Re-sync the Layers panel!
+    }
 };
 
 const renderAtlasEntities = (camp) => {
