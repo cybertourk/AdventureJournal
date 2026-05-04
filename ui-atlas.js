@@ -10,6 +10,7 @@ export function getAtlasHTML(state) {
     };
     
     const isDM = camp._isDM;
+    const activeRoutes = state.activeAtlasRoutes || [];
 
     return `
     <div class="animate-in fade-in duration-300 w-full max-w-6xl mx-auto flex flex-col h-[calc(100vh-120px)] sm:h-[calc(100vh-140px)] relative">
@@ -24,6 +25,7 @@ export function getAtlasHTML(state) {
                 </div>
             </div>
             <div class="flex gap-2 shrink-0">
+                <button onclick="window.appActions.toggleAtlasLayers()" class="w-8 h-8 sm:w-10 sm:h-10 rounded-sm bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-amber-400 border border-stone-600 transition flex justify-center items-center shadow-sm" title="Map Layers & Routes"><i class="fa-solid fa-layer-group"></i></button>
                 ${isDM ? `<button onclick="window.appActions.toggleAtlasSettings()" class="w-8 h-8 sm:w-10 sm:h-10 rounded-sm bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-amber-400 border border-stone-600 transition flex justify-center items-center shadow-sm" title="Map Settings"><i class="fa-solid fa-gear"></i></button>` : ''}
             </div>
         </div>
@@ -77,12 +79,38 @@ export function getAtlasHTML(state) {
                 </nav>
             </div>
             
+            <!-- Map Layers / Routes Floating Panel -->
+            <div id="atlas-layers-panel" class="hidden absolute top-4 right-4 z-50 animate-in pointer-events-auto shadow-2xl">
+                <div class="bg-[#f4ebd8] p-4 sm:p-5 rounded-sm w-72 sm:w-80 border border-[#d4c5a9] border-t-4 border-t-amber-700 relative max-h-[80vh] flex flex-col">
+                    <button onclick="window.appActions.toggleAtlasLayers()" class="absolute top-2 right-3 text-stone-500 hover:text-red-900"><i class="fa-solid fa-xmark text-lg"></i></button>
+                    <h2 class="text-sm font-serif font-bold text-amber-900 mb-3 border-b border-[#d4c5a9] pb-2 shrink-0"><i class="fa-solid fa-layer-group mr-1.5 text-stone-500"></i> Map Layers</h2>
+                    
+                    <div class="overflow-y-auto custom-scrollbar pr-1 flex-grow space-y-4">
+                        <div>
+                            <h3 class="text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Travel Routes</h3>
+                            <div class="bg-white border border-[#d4c5a9] rounded-sm shadow-inner overflow-hidden">
+                                ${(camp.atlasRoutes || []).length === 0 ? '<p class="p-3 text-[10px] italic text-stone-400">No routes inscribed yet.</p>' : ''}
+                                ${(camp.atlasRoutes || []).map(r => `
+                                    <div class="flex items-center justify-between p-2 border-b border-[#d4c5a9] last:border-b-0 hover:bg-stone-50 transition">
+                                        <label class="flex items-center gap-2 cursor-pointer w-full text-[10px] font-bold uppercase tracking-widest text-stone-700 hover:text-amber-700 transition">
+                                            <input type="checkbox" ${activeRoutes.includes(r.id) ? 'checked' : ''} onchange="window.appActions.toggleAtlasRouteVis('${r.id}')" class="w-4 h-4 text-amber-600 rounded-sm shadow-sm border-[#d4c5a9] focus:ring-amber-500 cursor-pointer shrink-0">
+                                            <span class="truncate" title="${r.name.replace(/"/g, '&quot;')}">${r.name.replace(/"/g, '&quot;')}</span>
+                                        </label>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <p class="text-[9px] text-stone-500 italic mt-2">Checking a route makes it visible on the map. Routes are hidden by default to prevent clutter.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Settings Floating Panel -->
             ${isDM ? `
             <div id="atlas-settings-panel" class="hidden absolute top-4 right-4 z-50 animate-in pointer-events-auto shadow-2xl">
                 <div class="bg-[#f4ebd8] p-4 sm:p-5 rounded-sm w-72 sm:w-80 border border-[#d4c5a9] border-t-4 border-t-amber-700 relative">
                     <button onclick="window.appActions.toggleAtlasSettings()" class="absolute top-2 right-3 text-stone-500 hover:text-red-900"><i class="fa-solid fa-xmark text-lg"></i></button>
-                    <h2 class="text-sm font-serif font-bold text-amber-900 mb-4 border-b border-[#d4c5a9] pb-2"><i class="fa-solid fa-map mr-1.5 text-stone-500"></i> Map Configuration</h2>
+                    <h2 class="text-sm font-serif font-bold text-amber-900 mb-4 border-b border-[#d4c5a9] pb-2"><i class="fa-solid fa-gear mr-1.5 text-stone-500"></i> Map Configuration</h2>
                     
                     <div class="space-y-4">
                         <div>
@@ -157,8 +185,6 @@ export function getAtlasHTML(state) {
                     </div>
                 </div>
             </div>
-
-            <!-- Pre-existing Routes/Pins rendering will be handled by Leaflet in actions-atlas.js -->
 
         </div>
     </div>
