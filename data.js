@@ -18,6 +18,9 @@ import { openCalendar, navCalendarMonth, jumpToCurrentDate, jumpToSpecificDate, 
 // Import Rules Glossary Functionality
 import { openRulesGlossary, viewRule, openRuleModal, saveRule, deleteRule, updateTravelPresets, calculateTravel, calculateEncumbrance, calculateJump } from './actions-rules.js';
 
+// Import Atlas & Map Functionality
+import { initAtlas, setAtlasMode, updateAtlasGridAndScale, updateAtlasDistanceCalc, atlasUndoLastPoint, atlasFinishDrawing, confirmAtlasPin, confirmAtlasRoute, deleteAtlasPin, deleteAtlasRoute, toggleAtlasSettings, saveAtlasSettings } from './actions-atlas.js';
+
 // --- APP ACTIONS HUB --- 
 // We bind all our imported modular functions back to the global window.appActions 
 // object so that the UI's inline onclick handlers can still reach them! 
@@ -139,7 +142,21 @@ window.appActions = {
   updateTravelPresets,
   calculateTravel,
   calculateEncumbrance,
-  calculateJump
+  calculateJump,
+  
+  // Atlas / Interactive Maps
+  initAtlas,
+  setAtlasMode,
+  updateAtlasGridAndScale,
+  updateAtlasDistanceCalc,
+  atlasUndoLastPoint,
+  atlasFinishDrawing,
+  confirmAtlasPin,
+  confirmAtlasRoute,
+  deleteAtlasPin,
+  deleteAtlasRoute,
+  toggleAtlasSettings,
+  saveAtlasSettings
 }; 
 
 // ============================================================================
@@ -159,6 +176,11 @@ const originalSetView = window.appActions.setView;
 window.appActions.setView = function(viewName, skipHistory = false) {
     // Execute the visual change first
     originalSetView(viewName);
+    
+    // NEW: Atlas Init Hook - Mount the Leaflet map right after the DOM renders
+    if (viewName === 'atlas') {
+        setTimeout(() => window.appActions.initAtlas(), 50);
+    }
     
     // Push the resulting state to the browser history
     if (!skipHistory) {
@@ -232,6 +254,12 @@ window.addEventListener('popstate', (event) => {
         
         updateDerivedState();
         reRender();
+
+        // NEW: Atlas Re-Init Hook for Back/Forward navigation
+        if (event.state.currentView === 'atlas') {
+            setTimeout(() => window.appActions.initAtlas(), 50);
+        }
+
     } else {
         // Fallback to Home if we lose state
         if (window.appData) window.appData.currentView = 'home';
