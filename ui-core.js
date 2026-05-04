@@ -430,6 +430,20 @@ export function renderApp(state) {
         container.scrollTo({ top: 0, behavior: 'instant' });
     }
 
+    // --- NEW: LEAFLET DOM PRESERVATION ---
+    // If we are already on the Atlas view and the DOM is built, 
+    // DO NOT overwrite innerHTML! This prevents the map from disappearing or flickering.
+    if (state.currentView === 'atlas' && document.getElementById('atlas-wrapper')) {
+        if (window.appActions && window.appActions.refreshAtlasEntities) {
+            window.appActions.refreshAtlasEntities();
+        }
+        updateHeaderUI(state);
+        updateDockUI(state);
+        updateChecklistUI(state);
+        updatePlayerResourceBar(state);
+        return; 
+    }
+
     let html = '';
     switch (state.currentView) {
         case 'home': html = getHomeHTML(state); break;
