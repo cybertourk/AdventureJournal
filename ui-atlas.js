@@ -90,14 +90,25 @@ export function getAtlasHTML(state) {
                             <h3 class="text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Travel Routes</h3>
                             <div class="bg-white border border-[#d4c5a9] rounded-sm shadow-inner overflow-hidden">
                                 ${(camp.atlasRoutes || []).length === 0 ? '<p class="p-3 text-[10px] italic text-stone-400">No routes inscribed yet.</p>' : ''}
-                                ${(camp.atlasRoutes || []).map(r => `
+                                ${(camp.atlasRoutes || []).map(r => {
+                                    // SAFELY fetch the route name from the linked Codex entry!
+                                    let routeName = r.name; // Legacy support
+                                    if (r.codexId) {
+                                        const cEntry = (camp.codex || []).find(c => c.id === r.codexId);
+                                        if (cEntry) routeName = cEntry.name;
+                                    }
+                                    if (!routeName) routeName = "Unknown Route";
+                                    const safeName = routeName.replace(/"/g, '&quot;');
+                                    
+                                    return `
                                     <div class="flex items-center justify-between p-2 border-b border-[#d4c5a9] last:border-b-0 hover:bg-stone-50 transition">
                                         <label class="flex items-center gap-2 cursor-pointer w-full text-[10px] font-bold uppercase tracking-widest text-stone-700 hover:text-amber-700 transition">
                                             <input type="checkbox" ${activeRoutes.includes(r.id) ? 'checked' : ''} onchange="window.appActions.toggleAtlasRouteVis('${r.id}')" class="w-4 h-4 text-amber-600 rounded-sm shadow-sm border-[#d4c5a9] focus:ring-amber-500 cursor-pointer shrink-0">
-                                            <span class="truncate" title="${r.name.replace(/"/g, '&quot;')}">${r.name.replace(/"/g, '&quot;')}</span>
+                                            <span class="truncate" title="${safeName}">${safeName}</span>
                                         </label>
                                     </div>
-                                `).join('')}
+                                    `;
+                                }).join('')}
                             </div>
                             <p class="text-[9px] text-stone-500 italic mt-2">Checking a route makes it visible on the map. Routes are hidden by default to prevent clutter.</p>
                         </div>
