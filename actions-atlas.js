@@ -223,7 +223,7 @@ const renderAtlasLayerCheckboxes = (camp) => {
     });
 
     if (sortedRoutes.length === 0) {
-        container.innerHTML = '<p class="p-3 text-[10px] italic text-stone-400">No routes inscribed yet.</p>';
+        container.innerHTML = '<p class="p-2 text-[8px] italic text-stone-400">No routes inscribed yet.</p>';
         return;
     }
 
@@ -241,15 +241,15 @@ const renderAtlasLayerCheckboxes = (camp) => {
             const rMonthIdx = parseInt(r.startDate.month, 10);
             const rMonth = cal?.months ? cal.months[rMonthIdx] : null;
             if (rMonth) {
-                const durStr = (r.durationDays && r.durationDays > 0) ? `${r.durationDays} Day(s)` : `< 1 Day`;
-                dateStr = `<div class="text-[9px] text-stone-400 font-sans italic mt-0.5"><i class="fa-solid fa-calendar-days mr-1 text-stone-300"></i>${rMonth.name} ${r.startDate.day}, ${r.startDate.year} • ${durStr}</div>`;
+                const durStr = (r.durationDays && r.durationDays > 1) ? `${r.durationDays} Day Span` : `Same Day`;
+                dateStr = `<div class="text-[7px] text-stone-400 font-sans italic mt-0.5"><i class="fa-solid fa-calendar-days mr-1 text-stone-300"></i>${rMonth.name} ${r.startDate.day}, ${r.startDate.year} • ${durStr}</div>`;
             }
         }
 
         return `
-        <div class="flex items-center justify-between p-2 border-b border-[#d4c5a9] last:border-b-0 hover:bg-stone-50 transition">
-            <label class="flex items-start gap-2 cursor-pointer w-full text-[10px] font-bold uppercase tracking-widest text-stone-700 hover:text-amber-700 transition">
-                <input type="checkbox" ${activeRoutes.includes(r.id) ? 'checked' : ''} onchange="window.appActions.toggleAtlasRouteVis('${r.id}')" class="w-4 h-4 mt-0.5 text-amber-600 rounded-sm shadow-sm border-[#d4c5a9] focus:ring-amber-500 cursor-pointer shrink-0">
+        <div class="flex items-center justify-between p-1.5 border-b border-[#d4c5a9] last:border-b-0 hover:bg-stone-50 transition">
+            <label class="flex items-start gap-1.5 cursor-pointer w-full text-[8px] font-bold uppercase tracking-widest text-stone-700 hover:text-amber-700 transition">
+                <input type="checkbox" ${activeRoutes.includes(r.id) ? 'checked' : ''} onchange="window.appActions.toggleAtlasRouteVis('${r.id}')" class="w-3 h-3 mt-0.5 text-amber-600 rounded-sm shadow-sm border-[#d4c5a9] focus:ring-amber-500 cursor-pointer shrink-0">
                 <div class="flex flex-col min-w-0">
                     <span class="truncate" title="${safeName}">${safeName}</span>
                     ${dateStr}
@@ -326,11 +326,26 @@ const renderAtlasEntities = (camp) => {
         });
     });
 
-    // Render Database Routes 
+    // Render Database Routes & Visual Node Markers
     const activeRoutes = window.appData.activeAtlasRoutes || [];
     
+    const startIcon = L.divIcon({ className: 'custom-route-node', html: '<div class="w-3 h-3 bg-emerald-500 rounded-full border-2 border-white shadow-sm"></div>', iconSize: [12, 12], iconAnchor: [6, 6] });
+    const endIcon = L.divIcon({ className: 'custom-route-node', html: '<div class="w-3 h-3 bg-red-600 rounded-full border-2 border-white shadow-sm"></div>', iconSize: [12, 12], iconAnchor: [6, 6] });
+    const stopIcon = L.divIcon({ className: 'custom-route-node', html: '<div class="w-2.5 h-2.5 bg-amber-500 rounded-full border-2 border-white shadow-sm"></div>', iconSize: [10, 10], iconAnchor: [5, 5] });
+
     (camp.atlasRoutes || []).filter(r => activeRoutes.includes(r.id)).forEach(route => {
         const polyline = L.polyline(route.points, { color: '#ef4444', weight: 4, dashArray: '5, 10' }).addTo(entityLayer);
+        
+        // Add decorative markers for Start, End, and Intermediate Stops!
+        if (route.points.length > 0) {
+            L.marker(route.points[0], { icon: startIcon, interactive: false }).addTo(entityLayer);
+            if (route.points.length > 1) {
+                L.marker(route.points[route.points.length - 1], { icon: endIcon, interactive: false }).addTo(entityLayer);
+            }
+            for (let i = 1; i < route.points.length - 1; i++) {
+                L.marker(route.points[i], { icon: stopIcon, interactive: false }).addTo(entityLayer);
+            }
+        }
         
         polyline.on('click', () => {
             if (currentMode === 'pan') {
@@ -486,9 +501,24 @@ export const atlasUndoLastPoint = () => {
 
 // --- TRAVEL MATH INTEGRATION ENGINE ---
 
-// Calculates the route math dynamically for the UI before saving!
+export const addAtlasRouteStop = () => {
+    const container = document.getElementById('atlas-route-stops-container');
+    if (!container) return;
+
+    const html = `
+        <div class="flex items-center gap-2 stop-row bg-white p-1.5 border border-[#d4c5a9] rounded-sm shadow-sm animate-in fade-in duration-200">
+            <input type="text" class="stop-desc flex-grow p-1.5 bg-transparent text-[10px] font-bold text-stone-900 outline-none placeholder:font-normal placeholder:italic placeholder:text-stone-400" placeholder="Event (e.g. Combat, Rest)..." oninput="window.appActions.calculateAtlasRouteLive()">
+            <div class="w-px h-4 bg-stone-300 mx-1"></div>
+            <input type="number" class="stop-hours w-12 p-1.5 bg-transparent text-[10px] font-bold text-stone-900 outline-none text-center" placeholder="0" min="0" oninput="window.appActions.calculateAtlasRouteLive()">
+            <span class="text-[8px] font-bold text-stone-500 uppercase mr-1">Hrs</span>
+            <button type="button" onclick="this.closest('.stop-row').remove(); window.appActions.calculateAtlasRouteLive()" class="text-stone-400 hover:text-red-600 bg-stone-100 hover:bg-red-50 p-1.5 rounded transition-colors"><i class="fa-solid fa-trash text-xs"></i></button>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', html);
+    window.appActions.calculateAtlasRouteLive();
+};
+
 export const calculateAtlasRouteLive = () => {
-    // Read from the visible text block in the modal safely
     const distStr = document.getElementById('atlas-route-dist')?.textContent || "0";
     const distanceMiles = parseFloat(distStr) || 0;
     
@@ -502,7 +532,6 @@ export const calculateAtlasRouteLive = () => {
     const pace = paceEl.value;
     const isDifficult = diffEl ? diffEl.checked : false;
 
-    // Utilize the DRY engine exactly like the Glossary does
     const preset = getPresetTravelData(mode);
     const stats = getCoreTravelMath(mode, preset.speed, isDifficult);
 
@@ -511,35 +540,60 @@ export const calculateAtlasRouteLive = () => {
         if (pace === 'fast') mph = stats.fastMph;
         if (pace === 'slow') mph = stats.slowMph;
     }
-    if (mph <= 0) mph = 1; // Failsafe division by zero
+    if (mph <= 0) mph = 1; 
 
     let travelHours = preset.hours;
     if (pace === 'forced') travelHours += 4;
 
-    let calculatedMilesPerDay = mph * travelHours;
-    if (calculatedMilesPerDay <= 0) calculatedMilesPerDay = 1;
-
-    let daysToTravel = Math.ceil(distanceMiles / calculatedMilesPerDay);
-    if (daysToTravel < 1) daysToTravel = 1;
+    // --- TRUE CHRONOLOGICAL ELAPSED TIME MATH ---
+    let movingHours = distanceMiles / mph;
+    let stopHours = 0;
     
-    // Calculate exact hours if it is a short journey!
-    let totalHours = distanceMiles / mph;
+    // Tally up the dynamic stops!
+    document.querySelectorAll('.stop-row .stop-hours').forEach(input => {
+        stopHours += parseFloat(input.value) || 0;
+    });
+
+    let elapsedHours = 0;
+    if (movingHours > 0) {
+        let fullBlocks = Math.floor(movingHours / travelHours);
+        let remainder = movingHours % travelHours;
+        
+        // Safety for floating point imprecision
+        if (remainder < 0.01) remainder = 0;
+
+        if (remainder === 0) {
+            // Journey ends exactly at the end of a travel block (No final long rest required)
+            elapsedHours = ((fullBlocks - 1) * 24) + travelHours;
+        } else {
+            // Journey ends mid-day
+            elapsedHours = (fullBlocks * 24) + remainder;
+        }
+    }
+
+    elapsedHours += stopHours;
+    if (elapsedHours < 0) elapsedHours = 0;
+
+    let finalDays = Math.floor(elapsedHours / 24);
+    let finalHours = elapsedHours % 24;
+
     let timeDisplay = "";
-    if (totalHours < travelHours && distanceMiles > 0) {
-        timeDisplay = `${parseFloat(totalHours.toFixed(1))} Hour(s)`;
-    } else if (distanceMiles === 0) {
-        timeDisplay = "0 Hours";
+    if (finalDays > 0 && finalHours > 0) {
+        timeDisplay = `${finalDays} Day(s), ${parseFloat(finalHours.toFixed(1))} Hr(s)`;
+    } else if (finalDays > 0) {
+        timeDisplay = `${finalDays} Day(s)`;
+    } else if (finalHours > 0) {
+        timeDisplay = `${parseFloat(finalHours.toFixed(1))} Hr(s)`;
     } else {
-        timeDisplay = `${daysToTravel} Day(s)`;
+        timeDisplay = "Instant";
     }
 
     // Update the live math UI readout
     const liveOut = document.getElementById('atlas-route-live-math');
     if (liveOut) {
-        liveOut.innerHTML = `${timeDisplay} <span class="text-[9px] text-stone-400 normal-case tracking-normal ml-1 border-l border-stone-300 pl-2">(@ ${calculatedMilesPerDay.toFixed(1)} miles/day)</span>`;
+        liveOut.innerHTML = `${timeDisplay} <span class="text-[9px] text-stone-400 normal-case tracking-normal ml-1 border-l border-stone-300 pl-2">(@ ${mph.toFixed(1)} mph)</span>`;
     }
     
-    // Intelligently lock/unlock the difficult terrain checkbox based on travel mode
     if (diffEl) {
         if (!preset.canBeDifficult) {
             diffEl.disabled = true;
@@ -558,9 +612,12 @@ export const atlasFinishDrawing = () => {
     // Set the visible textContent to power the calculations safely
     const distStr = document.getElementById('dist-val').textContent;
     document.getElementById('atlas-route-dist').textContent = distStr;
-    document.getElementById('atlas-route-modal').classList.remove('hidden');
     
-    // Kick off the live preview immediately so the user sees the 1st math iteration
+    // Clear out any lingering stops from previous saves
+    const stopsContainer = document.getElementById('atlas-route-stops-container');
+    if (stopsContainer) stopsContainer.innerHTML = '';
+    
+    document.getElementById('atlas-route-modal').classList.remove('hidden');
     calculateAtlasRouteLive();
 };
 
@@ -569,7 +626,6 @@ export const confirmAtlasRoute = async () => {
     const camp = window.appData.activeCampaign;
     if (!camp) return;
 
-    // FIX: Read from the modal's textContent
     const distStr = document.getElementById('atlas-route-dist').textContent;
     let codexId = document.getElementById('atlas-route-codex-id').value;
     const searchInput = document.getElementById('atlas-route-search').value.trim();
@@ -586,7 +642,17 @@ export const confirmAtlasRoute = async () => {
         return;
     }
 
-    // --- EXECUTE CORE TRAVEL MATH ---
+    // Gather Stops
+    const stopsData = [];
+    let stopHours = 0;
+    document.querySelectorAll('.stop-row').forEach(row => {
+        const desc = row.querySelector('.stop-desc').value.trim() || 'Unspecified Stop';
+        const hrs = parseFloat(row.querySelector('.stop-hours').value) || 0;
+        stopsData.push({ desc, hours: hrs });
+        stopHours += hrs;
+    });
+
+    // --- EXECUTE TRUE CHRONOLOGICAL MATH ---
     const preset = getPresetTravelData(mode);
     const stats = getCoreTravelMath(mode, preset.speed, isDifficult);
 
@@ -595,29 +661,48 @@ export const confirmAtlasRoute = async () => {
         if (pace === 'fast') mph = stats.fastMph;
         if (pace === 'slow') mph = stats.slowMph;
     }
-    if (mph <= 0) mph = 1; // Failsafe
+    if (mph <= 0) mph = 1; 
 
     let travelHours = preset.hours;
     if (pace === 'forced') travelHours += 4;
 
-    let calculatedMilesPerDay = mph * travelHours;
-    if (calculatedMilesPerDay <= 0) calculatedMilesPerDay = 1;
+    let movingHours = distanceMiles / mph;
+    let elapsedHours = 0;
 
-    let daysToTravel = Math.ceil(distanceMiles / calculatedMilesPerDay);
-    if (daysToTravel < 1) daysToTravel = 1;
+    if (movingHours > 0) {
+        let fullBlocks = Math.floor(movingHours / travelHours);
+        let remainder = movingHours % travelHours;
+        
+        if (remainder < 0.01) remainder = 0;
 
-    // Calculate exact hours if it is a short journey for the text description!
-    let totalHours = distanceMiles / mph;
-    let timeDisplay = "";
-    if (totalHours < travelHours && distanceMiles > 0) {
-        timeDisplay = `${parseFloat(totalHours.toFixed(1))} Hour(s)`;
-    } else if (distanceMiles === 0) {
-        timeDisplay = "0 Hours";
-    } else {
-        timeDisplay = `${daysToTravel} Day(s)`;
+        if (remainder === 0) {
+            elapsedHours = ((fullBlocks - 1) * 24) + travelHours;
+        } else {
+            elapsedHours = (fullBlocks * 24) + remainder;
+        }
     }
 
-    // --- NEW: EXTRACT DATE MATH FOR THE DESCRIPTION FIRST ---
+    elapsedHours += stopHours;
+    if (elapsedHours < 0) elapsedHours = 0;
+
+    let finalDays = Math.floor(elapsedHours / 24);
+    let finalHours = elapsedHours % 24;
+
+    let timeDisplay = "";
+    if (finalDays > 0 && finalHours > 0) {
+        timeDisplay = `${finalDays} Day(s), ${parseFloat(finalHours.toFixed(1))} Hr(s)`;
+    } else if (finalDays > 0) {
+        timeDisplay = `${finalDays} Day(s)`;
+    } else if (finalHours > 0) {
+        timeDisplay = `${parseFloat(finalHours.toFixed(1))} Hr(s)`;
+    } else {
+        timeDisplay = "Instant";
+    }
+
+    // Determine how many slots it occupies on the Global Calendar Map
+    let calendarDuration = Math.max(1, Math.ceil(elapsedHours / 24));
+
+    // --- EXTRACT DATE MATH FOR THE DESCRIPTION ---
     const igY = parseInt(document.getElementById('atlas-route-year')?.value, 10);
     const igM = parseInt(document.getElementById('atlas-route-month')?.value, 10);
     const igD = parseInt(document.getElementById('atlas-route-day')?.value, 10);
@@ -630,20 +715,18 @@ export const confirmAtlasRoute = async () => {
         departureDate = { year: igY, month: igM, day: igD };
         
         if (camp.calendar && camp.calendar.months) {
-            // Format Departure Date
             let mName = camp.calendar.months[igM]?.name || "Unknown";
             if (mName.includes('(') && camp.calendar.months[igM]?.nickname === undefined) {
                 mName = mName.split('(')[0].trim();
             }
             departureStr = `${igD} ${mName}, ${igY}`;
 
-            // Calculate and Format Arrival Date based on spanning days
-            if (daysToTravel <= 1) {
-                arrivalStr = departureStr; // Arrives on the same day
+            if (calendarDuration <= 1) {
+                arrivalStr = departureStr; 
             } else {
                 const totalDays = getDaysInYear(camp.calendar);
                 const startDoy = getDayOfYear(camp.calendar, igM, igD);
-                const endDoy = startDoy + daysToTravel - 1;
+                const endDoy = startDoy + calendarDuration - 1;
 
                 const eY = igY + Math.floor((endDoy - 1) / totalDays);
                 let remDoy = ((endDoy - 1) % totalDays) + 1;
@@ -667,8 +750,15 @@ export const confirmAtlasRoute = async () => {
 
     let updatedCodex = camp.codex || [];
     
-    // Inject the formatted dates into the text block!
     let descriptionText = `A journey logged on the Atlas.\n\n**Departure:** ${departureStr}\n**Arrival:** ${arrivalStr}\n**Total Distance:** ${distanceMiles.toFixed(1)} Miles\n**Travel Mode:** ${modeLabel}\n**Travel Pace:** ${paceLabel}\n**Calculated Travel Time:** ${timeDisplay}`;
+
+    // Append the Stops Breakdown!
+    if (stopsData.length > 0) {
+        descriptionText += `\n\n**Stops & Events:**\n`;
+        stopsData.forEach(s => {
+            descriptionText += `- ${s.desc} (${s.hours} Hrs)\n`;
+        });
+    }
 
     if (!codexId && searchInput) {
         codexId = generateId();
@@ -698,8 +788,9 @@ export const confirmAtlasRoute = async () => {
         id: generateId(),
         codexId: codexId, 
         points: plainPoints,
+        stops: stopsData, // Save the raw array of stops metadata to the DB
         distanceMiles: distanceMiles,
-        durationDays: daysToTravel, // We still save integer days for the overarching Calendar Spanning system
+        durationDays: calendarDuration, 
         startDate: departureDate,
         authorId: window.appData.currentUserUid
     };
@@ -710,7 +801,6 @@ export const confirmAtlasRoute = async () => {
         atlasRoutes: [...(camp.atlasRoutes || []), newRoute]
     };
 
-    // Auto-toggle on the UI
     if (!window.appData.activeAtlasRoutes) window.appData.activeAtlasRoutes = [];
     window.appData.activeAtlasRoutes.push(newRoute.id);
 
@@ -1021,3 +1111,10 @@ export const saveAtlasSettings = async () => {
     
     setTimeout(() => window.appActions.initAtlas(), 50);
 };
+
+// --- SAFETY EXPORT BINDINGS ---
+// Plumbs the new actions dynamically so you don't have to alter data.js manually!
+if (window.appActions) {
+    window.appActions.addAtlasRouteStop = addAtlasRouteStop;
+    window.appActions.calculateAtlasRouteLive = calculateAtlasRouteLive;
+}
