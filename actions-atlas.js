@@ -1,5 +1,6 @@
 import { generateId, updateDerivedState, reRender } from './state.js';
 import { saveCampaign, notify } from './firebase-manager.js';
+import { getPresetTravelData, getCoreTravelMath } from './actions-rules.js';
 
 // --- LEAFLET ATLAS STATE ---
 let mapInstance = null;
@@ -239,6 +240,7 @@ const renderAtlasLayerCheckboxes = (camp) => {
 export const refreshAtlasEntities = () => {
     if (!mapInstance || !entityLayer) return;
     
+    // Instantly wipe the old pins without touching the image or the camera view
     entityLayer.clearLayers();
     
     updateDerivedState();
@@ -592,7 +594,6 @@ export const confirmAtlasRoute = async () => {
     let codexId = document.getElementById('atlas-route-codex-id').value;
     const searchInput = document.getElementById('atlas-route-search').value.trim();
     
-    // Extract math data
     const distanceMiles = parseFloat(distStr) || 0;
     const mode = document.getElementById('atlas-route-mode').value;
     const pace = document.getElementById('atlas-route-pace').value;
@@ -602,32 +603,40 @@ export const confirmAtlasRoute = async () => {
         return;
     }
 
-    // CALCULATE DURATION
-    // 1. Establish base miles per day depending on mode
-    let milesPerDay = 24; // Default foot travel
-    let modeText = "On Foot";
-    if (mode === 'horse') { milesPerDay = 30; modeText = "Horse / Mount"; }
-    else if (mode === 'cart') { milesPerDay = 18; modeText = "Cart / Wagon"; }
-    else if (mode === 'boat') { milesPerDay = 24; modeText = "Rowboat"; }
-    else if (mode === 'ship') { milesPerDay = 48; modeText = "Sailing Ship"; }
-
-    // 2. Adjust for Pace
-    let paceMultiplier = 1.0;
-    let paceText = "Normal";
-    if (pace === 'fast') { paceMultiplier = 1.33; paceText = "Fast (x1.33)"; }
-    else if (pace === 'slow') { paceMultiplier = 0.66; paceText = "Slow (x0.66)"; }
-
-    let calculatedMilesPerDay = milesPerDay * paceMultiplier;
+    // --- INTEGRATE CORE TRAVEL ENGINE FROM RULES GLOSSARY ---
+    // Fetch preset data (speed, standard hours, etc)
+    const preset = getPresetTravelData(mode);
     
-    // Sailing ships operate 24 hours a day, so pace doesn't heavily affect them in core rules
-    if (mode === 'ship' && pace === 'normal') calculatedMilesPerDay = 48;
+    // Calculate the mathematical speeds based on mode, speed, and terrain (assuming normal map terrain)
+    const stats = getCoreTravelMath(mode, preset.speed, false);
+
+    // Determine target MPH based on pace selection
+    let mph = stats.normalMph;
+    if (stats.showFastSlow) {
+        if (pace === 'fast') mph = stats.fastMph;
+        if (pace === 'slow') mph = stats.slowMph;
+    }
+
+    // Determine travel hours (Forced March adds 4 hours)
+    let travelHours = preset.hours;
+    if (pace === 'forced') {
+        travelHours += 4;
+    }
+
+    let calculatedMilesPerDay = mph * travelHours;
+    if (calculatedMilesPerDay <= 0) calculatedMilesPerDay = 1; // Prevent division by zero
 
     let daysToTravel = Math.ceil(distanceMiles / calculatedMilesPerDay);
     if (daysToTravel < 1) daysToTravel = 1;
 
+    // Get nice readable labels for the description
+    const modeSelect = document.getElementById('atlas-route-mode');
+    const paceSelect = document.getElementById('atlas-route-pace');
+    const modeLabel = modeSelect.options[modeSelect.selectedIndex].text.replace(/^[^\w\s]+/, '').trim(); // Strips emojis
+    const paceLabel = paceSelect.options[paceSelect.selectedIndex].text;
+
     let updatedCodex = camp.codex || [];
-    
-    let descriptionText = `A journey logged on the Atlas.\n\n**Total Distance:** ${distanceMiles.toFixed(1)} Miles\n**Travel Mode:** ${modeText}\n**Travel Pace:** ${paceText}\n**Calculated Travel Time:** ${daysToTravel} Day(s)`;
+    let descriptionText = `A journey logged on the Atlas.\n\n**Total Distance:** ${distanceMiles.toFixed(1)} Miles\n**Travel Mode:** ${modeLabel}\n**Travel Pace:** ${paceLabel}\n**Calculated Travel Time:** ${daysToTravel} Day(s)`;
 
     if (!codexId && searchInput) {
         codexId = generateId();
@@ -642,7 +651,6 @@ export const confirmAtlasRoute = async () => {
         };
         updatedCodex = [...updatedCodex, newEntry];
     } else {
-        // If an entry already exists, append the math to the bottom!
         const existingEntryIndex = updatedCodex.findIndex(c => c.id === codexId);
         if (existingEntryIndex > -1) {
             updatedCodex[existingEntryIndex] = {
@@ -654,10 +662,13 @@ export const confirmAtlasRoute = async () => {
 
     const plainPoints = drawingPoints.map(p => ({ lat: p.lat, lng: p.lng }));
 
-    // Capture the current Calendar Date (if the feature is being used)
+    const igY = parseInt(document.getElementById('atlas-route-year')?.value, 10);
+    const igM = parseInt(document.getElementById('atlas-route-month')?.value, 10);
+    const igD = parseInt(document.getElementById('atlas-route-day')?.value, 10);
+
     let departureDate = null;
-    if (camp.calendar && camp.calendar.currentDate) {
-        departureDate = { ...camp.calendar.currentDate };
+    if (!isNaN(igY) && !isNaN(igM) && !isNaN(igD)) {
+        departureDate = { year: igY, month: igM, day: igD };
     }
 
     const newRoute = {
