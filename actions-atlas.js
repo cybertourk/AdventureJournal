@@ -427,7 +427,7 @@ export const updateAtlasGridAndScale = (imgW, imgH) => {
 export const updateAtlasDistanceCalc = () => {
     const el = document.getElementById('dist-val');
     if (drawingPoints.length < 2) {
-        if (el) el.innerText = "0 Miles";
+        if (el) el.textContent = "0 Miles";
         return;
     }
 
@@ -448,7 +448,7 @@ export const updateAtlasDistanceCalc = () => {
     const totalSquares = totalPixels / pxSq;
     const totalMiles = totalSquares * miSq;
     
-    if (el) el.innerText = `${Math.round(totalMiles * 10) / 10} Miles`;
+    if (el) el.textContent = `${Math.round(totalMiles * 10) / 10} Miles`;
 };
 
 export const atlasUndoLastPoint = () => {
@@ -461,16 +461,188 @@ export const atlasUndoLastPoint = () => {
     }
 };
 
+// --- TRAVEL MATH INTEGRATION ENGINE ---
+
+// New function to calculate the route math dynamically for the UI before saving!
+export const calculateAtlasRouteLive = () => {
+    // Read from the visible text block in the modal to avoid the hidden display block bug!
+    const distStr = document.getElementById('atlas-route-dist')?.textContent || "0";
+    const distanceMiles = parseFloat(distStr) || 0;
+    
+    const modeEl = document.getElementById('atlas-route-mode');
+    const paceEl = document.getElementById('atlas-route-pace');
+    const diffEl = document.getElementById('atlas-route-difficult');
+
+    if (!modeEl || !paceEl) return;
+
+    const mode = modeEl.value;
+    const pace = paceEl.value;
+    const isDifficult = diffEl ? diffEl.checked : false;
+
+    // Utilize the DRY engine exactly like the Glossary does
+    const preset = getPresetTravelData(mode);
+    const stats = getCoreTravelMath(mode, preset.speed, isDifficult);
+
+    let mph = stats.normalMph;
+    if (stats.showFastSlow) {
+        if (pace === 'fast') mph = stats.fastMph;
+        if (pace === 'slow') mph = stats.slowMph;
+    }
+
+    let travelHours = preset.hours;
+    if (pace === 'forced') travelHours += 4;
+
+    let calculatedMilesPerDay = mph * travelHours;
+    if (calculatedMilesPerDay <= 0) calculatedMilesPerDay = 1; // Failsafe division by zero
+
+    let daysToTravel = Math.ceil(distanceMiles / calculatedMilesPerDay);
+    if (daysToTravel < 1) daysToTravel = 1;
+
+    // Update the live math UI readout
+    const liveOut = document.getElementById('atlas-route-live-math');
+    if (liveOut) {
+        liveOut.innerHTML = `${daysToTravel} Day(s) <span class="text-[9px] text-stone-400 normal-case tracking-normal ml-1 border-l border-stone-300 pl-2">(@ ${calculatedMilesPerDay.toFixed(1)} miles/day)</span>`;
+    }
+    
+    // Intelligently lock/unlock the difficult terrain checkbox based on travel mode (like flying/sailing)
+    if (diffEl) {
+        if (!preset.canBeDifficult) {
+            diffEl.disabled = true;
+            diffEl.checked = false;
+        } else {
+            diffEl.disabled = false;
+        }
+    }
+};
+
 export const atlasFinishDrawing = () => {
     if (drawingPoints.length < 2) {
         notify("You must draw a path with at least two points first.", "error");
         return;
     }
-    const distStr = document.getElementById('dist-val').innerText;
-    document.getElementById('atlas-route-dist').innerText = distStr;
+    // Set the visible textContent to power the calculations safely
+    const distStr = document.getElementById('dist-val').textContent;
+    document.getElementById('atlas-route-dist').textContent = distStr;
     document.getElementById('atlas-route-modal').classList.remove('hidden');
+    
+    // Kick off the live preview immediately so the user sees the 1st math iteration
+    calculateAtlasRouteLive();
 };
 
+export const confirmAtlasRoute = async () => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    if (!camp) return;
+
+    // FIX: Read from the modal's textContent, NOT the hidden dist-val element which returns ""!
+    const distStr = document.getElementById('atlas-route-dist').textContent;
+    let codexId = document.getElementById('atlas-route-codex-id').value;
+    const searchInput = document.getElementById('atlas-route-search').value.trim();
+    
+    const distanceMiles = parseFloat(distStr) || 0;
+    const mode = document.getElementById('atlas-route-mode').value;
+    const pace = document.getElementById('atlas-route-pace').value;
+    
+    const diffEl = document.getElementById('atlas-route-difficult');
+    const isDifficult = diffEl ? diffEl.checked : false;
+
+    if (!codexId && !searchInput) {
+        notify("You must select or type a name for the route.", "error");
+        return;
+    }
+
+    // --- EXECUTE CORE TRAVEL MATH ---
+    const preset = getPresetTravelData(mode);
+    const stats = getCoreTravelMath(mode, preset.speed, isDifficult);
+
+    let mph = stats.normalMph;
+    if (stats.showFastSlow) {
+        if (pace === 'fast') mph = stats.fastMph;
+        if (pace === 'slow') mph = stats.slowMph;
+    }
+
+    let travelHours = preset.hours;
+    if (pace === 'forced') travelHours += 4;
+
+    let calculatedMilesPerDay = mph * travelHours;
+    if (calculatedMilesPerDay <= 0) calculatedMilesPerDay = 1;
+
+    let daysToTravel = Math.ceil(distanceMiles / calculatedMilesPerDay);
+    if (daysToTravel < 1) daysToTravel = 1;
+
+    // Extract nicely formatted labels for the Codex entry description
+    const modeSelect = document.getElementById('atlas-route-mode');
+    const paceSelect = document.getElementById('atlas-route-pace');
+    const modeLabel = modeSelect.options[modeSelect.selectedIndex].text.replace(/^[^\w\s]+/, '').trim(); 
+    const paceLabel = paceSelect.options[paceSelect.selectedIndex].text;
+
+    let updatedCodex = camp.codex || [];
+    let descriptionText = `A journey logged on the Atlas.\n\n**Total Distance:** ${distanceMiles.toFixed(1)} Miles\n**Travel Mode:** ${modeLabel}\n**Travel Pace:** ${paceLabel}\n**Calculated Travel Time:** ${daysToTravel} Day(s)`;
+
+    if (!codexId && searchInput) {
+        codexId = generateId();
+        const newEntry = {
+            id: codexId,
+            name: searchInput,
+            type: 'Route',
+            tags: ['Travel Log'],
+            desc: descriptionText,
+            authorId: window.appData.currentUserUid,
+            visibility: { mode: 'public' }
+        };
+        updatedCodex = [...updatedCodex, newEntry];
+    } else {
+        const existingEntryIndex = updatedCodex.findIndex(c => c.id === codexId);
+        if (existingEntryIndex > -1) {
+            updatedCodex[existingEntryIndex] = {
+                ...updatedCodex[existingEntryIndex],
+                desc: updatedCodex[existingEntryIndex].desc + `\n\n---\n\n` + descriptionText
+            };
+        }
+    }
+
+    const plainPoints = drawingPoints.map(p => ({ lat: p.lat, lng: p.lng }));
+
+    // Extract Date Math
+    const igY = parseInt(document.getElementById('atlas-route-year')?.value, 10);
+    const igM = parseInt(document.getElementById('atlas-route-month')?.value, 10);
+    const igD = parseInt(document.getElementById('atlas-route-day')?.value, 10);
+
+    let departureDate = null;
+    if (!isNaN(igY) && !isNaN(igM) && !isNaN(igD)) {
+        departureDate = { year: igY, month: igM, day: igD };
+    }
+
+    const newRoute = {
+        id: generateId(),
+        codexId: codexId, 
+        points: plainPoints,
+        distanceMiles: distanceMiles,
+        durationDays: daysToTravel,
+        startDate: departureDate,
+        authorId: window.appData.currentUserUid
+    };
+
+    const updatedCamp = {
+        ...camp,
+        codex: updatedCodex,
+        atlasRoutes: [...(camp.atlasRoutes || []), newRoute]
+    };
+
+    // Auto-toggle on the UI
+    if (!window.appData.activeAtlasRoutes) window.appData.activeAtlasRoutes = [];
+    window.appData.activeAtlasRoutes.push(newRoute.id);
+
+    await saveCampaign(updatedCamp);
+    document.getElementById('atlas-route-modal').classList.add('hidden');
+    window.appActions.setAtlasMode('pan');
+    notify(`Route inscribed into the Atlas & Codex.`, "success");
+    
+    window.appActions.refreshAtlasEntities();
+};
+
+
+// --- CODEX SEARCH & LOCATION HELPERS ---
 export const searchAtlasCodex = (query, filterType = 'Location') => {
     const isRoute = filterType === 'Route';
     const prefix = isRoute ? 'atlas-route' : 'atlas-pin';
@@ -583,120 +755,6 @@ export const confirmAtlasPin = async () => {
     window.appActions.refreshAtlasEntities();
 };
 
-
-// --- TRAVEL MATH INTEGRATION ---
-export const confirmAtlasRoute = async () => {
-    updateDerivedState();
-    const camp = window.appData.activeCampaign;
-    if (!camp) return;
-
-    const distStr = document.getElementById('dist-val').innerText;
-    let codexId = document.getElementById('atlas-route-codex-id').value;
-    const searchInput = document.getElementById('atlas-route-search').value.trim();
-    
-    const distanceMiles = parseFloat(distStr) || 0;
-    const mode = document.getElementById('atlas-route-mode').value;
-    const pace = document.getElementById('atlas-route-pace').value;
-
-    if (!codexId && !searchInput) {
-        notify("You must select or type a name for the route.", "error");
-        return;
-    }
-
-    // --- INTEGRATE CORE TRAVEL ENGINE FROM RULES GLOSSARY ---
-    // Fetch preset data (speed, standard hours, etc)
-    const preset = getPresetTravelData(mode);
-    
-    // Calculate the mathematical speeds based on mode, speed, and terrain (assuming normal map terrain)
-    const stats = getCoreTravelMath(mode, preset.speed, false);
-
-    // Determine target MPH based on pace selection
-    let mph = stats.normalMph;
-    if (stats.showFastSlow) {
-        if (pace === 'fast') mph = stats.fastMph;
-        if (pace === 'slow') mph = stats.slowMph;
-    }
-
-    // Determine travel hours (Forced March adds 4 hours)
-    let travelHours = preset.hours;
-    if (pace === 'forced') {
-        travelHours += 4;
-    }
-
-    let calculatedMilesPerDay = mph * travelHours;
-    if (calculatedMilesPerDay <= 0) calculatedMilesPerDay = 1; // Prevent division by zero
-
-    let daysToTravel = Math.ceil(distanceMiles / calculatedMilesPerDay);
-    if (daysToTravel < 1) daysToTravel = 1;
-
-    // Get nice readable labels for the description
-    const modeSelect = document.getElementById('atlas-route-mode');
-    const paceSelect = document.getElementById('atlas-route-pace');
-    const modeLabel = modeSelect.options[modeSelect.selectedIndex].text.replace(/^[^\w\s]+/, '').trim(); // Strips emojis
-    const paceLabel = paceSelect.options[paceSelect.selectedIndex].text;
-
-    let updatedCodex = camp.codex || [];
-    let descriptionText = `A journey logged on the Atlas.\n\n**Total Distance:** ${distanceMiles.toFixed(1)} Miles\n**Travel Mode:** ${modeLabel}\n**Travel Pace:** ${paceLabel}\n**Calculated Travel Time:** ${daysToTravel} Day(s)`;
-
-    if (!codexId && searchInput) {
-        codexId = generateId();
-        const newEntry = {
-            id: codexId,
-            name: searchInput,
-            type: 'Route',
-            tags: ['Travel Log'],
-            desc: descriptionText,
-            authorId: window.appData.currentUserUid,
-            visibility: { mode: 'public' }
-        };
-        updatedCodex = [...updatedCodex, newEntry];
-    } else {
-        const existingEntryIndex = updatedCodex.findIndex(c => c.id === codexId);
-        if (existingEntryIndex > -1) {
-            updatedCodex[existingEntryIndex] = {
-                ...updatedCodex[existingEntryIndex],
-                desc: updatedCodex[existingEntryIndex].desc + `\n\n---\n\n` + descriptionText
-            };
-        }
-    }
-
-    const plainPoints = drawingPoints.map(p => ({ lat: p.lat, lng: p.lng }));
-
-    const igY = parseInt(document.getElementById('atlas-route-year')?.value, 10);
-    const igM = parseInt(document.getElementById('atlas-route-month')?.value, 10);
-    const igD = parseInt(document.getElementById('atlas-route-day')?.value, 10);
-
-    let departureDate = null;
-    if (!isNaN(igY) && !isNaN(igM) && !isNaN(igD)) {
-        departureDate = { year: igY, month: igM, day: igD };
-    }
-
-    const newRoute = {
-        id: generateId(),
-        codexId: codexId, 
-        points: plainPoints,
-        distanceMiles: distanceMiles,
-        durationDays: daysToTravel,
-        startDate: departureDate,
-        authorId: window.appData.currentUserUid
-    };
-
-    const updatedCamp = {
-        ...camp,
-        codex: updatedCodex,
-        atlasRoutes: [...(camp.atlasRoutes || []), newRoute]
-    };
-
-    if (!window.appData.activeAtlasRoutes) window.appData.activeAtlasRoutes = [];
-    window.appData.activeAtlasRoutes.push(newRoute.id);
-
-    await saveCampaign(updatedCamp);
-    document.getElementById('atlas-route-modal').classList.add('hidden');
-    window.appActions.setAtlasMode('pan');
-    notify(`Route inscribed into the Atlas & Codex.`, "success");
-    
-    window.appActions.refreshAtlasEntities();
-};
 
 export const viewOnMap = (codexId) => {
     document.getElementById('global-popup-container').innerHTML = '';
