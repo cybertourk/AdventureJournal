@@ -215,34 +215,49 @@ export function getPCEditHTML(state) {
     }
 
     // --- DM ONLY: ANNIVERSARY MATH ENGINE ---
-    let birthdayDisplay = "Not Provided / Pending Sync";
     let calculatedBirthdays = 0;
+    let effMonth = null;
+    let effDay = null;
+    let isAccountLinked = false;
     
     if (isDM) {
         const playerBirthdays = camp.playerBirthdays || {};
         const pBday = playerBirthdays[pc.playerId]; 
         
+        // 1. Determine Effective Birthday (Account > DM Manual Entry)
         if (pBday && pBday.month && pBday.day) {
-            const monthNames = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-            birthdayDisplay = `${monthNames[pBday.month]} ${pBday.day}`;
-            
-            if (pc.joinDate) {
-                const joinDate = new Date(pc.joinDate);
-                if (!isNaN(joinDate.getTime())) {
-                    const today = new Date();
-                    let count = 0;
-                    
-                    for (let y = joinDate.getFullYear(); y <= today.getFullYear(); y++) {
-                        const bDateThisYear = new Date(y, pBday.month - 1, pBday.day);
-                        if (bDateThisYear >= joinDate && bDateThisYear <= today) {
-                            count++;
-                        }
+            effMonth = pBday.month;
+            effDay = pBday.day;
+            isAccountLinked = true;
+        } else {
+            effMonth = pc.birthMonth || null;
+            effDay = pc.birthDay || null;
+        }
+        
+        // 2. Perform the exact math
+        if (effMonth && effDay && pc.joinDate) {
+            const joinDate = new Date(pc.joinDate);
+            if (!isNaN(joinDate.getTime())) {
+                const today = new Date();
+                let count = 0;
+                
+                for (let y = joinDate.getFullYear(); y <= today.getFullYear(); y++) {
+                    const bDateThisYear = new Date(y, effMonth - 1, effDay);
+                    if (bDateThisYear >= joinDate && bDateThisYear <= today) {
+                        count++;
                     }
-                    calculatedBirthdays = count;
                 }
+                calculatedBirthdays = count;
             }
         }
     }
+
+    // Month Selector Options
+    const monthOptionsHtml = [
+        {v: '', l: 'Month...'}, {v: 1, l: 'January'}, {v: 2, l: 'February'}, {v: 3, l: 'March'},
+        {v: 4, l: 'April'}, {v: 5, l: 'May'}, {v: 6, l: 'June'}, {v: 7, l: 'July'},
+        {v: 8, l: 'August'}, {v: 9, l: 'September'}, {v: 10, l: 'October'}, {v: 11, l: 'November'}, {v: 12, l: 'December'}
+    ].map(m => `<option value="${m.v}" ${effMonth === m.v ? 'selected' : ''}>${m.l}</option>`).join('');
 
     return `
     <div class="animate-in slide-in-from-bottom-4 duration-300 bg-[#f4ebd8] rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col max-w-4xl mx-auto mb-8">
@@ -361,9 +376,15 @@ export function getPCEditHTML(state) {
                     <h3 class="text-xs sm:text-sm font-bold text-stone-800 font-serif mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-cake-candles mr-2 text-pink-600"></i> Player Anniversary & Birthday</h3>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                         <div>
-                            <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Player's Birthday</label>
-                            <div class="p-2 border border-stone-300 rounded-sm bg-stone-200 text-stone-600 text-sm font-bold shadow-inner">
-                                ${birthdayDisplay}
+                            <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5 flex items-center">
+                                Player's Birthday 
+                                ${isAccountLinked ? '<span class="ml-2 text-[9px] text-blue-600 bg-blue-100 border border-blue-200 px-1.5 py-0.5 rounded-sm lowercase tracking-normal flex items-center shadow-sm"><i class="fa-solid fa-link mr-1"></i> Account Linked</span>' : ''}
+                            </label>
+                            <div class="flex gap-2">
+                                <select id="pc-edit-birth-month" class="w-2/3 p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 bg-white shadow-sm outline-none focus:border-pink-600" ${isAccountLinked ? 'disabled title="Managed by player account"' : ''}>
+                                    ${monthOptionsHtml}
+                                </select>
+                                <input type="number" id="pc-edit-birth-day" value="${effDay || ''}" min="1" max="31" class="w-1/3 p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 bg-white shadow-sm outline-none focus:border-pink-600 text-center" placeholder="Day" ${isAccountLinked ? 'disabled title="Managed by player account"' : ''}>
                             </div>
                         </div>
                         <div>
@@ -375,7 +396,7 @@ export function getPCEditHTML(state) {
                         <span class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-pink-800">Birthdays Since Joining:</span>
                         <span class="text-lg font-black text-pink-600">${calculatedBirthdays}</span>
                     </div>
-                    <p class="text-[9px] text-stone-500 italic mt-2">Saving a Start Date automatically tracks how many Birthday Boons this player has earned! (Requires the player to have entered their birthday during registration).</p>
+                    <p class="text-[9px] text-stone-500 italic mt-2">Saving a Start Date automatically tracks how many Birthday Boons this player has earned!</p>
                 </div>
 
                 <div class="mt-6 bg-amber-50 p-4 sm:p-5 rounded-sm border border-amber-300 shadow-inner">
