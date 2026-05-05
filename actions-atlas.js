@@ -10,6 +10,7 @@ let entityLayer = null;
 let currentMode = 'pan'; 
 let drawingPolyline = null;
 let drawingPoints = [];
+let drawingMarkers = []; // NEW: Tracks the visual nodes while actively drawing
 
 // Memory trackers for preserving your viewport!
 let savedMapCenter = null;
@@ -57,6 +58,7 @@ export const initAtlas = () => {
         entityLayer = null;
         drawingPolyline = null;
         drawingPoints = [];
+        drawingMarkers = [];
     }
 
     const config = camp.atlasConfig || {
@@ -186,6 +188,9 @@ export const initAtlas = () => {
                 } else {
                     drawingPolyline.setLatLngs(drawingPoints);
                 }
+                
+                // NEW: Render the colorful nodes live as you draw!
+                renderDrawingMarkers();
                 window.appActions.updateAtlasDistanceCalc();
             }
         }
@@ -199,6 +204,32 @@ export const initAtlas = () => {
     });
 
     window.appActions.setAtlasMode('pan');
+};
+
+// --- NEW HELPER: RENDERS MARKERS LIVE WHILE DRAWING ---
+const renderDrawingMarkers = () => {
+    // Clear out old markers
+    drawingMarkers.forEach(m => { if (mapInstance) mapInstance.removeLayer(m); });
+    drawingMarkers = [];
+
+    if (!mapInstance || drawingPoints.length === 0) return;
+
+    const startIcon = L.divIcon({ className: 'custom-route-node', html: '<div class="w-3 h-3 bg-emerald-500 rounded-full border-2 border-white shadow-sm"></div>', iconSize: [12, 12], iconAnchor: [6, 6] });
+    const endIcon = L.divIcon({ className: 'custom-route-node', html: '<div class="w-3 h-3 bg-red-600 rounded-full border-2 border-white shadow-sm"></div>', iconSize: [12, 12], iconAnchor: [6, 6] });
+    const stopIcon = L.divIcon({ className: 'custom-route-node', html: '<div class="w-2.5 h-2.5 bg-amber-500 rounded-full border-2 border-white shadow-sm"></div>', iconSize: [10, 10], iconAnchor: [5, 5] });
+
+    // Node 1: Start
+    drawingMarkers.push(L.marker(drawingPoints[0], { icon: startIcon, interactive: false }).addTo(mapInstance));
+    
+    // Node Last: End
+    if (drawingPoints.length > 1) {
+        drawingMarkers.push(L.marker(drawingPoints[drawingPoints.length - 1], { icon: endIcon, interactive: false }).addTo(mapInstance));
+    }
+    
+    // Node Middle: Stops
+    for (let i = 1; i < drawingPoints.length - 1; i++) {
+        drawingMarkers.push(L.marker(drawingPoints[i], { icon: stopIcon, interactive: false }).addTo(mapInstance));
+    }
 };
 
 // Helper to dynamically re-render the layers panel checkboxes so the UI stays in sync without tearing down the DOM
@@ -394,6 +425,18 @@ export const setAtlasMode = (mode) => {
     const activeBtn = document.getElementById(`mode-${mode}`);
     if (activeBtn) activeBtn.classList.remove('text-stone-400');
     
+    // Auto-clean any un-saved drawings when switching modes to prevent map clutter!
+    if (mode !== 'draw') {
+        const stats = document.getElementById('drawing-stats');
+        if (stats) stats.classList.add('hidden');
+        
+        drawingPoints = [];
+        if (drawingPolyline && mapInstance) mapInstance.removeLayer(drawingPolyline);
+        drawingPolyline = null;
+        drawingMarkers.forEach(m => { if (mapInstance) mapInstance.removeLayer(m); });
+        drawingMarkers = [];
+    }
+
     if (mode === 'pan') {
         if (activeBtn) activeBtn.classList.add('text-amber-500', 'bg-stone-800');
     } else if (mode === 'pin') {
@@ -407,14 +450,12 @@ export const setAtlasMode = (mode) => {
         const val = document.getElementById('dist-val');
         if (val) val.innerText = "0 Miles";
         
+        // Ensure a completely clean slate when drawing begins
         drawingPoints = [];
         if (drawingPolyline && mapInstance) mapInstance.removeLayer(drawingPolyline);
         drawingPolyline = null;
-    }
-    
-    if (mode !== 'draw') {
-        const stats = document.getElementById('drawing-stats');
-        if (stats) stats.classList.add('hidden');
+        drawingMarkers.forEach(m => { if (mapInstance) mapInstance.removeLayer(m); });
+        drawingMarkers = [];
     }
 };
 
@@ -495,19 +536,23 @@ export const atlasUndoLastPoint = () => {
         if (drawingPolyline) {
             drawingPolyline.setLatLngs(drawingPoints);
         }
+        renderDrawingMarkers(); // Update nodes
         window.appActions.updateAtlasDistanceCalc();
     }
 };
 
 // --- TRAVEL MATH INTEGRATION ENGINE ---
 
-export const addAtlasRouteStop = () => {
+export const addAtlasRouteStop = (defaultDesc = "") => {
     const container = document.getElementById('atlas-route-stops-container');
     if (!container) return;
 
+    // Use default text if explicitly passed (e.g. from the auto-generator)
+    const valAttr = (typeof defaultDesc === 'string' && defaultDesc) ? `value="${defaultDesc}"` : '';
+
     const html = `
         <div class="flex items-center gap-2 stop-row bg-white p-1.5 border border-[#d4c5a9] rounded-sm shadow-sm animate-in fade-in duration-200">
-            <input type="text" class="stop-desc flex-grow p-1.5 bg-transparent text-[10px] font-bold text-stone-900 outline-none placeholder:font-normal placeholder:italic placeholder:text-stone-400" placeholder="Event (e.g. Combat, Rest)..." oninput="window.appActions.calculateAtlasRouteLive()">
+            <input type="text" ${valAttr} class="stop-desc flex-grow p-1.5 bg-transparent text-[10px] font-bold text-stone-900 outline-none placeholder:font-normal placeholder:italic placeholder:text-stone-400" placeholder="Event (e.g. Combat, Rest)..." oninput="window.appActions.calculateAtlasRouteLive()">
             <div class="w-px h-4 bg-stone-300 mx-1"></div>
             <input type="number" class="stop-hours w-12 p-1.5 bg-transparent text-[10px] font-bold text-stone-900 outline-none text-center" placeholder="0" min="0" oninput="window.appActions.calculateAtlasRouteLive()">
             <span class="text-[8px] font-bold text-stone-500 uppercase mr-1">Hrs</span>
@@ -616,6 +661,11 @@ export const atlasFinishDrawing = () => {
     // Clear out any lingering stops from previous saves
     const stopsContainer = document.getElementById('atlas-route-stops-container');
     if (stopsContainer) stopsContainer.innerHTML = '';
+    
+    // NEW: Auto-inject UI rows for every physical intermediate click made on the map!
+    for (let i = 1; i < drawingPoints.length - 1; i++) {
+        window.appActions.addAtlasRouteStop(`Stop ${i}`);
+    }
     
     document.getElementById('atlas-route-modal').classList.remove('hidden');
     calculateAtlasRouteLive();
@@ -788,7 +838,7 @@ export const confirmAtlasRoute = async () => {
         id: generateId(),
         codexId: codexId, 
         points: plainPoints,
-        stops: stopsData, // Save the raw array of stops metadata to the DB
+        stops: stopsData, 
         distanceMiles: distanceMiles,
         durationDays: calendarDuration, 
         startDate: departureDate,
@@ -806,6 +856,8 @@ export const confirmAtlasRoute = async () => {
 
     await saveCampaign(updatedCamp);
     document.getElementById('atlas-route-modal').classList.add('hidden');
+    
+    // Automatically switches mode and clears un-saved drawings!
     window.appActions.setAtlasMode('pan');
     notify(`Route inscribed into the Atlas & Codex.`, "success");
     
@@ -925,7 +977,6 @@ export const confirmAtlasPin = async () => {
     
     window.appActions.refreshAtlasEntities();
 };
-
 
 export const viewOnMap = (codexId) => {
     document.getElementById('global-popup-container').innerHTML = '';
@@ -1111,10 +1162,3 @@ export const saveAtlasSettings = async () => {
     
     setTimeout(() => window.appActions.initAtlas(), 50);
 };
-
-// --- SAFETY EXPORT BINDINGS ---
-// Plumbs the new actions dynamically so you don't have to alter data.js manually!
-if (window.appActions) {
-    window.appActions.addAtlasRouteStop = addAtlasRouteStop;
-    window.appActions.calculateAtlasRouteLive = calculateAtlasRouteLive;
-}
