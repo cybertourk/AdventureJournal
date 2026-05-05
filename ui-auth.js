@@ -56,6 +56,11 @@ export function initAuthUI() {
             const displayNameInput = document.getElementById('register-display-name');
             const emailInput = document.getElementById('register-email');
             const passwordInput = document.getElementById('register-password');
+            
+            // NEW: Grab the optional birthday inputs
+            const birthMonthInput = document.getElementById('register-birth-month');
+            const birthDayInput = document.getElementById('register-birth-day');
+            
             const submitBtn = registerForm.querySelector('button[type="submit"]');
             
             // Basic UI feedback
@@ -64,8 +69,11 @@ export function initAuthUI() {
             submitBtn.disabled = true;
 
             try {
-                // Pass the displayName to the firebase manager
-                await registerUser(emailInput.value, passwordInput.value, displayNameInput.value, 'user');
+                const bMonth = birthMonthInput ? birthMonthInput.value : null;
+                const bDay = birthDayInput ? birthDayInput.value : null;
+
+                // Pass the displayName and birthday data to the firebase manager
+                await registerUser(emailInput.value, passwordInput.value, displayNameInput.value, bMonth, bDay, 'user');
                 // On success, the auth state changes automatically
             } catch (error) {
                 // If registration fails, reset the button
