@@ -10,7 +10,8 @@ let entityLayer = null;
 let currentMode = 'pan'; 
 let drawingPolyline = null;
 let drawingPoints = [];
-let drawingMarkers = []; // NEW: Tracks the visual nodes while actively drawing
+let drawingMarkers = []; 
+let drawingStopIndices = []; // NEW: Tracks exactly which clicks were marked as official stops
 
 // Memory trackers for preserving your viewport!
 let savedMapCenter = null;
@@ -59,6 +60,7 @@ export const initAtlas = () => {
         drawingPolyline = null;
         drawingPoints = [];
         drawingMarkers = [];
+        drawingStopIndices = [];
     }
 
     const config = camp.atlasConfig || {
@@ -189,7 +191,6 @@ export const initAtlas = () => {
                     drawingPolyline.setLatLngs(drawingPoints);
                 }
                 
-                // NEW: Render the colorful nodes live as you draw!
                 renderDrawingMarkers();
                 window.appActions.updateAtlasDistanceCalc();
             }
@@ -206,7 +207,21 @@ export const initAtlas = () => {
     window.appActions.setAtlasMode('pan');
 };
 
-// --- NEW HELPER: RENDERS MARKERS LIVE WHILE DRAWING ---
+// --- NEW HELPER: FLAG THE LAST DRAWN POINT AS A STOP ---
+export const atlasMarkLastPointAsStop = () => {
+    if (drawingPoints.length < 2) {
+        notify("Draw at least one segment of a path before marking a stop.", "error");
+        return;
+    }
+    
+    const lastIdx = drawingPoints.length - 1;
+    // Don't double-flag if they click it multiple times
+    if (!drawingStopIndices.includes(lastIdx)) {
+        drawingStopIndices.push(lastIdx);
+        renderDrawingMarkers();
+    }
+};
+
 const renderDrawingMarkers = () => {
     // Clear out old markers
     drawingMarkers.forEach(m => { if (mapInstance) mapInstance.removeLayer(m); });
@@ -226,10 +241,14 @@ const renderDrawingMarkers = () => {
         drawingMarkers.push(L.marker(drawingPoints[drawingPoints.length - 1], { icon: endIcon, interactive: false }).addTo(mapInstance));
     }
     
-    // Node Middle: Stops
-    for (let i = 1; i < drawingPoints.length - 1; i++) {
-        drawingMarkers.push(L.marker(drawingPoints[i], { icon: stopIcon, interactive: false }).addTo(mapInstance));
-    }
+    // Middle Nodes: Only draw the amber dot if you explicitly marked it as a stop!
+    drawingStopIndices.forEach(idx => {
+        // Prevent drawing an amber dot perfectly underneath the Red "End" dot if it's currently the last point.
+        // It will safely reveal itself when you draw the NEXT point.
+        if (idx > 0 && idx < drawingPoints.length - 1) {
+            drawingMarkers.push(L.marker(drawingPoints[idx], { icon: stopIcon, interactive: false }).addTo(mapInstance));
+        }
+    });
 };
 
 // Helper to dynamically re-render the layers panel checkboxes so the UI stays in sync without tearing down the DOM
@@ -373,9 +392,14 @@ const renderAtlasEntities = (camp) => {
             if (route.points.length > 1) {
                 L.marker(route.points[route.points.length - 1], { icon: endIcon, interactive: false }).addTo(entityLayer);
             }
-            for (let i = 1; i < route.points.length - 1; i++) {
-                L.marker(route.points[i], { icon: stopIcon, interactive: false }).addTo(entityLayer);
-            }
+            
+            // Read from the saved database indices to drop the specific Stops
+            const stopIdxs = route.stopIndices || [];
+            stopIdxs.forEach(idx => {
+                if (idx > 0 && idx < route.points.length - 1) {
+                    L.marker(route.points[idx], { icon: stopIcon, interactive: false }).addTo(entityLayer);
+                }
+            });
         }
         
         polyline.on('click', () => {
@@ -435,6 +459,7 @@ export const setAtlasMode = (mode) => {
         drawingPolyline = null;
         drawingMarkers.forEach(m => { if (mapInstance) mapInstance.removeLayer(m); });
         drawingMarkers = [];
+        drawingStopIndices = [];
     }
 
     if (mode === 'pan') {
@@ -456,6 +481,7 @@ export const setAtlasMode = (mode) => {
         drawingPolyline = null;
         drawingMarkers.forEach(m => { if (mapInstance) mapInstance.removeLayer(m); });
         drawingMarkers = [];
+        drawingStopIndices = [];
     }
 };
 
@@ -532,11 +558,16 @@ export const updateAtlasDistanceCalc = () => {
 
 export const atlasUndoLastPoint = () => {
     if (drawingPoints.length > 0) {
+        const poppedIdx = drawingPoints.length - 1;
         drawingPoints.pop();
+        
+        // Remove it from the stops index if it was flagged as one!
+        drawingStopIndices = drawingStopIndices.filter(i => i !== poppedIdx);
+        
         if (drawingPolyline) {
             drawingPolyline.setLatLngs(drawingPoints);
         }
-        renderDrawingMarkers(); // Update nodes
+        renderDrawingMarkers();
         window.appActions.updateAtlasDistanceCalc();
     }
 };
@@ -662,10 +693,10 @@ export const atlasFinishDrawing = () => {
     const stopsContainer = document.getElementById('atlas-route-stops-container');
     if (stopsContainer) stopsContainer.innerHTML = '';
     
-    // NEW: Auto-inject UI rows for every physical intermediate click made on the map!
-    for (let i = 1; i < drawingPoints.length - 1; i++) {
-        window.appActions.addAtlasRouteStop(`Stop ${i}`);
-    }
+    // Auto-inject UI rows ONLY for explicitly marked stops!
+    drawingStopIndices.forEach((pointIdx, idx) => {
+        window.appActions.addAtlasRouteStop(`Stop ${idx + 1}`);
+    });
     
     document.getElementById('atlas-route-modal').classList.remove('hidden');
     calculateAtlasRouteLive();
@@ -839,6 +870,7 @@ export const confirmAtlasRoute = async () => {
         codexId: codexId, 
         points: plainPoints,
         stops: stopsData, 
+        stopIndices: drawingStopIndices, // Save the visual indices so we can redraw the yellow dots perfectly
         distanceMiles: distanceMiles,
         durationDays: calendarDuration, 
         startDate: departureDate,
@@ -977,6 +1009,7 @@ export const confirmAtlasPin = async () => {
     
     window.appActions.refreshAtlasEntities();
 };
+
 
 export const viewOnMap = (codexId) => {
     document.getElementById('global-popup-container').innerHTML = '';
