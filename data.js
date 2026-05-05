@@ -19,7 +19,7 @@ import { openCalendar, navCalendarMonth, jumpToCurrentDate, jumpToSpecificDate, 
 import { openRulesGlossary, viewRule, openRuleModal, saveRule, deleteRule, updateTravelPresets, calculateTravel, calculateEncumbrance, calculateJump } from './actions-rules.js';
 
 // Import Atlas & Map Functionality
-import { initAtlas, setAtlasMode, updateAtlasGridAndScale, updateAtlasDistanceCalc, atlasUndoLastPoint, atlasFinishDrawing, confirmAtlasPin, confirmAtlasRoute, deleteAtlasPin, deleteAtlasRoute, toggleAtlasSettings, saveAtlasSettings, searchAtlasCodex, selectAtlasCodexEntry, viewOnMap, toggleAtlasLayers, toggleAtlasRouteVis, refreshAtlasEntities, toggleAtlasFullScreen, calculateAtlasRouteLive, addAtlasRouteStop } from './actions-atlas.js';
+import { initAtlas, setAtlasMode, updateAtlasGridAndScale, updateAtlasDistanceCalc, atlasUndoLastPoint, atlasFinishDrawing, confirmAtlasPin, confirmAtlasRoute, deleteAtlasPin, deleteAtlasRoute, toggleAtlasSettings, saveAtlasSettings, searchAtlasCodex, selectAtlasCodexEntry, viewOnMap, toggleAtlasLayers, toggleAtlasRouteVis, refreshAtlasEntities, toggleAtlasFullScreen, calculateAtlasRouteLive, addAtlasRouteStop, atlasMarkLastPointAsStop } from './actions-atlas.js';
 
 // --- APP ACTIONS HUB --- 
 // We bind all our imported modular functions back to the global window.appActions 
@@ -165,7 +165,8 @@ window.appActions = {
   refreshAtlasEntities,
   toggleAtlasFullScreen,
   calculateAtlasRouteLive,
-  addAtlasRouteStop
+  addAtlasRouteStop,
+  atlasMarkLastPointAsStop
 }; 
 
 // ============================================================================
