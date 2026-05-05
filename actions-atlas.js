@@ -190,8 +190,9 @@ const renderAtlasLayerCheckboxes = (camp) => {
 
     const getSortVal = (dateObj) => {
         if (!dateObj) return 0;
-        const monthIndex = cal?.months?.findIndex(m => m.id === dateObj.month) || 0;
-        return (parseInt(dateObj.year) * 10000) + (monthIndex * 100) + parseInt(dateObj.day);
+        // FIX: Directly parse the integer index!
+        const monthIndex = parseInt(dateObj.month, 10) || 0;
+        return (parseInt(dateObj.year, 10) * 10000) + (monthIndex * 100) + parseInt(dateObj.day, 10);
     };
 
     const sortedRoutes = [...(camp.atlasRoutes || [])].sort((a, b) => {
@@ -217,9 +218,13 @@ const renderAtlasLayerCheckboxes = (camp) => {
         
         let dateStr = "";
         if (r.startDate) {
-            const rMonth = cal?.months?.find(m => m.id === r.startDate.month);
+            // FIX: Access the month directly by array index
+            const rMonthIdx = parseInt(r.startDate.month, 10);
+            const rMonth = cal?.months ? cal.months[rMonthIdx] : null;
             if (rMonth) {
-                dateStr = `<div class="text-[9px] text-stone-400 font-sans italic mt-0.5"><i class="fa-solid fa-calendar-days mr-1 text-stone-300"></i>${rMonth.name} ${r.startDate.day}, ${r.startDate.year} • ${r.durationDays || 0} Days</div>`;
+                // If the journey was super short (0 days), display it properly
+                const durStr = (r.durationDays && r.durationDays > 0) ? `${r.durationDays} Day(s)` : `< 1 Day`;
+                dateStr = `<div class="text-[9px] text-stone-400 font-sans italic mt-0.5"><i class="fa-solid fa-calendar-days mr-1 text-stone-300"></i>${rMonth.name} ${r.startDate.day}, ${r.startDate.year} • ${durStr}</div>`;
             }
         }
 
@@ -463,9 +468,9 @@ export const atlasUndoLastPoint = () => {
 
 // --- TRAVEL MATH INTEGRATION ENGINE ---
 
-// New function to calculate the route math dynamically for the UI before saving!
+// Calculates the route math dynamically for the UI before saving!
 export const calculateAtlasRouteLive = () => {
-    // Read from the visible text block in the modal to avoid the hidden display block bug!
+    // Read from the visible text block in the modal safely
     const distStr = document.getElementById('atlas-route-dist')?.textContent || "0";
     const distanceMiles = parseFloat(distStr) || 0;
     
@@ -488,23 +493,35 @@ export const calculateAtlasRouteLive = () => {
         if (pace === 'fast') mph = stats.fastMph;
         if (pace === 'slow') mph = stats.slowMph;
     }
+    if (mph <= 0) mph = 1; // Failsafe division by zero
 
     let travelHours = preset.hours;
     if (pace === 'forced') travelHours += 4;
 
     let calculatedMilesPerDay = mph * travelHours;
-    if (calculatedMilesPerDay <= 0) calculatedMilesPerDay = 1; // Failsafe division by zero
+    if (calculatedMilesPerDay <= 0) calculatedMilesPerDay = 1;
 
     let daysToTravel = Math.ceil(distanceMiles / calculatedMilesPerDay);
     if (daysToTravel < 1) daysToTravel = 1;
+    
+    // NEW: Calculate exact hours if it is a short journey!
+    let totalHours = distanceMiles / mph;
+    let timeDisplay = "";
+    if (totalHours < travelHours && distanceMiles > 0) {
+        timeDisplay = `${parseFloat(totalHours.toFixed(1))} Hour(s)`;
+    } else if (distanceMiles === 0) {
+        timeDisplay = "0 Hours";
+    } else {
+        timeDisplay = `${daysToTravel} Day(s)`;
+    }
 
     // Update the live math UI readout
     const liveOut = document.getElementById('atlas-route-live-math');
     if (liveOut) {
-        liveOut.innerHTML = `${daysToTravel} Day(s) <span class="text-[9px] text-stone-400 normal-case tracking-normal ml-1 border-l border-stone-300 pl-2">(@ ${calculatedMilesPerDay.toFixed(1)} miles/day)</span>`;
+        liveOut.innerHTML = `${timeDisplay} <span class="text-[9px] text-stone-400 normal-case tracking-normal ml-1 border-l border-stone-300 pl-2">(@ ${calculatedMilesPerDay.toFixed(1)} miles/day)</span>`;
     }
     
-    // Intelligently lock/unlock the difficult terrain checkbox based on travel mode (like flying/sailing)
+    // Intelligently lock/unlock the difficult terrain checkbox based on travel mode
     if (diffEl) {
         if (!preset.canBeDifficult) {
             diffEl.disabled = true;
@@ -534,7 +551,7 @@ export const confirmAtlasRoute = async () => {
     const camp = window.appData.activeCampaign;
     if (!camp) return;
 
-    // FIX: Read from the modal's textContent, NOT the hidden dist-val element which returns ""!
+    // FIX: Read from the modal's textContent
     const distStr = document.getElementById('atlas-route-dist').textContent;
     let codexId = document.getElementById('atlas-route-codex-id').value;
     const searchInput = document.getElementById('atlas-route-search').value.trim();
@@ -560,6 +577,7 @@ export const confirmAtlasRoute = async () => {
         if (pace === 'fast') mph = stats.fastMph;
         if (pace === 'slow') mph = stats.slowMph;
     }
+    if (mph <= 0) mph = 1; // Failsafe
 
     let travelHours = preset.hours;
     if (pace === 'forced') travelHours += 4;
@@ -570,6 +588,17 @@ export const confirmAtlasRoute = async () => {
     let daysToTravel = Math.ceil(distanceMiles / calculatedMilesPerDay);
     if (daysToTravel < 1) daysToTravel = 1;
 
+    // NEW: Calculate exact hours if it is a short journey for the text description!
+    let totalHours = distanceMiles / mph;
+    let timeDisplay = "";
+    if (totalHours < travelHours && distanceMiles > 0) {
+        timeDisplay = `${parseFloat(totalHours.toFixed(1))} Hour(s)`;
+    } else if (distanceMiles === 0) {
+        timeDisplay = "0 Hours";
+    } else {
+        timeDisplay = `${daysToTravel} Day(s)`;
+    }
+
     // Extract nicely formatted labels for the Codex entry description
     const modeSelect = document.getElementById('atlas-route-mode');
     const paceSelect = document.getElementById('atlas-route-pace');
@@ -577,7 +606,7 @@ export const confirmAtlasRoute = async () => {
     const paceLabel = paceSelect.options[paceSelect.selectedIndex].text;
 
     let updatedCodex = camp.codex || [];
-    let descriptionText = `A journey logged on the Atlas.\n\n**Total Distance:** ${distanceMiles.toFixed(1)} Miles\n**Travel Mode:** ${modeLabel}\n**Travel Pace:** ${paceLabel}\n**Calculated Travel Time:** ${daysToTravel} Day(s)`;
+    let descriptionText = `A journey logged on the Atlas.\n\n**Total Distance:** ${distanceMiles.toFixed(1)} Miles\n**Travel Mode:** ${modeLabel}\n**Travel Pace:** ${paceLabel}\n**Calculated Travel Time:** ${timeDisplay}`;
 
     if (!codexId && searchInput) {
         codexId = generateId();
@@ -618,7 +647,7 @@ export const confirmAtlasRoute = async () => {
         codexId: codexId, 
         points: plainPoints,
         distanceMiles: distanceMiles,
-        durationDays: daysToTravel,
+        durationDays: daysToTravel, // We still save integer days for the overarching Calendar Spanning system
         startDate: departureDate,
         authorId: window.appData.currentUserUid
     };
