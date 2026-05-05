@@ -1,6 +1,75 @@
 import { generateId, updateDerivedState, reRender } from './state.js';
 import { saveCampaign, notify } from './firebase-manager.js';
 
+// ============================================================================
+// --- CORE TRAVEL ENGINE (DRY - SHARED BETWEEN GLOSSARY & ATLAS) ---
+// ============================================================================
+
+export const getPresetTravelData = (mode) => {
+    let speed = 30;
+    let hours = 8;
+    let canBeDifficult = true;
+    let lockSpeed = false;
+    let helpText = "";
+
+    if (mode === 'foot-standard') {
+        speed = 30; lockSpeed = true; hours = 8; helpText = "Standard travel ignores individual speed (PHB p.181).";
+    } else if (mode.startsWith('mount-')) {
+        hours = 8;
+        if (mode === 'mount-riding') { speed = 60; helpText = "Riding/Warhorse. Can push to gallop for 1 hour."; }
+        if (mode === 'mount-camel') { speed = 50; helpText = "Camel. Base speed fully editable."; }
+        if (mode === 'mount-draft') { speed = 40; helpText = "Draft Horse/Mule/Vehicle. Base speed fully editable."; }
+        if (mode === 'mount-elephant') { speed = 40; helpText = "Elephant. Base speed fully editable."; }
+        if (mode === 'mount-mastiff') { speed = 40; helpText = "Mastiff/Pony. Base speed fully editable."; }
+    } else if (mode.startsWith('water-')) {
+        canBeDifficult = false;
+        if (mode === 'water-galley') { speed = 40; hours = 24; helpText = "Galley (4 mph). Can travel 24 hrs. Speed editable."; }
+        if (mode === 'water-longship') { speed = 30; hours = 24; helpText = "Longship (3 mph). Can travel 24 hrs. Speed editable."; }
+        if (mode === 'water-warship') { speed = 25; hours = 24; helpText = "Warship (2.5 mph). Can travel 24 hrs. Speed editable."; }
+        if (mode === 'water-sailing') { speed = 20; hours = 24; helpText = "Sailing Ship (2 mph). Can travel 24 hrs. Speed editable."; }
+        if (mode === 'water-rowboat') { speed = 15; hours = 8; helpText = "Rowboat (1.5 mph). Requires constant rowing (8 hr limit)."; }
+        if (mode === 'water-keelboat') { speed = 10; hours = 24; helpText = "Keelboat (1 mph). Can travel 24 hrs. Speed editable."; }
+    } else if (mode.startsWith('flying-')) {
+        canBeDifficult = false;
+        if (mode === 'flying-creature') { speed = 50; hours = 8; canBeDifficult = true; helpText = "Biological flying creatures risk exhaustion after 8 hours."; }
+        if (mode === 'flying-griffon') { speed = 80; hours = 8; helpText = "Flying generally ignores land-based difficult terrain."; }
+        if (mode === 'flying-carpet') { speed = 60; hours = 24; helpText = "Magical vehicles don't tire. Can travel 24 hrs."; }
+    } else if (mode === 'custom') {
+        speed = 80; hours = 8; helpText = "Enter custom speed. Apply difficult terrain if necessary.";
+    }
+    
+    return { speed, hours, canBeDifficult, lockSpeed, helpText };
+};
+
+export const getCoreTravelMath = (mode, speed, isDifficult) => {
+    let normalMph = 0;
+    let fastMph = 0;
+    let slowMph = 0;
+    let showFastSlow = true;
+
+    if (mode === 'foot-standard') {
+        // Standard PHB Overland Math ignores walking speed entirely
+        normalMph = 3; fastMph = 4; slowMph = 2;
+    } else if (mode.startsWith('water-')) {
+        // Ships ignore fast/slow pace completely (PHB 181)
+        normalMph = speed / 10; fastMph = normalMph; slowMph = normalMph; showFastSlow = false;
+    } else {
+        // Mounts / Flying / Custom (Special DMG Math: 1 hour = Speed / 10 miles)
+        normalMph = speed / 10; fastMph = normalMph * (4/3); slowMph = normalMph * (2/3);
+    }
+
+    if (isDifficult) {
+        normalMph /= 2; fastMph /= 2; slowMph /= 2;
+    }
+
+    return { normalMph, fastMph, slowMph, showFastSlow };
+};
+
+
+// ============================================================================
+// --- RULES GLOSSARY LOGIC ---
+// ============================================================================
+
 export const openRulesGlossary = async () => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
@@ -206,56 +275,26 @@ export const updateTravelPresets = () => {
     if (!modeEl || !speedEl || !hoursEl || !diffEl) return;
 
     const mode = modeEl.value;
+    
+    // Tap into the DRY math engine
+    const preset = getPresetTravelData(mode);
 
-    // By default, UNLOCK speed and difficult terrain for everything except explicitly locked modes.
     speedEl.disabled = false;
     speedEl.classList.remove('opacity-50');
     diffEl.disabled = false;
 
-    if (mode === 'foot-standard') {
-        speedEl.value = 30;
-        speedEl.disabled = true; // Overland PHB specifically ignores individual walking speeds
+    speedEl.value = preset.speed;
+    hoursEl.value = preset.hours;
+    if (helpEl) helpEl.textContent = preset.helpText;
+    
+    if (preset.lockSpeed) {
+        speedEl.disabled = true;
         speedEl.classList.add('opacity-50');
-        hoursEl.value = 8;
-        if (helpEl) helpEl.textContent = "Standard travel ignores individual speed (PHB p.181).";
-    } 
-    else if (mode.startsWith('mount-')) {
-        hoursEl.value = 8;
-        
-        if (mode === 'mount-riding') { speedEl.value = 60; if (helpEl) helpEl.textContent = "Riding/Warhorse. Can push to gallop for 1 hour."; }
-        if (mode === 'mount-camel') { speedEl.value = 50; if (helpEl) helpEl.textContent = "Camel. Base speed fully editable."; }
-        if (mode === 'mount-draft') { speedEl.value = 40; if (helpEl) helpEl.textContent = "Draft Horse/Mule/Vehicle. Base speed fully editable."; }
-        if (mode === 'mount-elephant') { speedEl.value = 40; if (helpEl) helpEl.textContent = "Elephant. Base speed fully editable."; }
-        if (mode === 'mount-mastiff') { speedEl.value = 40; if (helpEl) helpEl.textContent = "Mastiff/Pony. Base speed fully editable."; }
-    } 
-    else if (mode.startsWith('water-')) {
-        diffEl.checked = false;
-        diffEl.disabled = true; // Difficult terrain generally doesn't apply out in open water
-        
-        if (mode === 'water-galley') { speedEl.value = 40; hoursEl.value = 24; if (helpEl) helpEl.textContent = "Galley (4 mph). Can travel 24 hrs. Speed editable."; }
-        if (mode === 'water-longship') { speedEl.value = 30; hoursEl.value = 24; if (helpEl) helpEl.textContent = "Longship (3 mph). Can travel 24 hrs. Speed editable."; }
-        if (mode === 'water-warship') { speedEl.value = 25; hoursEl.value = 24; if (helpEl) helpEl.textContent = "Warship (2.5 mph). Can travel 24 hrs. Speed editable."; }
-        if (mode === 'water-sailing') { speedEl.value = 20; hoursEl.value = 24; if (helpEl) helpEl.textContent = "Sailing Ship (2 mph). Can travel 24 hrs. Speed editable."; }
-        if (mode === 'water-rowboat') { speedEl.value = 15; hoursEl.value = 8; if (helpEl) helpEl.textContent = "Rowboat (1.5 mph). Requires constant rowing (8 hr limit)."; }
-        if (mode === 'water-keelboat') { speedEl.value = 10; hoursEl.value = 24; if (helpEl) helpEl.textContent = "Keelboat (1 mph). Can travel 24 hrs. Speed editable."; }
-    } 
-    else if (mode.startsWith('flying-')) {
-        diffEl.checked = false;
-        diffEl.disabled = true;
-        
-        if (mode === 'flying-creature') { 
-            speedEl.value = 50; 
-            hoursEl.value = 8; 
-            diffEl.disabled = false; // Biological flying creatures might still face high winds (difficult terrain)
-            if (helpEl) helpEl.textContent = "Biological flying creatures risk exhaustion after 8 hours."; 
-        }
-        if (mode === 'flying-griffon') { speedEl.value = 80; hoursEl.value = 8; if (helpEl) helpEl.textContent = "Flying generally ignores land-based difficult terrain."; }
-        if (mode === 'flying-carpet') { speedEl.value = 60; hoursEl.value = 24; if (helpEl) helpEl.textContent = "Magical vehicles don't tire. Can travel 24 hrs."; }
     }
-    else if (mode === 'custom') {
-        speedEl.value = 80;
-        hoursEl.value = 8;
-        if (helpEl) helpEl.textContent = "Enter custom speed. Apply difficult terrain if necessary.";
+    
+    if (!preset.canBeDifficult) {
+        diffEl.disabled = true;
+        diffEl.checked = false;
     }
 };
 
@@ -277,10 +316,8 @@ export const calculateTravel = () => {
     const hours = parseFloat(hoursEl.value) || 0;
     const isDifficult = diffEl.checked && !diffEl.disabled;
 
-    let normalMph = 0;
-    let fastMph = 0;
-    let slowMph = 0;
-    let showFastSlow = true;
+    // Tap into the DRY math engine
+    const stats = getCoreTravelMath(mode, speed, isDifficult);
 
     // Reset UI visibility
     if (rowFast) rowFast.classList.remove('hidden');
@@ -288,47 +325,24 @@ export const calculateTravel = () => {
     if (extraEl) { extraEl.classList.add('hidden'); extraEl.innerHTML = ''; }
     if (resNormalDesc) resNormalDesc.textContent = "Standard travel";
 
-    if (mode === 'foot-standard') {
-        // Standard PHB Overland Math ignores walking speed entirely
-        normalMph = 3;
-        fastMph = 4;
-        slowMph = 2;
-    } else if (mode.startsWith('water-')) {
-        // Ships ignore fast/slow pace completely (PHB 181)
-        normalMph = speed / 10;
-        fastMph = normalMph;
-        slowMph = normalMph;
-        showFastSlow = false;
-        
+    // Dynamic UI Updates based on the core engine outputs
+    if (!stats.showFastSlow) {
         if (rowFast) rowFast.classList.add('hidden');
         if (rowSlow) rowSlow.classList.add('hidden');
         if (resNormalDesc) resNormalDesc.textContent = "Vessel speed (ignores paces)";
-    } else {
-        // Mounts / Flying / Custom (Special DMG Math: 1 hour = Speed / 10 miles)
-        normalMph = speed / 10;
-        fastMph = normalMph * (4/3);
-        slowMph = normalMph * (2/3);
-
-        if (mode.startsWith('mount-')) {
-            if (extraEl) {
-                extraEl.classList.remove('hidden');
-                extraEl.innerHTML = `<i class="fa-solid fa-horse mr-1 text-amber-700"></i> <span class="font-bold text-amber-900">Gallop:</span> A mounted character can ride at a gallop for 1 hour, covering twice the usual distance for a fast pace (<strong>${Math.round(fastMph * 2)} miles</strong>).`;
-            }
-        }
     }
 
-    if (isDifficult) {
-        normalMph /= 2;
-        fastMph /= 2;
-        slowMph /= 2;
+    if (mode.startsWith('mount-') && extraEl) {
+        extraEl.classList.remove('hidden');
+        extraEl.innerHTML = `<i class="fa-solid fa-horse mr-1 text-amber-700"></i> <span class="font-bold text-amber-900">Gallop:</span> A mounted character can ride at a gallop for 1 hour, covering twice the usual distance for a fast pace (<strong>${Math.round(stats.fastMph * 2)} miles</strong>).`;
     }
 
     const formatDist = (val) => Number.isInteger(val) ? val.toString() : val.toFixed(1);
 
-    document.getElementById('res-travel-normal').textContent = `${formatDist(normalMph * hours)} miles`;
-    if (showFastSlow) {
-        document.getElementById('res-travel-fast').textContent = `${formatDist(fastMph * hours)} miles`;
-        document.getElementById('res-travel-slow').textContent = `${formatDist(slowMph * hours)} miles`;
+    document.getElementById('res-travel-normal').textContent = `${formatDist(stats.normalMph * hours)} miles`;
+    if (stats.showFastSlow) {
+        document.getElementById('res-travel-fast').textContent = `${formatDist(stats.fastMph * hours)} miles`;
+        document.getElementById('res-travel-slow').textContent = `${formatDist(stats.slowMph * hours)} miles`;
     }
 
     // Forced March Warning Logic
