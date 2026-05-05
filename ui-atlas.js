@@ -94,6 +94,7 @@ export function getAtlasHTML(state) {
                 <div class="w-px h-6 bg-stone-700 hidden sm:block"></div>
                 <div class="flex gap-2 justify-center w-full sm:w-auto border-t border-stone-700 pt-1.5 sm:border-none sm:pt-0 mt-1 sm:mt-0">
                     <button onclick="window.appActions.atlasUndoLastPoint()" class="flex-1 sm:flex-none bg-stone-700 text-stone-300 px-2 py-1 rounded-sm text-[8px] sm:text-[9px] uppercase tracking-wider hover:bg-stone-600 hover:text-white transition shadow-sm border border-stone-500"><i class="fa-solid fa-rotate-left mr-1"></i> Undo</button>
+                    <button onclick="window.appActions.atlasMarkLastPointAsStop()" class="flex-1 sm:flex-none bg-blue-900/50 text-blue-300 px-2 py-1 rounded-sm text-[8px] sm:text-[9px] uppercase tracking-wider hover:bg-blue-800 hover:text-white transition shadow-sm border border-blue-700"><i class="fa-solid fa-location-dot mr-1"></i> Drop Stop</button>
                     ${isDM ? `<button onclick="window.appActions.atlasFinishDrawing()" class="flex-1 sm:flex-none bg-amber-600 text-stone-900 px-2 py-1 rounded-sm text-[8px] sm:text-[9px] uppercase tracking-wider hover:bg-amber-500 transition shadow-sm font-black"><i class="fa-solid fa-check mr-1"></i> Save Route</button>` : `<button onclick="window.appActions.setAtlasMode('pan')" class="flex-1 sm:flex-none bg-amber-600 text-stone-900 px-2 py-1 rounded-sm text-[8px] sm:text-[9px] uppercase tracking-wider hover:bg-amber-500 transition shadow-sm font-black"><i class="fa-solid fa-times mr-1"></i> End Path</button>`}
                 </div>
             </div>
@@ -146,7 +147,7 @@ export function getAtlasHTML(state) {
                                         const rMonthIdx = parseInt(r.startDate.month, 10);
                                         const rMonth = cal?.months ? cal.months[rMonthIdx] : null;
                                         if (rMonth) {
-                                            const durStr = (r.durationDays && r.durationDays > 0) ? `${r.durationDays} Day(s)` : `< 1 Day`;
+                                            const durStr = (r.durationDays && r.durationDays > 1) ? `${r.durationDays} Day Span` : `Same Day`;
                                             dateStr = `<div class="text-[7px] text-stone-400 font-sans italic mt-0.5"><i class="fa-solid fa-calendar-days mr-1 text-stone-300"></i>${rMonth.name} ${r.startDate.day}, ${r.startDate.year} • ${durStr}</div>`;
                                         }
                                     }
@@ -310,7 +311,7 @@ export function getAtlasHTML(state) {
                             </div>
                         </div>
 
-                        <!-- NEW: STOPS SECTION -->
+                        <!-- STOPS SECTION -->
                         <div class="border-t border-[#d4c5a9] pt-2 mb-3">
                             <div class="flex justify-between items-center mb-2">
                                 <label class="block text-[8px] font-bold text-stone-500 uppercase tracking-widest">Journey Stops & Events</label>
