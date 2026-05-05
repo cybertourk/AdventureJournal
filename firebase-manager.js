@@ -56,7 +56,7 @@ export async function loginUser(email, password) {
     }
 }
 
-export async function registerUser(email, password, displayName, role = 'user') {
+export async function registerUser(email, password, displayName, birthMonth = null, birthDay = null, role = 'user') {
     try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
@@ -64,6 +64,8 @@ export async function registerUser(email, password, displayName, role = 'user') 
         await setDoc(doc(db, 'artifacts', appId, 'users', user.uid), {
             email: email,
             displayName: displayName || "Nameless Hero",
+            birthMonth: birthMonth ? parseInt(birthMonth, 10) : null,
+            birthDay: birthDay ? parseInt(birthDay, 10) : null,
             role: role,
             personalCodex: [], 
             created: new Date().toISOString()
