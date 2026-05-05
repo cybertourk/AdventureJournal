@@ -679,6 +679,7 @@ export const savePCEdit = async () => {
     // DM Restricted Administrative Fields
     playerId: isDM ? (document.getElementById('pc-edit-player-id')?.value || '') : (existingPC.playerId || ''),
     dmNotes: isDM ? (document.getElementById('input-pc-edit-dmnotes')?.value || '') : (existingPC.dmNotes || ''),
+    joinDate: isDM ? (document.getElementById('pc-edit-join-date')?.value || '') : (existingPC.joinDate || ''), // NEW: Start Date tracking
     boonBackstory: isDM ? (document.getElementById('pc-edit-boon-backstory')?.checked || false) : (existingPC.boonBackstory || false),
     unlockAutoSuccess: isDM ? (document.getElementById('pc-edit-unlock-auto-success')?.checked || false) : (existingPC.unlockAutoSuccess || false),
     boon1stBday: isDM ? (document.getElementById('pc-edit-boon-1st')?.value.trim() || '') : (existingPC.boon1stBday || ''),
