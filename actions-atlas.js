@@ -15,6 +15,27 @@ let drawingPoints = [];
 let savedMapCenter = null;
 let savedMapZoom = null;
 
+// --- CALENDAR MATH HELPERS (For Arrival Date Calculation) ---
+const getDaysInYear = (cal) => cal.months.reduce((sum, m) => sum + parseInt(m.days || 0, 10), 0);
+
+const getDayOfYear = (cal, mIdx, day) => {
+    let doy = 0;
+    for(let i = 0; i < mIdx; i++) doy += parseInt(cal.months[i].days || 0, 10);
+    return doy + parseInt(day, 10);
+};
+
+const getDateFromDayOfYear = (cal, doy) => {
+    let currentDoy = 0;
+    for (let i = 0; i < cal.months.length; i++) {
+        const mDays = parseInt(cal.months[i].days || 0, 10);
+        if (currentDoy + mDays >= doy) {
+            return { monthIndex: i, day: doy - currentDoy };
+        }
+        currentDoy += mDays;
+    }
+    return { monthIndex: Math.max(0, cal.months.length - 1), day: parseInt(cal.months[cal.months.length - 1]?.days || 1, 10) };
+};
+
 export const initAtlas = () => {
     const container = document.getElementById('map-container');
     if (!container) return; // Only run if the DOM is actively showing the Atlas
@@ -190,7 +211,6 @@ const renderAtlasLayerCheckboxes = (camp) => {
 
     const getSortVal = (dateObj) => {
         if (!dateObj) return 0;
-        // FIX: Directly parse the integer index!
         const monthIndex = parseInt(dateObj.month, 10) || 0;
         return (parseInt(dateObj.year, 10) * 10000) + (monthIndex * 100) + parseInt(dateObj.day, 10);
     };
@@ -218,11 +238,9 @@ const renderAtlasLayerCheckboxes = (camp) => {
         
         let dateStr = "";
         if (r.startDate) {
-            // FIX: Access the month directly by array index
             const rMonthIdx = parseInt(r.startDate.month, 10);
             const rMonth = cal?.months ? cal.months[rMonthIdx] : null;
             if (rMonth) {
-                // If the journey was super short (0 days), display it properly
                 const durStr = (r.durationDays && r.durationDays > 0) ? `${r.durationDays} Day(s)` : `< 1 Day`;
                 dateStr = `<div class="text-[9px] text-stone-400 font-sans italic mt-0.5"><i class="fa-solid fa-calendar-days mr-1 text-stone-300"></i>${rMonth.name} ${r.startDate.day}, ${r.startDate.year} • ${durStr}</div>`;
             }
@@ -504,7 +522,7 @@ export const calculateAtlasRouteLive = () => {
     let daysToTravel = Math.ceil(distanceMiles / calculatedMilesPerDay);
     if (daysToTravel < 1) daysToTravel = 1;
     
-    // NEW: Calculate exact hours if it is a short journey!
+    // Calculate exact hours if it is a short journey!
     let totalHours = distanceMiles / mph;
     let timeDisplay = "";
     if (totalHours < travelHours && distanceMiles > 0) {
@@ -588,7 +606,7 @@ export const confirmAtlasRoute = async () => {
     let daysToTravel = Math.ceil(distanceMiles / calculatedMilesPerDay);
     if (daysToTravel < 1) daysToTravel = 1;
 
-    // NEW: Calculate exact hours if it is a short journey for the text description!
+    // Calculate exact hours if it is a short journey for the text description!
     let totalHours = distanceMiles / mph;
     let timeDisplay = "";
     if (totalHours < travelHours && distanceMiles > 0) {
@@ -599,6 +617,48 @@ export const confirmAtlasRoute = async () => {
         timeDisplay = `${daysToTravel} Day(s)`;
     }
 
+    // --- NEW: EXTRACT DATE MATH FOR THE DESCRIPTION FIRST ---
+    const igY = parseInt(document.getElementById('atlas-route-year')?.value, 10);
+    const igM = parseInt(document.getElementById('atlas-route-month')?.value, 10);
+    const igD = parseInt(document.getElementById('atlas-route-day')?.value, 10);
+
+    let departureDate = null;
+    let departureStr = "Unknown Date";
+    let arrivalStr = "Unknown Date";
+
+    if (!isNaN(igY) && !isNaN(igM) && !isNaN(igD)) {
+        departureDate = { year: igY, month: igM, day: igD };
+        
+        if (camp.calendar && camp.calendar.months) {
+            // Format Departure Date
+            let mName = camp.calendar.months[igM]?.name || "Unknown";
+            if (mName.includes('(') && camp.calendar.months[igM]?.nickname === undefined) {
+                mName = mName.split('(')[0].trim();
+            }
+            departureStr = `${igD} ${mName}, ${igY}`;
+
+            // Calculate and Format Arrival Date based on spanning days
+            if (daysToTravel <= 1) {
+                arrivalStr = departureStr; // Arrives on the same day
+            } else {
+                const totalDays = getDaysInYear(camp.calendar);
+                const startDoy = getDayOfYear(camp.calendar, igM, igD);
+                const endDoy = startDoy + daysToTravel - 1;
+
+                const eY = igY + Math.floor((endDoy - 1) / totalDays);
+                let remDoy = ((endDoy - 1) % totalDays) + 1;
+                let endMD = getDateFromDayOfYear(camp.calendar, remDoy);
+
+                let emName = camp.calendar.months[endMD.monthIndex]?.name || "Unknown";
+                if (emName.includes('(') && camp.calendar.months[endMD.monthIndex]?.nickname === undefined) {
+                    emName = emName.split('(')[0].trim();
+                }
+                
+                arrivalStr = `${endMD.day} ${emName}, ${eY}`;
+            }
+        }
+    }
+
     // Extract nicely formatted labels for the Codex entry description
     const modeSelect = document.getElementById('atlas-route-mode');
     const paceSelect = document.getElementById('atlas-route-pace');
@@ -606,7 +666,9 @@ export const confirmAtlasRoute = async () => {
     const paceLabel = paceSelect.options[paceSelect.selectedIndex].text;
 
     let updatedCodex = camp.codex || [];
-    let descriptionText = `A journey logged on the Atlas.\n\n**Total Distance:** ${distanceMiles.toFixed(1)} Miles\n**Travel Mode:** ${modeLabel}\n**Travel Pace:** ${paceLabel}\n**Calculated Travel Time:** ${timeDisplay}`;
+    
+    // Inject the formatted dates into the text block!
+    let descriptionText = `A journey logged on the Atlas.\n\n**Departure:** ${departureStr}\n**Arrival:** ${arrivalStr}\n**Total Distance:** ${distanceMiles.toFixed(1)} Miles\n**Travel Mode:** ${modeLabel}\n**Travel Pace:** ${paceLabel}\n**Calculated Travel Time:** ${timeDisplay}`;
 
     if (!codexId && searchInput) {
         codexId = generateId();
@@ -631,16 +693,6 @@ export const confirmAtlasRoute = async () => {
     }
 
     const plainPoints = drawingPoints.map(p => ({ lat: p.lat, lng: p.lng }));
-
-    // Extract Date Math
-    const igY = parseInt(document.getElementById('atlas-route-year')?.value, 10);
-    const igM = parseInt(document.getElementById('atlas-route-month')?.value, 10);
-    const igD = parseInt(document.getElementById('atlas-route-day')?.value, 10);
-
-    let departureDate = null;
-    if (!isNaN(igY) && !isNaN(igM) && !isNaN(igD)) {
-        departureDate = { year: igY, month: igM, day: igD };
-    }
 
     const newRoute = {
         id: generateId(),
