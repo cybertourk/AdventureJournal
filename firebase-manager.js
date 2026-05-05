@@ -114,14 +114,19 @@ export async function deleteUserAccount() {
             const campId = campData.id;
             
             const updatedPlayers = (campData.activePlayers || []).filter(id => id !== uid);
+            
             const updatedNames = { ...campData.playerNames };
             delete updatedNames[uid];
+
+            const updatedBirthdays = { ...campData.playerBirthdays };
+            delete updatedBirthdays[uid];
             
             const docRef = doc(db, 'artifacts', appId, 'campaigns', campId);
             updatePromises.push(setDoc(docRef, { 
                 ...campData,
                 activePlayers: updatedPlayers, 
-                playerNames: updatedNames
+                playerNames: updatedNames,
+                playerBirthdays: updatedBirthdays
             }));
 
             // Scrub the user from the PlayerCharacters Subcollection!
@@ -364,11 +369,16 @@ export async function joinCampaign(campaignId) {
     }
 
     try {
+        // Look up user's public info (Name & Birthday) from their personal document
         const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid);
         const userSnap = await getDoc(userDocRef);
+        
         const displayName = userSnap.exists() && userSnap.data().displayName 
             ? userSnap.data().displayName 
             : "Unknown Player";
+
+        const birthMonth = userSnap.exists() ? userSnap.data().birthMonth : null;
+        const birthDay = userSnap.exists() ? userSnap.data().birthDay : null;
 
         const docRef = doc(db, 'artifacts', appId, 'campaigns', campaignId);
         const campSnap = await getDoc(docRef);
@@ -377,13 +387,23 @@ export async function joinCampaign(campaignId) {
             const data = campSnap.data();
             const activePlayers = data.activePlayers || [];
             const playerNames = data.playerNames || {};
+            const playerBirthdays = data.playerBirthdays || {};
             
             if (!activePlayers.includes(user.uid)) {
                 activePlayers.push(user.uid);
             }
             playerNames[user.uid] = displayName;
             
-            await setDoc(docRef, { activePlayers: activePlayers, playerNames: playerNames }, { merge: true });
+            // Map the birthday payload directly to the user's ID
+            if (birthMonth !== null && birthDay !== null) {
+                playerBirthdays[user.uid] = { month: birthMonth, day: birthDay };
+            }
+            
+            await setDoc(docRef, { 
+                activePlayers: activePlayers, 
+                playerNames: playerNames,
+                playerBirthdays: playerBirthdays
+            }, { merge: true });
             
             notify(`Successfully joined ${data.name}!`, "success");
             return true;
@@ -414,6 +434,7 @@ export async function saveCampaign(campaignData) {
         if (!cleanData.dmId) cleanData.dmId = user.uid;
         if (!cleanData.activePlayers) cleanData.activePlayers = [];
         if (!cleanData.playerNames) cleanData.playerNames = {};
+        if (!cleanData.playerBirthdays) cleanData.playerBirthdays = {};
 
         // EXTRACT ARRAYS FOR SUBCOLLECTIONS
         const pcs = cleanData.playerCharacters || [];
