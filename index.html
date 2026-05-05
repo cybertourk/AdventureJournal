@@ -146,35 +146,35 @@
 
         <!-- 3. FLOATING ACTION DOCK (Replaces standard bottom nav) -->
         <div id="floating-dock-container" class="fixed left-0 right-0 floating-dock flex justify-center z-40 px-4 pointer-events-none transition-transform duration-300">
-            <!-- The Pill Container -->
-            <nav class="bg-stone-900 thematic-bg border-2 border-stone-700 shadow-[0_15px_30px_rgba(0,0,0,0.6)] rounded-full w-full max-w-md h-16 flex items-center justify-between px-2 pointer-events-auto relative">
+            <!-- The Pill Container (Reduced by 20%) -->
+            <nav class="bg-stone-900 thematic-bg border-2 border-stone-700 shadow-[0_15px_30px_rgba(0,0,0,0.6)] rounded-full w-full max-w-[360px] h-[52px] flex items-center justify-between px-2 pointer-events-auto relative">
                 
                 <!-- Left Tabs -->
                 <button onclick="window.appActions.setView('campaign')" id="dock-tab-campaign" class="dock-tab flex flex-col items-center justify-center w-[20%] text-stone-400 hover:text-amber-300 transition-colors">
-                    <i class="fa-solid fa-map-location-dot text-lg mb-1"></i>
-                    <span class="text-[8px] font-bold uppercase tracking-wider">Arcs</span>
+                    <i class="fa-solid fa-map-location-dot text-base mb-0.5"></i>
+                    <span class="text-[7px] font-bold uppercase tracking-wider">Arcs</span>
                 </button>
                 <button onclick="window.appActions.setView('calendar')" id="dock-tab-calendar" class="dock-tab flex flex-col items-center justify-center w-[20%] text-stone-400 hover:text-amber-300 transition-colors">
-                    <i class="fa-solid fa-clock-rotate-left text-lg mb-1"></i>
-                    <span class="text-[8px] font-bold uppercase tracking-wider">Time</span>
+                    <i class="fa-solid fa-clock-rotate-left text-base mb-0.5"></i>
+                    <span class="text-[7px] font-bold uppercase tracking-wider">Time</span>
                 </button>
 
                 <!-- Center Action Button (Breaks out of the pill) -->
                 <div class="w-[20%] flex justify-center">
-                    <button onclick="window.appActions.toggleActionMenu()" id="dock-center-btn" class="center-action-btn w-14 h-14 bg-red-900 border-4 border-[#f4ebd8] rounded-full text-amber-50 flex items-center justify-center shadow-lg relative z-50">
-                        <i class="fa-solid fa-pen-nib text-xl" id="center-action-icon"></i>
+                    <button onclick="window.appActions.toggleActionMenu()" id="dock-center-btn" class="center-action-btn w-11 h-11 bg-red-900 border-[3px] border-[#f4ebd8] rounded-full text-amber-50 flex items-center justify-center shadow-lg relative z-50">
+                        <i class="fa-solid fa-pen-nib text-lg" id="center-action-icon"></i>
                     </button>
                 </div>
 
                 <!-- Right Tabs -->
                 <button onclick="window.appActions.setView('pc-manager')" id="dock-tab-pc-manager" class="dock-tab flex flex-col items-center justify-center w-[20%] text-stone-400 hover:text-amber-300 transition-colors">
-                    <i class="fa-solid fa-users text-lg mb-1"></i>
-                    <span class="text-[8px] font-bold uppercase tracking-wider">Party</span>
+                    <i class="fa-solid fa-users text-base mb-0.5"></i>
+                    <span class="text-[7px] font-bold uppercase tracking-wider">Party</span>
                 </button>
                 <button onclick="window.appActions.setView('codex')" id="dock-tab-codex" class="dock-tab flex flex-col items-center justify-center w-[20%] text-stone-400 hover:text-amber-300 transition-colors relative">
-                    <i class="fa-solid fa-book-journal-whills text-lg mb-1"></i>
-                    <span class="text-[8px] font-bold uppercase tracking-wider">Library</span>
-                    <span id="dock-badge-tasks" class="hidden absolute top-0 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border border-stone-900 animate-pulse"></span>
+                    <i class="fa-solid fa-book-journal-whills text-base mb-0.5"></i>
+                    <span class="text-[7px] font-bold uppercase tracking-wider">Library</span>
+                    <span id="dock-badge-tasks" class="hidden absolute top-0 right-2 w-2 h-2 bg-red-500 rounded-full border border-stone-900 animate-pulse"></span>
                 </button>
                 
             </nav>
@@ -183,29 +183,29 @@
         <!-- 4. BOTTOM SHEET (Action Menu) -->
         <div id="action-overlay" onclick="window.appActions.toggleActionMenu()" class="fixed inset-0 bg-stone-950/70 z-40 hidden opacity-0 transition-opacity duration-300 backdrop-blur-sm"></div>
         
-        <div id="action-sheet" class="bottom-sheet fixed bottom-0 left-0 right-0 bg-parchment border-t-2 border-[#d4c5a9] rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-50 pt-2 pb-[calc(var(--sab)+3rem)] px-6 max-w-md mx-auto">
+        <div id="action-sheet" class="bottom-sheet fixed bottom-0 left-0 right-0 bg-parchment border-t-2 border-[#d4c5a9] rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-50 pt-2 pb-[calc(var(--sab)+2.5rem)] px-6 max-w-sm mx-auto">
             <!-- Drag Handle Indicator -->
-            <div class="w-12 h-1.5 bg-stone-300 rounded-full mx-auto mb-6 mt-2"></div>
+            <div class="w-10 h-1.5 bg-stone-300 rounded-full mx-auto mb-5 mt-2"></div>
             
-            <h3 class="text-center font-serif font-bold text-amber-900 text-lg mb-6">Scribe to the Archives</h3>
+            <h3 class="text-center font-serif font-bold text-amber-900 text-base mb-5">Scribe to the Archives</h3>
             
-            <div class="grid grid-cols-2 gap-4">
-                <button onclick="window.appActions.toggleActionMenu(); window.appActions.openSessionEdit(null);" class="bg-white p-4 rounded-xl shadow-sm border border-[#d4c5a9] flex flex-col items-center gap-3 active:scale-95 transition-transform">
-                    <div class="w-12 h-12 rounded-full bg-red-100 text-red-800 flex items-center justify-center text-xl"><i class="fa-solid fa-feather-pointed"></i></div>
-                    <span class="text-[11px] font-bold uppercase tracking-widest text-stone-700">New Session</span>
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="window.appActions.toggleActionMenu(); window.appActions.openSessionEdit(null);" class="bg-white p-3 rounded-xl shadow-sm border border-[#d4c5a9] flex flex-col items-center gap-2 active:scale-95 transition-transform">
+                    <div class="w-10 h-10 rounded-full bg-red-100 text-red-800 flex items-center justify-center text-lg"><i class="fa-solid fa-feather-pointed"></i></div>
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-stone-700">New Session</span>
                 </button>
-                <button onclick="window.appActions.toggleActionMenu(); window.appActions._openCodexModal({isNew: true});" class="bg-white p-4 rounded-xl shadow-sm border border-[#d4c5a9] flex flex-col items-center gap-3 active:scale-95 transition-transform">
-                    <div class="w-12 h-12 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center text-xl"><i class="fa-solid fa-book-medical"></i></div>
-                    <span class="text-[11px] font-bold uppercase tracking-widest text-stone-700">New Codex</span>
+                <button onclick="window.appActions.toggleActionMenu(); window.appActions._openCodexModal({isNew: true});" class="bg-white p-3 rounded-xl shadow-sm border border-[#d4c5a9] flex flex-col items-center gap-2 active:scale-95 transition-transform">
+                    <div class="w-10 h-10 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center text-lg"><i class="fa-solid fa-book-medical"></i></div>
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-stone-700">New Codex</span>
                 </button>
-                <button onclick="window.appActions.toggleActionMenu(); window.appActions.openChecklistMenu();" class="bg-white p-4 rounded-xl shadow-sm border border-[#d4c5a9] flex flex-col items-center gap-3 active:scale-95 transition-transform relative">
-                    <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center text-xl"><i class="fa-solid fa-list-check"></i></div>
-                    <span class="text-[11px] font-bold uppercase tracking-widest text-stone-700">Tasks</span>
+                <button onclick="window.appActions.toggleActionMenu(); window.appActions.openChecklistMenu();" class="bg-white p-3 rounded-xl shadow-sm border border-[#d4c5a9] flex flex-col items-center gap-2 active:scale-95 transition-transform relative">
+                    <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center text-lg"><i class="fa-solid fa-list-check"></i></div>
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-stone-700">Tasks</span>
                     <span id="sheet-badge-tasks" class="hidden absolute top-2 right-4 bg-red-600 text-white text-[9px] px-1.5 py-0.5 rounded-full shadow-md border border-red-800">0</span>
                 </button>
-                <button onclick="window.appActions.toggleActionMenu(); window.appActions.openCalendarDay(window.appData.activeCampaign?.calendar?.currentYear || 1492, window.appData.activeCampaign?.calendar?.currentMonth || 0, window.appData.activeCampaign?.calendar?.currentDay || 1);" class="bg-white p-4 rounded-xl shadow-sm border border-[#d4c5a9] flex flex-col items-center gap-3 active:scale-95 transition-transform">
-                    <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-xl"><i class="fa-regular fa-calendar-plus"></i></div>
-                    <span class="text-[11px] font-bold uppercase tracking-widest text-stone-700">Calendar Note</span>
+                <button onclick="window.appActions.toggleActionMenu(); window.appActions.openCalendarDay(window.appData.activeCampaign?.calendar?.currentYear || 1492, window.appData.activeCampaign?.calendar?.currentMonth || 0, window.appData.activeCampaign?.calendar?.currentDay || 1);" class="bg-white p-3 rounded-xl shadow-sm border border-[#d4c5a9] flex flex-col items-center gap-2 active:scale-95 transition-transform">
+                    <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-lg"><i class="fa-regular fa-calendar-plus"></i></div>
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-stone-700">Calendar Note</span>
                 </button>
             </div>
         </div>
@@ -363,12 +363,12 @@
             if (sheet.classList.contains('open')) {
                 sheet.classList.remove('open');
                 overlay.style.opacity = '0';
-                icon.className = 'fa-solid fa-pen-nib text-xl transition-all duration-300';
+                icon.className = 'fa-solid fa-pen-nib text-lg transition-all duration-300';
                 setTimeout(() => overlay.classList.add('hidden'), 300);
             } else {
                 sheet.classList.add('open');
                 overlay.classList.remove('hidden');
-                icon.className = 'fa-solid fa-xmark text-xl transition-all duration-300 rotate-90';
+                icon.className = 'fa-solid fa-xmark text-lg transition-all duration-300 rotate-90';
                 setTimeout(() => overlay.style.opacity = '1', 10);
             }
         };
