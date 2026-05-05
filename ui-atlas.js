@@ -175,7 +175,7 @@ export function getAtlasHTML(state) {
             <div id="atlas-settings-panel" class="hidden absolute top-3 right-3 z-50 animate-in pointer-events-auto shadow-2xl">
                 <div class="bg-[#f4ebd8] p-3 sm:p-4 rounded-sm w-60 sm:w-64 border border-[#d4c5a9] border-t-4 border-t-amber-700 relative">
                     <button onclick="window.appActions.toggleAtlasSettings()" class="absolute top-1.5 right-2 text-stone-500 hover:text-red-900"><i class="fa-solid fa-xmark text-sm"></i></button>
-                    <h2 class="text-xs font-serif font-bold text-amber-900 mb-3 border-b border-[#d4c5a9] pb-1.5"><i class="fa-solid fa-gear mr-1 text-stone-500"></i> Map Configuration</h2>
+                    <h2 class="text-xs font-serif font-bold text-amber-900 mb-4 border-b border-[#d4c5a9] pb-2"><i class="fa-solid fa-gear mr-1 text-stone-500"></i> Map Configuration</h2>
                     
                     <div class="space-y-3">
                         <div>
@@ -230,94 +230,108 @@ export function getAtlasHTML(state) {
                 </div>
             </div>
             
-            <!-- Route Save Modal (Scaled Down) -->
+            <!-- Route Save Modal (Scaled Down with Stops feature) -->
             <div id="atlas-route-modal" class="hidden absolute inset-0 bg-stone-900/80 z-[18000] flex items-center justify-center p-3 backdrop-blur-sm animate-in">
-                <div class="bg-[#f4ebd8] p-4 rounded-sm w-full max-w-[300px] border border-[#d4c5a9] shadow-2xl relative overflow-visible">
-                    <h3 class="font-serif font-bold text-base text-amber-900 mb-1.5 border-b border-[#d4c5a9] pb-1.5"><i class="fa-solid fa-route text-amber-600 mr-1.5"></i> Save Travel Route</h3>
-                    <p class="text-[8px] text-stone-600 mb-2 font-sans italic leading-snug">Link this route to the Codex to auto-calculate travel times and log the journey.</p>
+                <div class="bg-[#f4ebd8] p-4 rounded-sm w-full max-w-[320px] border border-[#d4c5a9] shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
+                    <h3 class="font-serif font-bold text-base text-amber-900 mb-1.5 border-b border-[#d4c5a9] pb-1.5 shrink-0"><i class="fa-solid fa-route text-amber-600 mr-1.5"></i> Save Travel Route</h3>
+                    <p class="text-[8px] text-stone-600 mb-2 font-sans italic leading-snug shrink-0">Link this route to the Codex to auto-calculate travel times and log the journey.</p>
                     
-                    <!-- Travel Stats Readout -->
-                    <div class="bg-white p-2 rounded-sm border border-[#d4c5a9] mb-2 shadow-sm text-[10px]">
-                        <div class="flex justify-between items-center pb-1 border-b border-stone-100">
-                            <span class="font-bold text-stone-500 uppercase tracking-widest text-[8px]">Distance:</span>
-                            <span id="atlas-route-dist" class="font-bold text-amber-700 text-[10px]"></span>
+                    <div class="overflow-y-auto custom-scrollbar flex-grow pr-1">
+                        <!-- Travel Stats Readout -->
+                        <div class="bg-white p-2 rounded-sm border border-[#d4c5a9] mb-2 shadow-sm text-[10px]">
+                            <div class="flex justify-between items-center pb-1 border-b border-stone-100">
+                                <span class="font-bold text-stone-500 uppercase tracking-widest text-[8px]">Distance:</span>
+                                <span id="atlas-route-dist" class="font-bold text-amber-700 text-[10px]"></span>
+                            </div>
+                            <div class="flex justify-between items-center pt-1">
+                                <span class="font-bold text-stone-500 uppercase tracking-widest text-[8px]">Est. Time:</span>
+                                <span id="atlas-route-live-math" class="font-bold text-emerald-600 text-[9px]"></span>
+                            </div>
                         </div>
-                        <div class="flex justify-between items-center pt-1">
-                            <span class="font-bold text-stone-500 uppercase tracking-widest text-[8px]">Est. Time:</span>
-                            <span id="atlas-route-live-math" class="font-bold text-emerald-600 text-[9px]"></span>
+
+                        <!-- Editable Date Inputs -->
+                        <label class="block text-[8px] font-bold text-stone-500 uppercase tracking-widest mb-1 mt-1">Departure Date</label>
+                        <div class="grid grid-cols-12 gap-1 mb-2">
+                            <div class="col-span-6">
+                                <select id="atlas-route-month" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-[10px] font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white">
+                                    ${monthOptions}
+                                </select>
+                            </div>
+                            <div class="col-span-3 flex items-center bg-white border border-[#d4c5a9] rounded-sm shadow-inner focus-within:border-amber-600 overflow-hidden">
+                                <span class="pl-1 text-[8px] text-stone-400 font-bold uppercase">D</span>
+                                <input type="number" id="atlas-route-day" value="${currentDay}" class="w-full p-1.5 bg-transparent text-[10px] font-bold text-stone-900 outline-none text-right">
+                            </div>
+                            <div class="col-span-3 flex items-center bg-white border border-[#d4c5a9] rounded-sm shadow-inner focus-within:border-amber-600 overflow-hidden">
+                                <span class="pl-1 text-[8px] text-stone-400 font-bold uppercase">Y</span>
+                                <input type="number" id="atlas-route-year" value="${currentYear}" class="w-full p-1.5 bg-transparent text-[10px] font-bold text-stone-900 outline-none text-right">
+                            </div>
+                        </div>
+
+                        <!-- Travel Math Inputs -->
+                        <div class="grid grid-cols-2 gap-2 mb-3">
+                            <div>
+                                <label class="block text-[8px] font-bold text-stone-500 uppercase tracking-widest mb-1">Travel Mode</label>
+                                <select id="atlas-route-mode" onchange="window.appActions.calculateAtlasRouteLive()" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-[10px] font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white">
+                                    <optgroup label="Overland">
+                                        <option value="foot-standard">On Foot</option>
+                                        <option value="mount-riding">Horse / Mount</option>
+                                        <option value="mount-draft">Draft Horse / Mule</option>
+                                        <option value="mount-camel">Camel</option>
+                                        <option value="mount-elephant">Elephant</option>
+                                        <option value="mount-mastiff">Mastiff / Pony</option>
+                                    </optgroup>
+                                    <optgroup label="Nautical">
+                                        <option value="water-rowboat">Rowboat</option>
+                                        <option value="water-keelboat">Keelboat</option>
+                                        <option value="water-longship">Longship</option>
+                                        <option value="water-sailing">Sailing Ship</option>
+                                        <option value="water-warship">Warship</option>
+                                        <option value="water-galley">Galley</option>
+                                    </optgroup>
+                                    <optgroup label="Aeronautical">
+                                        <option value="flying-creature">Flying Mount</option>
+                                        <option value="flying-griffon">Griffon</option>
+                                        <option value="flying-carpet">Carpet of Flying</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[8px] font-bold text-stone-500 uppercase tracking-widest mb-1">Travel Pace</label>
+                                <select id="atlas-route-pace" onchange="window.appActions.calculateAtlasRouteLive()" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-[10px] font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white">
+                                    <option value="slow">Slow</option>
+                                    <option value="normal" selected>Normal</option>
+                                    <option value="fast">Fast</option>
+                                    <option value="forced">Forced (+4 hrs)</option>
+                                </select>
+                            </div>
+                            <div class="col-span-2 flex items-center gap-1.5 pt-1 border-t border-[#d4c5a9]">
+                                <input type="checkbox" id="atlas-route-difficult" onchange="window.appActions.calculateAtlasRouteLive()" class="w-3 h-3 text-amber-600 rounded-sm shadow-sm border-[#d4c5a9] focus:ring-amber-500 cursor-pointer">
+                                <label class="text-[8px] font-bold uppercase tracking-widest text-stone-700 cursor-pointer" for="atlas-route-difficult">Difficult Terrain (1/2 Speed)</label>
+                            </div>
+                        </div>
+
+                        <!-- NEW: STOPS SECTION -->
+                        <div class="border-t border-[#d4c5a9] pt-2 mb-3">
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="block text-[8px] font-bold text-stone-500 uppercase tracking-widest">Journey Stops & Events</label>
+                                <button type="button" onclick="window.appActions.addAtlasRouteStop()" class="text-[8px] uppercase tracking-wider font-bold text-blue-600 hover:text-blue-800 transition flex items-center"><i class="fa-solid fa-plus mr-1"></i> Add Stop</button>
+                            </div>
+                            <div id="atlas-route-stops-container" class="space-y-1.5 empty:hidden">
+                                <!-- Dynamic rows injected here -->
+                            </div>
+                        </div>
+
+                        <div class="relative mb-3">
+                            <label class="block text-[8px] font-bold text-stone-500 uppercase tracking-widest mb-1">Route Name</label>
+                            <input type="text" id="atlas-route-search" oninput="window.appActions.searchAtlasCodex(this.value, 'Route')" placeholder="Search codex or type name..." class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white" autocomplete="off">
+                            <input type="hidden" id="atlas-route-codex-id">
+                            
+                            <!-- Notice we remove overflow hidden on the modal itself to allow this to pop out, or we bound its height -->
+                            <div id="atlas-route-search-results" class="absolute z-10 w-full bg-white border border-[#d4c5a9] rounded-b-sm shadow-xl max-h-32 overflow-y-auto hidden top-[42px] custom-scrollbar text-xs"></div>
                         </div>
                     </div>
 
-                    <!-- Editable Date Inputs -->
-                    <label class="block text-[8px] font-bold text-stone-500 uppercase tracking-widest mb-1 mt-1">Departure Date</label>
-                    <div class="grid grid-cols-12 gap-1 mb-2">
-                        <div class="col-span-6">
-                            <select id="atlas-route-month" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-[10px] font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white">
-                                ${monthOptions}
-                            </select>
-                        </div>
-                        <div class="col-span-3 flex items-center bg-white border border-[#d4c5a9] rounded-sm shadow-inner focus-within:border-amber-600 overflow-hidden">
-                            <span class="pl-1 text-[8px] text-stone-400 font-bold uppercase">D</span>
-                            <input type="number" id="atlas-route-day" value="${currentDay}" class="w-full p-1.5 bg-transparent text-[10px] font-bold text-stone-900 outline-none text-right">
-                        </div>
-                        <div class="col-span-3 flex items-center bg-white border border-[#d4c5a9] rounded-sm shadow-inner focus-within:border-amber-600 overflow-hidden">
-                            <span class="pl-1 text-[8px] text-stone-400 font-bold uppercase">Y</span>
-                            <input type="number" id="atlas-route-year" value="${currentYear}" class="w-full p-1.5 bg-transparent text-[10px] font-bold text-stone-900 outline-none text-right">
-                        </div>
-                    </div>
-
-                    <!-- Travel Math Inputs -->
-                    <div class="grid grid-cols-2 gap-2 mb-3">
-                        <div>
-                            <label class="block text-[8px] font-bold text-stone-500 uppercase tracking-widest mb-1">Travel Mode</label>
-                            <select id="atlas-route-mode" onchange="window.appActions.calculateAtlasRouteLive()" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-[10px] font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white">
-                                <optgroup label="Overland">
-                                    <option value="foot-standard">On Foot</option>
-                                    <option value="mount-riding">Horse / Mount</option>
-                                    <option value="mount-draft">Draft Horse / Mule</option>
-                                    <option value="mount-camel">Camel</option>
-                                    <option value="mount-elephant">Elephant</option>
-                                    <option value="mount-mastiff">Mastiff / Pony</option>
-                                </optgroup>
-                                <optgroup label="Nautical">
-                                    <option value="water-rowboat">Rowboat</option>
-                                    <option value="water-keelboat">Keelboat</option>
-                                    <option value="water-longship">Longship</option>
-                                    <option value="water-sailing">Sailing Ship</option>
-                                    <option value="water-warship">Warship</option>
-                                    <option value="water-galley">Galley</option>
-                                </optgroup>
-                                <optgroup label="Aeronautical">
-                                    <option value="flying-creature">Flying Mount</option>
-                                    <option value="flying-griffon">Griffon</option>
-                                    <option value="flying-carpet">Carpet of Flying</option>
-                                </optgroup>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[8px] font-bold text-stone-500 uppercase tracking-widest mb-1">Travel Pace</label>
-                            <select id="atlas-route-pace" onchange="window.appActions.calculateAtlasRouteLive()" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-[10px] font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white">
-                                <option value="slow">Slow</option>
-                                <option value="normal" selected>Normal</option>
-                                <option value="fast">Fast</option>
-                                <option value="forced">Forced (+4 hrs)</option>
-                            </select>
-                        </div>
-                        <div class="col-span-2 flex items-center gap-1.5 pt-1 border-t border-[#d4c5a9]">
-                            <input type="checkbox" id="atlas-route-difficult" onchange="window.appActions.calculateAtlasRouteLive()" class="w-3 h-3 text-amber-600 rounded-sm shadow-sm border-[#d4c5a9] focus:ring-amber-500 cursor-pointer">
-                            <label class="text-[8px] font-bold uppercase tracking-widest text-stone-700 cursor-pointer" for="atlas-route-difficult">Difficult Terrain (1/2 Speed)</label>
-                        </div>
-                    </div>
-
-                    <div class="relative mb-3">
-                        <label class="block text-[8px] font-bold text-stone-500 uppercase tracking-widest mb-1">Route Name</label>
-                        <input type="text" id="atlas-route-search" oninput="window.appActions.searchAtlasCodex(this.value, 'Route')" placeholder="Search codex or type name..." class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white" autocomplete="off">
-                        <input type="hidden" id="atlas-route-codex-id">
-                        
-                        <div id="atlas-route-search-results" class="absolute z-10 w-full bg-white border border-[#d4c5a9] rounded-b-sm shadow-xl max-h-40 overflow-y-auto hidden top-[46px] custom-scrollbar text-xs"></div>
-                    </div>
-
-                    <div class="flex justify-end gap-2 pt-2 border-t border-[#d4c5a9]">
+                    <div class="flex justify-end gap-2 pt-2 border-t border-[#d4c5a9] shrink-0">
                         <button onclick="document.getElementById('atlas-route-modal').classList.add('hidden'); window.appActions.setAtlasMode('pan');" class="px-3 py-1.5 text-stone-600 border border-stone-400 rounded-sm hover:bg-stone-200 transition font-bold uppercase tracking-wider text-[8px]">Cancel</button>
                         <button onclick="window.appActions.confirmAtlasRoute()" class="px-3 py-1.5 bg-amber-600 text-stone-900 rounded-sm hover:bg-amber-500 transition font-bold uppercase tracking-wider text-[8px] shadow-md"><i class="fa-solid fa-floppy-disk mr-1"></i> Save Route</button>
                     </div>
