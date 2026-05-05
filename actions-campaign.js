@@ -618,6 +618,40 @@ export const openPCEdit = (pcId = null) => {
   window.appActions.setView('pc-edit');
 };
 
+export const calculateBirthdaysLive = () => {
+    const monthEl = document.getElementById('pc-edit-birth-month');
+    const dayEl = document.getElementById('pc-edit-birth-day');
+    const joinEl = document.getElementById('pc-edit-join-date');
+    const countEl = document.getElementById('pc-edit-bday-count');
+
+    if (!monthEl || !dayEl || !joinEl || !countEl) return;
+
+    const effMonth = parseInt(monthEl.value, 10);
+    const effDay = parseInt(dayEl.value, 10);
+    const joinDateStr = joinEl.value;
+
+    let calculatedBirthdays = 0;
+
+    if (!isNaN(effMonth) && !isNaN(effDay) && joinDateStr) {
+        const joinDate = new Date(joinDateStr);
+        if (!isNaN(joinDate.getTime())) {
+            const today = new Date();
+            let count = 0;
+            
+            for (let y = joinDate.getFullYear(); y <= today.getFullYear(); y++) {
+                // Adjust for 0-indexed Javascript months
+                const bDateThisYear = new Date(y, effMonth - 1, effDay);
+                if (bDateThisYear >= joinDate && bDateThisYear <= today) {
+                    count++;
+                }
+            }
+            calculatedBirthdays = count;
+        }
+    }
+
+    countEl.textContent = calculatedBirthdays;
+};
+
 export const savePCEdit = async () => {
   updateDerivedState();
   const camp = window.appData.activeCampaign;
@@ -629,7 +663,9 @@ export const savePCEdit = async () => {
   const existingPC = camp.playerCharacters?.find(p => p.id === pcId) || {
     inspiration: 0,
     automaticSuccess: false,
-    playerId: ''
+    playerId: '',
+    birthMonth: null,
+    birthDay: null
   };
   
   const isOwner = existingPC.playerId === myUid;
@@ -644,6 +680,15 @@ export const savePCEdit = async () => {
     notify("Hero must have a name.", "error");
     return;
   }
+
+  // Handle DM's manual birthday entry vs Account linkage
+  const bMonthEl = document.getElementById('pc-edit-birth-month');
+  const bDayEl = document.getElementById('pc-edit-birth-day');
+  
+  // If the inputs are active (!disabled), grab their value. 
+  // If they are disabled, it means the UI is showing the Account's birthday, so we silently preserve the old manual value underneath.
+  const localBMonth = isDM ? ((bMonthEl && !bMonthEl.disabled) ? (parseInt(bMonthEl.value) || null) : existingPC.birthMonth) : existingPC.birthMonth;
+  const localBDay = isDM ? ((bDayEl && !bDayEl.disabled) ? (parseInt(bDayEl.value) || null) : existingPC.birthDay) : existingPC.birthDay;
 
   // Gather Inputs safely based on access level
   const updatedPC = {
@@ -679,7 +724,9 @@ export const savePCEdit = async () => {
     // DM Restricted Administrative Fields
     playerId: isDM ? (document.getElementById('pc-edit-player-id')?.value || '') : (existingPC.playerId || ''),
     dmNotes: isDM ? (document.getElementById('input-pc-edit-dmnotes')?.value || '') : (existingPC.dmNotes || ''),
-    joinDate: isDM ? (document.getElementById('pc-edit-join-date')?.value || '') : (existingPC.joinDate || ''), // NEW: Start Date tracking
+    joinDate: isDM ? (document.getElementById('pc-edit-join-date')?.value || '') : (existingPC.joinDate || ''), 
+    birthMonth: localBMonth,
+    birthDay: localBDay,
     boonBackstory: isDM ? (document.getElementById('pc-edit-boon-backstory')?.checked || false) : (existingPC.boonBackstory || false),
     unlockAutoSuccess: isDM ? (document.getElementById('pc-edit-unlock-auto-success')?.checked || false) : (existingPC.unlockAutoSuccess || false),
     boon1stBday: isDM ? (document.getElementById('pc-edit-boon-1st')?.value.trim() || '') : (existingPC.boon1stBday || ''),
@@ -762,8 +809,12 @@ export const kickPlayer = async (uid) => {
   if (!confirm("Exile this player from the campaign? They will lose access to the tome.")) return;
   
   const updatedPlayers = (camp.activePlayers || []).filter(id => id !== uid);
+  
   const updatedNames = { ...camp.playerNames };
   delete updatedNames[uid];
+  
+  const updatedBirthdays = { ...camp.playerBirthdays };
+  delete updatedBirthdays[uid];
   
   const updatedPCs = (camp.playerCharacters || []).map(pc => {
     if (pc.playerId === uid) return { ...pc, playerId: '' };
@@ -774,6 +825,7 @@ export const kickPlayer = async (uid) => {
     ...camp,
     activePlayers: updatedPlayers,
     playerNames: updatedNames,
+    playerBirthdays: updatedBirthdays,
     playerCharacters: updatedPCs
   };
   
