@@ -230,15 +230,19 @@ export function getAtlasHTML(state) {
                     <h3 class="font-serif font-bold text-lg text-amber-900 mb-3 border-b border-[#d4c5a9] pb-2"><i class="fa-solid fa-route text-amber-600 mr-2"></i> Save Travel Route</h3>
                     <p class="text-[10px] text-stone-600 mb-3 font-sans italic leading-snug">Link this route to the Codex to auto-calculate travel times and log the journey.</p>
                     
-                    <!-- NEW: Travel Stats Readout -->
+                    <!-- Travel Stats Readout -->
                     <div class="bg-white p-3 rounded-sm border border-[#d4c5a9] mb-3 shadow-sm text-xs">
-                        <div class="flex justify-between items-center">
+                        <div class="flex justify-between items-center pb-1.5 border-b border-stone-100">
                             <span class="font-bold text-stone-500 uppercase tracking-widest text-[9px]">Calculated Distance:</span>
                             <span id="atlas-route-dist" class="font-bold text-amber-700 text-[12px]"></span>
                         </div>
+                        <div class="flex justify-between items-center pt-1.5">
+                            <span class="font-bold text-stone-500 uppercase tracking-widest text-[9px]">Est. Travel Time:</span>
+                            <span id="atlas-route-live-math" class="font-bold text-emerald-600 text-[11px]"></span>
+                        </div>
                     </div>
 
-                    <!-- NEW: Editable Date Inputs -->
+                    <!-- Editable Date Inputs -->
                     <label class="block text-[9px] font-bold text-stone-500 uppercase tracking-widest mb-1 mt-1">Departure Date</label>
                     <div class="grid grid-cols-12 gap-2 mb-3">
                         <div class="col-span-6">
@@ -256,11 +260,11 @@ export function getAtlasHTML(state) {
                         </div>
                     </div>
 
-                    <!-- NEW: Travel Math Inputs -->
+                    <!-- Travel Math Inputs -->
                     <div class="grid grid-cols-2 gap-3 mb-4">
                         <div>
                             <label class="block text-[9px] font-bold text-stone-500 uppercase tracking-widest mb-1">Travel Mode</label>
-                            <select id="atlas-route-mode" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-[11px] font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white">
+                            <select id="atlas-route-mode" onchange="window.appActions.calculateAtlasRouteLive()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-[11px] font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white">
                                 <optgroup label="Overland">
                                     <option value="foot-standard">On Foot</option>
                                     <option value="mount-riding">Horse / Mount</option>
@@ -286,12 +290,16 @@ export function getAtlasHTML(state) {
                         </div>
                         <div>
                             <label class="block text-[9px] font-bold text-stone-500 uppercase tracking-widest mb-1">Travel Pace</label>
-                            <select id="atlas-route-pace" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-[11px] font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white">
+                            <select id="atlas-route-pace" onchange="window.appActions.calculateAtlasRouteLive()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-[11px] font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white">
                                 <option value="slow">Slow</option>
                                 <option value="normal" selected>Normal</option>
                                 <option value="fast">Fast</option>
                                 <option value="forced">Forced March (+4 hrs)</option>
                             </select>
+                        </div>
+                        <div class="col-span-2 flex items-center gap-2 pt-2 border-t border-[#d4c5a9]">
+                            <input type="checkbox" id="atlas-route-difficult" onchange="window.appActions.calculateAtlasRouteLive()" class="w-4 h-4 text-amber-600 rounded-sm shadow-sm border-[#d4c5a9] focus:ring-amber-500 cursor-pointer">
+                            <label class="text-[10px] font-bold uppercase tracking-widest text-stone-700 cursor-pointer" for="atlas-route-difficult">Difficult Terrain (1/2 Speed)</label>
                         </div>
                     </div>
 
