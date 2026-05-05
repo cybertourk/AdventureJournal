@@ -381,20 +381,20 @@ export function getPCEditHTML(state) {
                                 ${isAccountLinked ? '<span class="ml-2 text-[9px] text-blue-600 bg-blue-100 border border-blue-200 px-1.5 py-0.5 rounded-sm lowercase tracking-normal flex items-center shadow-sm"><i class="fa-solid fa-link mr-1"></i> Account Linked</span>' : ''}
                             </label>
                             <div class="flex gap-2">
-                                <select id="pc-edit-birth-month" class="w-2/3 p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 bg-white shadow-sm outline-none focus:border-pink-600" ${isAccountLinked ? 'disabled title="Managed by player account"' : ''}>
+                                <select id="pc-edit-birth-month" onchange="if(window.appActions.calculateBirthdaysLive) window.appActions.calculateBirthdaysLive()" class="w-2/3 p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 bg-white shadow-sm outline-none focus:border-pink-600" ${isAccountLinked ? 'disabled title="Managed by player account"' : ''}>
                                     ${monthOptionsHtml}
                                 </select>
-                                <input type="number" id="pc-edit-birth-day" value="${effDay || ''}" min="1" max="31" class="w-1/3 p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 bg-white shadow-sm outline-none focus:border-pink-600 text-center" placeholder="Day" ${isAccountLinked ? 'disabled title="Managed by player account"' : ''}>
+                                <input type="number" id="pc-edit-birth-day" value="${effDay || ''}" min="1" max="31" oninput="if(window.appActions.calculateBirthdaysLive) window.appActions.calculateBirthdaysLive()" class="w-1/3 p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 bg-white shadow-sm outline-none focus:border-pink-600 text-center" placeholder="Day" ${isAccountLinked ? 'disabled title="Managed by player account"' : ''}>
                             </div>
                         </div>
                         <div>
                             <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Date Joined Campaign</label>
-                            <input type="date" id="pc-edit-join-date" value="${pc.joinDate || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 bg-white shadow-sm outline-none focus:border-pink-600">
+                            <input type="date" id="pc-edit-join-date" value="${pc.joinDate || ''}" onchange="if(window.appActions.calculateBirthdaysLive) window.appActions.calculateBirthdaysLive()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 bg-white shadow-sm outline-none focus:border-pink-600">
                         </div>
                     </div>
                     <div class="bg-pink-50 border border-pink-200 p-3 rounded-sm flex items-center justify-between shadow-sm">
                         <span class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-pink-800">Birthdays Since Joining:</span>
-                        <span class="text-lg font-black text-pink-600">${calculatedBirthdays}</span>
+                        <span id="pc-edit-bday-count" class="text-lg font-black text-pink-600">${calculatedBirthdays}</span>
                     </div>
                     <p class="text-[9px] text-stone-500 italic mt-2">Saving a Start Date automatically tracks how many Birthday Boons this player has earned!</p>
                 </div>
