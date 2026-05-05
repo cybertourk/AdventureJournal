@@ -16,21 +16,24 @@ export function getAtlasHTML(state) {
     // --- CALENDAR & DATE INTEGRATION ---
     const cal = camp.calendar;
     let monthOptions = '';
-    let currentMonthId = cal?.currentDate?.month || '';
-    let currentDay = cal?.currentDate?.day || 1;
-    let currentYear = cal?.currentDate?.year || 1;
+    
+    // FIX: Read directly from the calendar root, not a nonexistent currentDate object!
+    let currentMonthId = cal?.currentMonth !== undefined ? cal.currentMonth : 0;
+    let currentDay = cal?.currentDay || 1;
+    let currentYear = cal?.currentYear || 1492;
 
     if (cal && cal.months && cal.months.length > 0) {
-        monthOptions = cal.months.map(m => `<option value="${m.id}" ${m.id === currentMonthId ? 'selected' : ''}>${m.name}</option>`).join('');
+        // FIX: Months don't have IDs, they use their array index!
+        monthOptions = cal.months.map((m, idx) => `<option value="${idx}" ${idx === currentMonthId ? 'selected' : ''}>${m.name}</option>`).join('');
     } else {
-        monthOptions = `<option value="1">Month 1</option>`;
-        currentMonthId = 1;
+        monthOptions = `<option value="0">Month 1</option>`;
+        currentMonthId = 0;
     }
 
     // Helper to sort routes chronologically
     const getSortVal = (dateObj) => {
         if (!dateObj) return 0;
-        const monthIndex = cal?.months?.findIndex(m => m.id === dateObj.month) || 0;
+        const monthIndex = parseInt(dateObj.month) || 0;
         return (parseInt(dateObj.year) * 10000) + (monthIndex * 100) + parseInt(dateObj.day);
     };
 
@@ -139,7 +142,8 @@ export function getAtlasHTML(state) {
                                     
                                     let dateStr = "";
                                     if (r.startDate) {
-                                        const rMonth = cal?.months?.find(m => m.id === r.startDate.month);
+                                        // FIX: Access month by index, not by nonexistent ID
+                                        const rMonth = cal?.months[r.startDate.month];
                                         if (rMonth) {
                                             dateStr = `<div class="text-[9px] text-stone-400 font-sans italic mt-0.5"><i class="fa-solid fa-calendar-days mr-1 text-stone-300"></i>${rMonth.name} ${r.startDate.day}, ${r.startDate.year} • ${r.durationDays || 0} Days</div>`;
                                         }
