@@ -15,12 +15,16 @@ export function getAtlasHTML(state) {
 
     // --- CALENDAR & DATE INTEGRATION ---
     const cal = camp.calendar;
-    let currentDateDisplay = "Date Unknown";
-    if (cal && cal.currentDate) {
-        const m = cal.months?.find(m => m.id === cal.currentDate.month);
-        if (m) {
-            currentDateDisplay = `Day ${cal.currentDate.day} of ${m.name}, Year ${cal.currentDate.year}`;
-        }
+    let monthOptions = '';
+    let currentMonthId = cal?.currentDate?.month || '';
+    let currentDay = cal?.currentDate?.day || 1;
+    let currentYear = cal?.currentDate?.year || 1;
+
+    if (cal && cal.months && cal.months.length > 0) {
+        monthOptions = cal.months.map(m => `<option value="${m.id}" ${m.id === currentMonthId ? 'selected' : ''}>${m.name}</option>`).join('');
+    } else {
+        monthOptions = `<option value="1">Month 1</option>`;
+        currentMonthId = 1;
     }
 
     // Helper to sort routes chronologically
@@ -224,17 +228,31 @@ export function getAtlasHTML(state) {
             <div id="atlas-route-modal" class="hidden absolute inset-0 bg-stone-900/80 z-[18000] flex items-center justify-center p-4 backdrop-blur-sm animate-in">
                 <div class="bg-[#f4ebd8] p-5 rounded-sm w-full max-w-sm border border-[#d4c5a9] shadow-2xl relative overflow-visible">
                     <h3 class="font-serif font-bold text-lg text-amber-900 mb-3 border-b border-[#d4c5a9] pb-2"><i class="fa-solid fa-route text-amber-600 mr-2"></i> Save Travel Route</h3>
-                    <p class="text-[10px] text-stone-600 mb-4 font-sans italic leading-snug">Link this route to the Codex to auto-calculate travel times and log the journey.</p>
+                    <p class="text-[10px] text-stone-600 mb-3 font-sans italic leading-snug">Link this route to the Codex to auto-calculate travel times and log the journey.</p>
                     
                     <!-- NEW: Travel Stats Readout -->
-                    <div class="bg-white p-3 rounded-sm border border-[#d4c5a9] mb-4 shadow-sm text-xs">
-                        <div class="flex justify-between mb-1.5 border-b border-stone-100 pb-1.5">
+                    <div class="bg-white p-3 rounded-sm border border-[#d4c5a9] mb-3 shadow-sm text-xs">
+                        <div class="flex justify-between items-center">
                             <span class="font-bold text-stone-500 uppercase tracking-widest text-[9px]">Calculated Distance:</span>
-                            <span id="atlas-route-dist" class="font-bold text-amber-700 text-[11px]"></span>
+                            <span id="atlas-route-dist" class="font-bold text-amber-700 text-[12px]"></span>
                         </div>
-                        <div class="flex justify-between">
-                            <span class="font-bold text-stone-500 uppercase tracking-widest text-[9px]">Departure Date:</span>
-                            <span class="font-bold text-stone-900 text-[10px]">${currentDateDisplay}</span>
+                    </div>
+
+                    <!-- NEW: Editable Date Inputs -->
+                    <label class="block text-[9px] font-bold text-stone-500 uppercase tracking-widest mb-1 mt-1">Departure Date</label>
+                    <div class="grid grid-cols-12 gap-2 mb-3">
+                        <div class="col-span-6">
+                            <select id="atlas-route-month" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-[11px] font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white">
+                                ${monthOptions}
+                            </select>
+                        </div>
+                        <div class="col-span-3 flex items-center bg-white border border-[#d4c5a9] rounded-sm shadow-inner focus-within:border-amber-600 overflow-hidden">
+                            <span class="pl-2 text-[9px] text-stone-400 font-bold uppercase">D</span>
+                            <input type="number" id="atlas-route-day" value="${currentDay}" class="w-full p-2 bg-transparent text-[11px] font-bold text-stone-900 outline-none text-right">
+                        </div>
+                        <div class="col-span-3 flex items-center bg-white border border-[#d4c5a9] rounded-sm shadow-inner focus-within:border-amber-600 overflow-hidden">
+                            <span class="pl-2 text-[9px] text-stone-400 font-bold uppercase">Y</span>
+                            <input type="number" id="atlas-route-year" value="${currentYear}" class="w-full p-2 bg-transparent text-[11px] font-bold text-stone-900 outline-none text-right">
                         </div>
                     </div>
 
@@ -243,11 +261,27 @@ export function getAtlasHTML(state) {
                         <div>
                             <label class="block text-[9px] font-bold text-stone-500 uppercase tracking-widest mb-1">Travel Mode</label>
                             <select id="atlas-route-mode" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-[11px] font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white">
-                                <option value="foot">On Foot</option>
-                                <option value="horse">Mount / Horse</option>
-                                <option value="cart">Cart / Wagon</option>
-                                <option value="boat">Rowboat</option>
-                                <option value="ship">Sailing Ship</option>
+                                <optgroup label="Overland">
+                                    <option value="foot-standard">On Foot</option>
+                                    <option value="mount-riding">Horse / Mount</option>
+                                    <option value="mount-draft">Draft Horse / Mule</option>
+                                    <option value="mount-camel">Camel</option>
+                                    <option value="mount-elephant">Elephant</option>
+                                    <option value="mount-mastiff">Mastiff / Pony</option>
+                                </optgroup>
+                                <optgroup label="Nautical">
+                                    <option value="water-rowboat">Rowboat</option>
+                                    <option value="water-keelboat">Keelboat</option>
+                                    <option value="water-longship">Longship</option>
+                                    <option value="water-sailing">Sailing Ship</option>
+                                    <option value="water-warship">Warship</option>
+                                    <option value="water-galley">Galley</option>
+                                </optgroup>
+                                <optgroup label="Aeronautical">
+                                    <option value="flying-creature">Flying Mount</option>
+                                    <option value="flying-griffon">Griffon</option>
+                                    <option value="flying-carpet">Carpet of Flying</option>
+                                </optgroup>
                             </select>
                         </div>
                         <div>
@@ -256,6 +290,7 @@ export function getAtlasHTML(state) {
                                 <option value="slow">Slow</option>
                                 <option value="normal" selected>Normal</option>
                                 <option value="fast">Fast</option>
+                                <option value="forced">Forced March (+4 hrs)</option>
                             </select>
                         </div>
                     </div>
