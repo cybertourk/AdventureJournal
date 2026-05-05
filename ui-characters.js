@@ -214,6 +214,36 @@ export function getPCEditHTML(state) {
         playerAssignHTML = `<input type="hidden" id="pc-edit-player-id" value="${pc.playerId || ''}">`;
     }
 
+    // --- DM ONLY: ANNIVERSARY MATH ENGINE ---
+    let birthdayDisplay = "Not Provided / Pending Sync";
+    let calculatedBirthdays = 0;
+    
+    if (isDM) {
+        const playerBirthdays = camp.playerBirthdays || {};
+        const pBday = playerBirthdays[pc.playerId]; 
+        
+        if (pBday && pBday.month && pBday.day) {
+            const monthNames = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            birthdayDisplay = `${monthNames[pBday.month]} ${pBday.day}`;
+            
+            if (pc.joinDate) {
+                const joinDate = new Date(pc.joinDate);
+                if (!isNaN(joinDate.getTime())) {
+                    const today = new Date();
+                    let count = 0;
+                    
+                    for (let y = joinDate.getFullYear(); y <= today.getFullYear(); y++) {
+                        const bDateThisYear = new Date(y, pBday.month - 1, pBday.day);
+                        if (bDateThisYear >= joinDate && bDateThisYear <= today) {
+                            count++;
+                        }
+                    }
+                    calculatedBirthdays = count;
+                }
+            }
+        }
+    }
+
     return `
     <div class="animate-in slide-in-from-bottom-4 duration-300 bg-[#f4ebd8] rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col max-w-4xl mx-auto mb-8">
         
@@ -325,8 +355,29 @@ export function getPCEditHTML(state) {
                     ${renderSmartField('pc-edit-enemies', `<i class="fa-solid fa-skull-crossbones text-stone-500 mr-2"></i> Enemies`, pc.enemies || '', "Rivals, villains...", 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner h-full flex-grow', false)}
                 </div>
                 
-                <!-- DM ONLY: BOONS & UNLOCKS -->
+                <!-- DM ONLY: ANNIVERSARY & BOONS -->
                 ${isDM ? `
+                <div class="mt-6 bg-stone-100 p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-inner">
+                    <h3 class="text-xs sm:text-sm font-bold text-stone-800 font-serif mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-cake-candles mr-2 text-pink-600"></i> Player Anniversary & Birthday</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Player's Birthday</label>
+                            <div class="p-2 border border-stone-300 rounded-sm bg-stone-200 text-stone-600 text-sm font-bold shadow-inner">
+                                ${birthdayDisplay}
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Date Joined Campaign</label>
+                            <input type="date" id="pc-edit-join-date" value="${pc.joinDate || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 bg-white shadow-sm outline-none focus:border-pink-600">
+                        </div>
+                    </div>
+                    <div class="bg-pink-50 border border-pink-200 p-3 rounded-sm flex items-center justify-between shadow-sm">
+                        <span class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-pink-800">Birthdays Since Joining:</span>
+                        <span class="text-lg font-black text-pink-600">${calculatedBirthdays}</span>
+                    </div>
+                    <p class="text-[9px] text-stone-500 italic mt-2">Saving a Start Date automatically tracks how many Birthday Boons this player has earned! (Requires the player to have entered their birthday during registration).</p>
+                </div>
+
                 <div class="mt-6 bg-amber-50 p-4 sm:p-5 rounded-sm border border-amber-300 shadow-inner">
                     <h3 class="text-xs sm:text-sm font-bold text-amber-900 font-serif mb-3 border-b border-amber-300 pb-1"><i class="fa-solid fa-lock-open mr-2"></i> Player Unlocks & Boons</h3>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
