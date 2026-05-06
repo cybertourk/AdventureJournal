@@ -1,5 +1,28 @@
 import { renderSmartField } from './ui-core.js';
 
+// --- HELPER FOR BIRTHDAY BOONS ---
+const boonOptionsData = [
+    {val: "Mark of the Hero", label: "Mark of the Hero (+1 Ability Score)"},
+    {val: "Fortify", label: "Fortify (+15 Temp HP as BA once/adv)"},
+    {val: "Skillful", label: "Skillful (1 Skill + 1 Language/Tool)"},
+    {val: "Well-trained", label: "Well-trained (1 Weapon Prof)"},
+    {val: "Weave Child", label: "Weave Child (1 Cantrip)"},
+    {val: "Aggressive", label: "Aggressive (+1 Action once/adv)"},
+    {val: "Capable", label: "Capable (1 Save Prof)"},
+    {val: "Quickened", label: "Quickened (+10ft Movement)"},
+    {val: "On Edge", label: "On Edge (+4 Initiative)"}
+];
+
+const renderBoonSelect = (id, selectedVal, extraClass="") => {
+    let html = `<select id="${id}" class="w-full p-2 border border-amber-300 rounded-sm text-sm font-bold text-stone-900 shadow-sm outline-none focus:border-amber-600 bg-white ${extraClass}">`;
+    html += `<option value="">-- No Boon Unlocked --</option>`;
+    boonOptionsData.forEach(b => {
+        html += `<option value="${b.val}" ${selectedVal === b.val ? 'selected' : ''}>${b.label}</option>`;
+    });
+    html += `</select>`;
+    return html;
+};
+
 export function getPCManagerHTML(state) {
     const camp = state.activeCampaign;
     if (!camp) return '';
@@ -56,6 +79,17 @@ export function getPCManagerHTML(state) {
             const activeBoons = [];
             if (pc.boon1stBday) activeBoons.push(`1st B-Day: ${pc.boon1stBday}`);
             if (pc.boon2ndBday) activeBoons.push(`2nd B-Day: ${pc.boon2ndBday}`);
+            
+            // Render any additional boons past the 2nd
+            if (pc.extraBdayBoons && Array.isArray(pc.extraBdayBoons)) {
+                pc.extraBdayBoons.forEach((boon, idx) => {
+                    if (boon) {
+                        const boonNum = idx + 3;
+                        const suffix = boonNum === 3 ? 'rd' : 'th';
+                        activeBoons.push(`${boonNum}${suffix} B-Day: ${boon}`);
+                    }
+                });
+            }
 
             let resourceBadge = `
             <div class="mt-3 flex gap-2 flex-wrap">
@@ -161,7 +195,7 @@ export function getPCEditHTML(state) {
     
     const pc = !isNew && camp?.playerCharacters 
         ? camp.playerCharacters.find(p => p.id === state.activePcId) 
-        : { name: '', race: '', classLevel: '', background: '', alignment: '', faith: '', gender: '', age: '', size: '', height: '', weight: '', eyes: '', hair: '', skin: '', traits: '', ideals: '', bonds: '', flaws: '', appearance: '', backstory: '', organizations: '', allies: '', enemies: '', dmNotes: '', playerId: '', image: '', boonBackstory: false, boon1stBday: '', boon2ndBday: '', unlockAutoSuccess: false };
+        : { name: '', race: '', classLevel: '', background: '', alignment: '', faith: '', gender: '', age: '', size: '', height: '', weight: '', eyes: '', hair: '', skin: '', traits: '', ideals: '', bonds: '', flaws: '', appearance: '', backstory: '', organizations: '', allies: '', enemies: '', dmNotes: '', playerId: '', image: '', boonBackstory: false, boon1stBday: '', boon2ndBday: '', extraBdayBoons: [], unlockAutoSuccess: false };
 
     if (!pc && !isNew) return `<div class="text-center text-red-500 p-8 font-serif font-bold text-xl">Hero not found in the archives.</div>`;
 
@@ -258,6 +292,29 @@ export function getPCEditHTML(state) {
         {v: 4, l: 'April'}, {v: 5, l: 'May'}, {v: 6, l: 'June'}, {v: 7, l: 'July'},
         {v: 8, l: 'August'}, {v: 9, l: 'September'}, {v: 10, l: 'October'}, {v: 11, l: 'November'}, {v: 12, l: 'December'}
     ].map(m => `<option value="${m.v}" ${effMonth === m.v ? 'selected' : ''}>${m.l}</option>`).join('');
+
+    // --- EXTRA BOONS GENERATOR ---
+    let extraBoonsHtml = '';
+    const extraBoonsData = pc.extraBdayBoons || [];
+    
+    // We pre-render 10 additional slots (spanning up to a 12 year campaign).
+    // The calculateBirthdaysLive function will dynamically un-hide them as the dates change!
+    for (let i = 0; i < 10; i++) {
+        const boonNumber = i + 3; // Starts at 3rd Birthday
+        const suffix = boonNumber === 3 ? 'rd' : 'th';
+        
+        // Only render the slot visibly if they have earned it mathematically OR if they already saved data into it
+        const isVisible = boonNumber <= calculatedBirthdays || i < extraBoonsData.length;
+        const hiddenClass = isVisible ? '' : 'hidden';
+        const selectedVal = extraBoonsData[i] || '';
+
+        extraBoonsHtml += `
+        <div id="extra-boon-slot-${boonNumber}" class="col-span-1 sm:col-span-2 ${hiddenClass}">
+            <label class="block text-[10px] font-bold text-amber-700 uppercase tracking-widest mb-1.5">${boonNumber}${suffix} Birthday Boon (+1 Boon Choice)</label>
+            ${renderBoonSelect(`pc-edit-boon-${boonNumber}`, selectedVal)}
+        </div>
+        `;
+    }
 
     return `
     <div class="animate-in slide-in-from-bottom-4 duration-300 bg-[#f4ebd8] rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col max-w-4xl mx-auto mb-8">
@@ -416,19 +473,12 @@ export function getPCEditHTML(state) {
                         </div>
                         <div class="col-span-1 sm:col-span-2">
                             <label class="block text-[10px] font-bold text-amber-700 uppercase tracking-widest mb-1.5">2nd Birthday Boon (+1 Max Inspiration & Choice)</label>
-                            <select id="pc-edit-boon-2nd" class="w-full p-2 border border-amber-300 rounded-sm text-sm font-bold text-stone-900 shadow-sm outline-none focus:border-amber-600 bg-white">
-                                <option value="">-- No Boon Unlocked --</option>
-                                <option value="Mark of the Hero" ${pc.boon2ndBday === 'Mark of the Hero' ? 'selected' : ''}>Mark of the Hero (+1 Ability Score)</option>
-                                <option value="Fortify" ${pc.boon2ndBday === 'Fortify' ? 'selected' : ''}>Fortify (+15 Temp HP as BA once/adv)</option>
-                                <option value="Skillful" ${pc.boon2ndBday === 'Skillful' ? 'selected' : ''}>Skillful (1 Skill + 1 Language/Tool)</option>
-                                <option value="Well-trained" ${pc.boon2ndBday === 'Well-trained' ? 'selected' : ''}>Well-trained (1 Weapon Prof)</option>
-                                <option value="Weave Child" ${pc.boon2ndBday === 'Weave Child' ? 'selected' : ''}>Weave Child (1 Cantrip)</option>
-                                <option value="Aggressive" ${pc.boon2ndBday === 'Aggressive' ? 'selected' : ''}>Aggressive (+1 Action once/adv)</option>
-                                <option value="Capable" ${pc.boon2ndBday === 'Capable' ? 'selected' : ''}>Capable (1 Save Prof)</option>
-                                <option value="Quickened" ${pc.boon2ndBday === 'Quickened' ? 'selected' : ''}>Quickened (+10ft Movement)</option>
-                                <option value="On Edge" ${pc.boon2ndBday === 'On Edge' ? 'selected' : ''}>On Edge (+4 Initiative)</option>
-                            </select>
+                            ${renderBoonSelect('pc-edit-boon-2nd', pc.boon2ndBday)}
                         </div>
+                        
+                        <!-- DYNAMIC EXTRA BOONS (3rd, 4th, etc.) -->
+                        ${extraBoonsHtml}
+
                     </div>
                 </div>
                 ` : ''}
