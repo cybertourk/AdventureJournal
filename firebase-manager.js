@@ -388,9 +388,24 @@ export async function joinCampaign(campaignId) {
             const activePlayers = data.activePlayers || [];
             const playerNames = data.playerNames || {};
             const playerBirthdays = data.playerBirthdays || {};
+            const activityLog = data.activityLog || []; // Grab the existing activity log
             
             if (!activePlayers.includes(user.uid)) {
                 activePlayers.push(user.uid);
+                
+                // --- NEW: Inject Arrival Notification into the Activity Log ---
+                const joinLog = {
+                    id: 'log_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                    timestamp: Date.now(),
+                    text: `<span class="font-bold text-stone-900">${displayName}</span> has joined the campaign!`,
+                    icon: 'fa-door-open'
+                };
+                activityLog.unshift(joinLog); // Place it at the very top of the log
+                
+                // Enforce the 100-event cap so the document doesn't get bloated
+                if (activityLog.length > 100) {
+                    activityLog.length = 100;
+                }
             }
             playerNames[user.uid] = displayName;
             
@@ -402,7 +417,8 @@ export async function joinCampaign(campaignId) {
             await setDoc(docRef, { 
                 activePlayers: activePlayers, 
                 playerNames: playerNames,
-                playerBirthdays: playerBirthdays
+                playerBirthdays: playerBirthdays,
+                activityLog: activityLog // Save the updated log
             }, { merge: true });
             
             notify(`Successfully joined ${data.name}!`, "success");
