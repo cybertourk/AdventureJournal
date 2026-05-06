@@ -650,6 +650,20 @@ export const calculateBirthdaysLive = () => {
     }
 
     countEl.textContent = calculatedBirthdays;
+
+    // --- NEW: LIVE REVEAL OF EXTRA BOON SLOTS (3rd+) ---
+    for (let i = 3; i <= 12; i++) {
+        const slot = document.getElementById(`extra-boon-slot-${i}`);
+        if (slot) {
+            const select = document.getElementById(`pc-edit-boon-${i}`);
+            // Reveal the slot if the calculated date qualifies them for it, OR if they already have an active choice saved here!
+            if (i <= calculatedBirthdays || (select && select.value !== '')) {
+                slot.classList.remove('hidden');
+            } else {
+                slot.classList.add('hidden');
+            }
+        }
+    }
 };
 
 export const savePCEdit = async () => {
@@ -665,7 +679,8 @@ export const savePCEdit = async () => {
     automaticSuccess: false,
     playerId: '',
     birthMonth: null,
-    birthDay: null
+    birthDay: null,
+    extraBdayBoons: []
   };
   
   const isOwner = existingPC.playerId === myUid;
@@ -689,6 +704,21 @@ export const savePCEdit = async () => {
   // If they are disabled, it means the UI is showing the Account's birthday, so we silently preserve the old manual value underneath.
   const localBMonth = isDM ? ((bMonthEl && !bMonthEl.disabled) ? (parseInt(bMonthEl.value) || null) : existingPC.birthMonth) : existingPC.birthMonth;
   const localBDay = isDM ? ((bDayEl && !bDayEl.disabled) ? (parseInt(bDayEl.value) || null) : existingPC.birthDay) : existingPC.birthDay;
+
+  // Gather Extra Birthday Boons (3rd+)
+  const extraBdayBoons = [];
+  if (isDM) {
+      for (let i = 3; i <= 12; i++) {
+          const select = document.getElementById(`pc-edit-boon-${i}`);
+          if (select) {
+              extraBdayBoons.push(select.value);
+          }
+      }
+      // Trim trailing empty strings so we don't save a bunch of useless blanks
+      while (extraBdayBoons.length > 0 && extraBdayBoons[extraBdayBoons.length - 1] === '') {
+          extraBdayBoons.pop();
+      }
+  }
 
   // Gather Inputs safely based on access level
   const updatedPC = {
@@ -730,7 +760,8 @@ export const savePCEdit = async () => {
     boonBackstory: isDM ? (document.getElementById('pc-edit-boon-backstory')?.checked || false) : (existingPC.boonBackstory || false),
     unlockAutoSuccess: isDM ? (document.getElementById('pc-edit-unlock-auto-success')?.checked || false) : (existingPC.unlockAutoSuccess || false),
     boon1stBday: isDM ? (document.getElementById('pc-edit-boon-1st')?.value.trim() || '') : (existingPC.boon1stBday || ''),
-    boon2ndBday: isDM ? (document.getElementById('pc-edit-boon-2nd')?.value.trim() || '') : (existingPC.boon2ndBday || '')
+    boon2ndBday: isDM ? (document.getElementById('pc-edit-boon-2nd')?.value.trim() || '') : (existingPC.boon2ndBday || ''),
+    extraBdayBoons: isDM ? extraBdayBoons : (existingPC.extraBdayBoons || []) // Add the 3rd+ boons
   };
 
   const isNew = !camp.playerCharacters?.some(p => p.id === pcId);
