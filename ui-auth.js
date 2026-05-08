@@ -1,15 +1,20 @@
-import { loginUser, registerUser } from './firebase-manager.js';
+import { loginUser, registerUser, resetPassword } from './firebase-manager.js';
 
 export function initAuthUI() {
     const loginForm = document.getElementById('login-form');
     const registerForm = document.getElementById('register-form');
+    const forgotForm = document.getElementById('forgot-form');
+    
     const showRegisterBtn = document.getElementById('show-register-btn');
     const showLoginBtn = document.getElementById('show-login-btn');
+    const showForgotBtn = document.getElementById('show-forgot-btn');
+    const showLoginFromForgotBtn = document.getElementById('show-login-from-forgot-btn');
 
     // --- Toggle Forms ---
     if (showRegisterBtn) {
         showRegisterBtn.addEventListener('click', () => {
             loginForm.classList.add('hidden');
+            if (forgotForm) forgotForm.classList.add('hidden');
             registerForm.classList.remove('hidden');
         });
     }
@@ -17,6 +22,22 @@ export function initAuthUI() {
     if (showLoginBtn) {
         showLoginBtn.addEventListener('click', () => {
             registerForm.classList.add('hidden');
+            if (forgotForm) forgotForm.classList.add('hidden');
+            loginForm.classList.remove('hidden');
+        });
+    }
+
+    if (showForgotBtn) {
+        showForgotBtn.addEventListener('click', () => {
+            loginForm.classList.add('hidden');
+            registerForm.classList.add('hidden');
+            if (forgotForm) forgotForm.classList.remove('hidden');
+        });
+    }
+
+    if (showLoginFromForgotBtn) {
+        showLoginFromForgotBtn.addEventListener('click', () => {
+            if (forgotForm) forgotForm.classList.add('hidden');
             loginForm.classList.remove('hidden');
         });
     }
@@ -32,7 +53,7 @@ export function initAuthUI() {
             
             // Basic UI feedback
             const originalText = submitBtn.textContent;
-            submitBtn.textContent = "Accessing...";
+            submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Accessing...`;
             submitBtn.disabled = true;
 
             try {
@@ -57,7 +78,7 @@ export function initAuthUI() {
             const emailInput = document.getElementById('register-email');
             const passwordInput = document.getElementById('register-password');
             
-            // NEW: Grab the optional birthday inputs
+            // Grab the optional birthday inputs
             const birthMonthInput = document.getElementById('register-birth-month');
             const birthDayInput = document.getElementById('register-birth-day');
             
@@ -65,7 +86,7 @@ export function initAuthUI() {
             
             // Basic UI feedback
             const originalText = submitBtn.textContent;
-            submitBtn.textContent = "Forging...";
+            submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Forging...`;
             submitBtn.disabled = true;
 
             try {
@@ -77,6 +98,35 @@ export function initAuthUI() {
                 // On success, the auth state changes automatically
             } catch (error) {
                 // If registration fails, reset the button
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+            }
+        });
+    }
+
+    // --- Handle Forgot Password Submission ---
+    if (forgotForm) {
+        forgotForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const emailInput = document.getElementById('forgot-email');
+            const submitBtn = forgotForm.querySelector('button[type="submit"]');
+            
+            const originalText = submitBtn.textContent;
+            submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Sending...`;
+            submitBtn.disabled = true;
+
+            try {
+                const success = await resetPassword(emailInput.value);
+                if (success) {
+                    // Send them back to the login screen so they can log in with their new password
+                    forgotForm.classList.add('hidden');
+                    loginForm.classList.remove('hidden');
+                    emailInput.value = '';
+                }
+            } catch (error) {
+                console.error(error);
+            } finally {
                 submitBtn.textContent = originalText;
                 submitBtn.disabled = false;
             }
