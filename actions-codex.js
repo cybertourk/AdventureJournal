@@ -176,15 +176,50 @@ export const _showSuggestions = (matches, inputEl, cursor, triggerLen) => {
     });
 };
 
-// --- NEW FEATURE: CREATE ENTRY FROM HIGHLIGHTED TEXT ---
-export const defineEntryFromSelection = (textareaId) => {
+// --- NEW FEATURE: CREATE ENTRY FROM HIGHLIGHTED TEXT (CASCADE SAVE PROTECTED) ---
+export const defineEntryFromSelection = async (textareaId) => {
     const textarea = document.getElementById(textareaId);
     if (!textarea) return;
 
-    // Grab the text the user has highlighted
+    // 1. Grab the text the user has highlighted BEFORE we potentially save and destroy the DOM element
     const selectedText = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd).trim();
     
-    // Open a fresh Codex Modal, prefilling the name! 
+    if (!selectedText) {
+        notify("Please highlight a word or phrase to define.", "error");
+        return;
+    }
+
+    // 2. Auto-save mechanisms for Modals that share the global-popup-container to prevent data loss
+    if (textareaId === 'cx-modal-desc') {
+        const nameInput = document.getElementById('cx-modal-name');
+        if (!nameInput || !nameInput.value.trim()) {
+            notify("Please name this entry before defining links inside it.", "error");
+            return;
+        }
+        await window.appActions.saveCodexEntry();
+    } 
+    else if (textareaId === 'rule-modal-text') {
+        const nameInput = document.getElementById('rule-modal-name');
+        if (!nameInput || !nameInput.value.trim()) {
+            notify("Please title this rule before defining links inside it.", "error");
+            return;
+        }
+        await window.appActions.saveRule();
+    }
+    else if (textareaId === 'cal-note-text') {
+        const textInput = document.getElementById('cal-note-text');
+        if (!textInput || !textInput.value.trim()) {
+            notify("Please write something in your note before defining links.", "error");
+            return;
+        }
+        await window.appActions.saveCalendarNote();
+    }
+    else if (textareaId === 'ue-textarea') {
+        // Synchronously dump the Universal Editor contents back to the underlying form
+        window.appActions.saveUniversalEditor();
+    }
+
+    // 3. Open a fresh Codex Modal, prefilling the name! 
     window.appActions._openCodexModal({ isNew: true, name: selectedText });
 };
 
