@@ -142,10 +142,19 @@ export function updateDerivedState() {
 }
 
 export function reRender(force = false) {
-    // SECURITY BLOCK: If the user is actively typing, DO NOT erase their screen!
-    if (window.appData.isEditing && !force) {
+    // --- DATA PROTECTION ENGINE ---
+    // Prevent background database syncs from wiping out unsaved forms or active modals!
+    const isFormView = ['session-edit', 'pc-edit'].includes(window.appData.currentView);
+    const popupContainer = document.getElementById('global-popup-container');
+    const ueModal = document.getElementById('universal-editor-modal');
+    
+    const hasOpenModal = (popupContainer && popupContainer.innerHTML.trim() !== '') || 
+                         (ueModal && !ueModal.classList.contains('hidden'));
+
+    // If we are actively editing a form or have a modal open, queue the background update and abort the render
+    if ((isFormView || hasOpenModal) && !force) {
         window.appData.hasPendingUpdate = true;
-        console.log("Real-time update intercepted and paused to prevent erasing user input.");
+        console.log("Real-time update intercepted to protect unsaved form data.");
         return;
     }
 
