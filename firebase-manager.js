@@ -47,7 +47,50 @@ export function notify(msg, type = 'info') {
 
 export async function loginUser(email, password) {
     try {
-        await signInWithEmailAndPassword(auth, email, password);
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        // --- NEW: Log the player's arrival into all campaigns they play in ---
+        const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid);
+        const userSnap = await getDoc(userDocRef);
+        const displayName = userSnap.exists() && userSnap.data().displayName
+            ? userSnap.data().displayName
+            : "A hero";
+
+        const campaignsRef = collection(db, 'artifacts', appId, 'campaigns');
+        const q = query(campaignsRef, where("activePlayers", "array-contains", user.uid));
+        const snapshot = await getDocs(q);
+
+        const updatePromises = [];
+        snapshot.forEach(docSnap => {
+            const campData = docSnap.data();
+            
+            // Do not log DM activity to prevent spamming
+            if (campData.dmId === user.uid) return;
+
+            const activityLog = campData.activityLog || [];
+            const loginLog = {
+                id: 'log_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                timestamp: Date.now(),
+                text: `<span class="font-bold text-stone-900">${displayName}</span> has accessed the archives.`,
+                icon: 'fa-right-to-bracket'
+            };
+            activityLog.unshift(loginLog);
+
+            if (activityLog.length > 100) {
+                activityLog.length = 100;
+            }
+
+            const docRef = doc(db, 'artifacts', appId, 'campaigns', campData.id);
+            // Use merge: true so we only update the activity log without overwriting anything else
+            updatePromises.push(setDoc(docRef, { activityLog: activityLog }, { merge: true }));
+        });
+
+        if (updatePromises.length > 0) {
+            await Promise.all(updatePromises);
+        }
+        // --- END NEW ---
+
         notify("Successfully accessed the archives.", "success");
     } catch (error) {
         console.error("Login Error:", error);
@@ -411,7 +454,7 @@ export async function joinCampaign(campaignId) {
             if (!activePlayers.includes(user.uid)) {
                 activePlayers.push(user.uid);
                 
-                // --- NEW: Inject Arrival Notification into the Activity Log ---
+                // Inject Arrival Notification into the Activity Log
                 const joinLog = {
                     id: 'log_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
                     timestamp: Date.now(),
