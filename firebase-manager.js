@@ -15,7 +15,7 @@ import {
     where,
     getDocs
 } from "./firebase-config.js";
-import { deleteUser } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
+import { deleteUser, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
 // --- NOTIFICATION HELPER ---
 export function notify(msg, type = 'info') {
@@ -86,6 +86,24 @@ export async function logoutUser() {
     } catch (error) {
         console.error("Logout Error:", error);
         notify("Error leaving: " + error.message, "error");
+    }
+}
+
+export async function resetPassword(email) {
+    try {
+        await sendPasswordResetEmail(auth, email);
+        notify("A recovery scroll has been sent to your email.", "success");
+        return true;
+    } catch (error) {
+        console.error("Password Reset Error:", error);
+        if (error.code === 'auth/user-not-found') {
+            notify("No archives found under that email address.", "error");
+        } else if (error.code === 'auth/invalid-email') {
+            notify("Invalid email format.", "error");
+        } else {
+            notify("Failed to send recovery scroll: " + error.message, "error");
+        }
+        return false;
     }
 }
 
