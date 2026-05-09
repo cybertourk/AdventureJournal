@@ -21,6 +21,9 @@ import { openRulesGlossary, viewRule, openRuleModal, saveRule, deleteRule, updat
 // Import Atlas & Map Functionality
 import { initAtlas, setAtlasMode, updateAtlasGridAndScale, updateAtlasDistanceCalc, atlasUndoLastPoint, atlasFinishDrawing, confirmAtlasPin, confirmAtlasRoute, deleteAtlasPin, deleteAtlasRoute, toggleAtlasSettings, saveAtlasSettings, searchAtlasCodex, selectAtlasCodexEntry, viewOnMap, toggleAtlasLayers, toggleAtlasRouteVis, refreshAtlasEntities, toggleAtlasFullScreen, calculateAtlasRouteLive, addAtlasRouteStop, atlasMarkLastPointAsStop } from './actions-atlas.js';
 
+// Import Relationship Web Functionality
+import { createNewWeb, deleteCurrentWeb, switchWeb, toggleWebGroup, openWebEditModal, openWebMoveModal, saveWebMove, saveWebEdit, addWebNode, addWebConnection, removeWebNode, removeWebConnection, toggleWebVisibility, cleanupWebOrphans, syncWebWithCodex } from './actions-webs.js';
+
 // --- APP ACTIONS HUB --- 
 // We bind all our imported modular functions back to the global window.appActions 
 // object so that the UI's inline onclick handlers can still reach them! 
@@ -169,7 +172,24 @@ window.appActions = {
   toggleAtlasFullScreen,
   calculateAtlasRouteLive,
   addAtlasRouteStop,
-  atlasMarkLastPointAsStop
+  atlasMarkLastPointAsStop,
+
+  // Relationship Webs
+  createNewWeb,
+  deleteCurrentWeb,
+  switchWeb,
+  toggleWebGroup,
+  openWebEditModal,
+  openWebMoveModal,
+  saveWebMove,
+  saveWebEdit,
+  addWebNode,
+  addWebConnection,
+  removeWebNode,
+  removeWebConnection,
+  toggleWebVisibility,
+  cleanupWebOrphans,
+  syncWebWithCodex
 }; 
 
 // ============================================================================
