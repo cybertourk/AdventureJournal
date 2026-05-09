@@ -174,6 +174,53 @@ export function getSessionEditHTML(state) {
             return `<div class="text-center text-red-500 p-8 font-serif font-bold text-xl">Only the DM can initiate new sessions.</div>`;
         }
 
+        // Local fog of war helper
+        const isVisible = (visObj) => {
+            const mode = visObj?.mode || 'public';
+            if (mode === 'public') return true;
+            if (mode === 'specific' && visObj?.visibleTo?.includes(myUid)) return true;
+            return false;
+        };
+
+        let dmNarrativeHtml = '';
+        
+        // Render Scenes
+        if (session.scenes && session.scenes.length > 0) {
+            const visibleScenes = session.scenes.filter(s => isVisible(s.visibility) && s.text.trim());
+            if (visibleScenes.length > 0) {
+                dmNarrativeHtml += `<h4 class="font-serif font-bold text-lg text-stone-800 mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-masks-theater text-red-900 mr-2"></i>The Story Unfolds</h4><div class="space-y-4 mb-8">`;
+                visibleScenes.forEach((scene, idx) => {
+                    const parsed = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(scene.text) : scene.text;
+                    dmNarrativeHtml += `<div class="bg-white p-4 border border-[#d4c5a9] rounded-sm shadow-sm text-sm text-stone-800 font-serif leading-relaxed"><span class="text-[10px] font-bold uppercase tracking-widest text-stone-400 block mb-2">Scene ${scene.id || idx + 1}</span>${parsed}</div>`;
+                });
+                dmNarrativeHtml += `</div>`;
+            }
+        }
+
+        // Render Clues
+        if (session.clues && session.clues.length > 0) {
+            const visibleClues = session.clues.filter(c => isVisible(c.visibility) && c.text.trim());
+            if (visibleClues.length > 0) {
+                dmNarrativeHtml += `<h4 class="font-serif font-bold text-lg text-stone-800 mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-magnifying-glass text-amber-700 mr-2"></i>Discoveries & Objectives</h4><ul class="space-y-2 mb-8">`;
+                visibleClues.forEach(clue => {
+                    const parsed = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(clue.text) : clue.text;
+                    dmNarrativeHtml += `<li class="bg-white p-3 border border-[#d4c5a9] rounded-sm shadow-sm text-sm text-stone-800 flex gap-3 items-center"><i class="fa-solid fa-magnifying-glass text-amber-600"></i> <span>${parsed}</span></li>`;
+                });
+                dmNarrativeHtml += `</ul>`;
+            }
+        }
+
+        // Render DM Notes / Epilogue
+        if (session.notes && session.notes.trim() && isVisible(session.notesVisibility)) {
+            const parsed = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(session.notes) : session.notes;
+            dmNarrativeHtml += `<h4 class="font-serif font-bold text-lg text-stone-800 mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-book text-stone-500 mr-2"></i>Epilogue & Notes</h4>`;
+            dmNarrativeHtml += `<div class="bg-white p-4 border border-[#d4c5a9] rounded-sm shadow-sm text-sm text-stone-800 font-serif leading-relaxed mb-8">${parsed}</div>`;
+        }
+
+        if (!dmNarrativeHtml) {
+            dmNarrativeHtml = `<div class="text-center p-6 bg-white border border-[#d4c5a9] rounded-sm text-stone-500 italic text-sm mb-8">No public records have been revealed by the Dungeon Master yet.</div>`;
+        }
+
         return `
         <div class="animate-in slide-in-from-bottom-4 duration-300 bg-[#fdfbf7] rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col max-w-4xl mx-auto h-[calc(100vh-100px)] sm:h-[calc(100vh-120px)] relative">
             
@@ -195,8 +242,11 @@ export function getSessionEditHTML(state) {
                 <div class="max-w-3xl mx-auto">
                     <h3 class="w-full pb-4 mb-6 text-stone-900 font-serif font-bold text-2xl border-b-2 border-stone-300">${session.name || 'Session'}</h3>
                     
+                    <!-- INJECTED DM NARRATIVE -->
+                    ${dmNarrativeHtml}
+
                     <!-- Collaborative Chronicle -->
-                    <div class="mb-10">
+                    <div class="mb-10 mt-8 border-t-2 border-stone-300 pt-6">
                         <h4 class="font-serif font-bold text-lg text-stone-900 border-b border-[#d4c5a9] pb-1 mb-3"><i class="fa-solid fa-users text-amber-600 mr-2"></i> Collaborative Chronicle</h4>
                         <p class="text-stone-500 text-[10px] uppercase tracking-widest font-bold mb-4">A shared record of events, quotes, and memories.</p>
                         ${renderChronicleLog(session, camp, myUid)}
