@@ -26,7 +26,7 @@ export const createNewWeb = async () => {
 
     await saveCampaign(camp);
     notify("New Relationship Web forged.", "success");
-    reRender();
+    reRender(true); // Force render to bypass Data Protection
 };
 
 export const deleteCurrentWeb = async () => {
@@ -42,12 +42,12 @@ export const deleteCurrentWeb = async () => {
 
     await saveCampaign(camp);
     notify("Relationship Web destroyed.", "success");
-    reRender();
+    reRender(true); // Force render to bypass Data Protection
 };
 
 export const switchWeb = (id) => {
     window.appData.activeWebId = id;
-    reRender();
+    reRender(true); // Force render to bypass Data Protection
 };
 
 export const toggleWebVisibility = async () => {
@@ -64,7 +64,7 @@ export const toggleWebVisibility = async () => {
 
     await saveCampaign(camp);
     notify(web.visibility.mode === 'public' ? "Map is now Public." : "Map is now Hidden (DM Only).", "success");
-    reRender();
+    reRender(true); // Force render to bypass Data Protection
 };
 
 export const toggleWebGroup = async (codexId) => {
@@ -82,7 +82,7 @@ export const toggleWebGroup = async (codexId) => {
     }
 
     await saveCampaign(camp);
-    reRender();
+    reRender(true); // Force render to bypass Data Protection
 };
 
 // --- DATA EDITING & STRUCTURE ---
@@ -144,7 +144,7 @@ export const saveWebEdit = async () => {
 
     await saveCampaign(camp);
     document.getElementById('web-edit-modal').classList.add('hidden');
-    reRender();
+    reRender(true); // Force render to bypass Data Protection
 };
 
 export const openWebMoveModal = (nodeId) => {
@@ -206,7 +206,7 @@ export const saveWebMove = async () => {
     await saveCampaign(camp);
     
     document.getElementById('web-move-modal').classList.add('hidden');
-    reRender();
+    reRender(true); // Force render to bypass Data Protection
 };
 
 export const addWebNode = async () => {
@@ -253,11 +253,8 @@ export const addWebNode = async () => {
 
     await saveCampaign(camp);
     
-    const modal = document.getElementById('web-add-node-modal');
-    if (modal) modal.classList.add('hidden');
-    
     notify("Node bound to Web.", "success");
-    reRender();
+    reRender(true); // Force render to bypass Data Protection
 };
 
 export const addWebConnection = async () => {
@@ -298,12 +295,9 @@ export const addWebConnection = async () => {
 
     web.connections.push(newConn);
     await saveCampaign(camp);
-
-    const modal = document.getElementById('web-add-conn-modal');
-    if (modal) modal.classList.add('hidden');
     
     notify("Connection forged.", "success");
-    reRender();
+    reRender(true); // Force render to bypass Data Protection
 };
 
 export const removeWebNode = async (nodeId) => {
@@ -326,7 +320,7 @@ export const removeWebNode = async (nodeId) => {
     web.connections = web.connections.filter(c => c.source !== nodeId && c.target !== nodeId);
 
     await saveCampaign(camp);
-    reRender();
+    reRender(true); // Force render to bypass Data Protection
 };
 
 export const removeWebConnection = async (connId) => {
@@ -338,7 +332,7 @@ export const removeWebConnection = async (connId) => {
     web.connections = web.connections.filter(c => c.id !== connId);
     
     await saveCampaign(camp);
-    reRender();
+    reRender(true); // Force render to bypass Data Protection
 };
 
 export const cleanupWebOrphans = async () => {
@@ -383,7 +377,7 @@ export const cleanupWebOrphans = async () => {
 export const syncWebWithCodex = async () => {
     await cleanupWebOrphans();
     notify("Maps synchronized with Codex.", "success");
-    reRender();
+    reRender(true); // Force render to bypass Data Protection
 };
 
 // ============================================================================
@@ -542,14 +536,17 @@ export const renderMermaidWeb = async () => {
         if (renderedIds.has(rn.node.id)) return "";
         renderedIds.add(rn.node.id);
 
-        const safeName = rn.data.name.replace(/"/g, "'");
+        // Security Escape to prevent Mermaid Syntax Crashing!
+        const safeName = rn.data.name.replace(/"/g, "'").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        
+        // Wrap everything in literal quotes so Mermaid treats it as safe HTML!
         let shapeL = '("'; let shapeR = '")'; // Default (NPC, PC)
         
-        if (rn.data.type === 'Location') { shapeL = '{{'; shapeR = '}}'; }
-        if (rn.data.type === 'Faction') { shapeL = '> '; shapeR = ' ]'; }
-        if (rn.data.type === 'Item') { shapeL = '{'; shapeR = '}'; }
+        if (rn.data.type === 'Location') { shapeL = '{{"'; shapeR = '"}}'; }
+        if (rn.data.type === 'Faction') { shapeL = '>"'; shapeR = '"]'; }
+        if (rn.data.type === 'Item') { shapeL = '{"'; shapeR = '"}'; }
 
-        let label = safeName;
+        let label = safeName || "Unknown";
         
         // Check if this node is technically a Group, but currently collapsed
         const isGroupAble = ['Faction', 'Location'].includes(rn.data.type);
@@ -576,7 +573,9 @@ export const renderMermaidWeb = async () => {
             return renderEntity(rn);
         }
 
-        const safeName = rn.data.name.replace(/"/g, "'");
+        // Security Escape
+        const safeName = rn.data.name.replace(/"/g, "'").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        
         let output = `subgraph ${rn.node.id}_sg ["${safeName}"]\n`; 
         output += `direction TB\n`; 
         
@@ -632,7 +631,8 @@ export const renderMermaidWeb = async () => {
         // Hide the internal connection line if they collapsed into the same parent
         if (effSource === effTarget) return;
 
-        const safeLabel = c.label ? `"${c.label.replace(/"/g, "'")}"` : "";
+        // Security Escape for labels
+        const safeLabel = c.label ? `"${c.label.replace(/"/g, "'").replace(/</g, "&lt;").replace(/>/g, "&gt;")}"` : "";
         
         let arrow = "-->"; // Default: Ally
         if (c.type === 'enemy') arrow = "==>"; 
