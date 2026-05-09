@@ -41,14 +41,75 @@ export function getWebsHTML(state) {
 
     // Prepare Node Dropdowns for DM Editor
     let nodeOptions = '<option value="">-- Select Node --</option>';
+    let resolvedNodes = [];
     if (activeWeb && activeWeb.nodes) {
-        const resolved = activeWeb.nodes.map(n => {
+        resolvedNodes = activeWeb.nodes.map(n => {
             let c = camp.codex?.find(x => x.id === n.id);
             if (!c) c = camp.playerCharacters?.find(x => x.id === n.id);
-            return { id: n.id, name: c ? c.name : 'Unknown Entry' };
+            return { id: n.id, name: c ? c.name : 'Unknown Entry', type: c ? c.type : 'Unknown', parent: n.parent };
         }).sort((a,b) => a.name.localeCompare(b.name));
         
-        nodeOptions += resolved.map(n => `<option value="${n.id}">${n.name}</option>`).join('');
+        nodeOptions += resolvedNodes.map(n => `<option value="${n.id}">${n.name}</option>`).join('');
+    }
+
+    // Prepare Active Nodes List HTML
+    let existingNodesHtml = '';
+    if (resolvedNodes.length > 0) {
+        existingNodesHtml = resolvedNodes.map(n => {
+            const parentName = n.parent ? resolvedNodes.find(pn => pn.id === n.parent)?.name || 'Unknown Group' : '';
+            const groupBadge = parentName ? `<span class="text-[8px] text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded shadow-sm border border-blue-200 ml-2 whitespace-nowrap" title="Inside Group: ${parentName}"><i class="fa-solid fa-layer-group"></i> ${parentName}</span>` : '';
+            const isGroupable = ['Faction', 'Location'].includes(n.type);
+            const isExpanded = activeWeb.expandedGroups?.includes(n.id);
+            
+            return `
+            <li class="flex justify-between items-center bg-stone-50 p-2 border border-[#d4c5a9] rounded-sm text-xs shadow-sm hover:border-amber-300 transition-colors">
+                <div class="flex items-center min-w-0 pr-2">
+                    <span class="font-bold text-stone-800 truncate">${n.name}</span>
+                    <span class="text-[8px] uppercase tracking-widest font-bold text-stone-400 ml-2 shrink-0">${n.type}</span>
+                    ${groupBadge}
+                </div>
+                <div class="flex gap-1 shrink-0">
+                    ${isGroupable ? `<button onclick="window.appActions.toggleWebGroup('${n.id}')" class="text-blue-600 hover:text-white bg-blue-100 hover:bg-blue-600 p-1.5 rounded transition" title="${isExpanded ? 'Collapse Group' : 'Expand Group'}"><i class="fa-solid ${isExpanded ? 'fa-compress' : 'fa-expand'}"></i></button>` : ''}
+                    <button onclick="window.appActions.openWebMoveModal('${n.id}')" class="text-stone-600 hover:text-amber-900 bg-stone-200 hover:bg-amber-200 p-1.5 rounded transition" title="Move to Group"><i class="fa-solid fa-folder-tree"></i></button>
+                    <button onclick="window.appActions.removeWebNode('${n.id}')" class="text-stone-600 hover:text-white bg-stone-200 hover:bg-red-700 p-1.5 rounded transition" title="Remove Node from Map"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            </li>
+            `;
+        }).join('');
+    } else {
+        existingNodesHtml = '<li class="text-xs text-stone-500 italic py-2">The map is empty.</li>';
+    }
+
+    // Prepare Active Connections List HTML
+    let existingConnsHtml = '';
+    if (activeWeb && activeWeb.connections && activeWeb.connections.length > 0) {
+        existingConnsHtml = activeWeb.connections.map(c => {
+            const sName = resolvedNodes.find(n => n.id === c.source)?.name || 'Unknown';
+            const tName = resolvedNodes.find(n => n.id === c.target)?.name || 'Unknown';
+
+            let icon = 'fa-arrow-right text-stone-500';
+            if (c.type === 'enemy') icon = 'fa-bolt text-red-500';
+            if (c.type === 'blood') icon = 'fa-link text-red-800';
+            if (c.type === 'affiliated') icon = 'fa-arrow-right-long text-stone-400';
+            if (c.type === 'debt') icon = 'fa-arrow-right-long text-amber-500';
+
+            return `
+            <li class="flex justify-between items-center bg-stone-50 p-2 border border-[#d4c5a9] rounded-sm text-xs shadow-sm hover:border-amber-300 transition-colors">
+                <div class="flex items-center min-w-0 pr-2 gap-2">
+                    <span class="font-bold text-stone-800 truncate max-w-[100px]" title="${sName}">${sName}</span>
+                    <i class="fa-solid ${icon} shrink-0"></i>
+                    <span class="font-bold text-stone-800 truncate max-w-[100px]" title="${tName}">${tName}</span>
+                    ${c.label ? `<span class="italic text-stone-500 text-[10px] ml-1 truncate">"${c.label}"</span>` : ''}
+                </div>
+                <div class="flex gap-1 shrink-0">
+                    <button onclick="window.appActions.openWebEditModal('connection', '${c.id}')" class="text-stone-600 hover:text-amber-900 bg-stone-200 hover:bg-amber-200 p-1.5 rounded transition" title="Edit Connection"><i class="fa-solid fa-pen"></i></button>
+                    <button onclick="window.appActions.removeWebConnection('${c.id}')" class="text-stone-600 hover:text-white bg-stone-200 hover:bg-red-700 p-1.5 rounded transition" title="Delete Connection"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            </li>
+            `;
+        }).join('');
+    } else {
+        existingConnsHtml = '<li class="text-xs text-stone-500 italic py-2">No connections established.</li>';
     }
 
     const isPublic = activeWeb.visibility?.mode === 'public';
@@ -100,7 +161,9 @@ export function getWebsHTML(state) {
 
             <!-- DM Map Tools (Collapsible) -->
             ${isDM ? `
-            <div id="dm-web-tools" class="hidden bg-[#f4ebd8] border-b border-[#d4c5a9] p-3 sm:p-4 shadow-md z-10 shrink-0">
+            <div id="dm-web-tools" class="hidden bg-[#f4ebd8] border-b border-[#d4c5a9] p-3 sm:p-4 shadow-md z-10 shrink-0 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                
+                <!-- ROW 1: CREATION -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     
                     <!-- Add Node Panel -->
@@ -141,6 +204,31 @@ export function getWebsHTML(state) {
                                 <button onclick="window.appActions.addWebConnection()" class="w-1/3 px-3 py-1.5 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] shadow-sm">Connect</button>
                             </div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- ROW 2: MANAGEMENT -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-[#d4c5a9]">
+                    
+                    <!-- Node Manager -->
+                    <div class="bg-white border border-[#d4c5a9] rounded-sm p-3 shadow-sm flex flex-col h-full min-h-[200px] max-h-[300px]">
+                        <div class="flex justify-between items-end mb-2 border-b border-[#d4c5a9] pb-1 shrink-0">
+                            <h4 class="text-[10px] uppercase font-bold text-stone-600 tracking-widest"><i class="fa-solid fa-users mr-1"></i> Manage Nodes</h4>
+                            <span class="text-[9px] italic text-blue-600 font-bold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">Factions & Locations act as Groups</span>
+                        </div>
+                        <ul class="overflow-y-auto custom-scrollbar flex-grow space-y-1.5">
+                            ${existingNodesHtml}
+                        </ul>
+                    </div>
+
+                    <!-- Connection Manager -->
+                    <div class="bg-white border border-[#d4c5a9] rounded-sm p-3 shadow-sm flex flex-col h-full min-h-[200px] max-h-[300px]">
+                        <div class="flex justify-between items-end mb-2 border-b border-[#d4c5a9] pb-1 shrink-0">
+                            <h4 class="text-[10px] uppercase font-bold text-stone-600 tracking-widest"><i class="fa-solid fa-diagram-project mr-1"></i> Manage Connections</h4>
+                        </div>
+                        <ul class="overflow-y-auto custom-scrollbar flex-grow space-y-1.5">
+                            ${existingConnsHtml}
+                        </ul>
                     </div>
 
                 </div>
