@@ -4,7 +4,8 @@ import { getSessionEditHTML } from './ui-session.js';
 import { getCodexHTML, getJournalHTML } from './ui-codex.js';
 import { getCalendarHTML } from './ui-calendar.js';
 import { getRulesHTML } from './ui-rules.js';
-import { getAtlasHTML } from './ui-atlas.js'; // NEW: Import Atlas UI
+import { getAtlasHTML } from './ui-atlas.js';
+import { getWebsHTML } from './ui-webs.js'; // NEW: Import Webs UI
 
 // --- CONSTANTS & HELPERS ---
 export const BUDGET_BY_LEVEL = { 
@@ -59,20 +60,24 @@ export function renderSmartField(id, labelHtml, value, placeholderText, rows, wr
 export function getLibraryTabsHTML(activeTab) {
     const isCodex = activeTab === 'codex';
     const isRules = activeTab === 'rules';
+    const isWebs = activeTab === 'webs';
     const isTome = activeTab === 'tome';
 
     return `
-    <div class="flex bg-stone-200 p-1 sm:p-1.5 rounded-sm border border-[#d4c5a9] shadow-inner mb-6 w-full max-w-3xl mx-auto shrink-0">
-        <button onclick="window.appActions.setView('codex')" class="flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isCodex ? 'bg-white shadow-sm text-red-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
+    <div class="flex bg-stone-200 p-1 sm:p-1.5 rounded-sm border border-[#d4c5a9] shadow-inner mb-6 w-full max-w-4xl mx-auto shrink-0 overflow-x-auto hide-scrollbar">
+        <button onclick="window.appActions.setView('codex')" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isCodex ? 'bg-white shadow-sm text-red-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
             <i class="fa-solid fa-book-journal-whills text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Codex</span>
         </button>
-        <button onclick="window.appActions.openRulesGlossary()" class="flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isRules ? 'bg-white shadow-sm text-amber-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
+        <button onclick="window.appActions.openRulesGlossary()" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isRules ? 'bg-white shadow-sm text-amber-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
             <i class="fa-solid fa-scale-balanced text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Rules</span>
         </button>
-        <button onclick="window.appActions.openJournal('campaign')" class="flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isTome ? 'bg-white shadow-sm text-stone-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
+        <button onclick="window.appActions.setView('webs')" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isWebs ? 'bg-white shadow-sm text-purple-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
+            <i class="fa-solid fa-diagram-project text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Webs</span>
+        </button>
+        <button onclick="window.appActions.openJournal('campaign')" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isTome ? 'bg-white shadow-sm text-stone-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
             <i class="fa-solid fa-scroll text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Tome</span>
         </button>
-        <button onclick="window.appActions.openChecklistMenu()" class="flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition text-stone-500 hover:text-blue-800 border border-transparent text-[9px] sm:text-[10px] uppercase tracking-wider relative group">
+        <button onclick="window.appActions.openChecklistMenu()" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition text-stone-500 hover:text-blue-800 border border-transparent text-[9px] sm:text-[10px] uppercase tracking-wider relative group">
             <i class="fa-solid fa-list-check text-sm sm:text-base mb-0.5 sm:mb-0 group-hover:text-blue-600 transition-colors"></i> <span>Tasks</span>
             <span id="lib-tab-badge-tasks" class="hidden absolute top-1 right-2 sm:right-6 w-2 h-2 bg-red-500 rounded-full border border-stone-200 animate-pulse"></span>
         </button>
@@ -120,7 +125,8 @@ export function updateHeaderUI(state) {
         case 'pc-edit': breadcrumbText = state.activePcId ? 'Edit Hero' : 'New Hero'; showBack = true; break;
         case 'codex': breadcrumbText = 'Library • Codex'; showBack = true; break;
         case 'rules': breadcrumbText = 'Library • Rules'; showBack = true; break;
-        case 'atlas': breadcrumbText = 'Library • Atlas'; showBack = true; break; // NEW
+        case 'webs': breadcrumbText = 'Library • Webs'; showBack = true; break; // NEW
+        case 'atlas': breadcrumbText = 'Library • Atlas'; showBack = true; break;
         case 'calendar': breadcrumbText = 'Chronicle Timeline'; showBack = true; break;
         case 'journal': 
             breadcrumbText = state.activeSessionId ? 'Session Scroll' : (state.activeAdventureId ? 'Arc Scroll' : 'Library • Tome'); 
@@ -156,7 +162,7 @@ export function updateDockUI(state) {
     let activeTab = 'campaign';
     if (['calendar'].includes(state.currentView)) activeTab = 'calendar';
     if (['pc-manager', 'pc-edit'].includes(state.currentView)) activeTab = 'pc-manager';
-    if (['codex', 'rules', 'atlas'].includes(state.currentView)) activeTab = 'codex'; // Atlas falls under the Library/Codex dock highlight
+    if (['codex', 'rules', 'atlas', 'webs'].includes(state.currentView)) activeTab = 'codex'; // Library items group here
     
     // The Grand Tome is now officially part of the Library Hub, so keep the Library dock icon highlighted
     if (state.currentView === 'journal' && !state.activeAdventureId && !state.activeSessionId) {
@@ -180,6 +186,7 @@ export const navigateBack = () => {
         case 'pc-manager':
         case 'codex':
         case 'rules': 
+        case 'webs': // NEW
         case 'calendar':
             window.appActions.setView('home'); 
             break;
@@ -457,7 +464,8 @@ export function renderApp(state) {
         case 'codex': html = getCodexHTML(state); break;
         case 'calendar': html = getCalendarHTML(state); break;
         case 'rules': html = getRulesHTML(state); break;
-        case 'atlas': html = getAtlasHTML(state); break; // NEW: Call the Atlas renderer
+        case 'webs': html = getWebsHTML(state); break; // NEW: Call the Webs renderer
+        case 'atlas': html = getAtlasHTML(state); break; 
         case 'activity-log': html = getActivityLogHTML(state); break;
         default: html = `<div class="text-center text-red-500">Unknown View: ${state.currentView}</div>`;
     }
