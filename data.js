@@ -22,7 +22,7 @@ import { openRulesGlossary, viewRule, openRuleModal, saveRule, deleteRule, updat
 import { initAtlas, setAtlasMode, updateAtlasGridAndScale, updateAtlasDistanceCalc, atlasUndoLastPoint, atlasFinishDrawing, confirmAtlasPin, confirmAtlasRoute, deleteAtlasPin, deleteAtlasRoute, toggleAtlasSettings, saveAtlasSettings, searchAtlasCodex, selectAtlasCodexEntry, viewOnMap, toggleAtlasLayers, toggleAtlasRouteVis, refreshAtlasEntities, toggleAtlasFullScreen, calculateAtlasRouteLive, addAtlasRouteStop, atlasMarkLastPointAsStop } from './actions-atlas.js';
 
 // Import Relationship Web Functionality
-import { createNewWeb, deleteCurrentWeb, switchWeb, toggleWebGroup, openWebEditModal, openWebMoveModal, saveWebMove, saveWebEdit, addWebNode, addWebConnection, removeWebNode, removeWebConnection, toggleWebVisibility, cleanupWebOrphans, syncWebWithCodex } from './actions-webs.js';
+import { createNewWeb, deleteCurrentWeb, switchWeb, toggleWebGroup, openWebEditModal, openWebMoveModal, saveWebMove, saveWebEdit, addWebNode, addWebConnection, removeWebNode, removeWebConnection, toggleWebVisibility, cleanupWebOrphans, syncWebWithCodex, searchWebCodex, selectWebCodexEntry, setWebZoom, renderMermaidWeb } from './actions-webs.js';
 
 // --- APP ACTIONS HUB --- 
 // We bind all our imported modular functions back to the global window.appActions 
@@ -189,7 +189,11 @@ window.appActions = {
   removeWebConnection,
   toggleWebVisibility,
   cleanupWebOrphans,
-  syncWebWithCodex
+  syncWebWithCodex,
+  searchWebCodex,
+  selectWebCodexEntry,
+  setWebZoom,
+  renderMermaidWeb
 }; 
 
 // ============================================================================
