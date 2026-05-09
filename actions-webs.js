@@ -386,38 +386,46 @@ export const syncWebWithCodex = async () => {
     reRender();
 };
 
-
 // ============================================================================
-// --- GLOBAL WINDOW HELPERS FOR UI ---
+// --- UI HELPERS AND EXPORTS FOR MERMAID ---
 // ============================================================================
 
-// --- Local Search Engine for Node Picker ---
 export const searchWebCodex = (query) => {
     const resultsContainer = document.getElementById('web-node-search-results');
-        if (!resultsContainer) return;
-        
-        if (!query || query.trim() === '') {
-            resultsContainer.classList.add('hidden');
-            document.getElementById('web-node-codex-id').value = ""; 
-            return;
-        }
+    if (!resultsContainer) return;
+    
+    if (!query || query.trim() === '') {
+        resultsContainer.classList.add('hidden');
+        document.getElementById('web-node-codex-id').value = ""; 
+        return;
+    }
 
-        updateDerivedState();
-        const camp = window.appData.activeCampaign;
-        const codex = camp?.codex || [];
-        const pcs = camp?.playerCharacters || [];
-        
-        const allItems = [
-            ...pcs.map(pc => ({ id: pc.id, name: pc.name, type: 'PC' })),
-            ...codex
-        ];
-        
-        const matches = allItems.filter(c => c.name.toLowerCase().includes(query.toLowerCase()));
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    const codex = camp?.codex || [];
+    const pcs = camp?.playerCharacters || [];
+    
+    const allItems = [
+        ...pcs.map(pc => ({ id: pc.id, name: pc.name, type: 'PC' })),
+        ...codex
+    ];
+    
+    const matches = allItems.filter(c => c.name.toLowerCase().includes(query.toLowerCase()));
 
-        let html = '';
-        matches.forEach(m => {
-            const safeName = m.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-            html += `
+    let html = '';
+    matches.forEach(m => {
+        const safeName = m.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        html += `
+            <div class="p-3 border-b border-[#d4c5a9] hover:bg-amber-50 cursor-pointer transition-colors" onclick="window.appActions.selectWebCodexEntry('${m.id}', '${safeName}')">
+                <span class="font-bold text-stone-900">${m.name}</span> 
+                <span class="text-[9px] uppercase font-bold text-stone-500 ml-2 bg-stone-200 px-1.5 py-0.5 rounded-sm">${m.type}</span>
+            </div>
+        `;
+    });
+
+    const safeQuery = query.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    
+    html += `
         <div class="p-3 bg-stone-100 hover:bg-amber-100 cursor-pointer text-amber-900 font-bold text-xs flex items-center transition-colors border-b border-[#d4c5a9]" onclick="window.appActions.selectWebCodexEntry('', '${safeQuery}')">
             <i class="fa-solid fa-plus-circle mr-2 text-amber-600"></i> Create New NPC: "${query}"
         </div>
@@ -437,7 +445,6 @@ export const selectWebCodexEntry = (id, name) => {
     if (resultsContainer) resultsContainer.classList.add('hidden');
 };
 
-// --- Graph Zoom Helper ---
 export const setWebZoom = (dir) => {
     const wrapper = document.getElementById('mermaid-wrapper');
     if (!wrapper) return;
@@ -451,200 +458,199 @@ export const setWebZoom = (dir) => {
     wrapper.style.transform = `scale(${currentZoom})`;
 };
 
-// --- Dynamic Mermaid Renderer ---
 export const renderMermaidWeb = async () => {
     const container = document.getElementById('mermaid-container');
-        if (!container) return;
+    if (!container) return;
 
-        updateDerivedState();
-        const camp = window.appData.activeCampaign;
-        const web = window.appData.activeWeb;
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    const web = window.appData.activeWeb;
 
-        if (!camp || !web) return;
+    if (!camp || !web) return;
 
-        // Lazy load the Mermaid Engine if it hasn't been fetched yet
-        if (!window.mermaid) {
-            try {
-                const module = await import('https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs');
-                window.mermaid = module.default;
-                window.mermaid.initialize({
-                    startOnLoad: false,
-                    theme: 'base',
-                    themeVariables: {
-                        primaryColor: '#fdfbf7', // parchmentLight
-                        primaryTextColor: '#1c1917',
-                        primaryBorderColor: '#d4c5a9',
-                        lineColor: '#78716c',
-                        secondaryColor: '#f4ebd8',
-                        tertiaryColor: '#fff',
-                        fontFamily: 'Merriweather'
-                    },
-                    securityLevel: 'loose',
-                    flowchart: { curve: 'basis', htmlLabels: true }
-                });
-            } catch (e) {
-                container.innerHTML = `<div class="text-center text-red-500 text-xs mt-10">Failed to load Graph Engine</div>`;
-                return;
-            }
-        }
-
-        if (web.nodes.length === 0) {
-            container.innerHTML = `<div class="text-center text-stone-500 text-sm mt-10 italic">The web is silent. Add a node to begin.</div>`;
+    // Lazy load the Mermaid Engine if it hasn't been fetched yet
+    if (!window.mermaid) {
+        try {
+            const module = await import('https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs');
+            window.mermaid = module.default;
+            window.mermaid.initialize({
+                startOnLoad: false,
+                theme: 'base',
+                themeVariables: {
+                    primaryColor: '#fdfbf7', // parchmentLight
+                    primaryTextColor: '#1c1917',
+                    primaryBorderColor: '#d4c5a9',
+                    lineColor: '#78716c',
+                    secondaryColor: '#f4ebd8',
+                    tertiaryColor: '#fff',
+                    fontFamily: 'Merriweather'
+                },
+                securityLevel: 'loose',
+                flowchart: { curve: 'basis', htmlLabels: true }
+            });
+        } catch (e) {
+            container.innerHTML = `<div class="text-center text-red-500 text-xs mt-10">Failed to load Graph Engine</div>`;
             return;
         }
+    }
 
-        let graph = 'graph TD\n';
+    if (web.nodes.length === 0) {
+        container.innerHTML = `<div class="text-center text-stone-500 text-sm mt-10 italic">The web is silent. Add a node to begin.</div>`;
+        return;
+    }
 
-        // Styling Theme Tokens
-        graph += 'classDef PC fill:#fef3c7,stroke:#b45309,stroke-width:2px,color:#78350f,font-weight:bold;\n';
-        graph += 'classDef NPC fill:#fdfbf7,stroke:#d4c5a9,stroke-width:2px,color:#1c1917;\n';
-        graph += 'classDef Location fill:#ecfdf5,stroke:#059669,stroke-width:2px,color:#064e3b;\n';
-        graph += 'classDef Faction fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#1e3a8a;\n';
-        graph += 'classDef Item fill:#faf5ff,stroke:#9333ea,stroke-width:2px,color:#581c87;\n';
-        graph += 'classDef Lore fill:#fff1f2,stroke:#c026d3,stroke-width:2px,color:#701a75;\n';
+    let graph = 'graph TD\n';
+
+    // Styling Theme Tokens
+    graph += 'classDef PC fill:#fef3c7,stroke:#b45309,stroke-width:2px,color:#78350f,font-weight:bold;\n';
+    graph += 'classDef NPC fill:#fdfbf7,stroke:#d4c5a9,stroke-width:2px,color:#1c1917;\n';
+    graph += 'classDef Location fill:#ecfdf5,stroke:#059669,stroke-width:2px,color:#064e3b;\n';
+    graph += 'classDef Faction fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#1e3a8a;\n';
+    graph += 'classDef Item fill:#faf5ff,stroke:#9333ea,stroke-width:2px,color:#581c87;\n';
+    graph += 'classDef Lore fill:#fff1f2,stroke:#c026d3,stroke-width:2px,color:#701a75;\n';
+    
+    graph += 'classDef groupRing fill:none,stroke:#78716c,stroke-width:2px,stroke-dasharray: 5 5;\n'; 
+
+    // Resolve Nodes to Real Data
+    const resolveNode = (node) => {
+        const isPC = camp.playerCharacters?.find(p => p.id === node.id);
+        if (isPC) return { ...isPC, type: 'PC' };
+        const isCodex = camp.codex?.find(c => c.id === node.id);
+        if (isCodex) return isCodex;
+        return { id: node.id, name: "Unknown Entry", type: "Lore" };
+    };
+
+    const resolvedNodes = web.nodes.map(n => ({ node: n, data: resolveNode(n) }));
+    
+    // Security Filter
+    const visibleNodes = resolvedNodes.filter(rn => _canViewCodex(rn.data.id));
+    const validIds = new Set(visibleNodes.map(rn => rn.node.id));
+
+    const visibleConns = web.connections.filter(c => {
+        if (!validIds.has(c.source) || !validIds.has(c.target)) return false;
+        if (camp._isDM) return true;
+        const visMode = c.visibility?.mode || 'public';
+        if (visMode === 'hidden') return false;
+        if (visMode === 'specific' && !c.visibility.visibleTo.includes(window.appData.currentUserUid)) return false;
+        return true;
+    });
+
+    const renderedIds = new Set();
+    const expandedGroups = new Set(web.expandedGroups || []);
+
+    const renderEntity = (rn) => {
+        if (renderedIds.has(rn.node.id)) return "";
+        renderedIds.add(rn.node.id);
+
+        const safeName = rn.data.name.replace(/"/g, "'");
+        let shapeL = '("'; let shapeR = '")'; // Default (NPC, PC)
         
-        graph += 'classDef groupRing fill:none,stroke:#78716c,stroke-width:2px,stroke-dasharray: 5 5;\n'; 
+        if (rn.data.type === 'Location') { shapeL = '{{'; shapeR = '}}'; }
+        if (rn.data.type === 'Faction') { shapeL = '> '; shapeR = ' ]'; }
+        if (rn.data.type === 'Item') { shapeL = '{'; shapeR = '}'; }
 
-        // Resolve Nodes to Real Data
-        const resolveNode = (node) => {
-            const isPC = camp.playerCharacters?.find(p => p.id === node.id);
-            if (isPC) return { ...isPC, type: 'PC' };
-            const isCodex = camp.codex?.find(c => c.id === node.id);
-            if (isCodex) return isCodex;
-            return { id: node.id, name: "Unknown Entry", type: "Lore" };
-        };
-
-        const resolvedNodes = web.nodes.map(n => ({ node: n, data: resolveNode(n) }));
+        let label = safeName;
         
-        // Security Filter
-        const visibleNodes = resolvedNodes.filter(rn => _canViewCodex(rn.data.id));
-        const validIds = new Set(visibleNodes.map(rn => rn.node.id));
-
-        const visibleConns = web.connections.filter(c => {
-            if (!validIds.has(c.source) || !validIds.has(c.target)) return false;
-            if (camp._isDM) return true;
-            const visMode = c.visibility?.mode || 'public';
-            if (visMode === 'hidden') return false;
-            if (visMode === 'specific' && !c.visibility.visibleTo.includes(window.appData.currentUserUid)) return false;
-            return true;
-        });
-
-        const renderedIds = new Set();
-        const expandedGroups = new Set(web.expandedGroups || []);
-
-        const renderEntity = (rn) => {
-            if (renderedIds.has(rn.node.id)) return "";
-            renderedIds.add(rn.node.id);
-
-            const safeName = rn.data.name.replace(/"/g, "'");
-            let shapeL = '("'; let shapeR = '")'; // Default (NPC, PC)
-            
-            if (rn.data.type === 'Location') { shapeL = '{{'; shapeR = '}}'; }
-            if (rn.data.type === 'Faction') { shapeL = '> '; shapeR = ' ]'; }
-            if (rn.data.type === 'Item') { shapeL = '{'; shapeR = '}'; }
-
-            let label = safeName;
-            
-            // Check if this node is technically a Group, but currently collapsed
-            const isGroupAble = ['Faction', 'Location'].includes(rn.data.type);
-            if (isGroupAble && !expandedGroups.has(rn.node.id)) {
-                const hasChildren = visibleNodes.some(child => child.node.parent === rn.node.id);
-                if (hasChildren) {
-                     label = `<b>${safeName}</b><br/><i>(Group)</i>`;
-                }
+        // Check if this node is technically a Group, but currently collapsed
+        const isGroupAble = ['Faction', 'Location'].includes(rn.data.type);
+        if (isGroupAble && !expandedGroups.has(rn.node.id)) {
+            const hasChildren = visibleNodes.some(child => child.node.parent === rn.node.id);
+            if (hasChildren) {
+                 label = `<b>${safeName}</b><br/><i>(Group)</i>`;
             }
-            
-            let line = `${rn.node.id}${shapeL}${label}${shapeR}:::${rn.data.type}\n`;
-            line += `click ${rn.node.id} call window.appActions.viewCodex("${rn.node.id}") "View Knowledge"\n`;
-            
-            return line;
+        }
+        
+        let line = `${rn.node.id}${shapeL}${label}${shapeR}:::${rn.data.type}\n`;
+        line += `click ${rn.node.id} call window.appActions.viewCodex("${rn.node.id}") "View Knowledge"\n`;
+        
+        return line;
+    };
+
+    const renderSubgraph = (rn) => {
+        if (!expandedGroups.has(rn.node.id)) {
+            return renderEntity(rn);
+        }
+
+        const children = visibleNodes.filter(child => child.node.parent === rn.node.id);
+        if (children.length === 0) {
+            return renderEntity(rn);
+        }
+
+        const safeName = rn.data.name.replace(/"/g, "'");
+        let output = `subgraph ${rn.node.id}_sg ["${safeName}"]\n`; 
+        output += `direction TB\n`; 
+        
+        output += renderEntity(rn);
+        
+        children.forEach(child => {
+            const isChildGroupAble = ['Faction', 'Location'].includes(child.data.type);
+            if (isChildGroupAble && expandedGroups.has(child.node.id)) {
+                output += renderSubgraph(child); 
+            } else {
+                output += renderEntity(child);
+            }
+        });
+        output += `end\n`;
+        output += `class ${rn.node.id}_sg groupRing\n`;
+        return output;
+    };
+
+    const roots = visibleNodes.filter(rn => !rn.node.parent || !validIds.has(rn.node.parent));
+    roots.forEach(root => {
+        const isGroupAble = ['Faction', 'Location'].includes(root.data.type);
+        if (isGroupAble && expandedGroups.has(root.node.id)) {
+             graph += renderSubgraph(root);
+        } else {
+             graph += renderEntity(root);
+        }
+    });
+
+    visibleNodes.forEach(rn => {
+        if (!renderedIds.has(rn.node.id)) {
+            graph += renderEntity(rn);
+        }
+    });
+
+    // RENDER CONNECTIONS
+    visibleConns.forEach(c => {
+        // Find effective targets for Collapsed groups
+        const getEffectiveTarget = (nodeId) => {
+            let current = visibleNodes.find(rn => rn.node.id === nodeId);
+            let highestCollapsedParent = nodeId;
+            while (current && current.node.parent) {
+                 if (!expandedGroups.has(current.node.parent)) {
+                     highestCollapsedParent = current.node.parent;
+                 }
+                 current = visibleNodes.find(rn => rn.node.id === current.node.parent);
+            }
+            return highestCollapsedParent;
         };
 
-        const renderSubgraph = (rn) => {
-            if (!expandedGroups.has(rn.node.id)) {
-                return renderEntity(rn);
-            }
+        const effSource = getEffectiveTarget(c.source);
+        const effTarget = getEffectiveTarget(c.target);
 
-            const children = visibleNodes.filter(child => child.node.parent === rn.node.id);
-            if (children.length === 0) {
-                return renderEntity(rn);
-            }
+        // Hide the internal connection line if they collapsed into the same parent
+        if (effSource === effTarget) return;
 
-            const safeName = rn.data.name.replace(/"/g, "'");
-            let output = `subgraph ${rn.node.id}_sg ["${safeName}"]\n`; 
-            output += `direction TB\n`; 
-            
-            output += renderEntity(rn);
-            
-            children.forEach(child => {
-                const isChildGroupAble = ['Faction', 'Location'].includes(child.data.type);
-                if (isChildGroupAble && expandedGroups.has(child.node.id)) {
-                    output += renderSubgraph(child); 
-                } else {
-                    output += renderEntity(child);
-                }
-            });
-            output += `end\n`;
-            output += `class ${rn.node.id}_sg groupRing\n`;
-            return output;
-        };
+        const safeLabel = c.label ? `"${c.label.replace(/"/g, "'")}"` : "";
+        
+        let arrow = "-->"; // Default: Ally
+        if (c.type === 'enemy') arrow = "==>"; 
+        if (c.type === 'affiliated') arrow = "-.->"; 
+        if (c.type === 'debt') arrow = "-.->"; 
+        if (c.type === 'blood') arrow = "==>"; 
 
-        const roots = visibleNodes.filter(rn => !rn.node.parent || !validIds.has(rn.node.parent));
-        roots.forEach(root => {
-            const isGroupAble = ['Faction', 'Location'].includes(root.data.type);
-            if (isGroupAble && expandedGroups.has(root.node.id)) {
-                 graph += renderSubgraph(root);
-            } else {
-                 graph += renderEntity(root);
-            }
-        });
+        if (safeLabel) {
+            if (c.type === 'enemy' || c.type === 'blood') graph += `${effSource} == ${safeLabel} ==> ${effTarget}\n`;
+            else if (c.type === 'affiliated' || c.type === 'debt') graph += `${effSource} -. ${safeLabel} .-> ${effTarget}\n`;
+            else graph += `${effSource} -- ${safeLabel} --> ${effTarget}\n`;
+        } else {
+            graph += `${effSource} ${arrow} ${effTarget}\n`;
+        }
+    });
 
-        visibleNodes.forEach(rn => {
-            if (!renderedIds.has(rn.node.id)) {
-                graph += renderEntity(rn);
-            }
-        });
-
-        // RENDER CONNECTIONS
-        visibleConns.forEach(c => {
-            // Find effective targets for Collapsed groups
-            const getEffectiveTarget = (nodeId) => {
-                let current = visibleNodes.find(rn => rn.node.id === nodeId);
-                let highestCollapsedParent = nodeId;
-                while (current && current.node.parent) {
-                     if (!expandedGroups.has(current.node.parent)) {
-                         highestCollapsedParent = current.node.parent;
-                     }
-                     current = visibleNodes.find(rn => rn.node.id === current.node.parent);
-                }
-                return highestCollapsedParent;
-            };
-
-            const effSource = getEffectiveTarget(c.source);
-            const effTarget = getEffectiveTarget(c.target);
-
-            // Hide the internal connection line if they collapsed into the same parent
-            if (effSource === effTarget) return;
-
-            const safeLabel = c.label ? `"${c.label.replace(/"/g, "'")}"` : "";
-            
-            let arrow = "-->"; // Default: Ally
-            if (c.type === 'enemy') arrow = "==>"; 
-            if (c.type === 'affiliated') arrow = "-.->"; 
-            if (c.type === 'debt') arrow = "-.->"; 
-            if (c.type === 'blood') arrow = "==>"; 
-
-            if (safeLabel) {
-                if (c.type === 'enemy' || c.type === 'blood') graph += `${effSource} == ${safeLabel} ==> ${effTarget}\n`;
-                else if (c.type === 'affiliated' || c.type === 'debt') graph += `${effSource} -. ${safeLabel} .-> ${effTarget}\n`;
-                else graph += `${effSource} -- ${safeLabel} --> ${effTarget}\n`;
-            } else {
-                graph += `${effSource} ${arrow} ${effTarget}\n`;
-            }
-        });
-
-        try {
-            const { svg, bindFunctions } = await window.mermaid.render('mermaid-svg-' + Date.now(), graph);
+    try {
+        const { svg, bindFunctions } = await window.mermaid.render('mermaid-svg-' + Date.now(), graph);
         container.innerHTML = svg;
         if (bindFunctions) bindFunctions(container);
     } catch (e) {
