@@ -253,7 +253,8 @@ function getFullCampaign(id) {
         playerCharacters: (c.pcs && c.pcs.length > 0) ? c.pcs : (c.base.playerCharacters || []),
         adventures: (c.adventures && c.adventures.length > 0) ? c.adventures : (c.base.adventures || []),
         codex: (c.codex && c.codex.length > 0) ? c.codex : (c.base.codex || []),
-        sheetUpdates: (c.sheetUpdates && c.sheetUpdates.length > 0) ? c.sheetUpdates : (c.base.sheetUpdates || [])
+        sheetUpdates: (c.sheetUpdates && c.sheetUpdates.length > 0) ? c.sheetUpdates : (c.base.sheetUpdates || []),
+        webs: (c.webs && c.webs.length > 0) ? c.webs : (c.base.webs || []) // NEW: Web subcollection binding
     };
 }
 
@@ -281,6 +282,7 @@ function setupSubListeners(campId) {
     attach('adventures', 'adventures');
     attach('codex', 'codex');
     attach('sheetUpdates', 'sheetUpdates');
+    attach('webs', 'webs'); // NEW: Synchronize Relationship Webs
 }
 
 function cleanupSubListeners(campId) {
@@ -315,7 +317,7 @@ export function subscribeToCampaigns(user, callback) {
             newIds.push(data.id);
 
             if (!campaignCache[data.id]) {
-                campaignCache[data.id] = { base: data, pcs: [], adventures: [], codex: [], sheetUpdates: [] };
+                campaignCache[data.id] = { base: data, pcs: [], adventures: [], codex: [], sheetUpdates: [], webs: [] };
                 setupSubListeners(data.id);
             } else {
                 campaignCache[data.id].base = data;
@@ -361,7 +363,7 @@ export function subscribeToPlayerCampaigns(user, callback) {
             newIds.push(data.id);
 
             if (!campaignCache[data.id]) {
-                campaignCache[data.id] = { base: data, pcs: [], adventures: [], codex: [], sheetUpdates: [] };
+                campaignCache[data.id] = { base: data, pcs: [], adventures: [], codex: [], sheetUpdates: [], webs: [] };
                 setupSubListeners(data.id);
             } else {
                 campaignCache[data.id].base = data;
@@ -518,12 +520,14 @@ export async function saveCampaign(campaignData) {
         const advs = cleanData.adventures || [];
         const codex = cleanData.codex || [];
         const sheetUpdates = cleanData.sheetUpdates || [];
+        const webs = cleanData.webs || [];
 
         // Delete from the root document so they don't take up space in the 1MB limit
         delete cleanData.playerCharacters;
         delete cleanData.adventures;
         delete cleanData.codex;
         delete cleanData.sheetUpdates;
+        delete cleanData.webs;
         
         // 1. Save Base Campaign Document
         const docRef = doc(db, 'artifacts', appId, 'campaigns', cleanData.id);
@@ -557,6 +561,7 @@ export async function saveCampaign(campaignData) {
         await syncSubcollection('adventures', advs);
         await syncSubcollection('codex', codex);
         await syncSubcollection('sheetUpdates', sheetUpdates);
+        await syncSubcollection('webs', webs);
 
     } catch (error) {
         console.error("Error saving campaign:", error);
@@ -589,6 +594,7 @@ export async function deleteCampaign(campaignId) {
         await deleteSubcollection('adventures');
         await deleteSubcollection('codex');
         await deleteSubcollection('sheetUpdates');
+        await deleteSubcollection('webs');
 
         // Finally, delete the base Campaign Document
         const docRef = doc(db, 'artifacts', appId, 'campaigns', campaignId);
