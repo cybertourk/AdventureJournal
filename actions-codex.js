@@ -303,6 +303,11 @@ export const _openCodexModal = (entry) => {
             <div class="mb-6 bg-white border border-[#d4c5a9] p-4 rounded-sm shadow-inner text-sm">
                 <h4 class="font-bold text-red-900 border-b border-[#d4c5a9] pb-1 mb-3"><i class="fa-solid fa-clipboard-user mr-1"></i> Characteristics</h4>
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-stone-700 mb-4">
+                    <div><span class="font-bold text-stone-900 block">Race / Lineage</span> ${dataSrc.race || '--'}</div>
+                    <div><span class="font-bold text-stone-900 block">Class / Level</span> ${dataSrc.classLevel || '--'}</div>
+                    <div><span class="font-bold text-stone-900 block">Background</span> ${dataSrc.background || '--'}</div>
+                    <div><span class="font-bold text-stone-900 block">Alignment</span> ${dataSrc.alignment || '--'}</div>
+                    <div><span class="font-bold text-stone-900 block">Faith</span> ${dataSrc.faith || '--'}</div>
                     <div><span class="font-bold text-stone-900 block">Gender</span> ${dataSrc.gender || '--'}</div>
                     <div><span class="font-bold text-stone-900 block">Age</span> ${dataSrc.age || '--'}</div>
                     <div><span class="font-bold text-stone-900 block">Size</span> ${dataSrc.size || '--'}</div>
@@ -380,6 +385,11 @@ export const _openCodexModal = (entry) => {
         
         <h4 class="text-[10px] font-bold text-red-900 uppercase tracking-widest mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-clipboard-user mr-1"></i> Characteristics (Public)</h4>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Race / Lineage</label><input type="text" id="cx-npc-race" value="${entry.race || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Class / Level</label><input type="text" id="cx-npc-class" value="${entry.classLevel || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Background</label><input type="text" id="cx-npc-background" value="${entry.background || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Alignment</label><input type="text" id="cx-npc-alignment" value="${entry.alignment || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Faith</label><input type="text" id="cx-npc-faith" value="${entry.faith || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
             <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Gender</label><input type="text" id="cx-npc-gender" value="${entry.gender || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
             <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Age</label><input type="text" id="cx-npc-age" value="${entry.age || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
             <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Size</label><input type="text" id="cx-npc-size" value="${entry.size || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
@@ -572,6 +582,11 @@ export const saveCodexEntry = async () => {
     let npcData = {};
     if (typeVal === 'NPC') {
         npcData = {
+            race: document.getElementById('cx-npc-race')?.value.trim() || '',
+            classLevel: document.getElementById('cx-npc-class')?.value.trim() || '',
+            background: document.getElementById('cx-npc-background')?.value.trim() || '',
+            alignment: document.getElementById('cx-npc-alignment')?.value.trim() || '',
+            faith: document.getElementById('cx-npc-faith')?.value.trim() || '',
             gender: document.getElementById('cx-npc-gender')?.value.trim() || '',
             age: document.getElementById('cx-npc-age')?.value.trim() || '',
             size: document.getElementById('cx-npc-size')?.value.trim() || '',
