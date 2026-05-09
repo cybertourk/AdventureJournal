@@ -287,34 +287,77 @@ export const _openCodexModal = (entry) => {
     }
 
     const resolvedImage = image || (linkedPC ? linkedPC.image : "");
-    const imgHTML = resolvedImage ? `<div class="mb-4 w-full h-48 sm:h-64 bg-stone-900 border border-[#d4c5a9] rounded-sm overflow-hidden shadow-inner"><img src="${resolvedImage}" class="w-full h-full object-contain object-top" alt="${name}" onerror="this.style.display='none'"></div>` : '';
+    const imgHTML = resolvedImage ? `<div class="mb-5 w-full h-48 sm:h-64 bg-stone-900 border border-[#d4c5a9] rounded-sm overflow-hidden shadow-inner"><img src="${resolvedImage}" class="w-full h-full object-contain object-top" alt="${name}" onerror="this.style.display='none'"></div>` : '';
 
-    // --- DYNAMIC HERO INJECTION ---
-    let pcDataHTML = '';
-    if (linkedPC) {
-        const parsedApp = linkedPC.appearance ? window.appActions.parseSmartText(linkedPC.appearance) : '<span class="text-stone-400 italic">No appearance recorded...</span>';
-        pcDataHTML = `
-            <div class="mb-4 bg-white border border-[#d4c5a9] p-3 rounded-sm shadow-inner text-sm">
-                <h4 class="font-bold text-red-900 border-b border-[#d4c5a9] pb-1 mb-2">Characteristics</h4>
-                <div class="grid grid-cols-2 gap-2 text-xs text-stone-700 mb-3">
-                    <div><span class="font-bold text-stone-900">Gender:</span> ${linkedPC.gender || '--'}</div>
-                    <div><span class="font-bold text-stone-900">Age:</span> ${linkedPC.age || '--'}</div>
-                    <div><span class="font-bold text-stone-900">Size:</span> ${linkedPC.size || '--'}</div>
-                    <div><span class="font-bold text-stone-900">Height:</span> ${linkedPC.height || '--'}</div>
-                    <div><span class="font-bold text-stone-900">Weight:</span> ${linkedPC.weight || '--'}</div>
-                    <div><span class="font-bold text-stone-900">Eyes:</span> ${linkedPC.eyes || '--'}</div>
-                    <div><span class="font-bold text-stone-900">Hair:</span> ${linkedPC.hair || '--'}</div>
-                    <div><span class="font-bold text-stone-900">Skin:</span> ${linkedPC.skin || '--'}</div>
+    // --- DYNAMIC HERO & NPC INJECTION (Unifies Public & Private Knowledge) ---
+    let charDataHTML = '';
+    let privateDataHTML = '';
+
+    const isCharacter = type === 'PC' || type === 'NPC';
+    const dataSrc = linkedPC ? linkedPC : (type === 'NPC' ? entry : null);
+
+    if (isCharacter && dataSrc) {
+        const parsedApp = dataSrc.appearance ? window.appActions.parseSmartText(dataSrc.appearance) : '<span class="text-stone-400 italic">No appearance recorded...</span>';
+        
+        charDataHTML = `
+            <div class="mb-6 bg-white border border-[#d4c5a9] p-4 rounded-sm shadow-inner text-sm">
+                <h4 class="font-bold text-red-900 border-b border-[#d4c5a9] pb-1 mb-3"><i class="fa-solid fa-clipboard-user mr-1"></i> Characteristics</h4>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-stone-700 mb-4">
+                    <div><span class="font-bold text-stone-900 block">Gender</span> ${dataSrc.gender || '--'}</div>
+                    <div><span class="font-bold text-stone-900 block">Age</span> ${dataSrc.age || '--'}</div>
+                    <div><span class="font-bold text-stone-900 block">Size</span> ${dataSrc.size || '--'}</div>
+                    <div><span class="font-bold text-stone-900 block">Height</span> ${dataSrc.height || '--'}</div>
+                    <div><span class="font-bold text-stone-900 block">Weight</span> ${dataSrc.weight || '--'}</div>
+                    <div><span class="font-bold text-stone-900 block">Eyes</span> ${dataSrc.eyes || '--'}</div>
+                    <div><span class="font-bold text-stone-900 block">Hair</span> ${dataSrc.hair || '--'}</div>
+                    <div><span class="font-bold text-stone-900 block">Skin</span> ${dataSrc.skin || '--'}</div>
                 </div>
-                <h4 class="font-bold text-red-900 border-b border-[#d4c5a9] pb-1 mb-2">Appearance</h4>
-                <div class="text-stone-800 text-sm leading-relaxed">${parsedApp}</div>
+                <h4 class="font-bold text-red-900 border-b border-[#d4c5a9] pb-1 mb-2"><i class="fa-solid fa-eye mr-1"></i> Appearance</h4>
+                <div class="text-stone-800 text-sm leading-relaxed font-serif">${parsedApp}</div>
             </div>
         `;
+
+        // Render Private Info for Authorized Users
+        const canViewPrivate = isDM || isHeroOwner || (!linkedPC && isAuthor);
+        
+        if (canViewPrivate) {
+            const renderPrivateBlock = (blockTitle, content) => content ? `
+                <div class="mb-4">
+                    <h5 class="font-bold text-stone-800 text-[10px] uppercase tracking-widest border-b border-stone-300 pb-1 mb-1.5">${blockTitle}</h5>
+                    <div class="text-sm text-stone-700 font-serif leading-relaxed">${window.appActions.parseSmartText(content)}</div>
+                </div>` : '';
+            
+            // Check if there is ANY private data to show
+            const hasPrivateData = dataSrc.backstory || dataSrc.traits || dataSrc.ideals || dataSrc.bonds || dataSrc.flaws || dataSrc.organizations || dataSrc.allies || dataSrc.enemies || dataSrc.dmNotes;
+
+            if (hasPrivateData) {
+                privateDataHTML = `
+                <div class="mt-8 border-t-4 border-stone-800 pt-6">
+                    <h4 class="font-serif font-bold text-xl text-stone-900 mb-4 flex items-center"><i class="fa-solid fa-lock mr-2 text-stone-500"></i> Private Information</h4>
+                    <div class="bg-stone-200 p-5 rounded-sm border border-[#d4c5a9] shadow-inner">
+                        ${renderPrivateBlock('Backstory', dataSrc.backstory)}
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+                            ${renderPrivateBlock('Personality Traits', dataSrc.traits)}
+                            ${renderPrivateBlock('Ideals', dataSrc.ideals)}
+                            ${renderPrivateBlock('Bonds', dataSrc.bonds)}
+                            ${renderPrivateBlock('Flaws', dataSrc.flaws)}
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-2 mt-2">
+                            ${renderPrivateBlock('Organizations', dataSrc.organizations)}
+                            ${renderPrivateBlock('Allies', dataSrc.allies)}
+                            ${renderPrivateBlock('Enemies', dataSrc.enemies)}
+                        </div>
+                        ${renderPrivateBlock('<i class="fa-solid fa-eye text-red-800 mr-1"></i> Secret Notes (DM)', dataSrc.dmNotes)}
+                    </div>
+                </div>
+                `;
+            }
+        }
     }
 
     const parsedDesc = desc ? window.appActions.parseSmartText(desc) : '<span class="text-stone-400 italic font-sans">No entries found...</span>';
-    const descLabel = linkedPC ? "Public Knowledge (Rumors & Repute)" : "Description";
-    const descPlaceholder = linkedPC ? "What do people know about this hero? Scribe their rumors, repute, and public knowledge..." : "Description... Codex names link automatically.";
+    const descLabel = isCharacter ? "Public Knowledge (Rumors & Repute)" : "Description";
+    const descPlaceholder = isCharacter ? "What do people know about this character? Scribe their rumors, repute, and public knowledge..." : "Description... Codex names link automatically.";
 
     // --- ATLAS MAP INTEGRATION ---
     let mapBtnHtml = '';
@@ -328,9 +371,72 @@ export const _openCodexModal = (entry) => {
         `;
     }
 
+    // --- NPC EDIT FIELDS INJECTION ---
+    const npcEditHtml = `
+    <div id="npc-edit-fields" class="${type === 'NPC' && !linkedPC ? '' : 'hidden'} mt-6 pt-6 border-t-2 border-stone-300">
+        <div class="bg-blue-900/10 border-l-4 border-blue-600 p-3 rounded-sm text-xs text-stone-800 italic mb-6">
+            <i class="fa-solid fa-circle-info text-blue-600 mr-1"></i> <strong>NPC Details:</strong> Characteristics and Appearance are Public. Backstory, Traits, and Notes remain Private (visible to the author and DM).
+        </div>
+        
+        <h4 class="text-[10px] font-bold text-red-900 uppercase tracking-widest mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-clipboard-user mr-1"></i> Characteristics (Public)</h4>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Gender</label><input type="text" id="cx-npc-gender" value="${entry.gender || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Age</label><input type="text" id="cx-npc-age" value="${entry.age || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Size</label><input type="text" id="cx-npc-size" value="${entry.size || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Height</label><input type="text" id="cx-npc-height" value="${entry.height || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Weight</label><input type="text" id="cx-npc-weight" value="${entry.weight || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Eyes</label><input type="text" id="cx-npc-eyes" value="${entry.eyes || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Hair</label><input type="text" id="cx-npc-hair" value="${entry.hair || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Skin</label><input type="text" id="cx-npc-skin" value="${entry.skin || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
+        </div>
+
+        <div class="mb-6">
+            <div class="flex justify-between items-end mb-1">
+                <label class="block text-[9px] uppercase text-stone-500 font-bold">Appearance (Public)</label>
+                <div class="flex gap-1 bg-stone-200 p-0.5 rounded-sm border border-[#d4c5a9]">
+                    <button type="button" onclick="window.appActions.formatText('cx-npc-appearance', 'bold')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm"><i class="fa-solid fa-bold"></i></button>
+                    <button type="button" onclick="window.appActions.formatText('cx-npc-appearance', 'italic')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm"><i class="fa-solid fa-italic"></i></button>
+                </div>
+            </div>
+            <textarea id="cx-npc-appearance" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white text-stone-900 h-24 font-serif outline-none focus:border-red-900 shadow-inner custom-scrollbar placeholder:italic" placeholder="Detailed physical description, scars, clothing...">${(entry.appearance || '').replace(/"/g, '&quot;')}</textarea>
+        </div>
+
+        <h4 class="text-[10px] font-bold text-stone-700 uppercase tracking-widest mb-3 mt-8 border-b border-stone-300 pb-1"><i class="fa-solid fa-lock mr-1"></i> Private Information</h4>
+        
+        <div class="mb-4">
+            <div class="flex justify-between items-end mb-1">
+                <label class="block text-[9px] uppercase text-stone-500 font-bold">Backstory</label>
+                <div class="flex gap-1 bg-stone-200 p-0.5 rounded-sm border border-[#d4c5a9]">
+                    <button type="button" onclick="window.appActions.formatText('cx-npc-backstory', 'bold')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm"><i class="fa-solid fa-bold"></i></button>
+                    <button type="button" onclick="window.appActions.formatText('cx-npc-backstory', 'italic')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm"><i class="fa-solid fa-italic"></i></button>
+                </div>
+            </div>
+            <textarea id="cx-npc-backstory" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white text-stone-900 h-24 font-serif outline-none focus:border-red-900 shadow-inner custom-scrollbar placeholder:italic" placeholder="Origins, secrets, and history...">${(entry.backstory || '').replace(/"/g, '&quot;')}</textarea>
+        </div>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Personality Traits</label><textarea id="cx-npc-traits" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-white h-20 custom-scrollbar placeholder:italic" placeholder="Quirks, mannerisms...">${(entry.traits || '').replace(/"/g, '&quot;')}</textarea></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Ideals</label><textarea id="cx-npc-ideals" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-white h-20 custom-scrollbar placeholder:italic" placeholder="What drives them...">${(entry.ideals || '').replace(/"/g, '&quot;')}</textarea></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Bonds</label><textarea id="cx-npc-bonds" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-white h-20 custom-scrollbar placeholder:italic" placeholder="Ties to others...">${(entry.bonds || '').replace(/"/g, '&quot;')}</textarea></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Flaws</label><textarea id="cx-npc-flaws" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-white h-20 custom-scrollbar placeholder:italic" placeholder="Weaknesses, secrets...">${(entry.flaws || '').replace(/"/g, '&quot;')}</textarea></div>
+        </div>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Organizations</label><input type="text" id="cx-npc-organizations" value="${(entry.organizations || '').replace(/"/g, '&quot;')}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs bg-white outline-none focus:border-red-900 shadow-inner"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Allies</label><input type="text" id="cx-npc-allies" value="${(entry.allies || '').replace(/"/g, '&quot;')}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs bg-white outline-none focus:border-red-900 shadow-inner"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Enemies</label><input type="text" id="cx-npc-enemies" value="${(entry.enemies || '').replace(/"/g, '&quot;')}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs bg-white outline-none focus:border-red-900 shadow-inner"></div>
+        </div>
+
+        <div class="mb-2">
+            <label class="block text-[9px] uppercase text-red-800 font-bold mb-1"><i class="fa-solid fa-eye mr-1"></i> Secret Notes (DM Only)</label>
+            <textarea id="cx-npc-dmnotes" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif bg-stone-200 text-stone-900 h-24 custom-scrollbar border-l-4 border-l-red-900 outline-none focus:border-red-900 shadow-inner placeholder:italic" placeholder="DM specific notes, stat blocks, or hooks...">${(entry.dmNotes || '').replace(/"/g, '&quot;')}</textarea>
+        </div>
+    </div>
+    `;
+
     container.innerHTML = `
         <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[17000] backdrop-blur-sm animate-in">
-            <div class="bg-[#f4ebd8] rounded-sm shadow-2xl w-full max-w-lg border border-[#d4c5a9] overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="bg-[#f4ebd8] rounded-sm shadow-2xl w-full max-w-2xl border border-[#d4c5a9] overflow-hidden flex flex-col max-h-[90vh]">
                 
                 <!-- Header -->
                 <div class="bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-[#292524] p-4 flex justify-between items-center border-b-2 border-red-900 shadow-md">
@@ -338,7 +444,7 @@ export const _openCodexModal = (entry) => {
                         <i class="fa-solid fa-book-journal-whills text-amber-500 text-xl"></i>
                         <div>
                             <h2 class="text-lg font-serif font-bold text-amber-50 leading-tight">Codex Entry</h2>
-                            <p class="text-stone-400 text-[10px] uppercase tracking-widest font-bold">${linkedPC ? 'Hero Profile' : 'Knowledge Base'}</p>
+                            <p class="text-stone-400 text-[10px] uppercase tracking-widest font-bold">${isCharacter ? 'Character Profile' : 'Knowledge Base'}</p>
                         </div>
                     </div>
                     <div class="flex gap-2">
@@ -348,16 +454,20 @@ export const _openCodexModal = (entry) => {
                 </div>
 
                 <!-- View Mode -->
-                <div id="cx-view-mode" class="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-grow bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-[#fdfbf7] ${viewHidden}">
+                <div id="cx-view-mode" class="p-5 sm:p-8 overflow-y-auto custom-scrollbar flex-grow bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-[#fdfbf7] ${viewHidden}">
                     ${imgHTML}
-                    <div class="mb-4">
-                        <h3 class="text-2xl font-serif font-bold text-stone-900">${name}</h3>
+                    <div class="mb-6">
+                        <h3 class="text-2xl sm:text-3xl font-serif font-bold text-stone-900">${name}</h3>
                         <div class="mt-2">${tagsHTML}</div>
                         ${mapBtnHtml}
                     </div>
-                    ${pcDataHTML}
+                    
+                    ${charDataHTML}
+                    
                     <h4 class="font-bold text-red-900 border-b border-[#d4c5a9] pb-1 mb-2">${descLabel}</h4>
                     <div class="text-stone-800 text-sm font-serif leading-relaxed">${parsedDesc}</div>
+                    
+                    ${privateDataHTML}
                 </div>
 
                 <!-- Edit Mode -->
@@ -374,7 +484,7 @@ export const _openCodexModal = (entry) => {
 
                     <div class="mb-4">
                         <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Type</label>
-                        <select id="cx-modal-type" ${linkedPC ? 'disabled' : ''} class="w-full ${linkedPC ? 'bg-stone-200 text-stone-500' : 'bg-white text-stone-900'} border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner font-bold">
+                        <select id="cx-modal-type" ${linkedPC ? 'disabled' : ''} onchange="document.getElementById('npc-edit-fields').classList.toggle('hidden', this.value !== 'NPC');" class="w-full ${linkedPC ? 'bg-stone-200 text-stone-500' : 'bg-white text-stone-900'} border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner font-bold">
                             <option value="PC" ${type==='PC'?'selected':''}>PC</option>
                             <option value="NPC" ${type==='NPC'?'selected':''}>NPC</option>
                             <option value="Location" ${type==='Location'?'selected':''}>Location</option>
@@ -410,13 +520,16 @@ export const _openCodexModal = (entry) => {
                                 <button type="button" onclick="window.appActions.defineEntryFromSelection('cx-modal-desc')" class="px-2 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-amber-700 hover:text-amber-900 hover:bg-[#d4c5a9] rounded-sm transition uppercase tracking-wider" title="Define Highlighted Text"><i class="fa-solid fa-book-medical mr-1"></i> Define</button>
                             </div>
                         </div>
-                        <textarea id="cx-modal-desc" class="w-full h-40 bg-white border border-[#d4c5a9] text-stone-900 p-3 text-sm focus:border-red-900 outline-none resize-none rounded-b-sm shadow-inner custom-scrollbar" placeholder="${descPlaceholder}">${desc}</textarea>
+                        <textarea id="cx-modal-desc" class="w-full h-40 bg-white border border-[#d4c5a9] text-stone-900 p-3 text-sm focus:border-red-900 outline-none resize-none rounded-sm shadow-inner custom-scrollbar" placeholder="${descPlaceholder}">${desc}</textarea>
                     </div>
+
+                    ${npcEditHtml}
+
                 </div>
 
                 <!-- Actions -->
                 <div id="cx-edit-actions" class="p-4 bg-stone-200 border-t border-[#d4c5a9] flex flex-wrap-reverse sm:flex-nowrap justify-between gap-3 shrink-0 ${editHidden}">
-                    ${(!isNew && canDelete) ? `<button onclick="window.appActions.deleteCodexEntry('${id}')" class="w-full sm:w-auto px-4 py-2 bg-red-900 text-white rounded-sm text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-red-800 transition"><i class="fa-solid fa-trash mr-1"></i> Delete</button>` : `<div class="hidden sm:block">${linkedPC ? '<span class="text-[10px] uppercase text-stone-500 font-bold"><i class="fa-solid fa-lock mr-1"></i> Core Hero Profile</span>' : ''}</div>`}
+                    ${(!isNew && canDelete) ? `<button onclick="window.appActions.deleteCodexEntry('${id}')" class="w-full sm:w-auto px-4 py-2 bg-red-900 text-white rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-red-800 transition"><i class="fa-solid fa-trash mr-1"></i> Delete</button>` : `<div class="hidden sm:block">${linkedPC ? '<span class="text-[10px] uppercase text-stone-500 font-bold"><i class="fa-solid fa-lock mr-1"></i> Core Hero Profile</span>' : ''}</div>`}
                     <div class="flex gap-2 w-full sm:w-auto">
                         <button onclick="${isNew ? `document.getElementById('global-popup-container').innerHTML = '';` : `document.getElementById('cx-view-mode').classList.remove('hidden'); document.getElementById('cx-edit-mode').classList.add('hidden'); document.getElementById('cx-edit-actions').classList.add('hidden');`}" class="flex-1 sm:flex-none px-4 py-2 border border-stone-400 text-stone-600 rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-stone-300 transition">Cancel</button>
                         <button onclick="window.appActions.saveCodexEntry()" class="flex-1 sm:flex-none px-5 py-2 bg-stone-800 text-amber-50 rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-stone-700 transition">Save</button>
@@ -445,6 +558,8 @@ export const saveCodexEntry = async () => {
 
     const id = document.getElementById('cx-modal-id').value;
     const name = document.getElementById('cx-modal-name').value.trim();
+    const typeVal = document.getElementById('cx-modal-type').value;
+
     if (!name) {
         notify("A name is required for Codex auto-linking.", "error");
         return;
@@ -454,15 +569,40 @@ export const saveCodexEntry = async () => {
     const isNew = !id;
     const existingEntry = camp.codex?.find(c => c.id === id);
 
+    let npcData = {};
+    if (typeVal === 'NPC') {
+        npcData = {
+            gender: document.getElementById('cx-npc-gender')?.value.trim() || '',
+            age: document.getElementById('cx-npc-age')?.value.trim() || '',
+            size: document.getElementById('cx-npc-size')?.value.trim() || '',
+            height: document.getElementById('cx-npc-height')?.value.trim() || '',
+            weight: document.getElementById('cx-npc-weight')?.value.trim() || '',
+            eyes: document.getElementById('cx-npc-eyes')?.value.trim() || '',
+            hair: document.getElementById('cx-npc-hair')?.value.trim() || '',
+            skin: document.getElementById('cx-npc-skin')?.value.trim() || '',
+            appearance: document.getElementById('cx-npc-appearance')?.value || '',
+            backstory: document.getElementById('cx-npc-backstory')?.value || '',
+            traits: document.getElementById('cx-npc-traits')?.value || '',
+            ideals: document.getElementById('cx-npc-ideals')?.value || '',
+            bonds: document.getElementById('cx-npc-bonds')?.value || '',
+            flaws: document.getElementById('cx-npc-flaws')?.value || '',
+            organizations: document.getElementById('cx-npc-organizations')?.value.trim() || '',
+            allies: document.getElementById('cx-npc-allies')?.value.trim() || '',
+            enemies: document.getElementById('cx-npc-enemies')?.value.trim() || '',
+            dmNotes: document.getElementById('cx-npc-dmnotes')?.value || ''
+        };
+    }
+
     const newEntry = {
         id: id || generateId(),
         name: name,
-        type: document.getElementById('cx-modal-type').value,
+        type: typeVal,
         tags: document.getElementById('cx-modal-tags').value.split(',').map(t=>t.trim()).filter(t=>t),
         desc: document.getElementById('cx-modal-desc').value,
         image: document.getElementById('cx-modal-image').value.trim(),
         authorId: isNew ? myUid : (existingEntry?.authorId || myUid),
-        visibility: existingEntry?.visibility || { mode: 'public' }
+        visibility: existingEntry?.visibility || { mode: 'public' },
+        ...npcData // Inject the detailed NPC characteristics safely
     };
 
     const newCodexArray = isNew ? [...(camp.codex || []), newEntry] : camp.codex.map(c => c.id === id ? newEntry : c);
