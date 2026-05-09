@@ -36,7 +36,7 @@ export const clearActivityLog = async () => {
     const updatedCamp = { ...camp, activityLog: [] };
     await saveCampaign(updatedCamp);
     notify("Activity log cleared.", "success");
-    reRender();
+    reRender(true); // Force render for explicit user actions to bypass Data Protection
 };
 
 // --- Navigation ---
@@ -75,7 +75,7 @@ export const setView = (viewName) => {
     window.appData.activeCalendarDate = null;
     window.appData.showCalendarSettings = false;
   }
-  reRender();
+  reRender(true); // Force render to bypass Data Protection when navigating screens!
 };
 
 export const openCampaign = (id) => {
@@ -311,7 +311,7 @@ export const deleteAdventure = async (id) => {
   if (window.appData.activeAdventureId === id) {
     window.appActions.setView('campaign');
   } else {
-    reRender();
+    reRender(true); // Force render for explicit user actions
   }
 };
 
@@ -424,7 +424,7 @@ export const saveEditAdventure = async () => {
     
     document.getElementById('global-popup-container').innerHTML = '';
     notify("Adventure details updated.", "success");
-    reRender();
+    reRender(true); // Force render for explicit user actions
 };
 
 export const refreshPartyBoons = async () => {
@@ -449,7 +449,7 @@ export const refreshPartyBoons = async () => {
     await saveCampaign(updatedCamp);
     
     notify("Party boons have been refreshed.", "success");
-    reRender();
+    reRender(true); // Force render for explicit user actions
 };
 
 // --- Adventure Roster Management ---
@@ -504,7 +504,7 @@ export const toggleAdvRosterPc = (pcId) => {
     // We are unchecking this hero
     window.appData.tempAdvRoster.splice(idx, 1);
   }
-  reRender(); // Re-render to update checkbox visuals
+  reRender(true); // Re-render to update checkbox visuals
 };
 
 export const saveAdvRoster = async () => {
@@ -533,7 +533,7 @@ export const openChecklistMenu = () => {
   const modal = document.getElementById('checklist-modal');
   if (modal) {
     // Ensure UI is fully up to date before revealing
-    reRender();
+    reRender(true); // Force render for explicit user actions
     modal.classList.remove('hidden');
   }
 };
