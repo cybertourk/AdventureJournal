@@ -4,17 +4,19 @@ import { renderApp } from './ui-core.js';
 if (!window.appData) {
     window.appData = {
         campaigns: [],
-        currentView: 'home', // home, campaign, adventure, adv-roster, session-edit, pc-manager, pc-edit, journal, codex, calendar, rules
+        currentView: 'home', // home, campaign, adventure, adv-roster, session-edit, pc-manager, pc-edit, journal, codex, calendar, rules, atlas, activity-log, webs
         activeCampaignId: null,
         activeAdventureId: null,
         activeSessionId: null,
         activePcId: null,
         activeCalendarDate: null, // Tracks the currently clicked { year, monthIndex, day }
+        activeWebId: null, // NEW: Tracks the currently active Relationship Web map
         
         // Derived Active Entities
         activeCampaign: null,
         activeAdventure: null,
         activeSession: null,
+        activeWeb: null, // NEW: The specific Relationship Web object
 
         // Codex & Smart Text State
         codexCache: [], // Array of objects { text: "Alias/Name", id: "TargetID" }
@@ -87,6 +89,7 @@ export function updateDerivedState() {
         // Ensure arrays exist
         if (!window.appData.activeCampaign.codex) window.appData.activeCampaign.codex = [];
         if (!window.appData.activeCampaign.rulesGlossary) window.appData.activeCampaign.rulesGlossary = [];
+        if (!window.appData.activeCampaign.webs) window.appData.activeCampaign.webs = []; // NEW: Relationship Webs
         
         // Build Autocomplete Cache: Combine Codex entries, Heroes, and Rules Glossary!
         const aliasMap = new Map();
@@ -129,9 +132,18 @@ export function updateDerivedState() {
         } else {
             window.appData.activeAdventure = null;
         }
+
+        // NEW: Active Web Derived State
+        if (window.appData.activeWebId) {
+            window.appData.activeWeb = window.appData.activeCampaign.webs.find(w => w.id === window.appData.activeWebId) || null;
+        } else {
+            window.appData.activeWeb = null;
+        }
+
     } else {
         window.appData.codexCache = [];
         window.appData.activeAdventure = null;
+        window.appData.activeWeb = null;
     }
 
     if (window.appData.activeAdventure && window.appData.activeSessionId) {
