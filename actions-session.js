@@ -253,11 +253,18 @@ export const _gatherSessionDraft = () => {
                 text: row.querySelector('.scene-hidden-input')?.value || '',
                 visibility: grabVisibility(row)
             })),
-            clues: window.appActions._readDynamicList('container-clues', (row, idx) => ({
-                id: idx + 1,
-                text: row.querySelector('.clue-input')?.value || '',
-                visibility: grabVisibility(row)
-            })),
+            
+            // Reads the hidden fields to ensure player authors and original IDs are preserved!
+            clues: window.appActions._readDynamicList('container-clues', (row, idx) => {
+                const idInput = row.querySelector('.clue-id-input')?.value;
+                const authorInput = row.querySelector('.clue-author-input')?.value;
+                return {
+                    id: idInput || generateId(),
+                    text: row.querySelector('.clue-input')?.value || '',
+                    visibility: grabVisibility(row),
+                    authorId: authorInput || window.appData.currentUserUid
+                };
+            }),
             
             chronicle: session?.chronicle || [], // Preserves the collaborative log feed!
             
@@ -538,6 +545,84 @@ export const deleteSession = async (sessionId) => {
     notify("Session log destroyed.", "success");
 };
 
+// --- Collaborative Clues (Players) ---
+
+export const submitSessionClue = async () => {
+    const input = document.getElementById('new-player-clue');
+    if (!input) return;
+    
+    const text = input.value.trim();
+    if (!text) return;
+    
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    const adv = window.appData.activeAdventure;
+    const session = window.appData.activeSession;
+    const myUid = window.appData.currentUserUid;
+    
+    if (!camp || !adv || !session || !myUid) return;
+
+    const newClue = {
+        id: generateId(),
+        text: text,
+        authorId: myUid,
+        visibility: { mode: 'public', visibleTo: [] }
+    };
+
+    const updatedAdventures = camp.adventures.map(a => {
+        if (a.id !== adv.id) return a;
+        const updatedSessions = a.sessions.map(s => {
+            if (s.id !== session.id) return s;
+            return { ...s, clues: [...(s.clues || []), newClue] };
+        });
+        return { ...a, sessions: updatedSessions };
+    });
+
+    let updatedCamp = { ...camp, adventures: updatedAdventures };
+    
+    if (!camp._isDM) {
+        updatedCamp = logPlayerActivity(updatedCamp, myUid, `logged a discovery in <span class="font-bold text-amber-700">${session.name}</span>.`, 'fa-magnifying-glass');
+    }
+
+    input.value = ''; // Clean up input
+    
+    await saveCampaign(updatedCamp);
+    reRender(); // Instant UI update
+};
+
+export const deleteSessionClue = async (clueId) => {
+    if (!confirm("Are you sure you want to remove this discovery?")) return;
+    
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    const adv = window.appData.activeAdventure;
+    const session = window.appData.activeSession;
+    const myUid = window.appData.currentUserUid;
+    
+    if (!camp || !adv || !session || !myUid) return;
+
+    const updatedAdventures = camp.adventures.map(a => {
+        if (a.id !== adv.id) return a;
+        const updatedSessions = a.sessions.map(s => {
+            if (s.id !== session.id) return s;
+            return {
+                ...s,
+                clues: (s.clues || []).filter(c => c.id !== clueId)
+            };
+        });
+        return { ...a, sessions: updatedSessions };
+    });
+
+    let updatedCamp = { ...camp, adventures: updatedAdventures };
+    
+    if (!camp._isDM) {
+        updatedCamp = logPlayerActivity(updatedCamp, myUid, `removed a discovery from <span class="font-bold text-amber-700">${session.name}</span>.`, 'fa-eraser');
+    }
+    
+    await saveCampaign(updatedCamp);
+    reRender();
+};
+
 // --- Collaborative Chronicle ---
 
 export const editChronicleEntry = (entryId) => {
@@ -704,12 +789,12 @@ export const addLogScene = () => {
             <div class="flex justify-between items-center bg-[#f4ebd8] px-3 py-1.5 border-b border-[#d4c5a9] rounded-t-sm">
                 <span class="text-[10px] text-stone-500 font-bold uppercase tracking-widest">Scene ${idx + 1}</span>
                 <div class="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity items-center">
-                    <button class="text-red-700 hover:text-red-600 font-bold px-2 py-1 text-[10px] uppercase tracking-widest transition flex items-center" onclick="event.stopPropagation(); window.appActions.openVisibilityMenu(this, 'dom')">
+                    <button type="button" class="text-red-700 hover:text-red-600 font-bold px-2 py-1 text-[10px] uppercase tracking-widest transition flex items-center" onclick="event.stopPropagation(); window.appActions.openVisibilityMenu(this, 'dom')">
                         <i class="fa-solid fa-eye-slash mr-1"></i> Hidden
                     </button>
                     <div class="w-px h-3 bg-stone-300"></div>
-                    <button class="text-[10px] text-stone-500 hover:text-blue-600 uppercase font-bold transition" onclick="event.stopPropagation(); window.appActions.openUniversalEditor('${inputId}', 'Scene ${idx + 1}')"><i class="fa-solid fa-pen"></i> Edit</button>
-                    <button class="text-[10px] text-red-800 hover:text-red-600 uppercase font-bold transition" onclick="event.stopPropagation(); this.closest('.scene-row').remove()"><i class="fa-solid fa-trash"></i></button>
+                    <button type="button" class="text-[10px] text-stone-500 hover:text-blue-600 uppercase font-bold transition" onclick="event.stopPropagation(); window.appActions.openUniversalEditor('${inputId}', 'Scene ${idx + 1}')"><i class="fa-solid fa-pen"></i> Edit</button>
+                    <button type="button" class="text-[10px] text-red-800 hover:text-red-600 uppercase font-bold transition" onclick="event.stopPropagation(); this.closest('.scene-row').remove()"><i class="fa-solid fa-trash"></i></button>
                 </div>
             </div>
             <input type="hidden" class="vis-mode-input" value="hidden">
@@ -730,14 +815,16 @@ export const addLogClue = () => {
             <i class="fa-solid fa-magnifying-glass text-stone-400 ml-1"></i>
             <input type="hidden" class="vis-mode-input" value="hidden">
             <input type="hidden" class="vis-players-input" value="">
+            <input type="hidden" class="clue-id-input" value="${generateId()}">
+            <input type="hidden" class="clue-author-input" value="${window.appData.currentUserUid}">
             
             <input type="text" class="clue-input flex-1 bg-transparent border-none text-stone-900 px-1 text-xs sm:text-sm outline-none placeholder:italic placeholder:text-stone-400" placeholder="Quest update, clue, or objective...">
             
             <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button class="text-red-700 hover:text-red-600 font-bold px-2 py-1 text-[10px] uppercase tracking-widest transition flex items-center" onclick="window.appActions.openVisibilityMenu(this, 'dom')">
+                <button type="button" class="text-red-700 hover:text-red-600 font-bold px-2 py-1 text-[10px] uppercase tracking-widest transition flex items-center" onclick="window.appActions.openVisibilityMenu(this, 'dom')">
                     <i class="fa-solid fa-eye-slash"></i>
                 </button>
-                <button class="text-stone-400 hover:text-red-700 font-bold px-2 transition" onclick="this.closest('.clue-row').remove()">
+                <button type="button" class="text-stone-400 hover:text-red-700 font-bold px-2 transition" onclick="this.closest('.clue-row').remove()">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
