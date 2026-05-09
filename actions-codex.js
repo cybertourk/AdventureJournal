@@ -332,6 +332,7 @@ export const _openCodexModal = (entry) => {
         <div class="mb-6 bg-white border border-[#d4c5a9] p-4 rounded-sm shadow-inner text-sm">
             <h4 class="font-bold text-emerald-900 border-b border-[#d4c5a9] pb-1 mb-3"><i class="fa-solid fa-map-location-dot mr-1"></i> Location Details</h4>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-stone-700 mb-4">
+                <div><span class="font-bold text-stone-900 block">Scale / Type</span> ${dataSrc.locationType || '--'}</div>
                 <div><span class="font-bold text-stone-900 block">Region / Territory</span> ${dataSrc.region || '--'}</div>
                 <div><span class="font-bold text-stone-900 block">Population</span> ${dataSrc.population || '--'}</div>
                 <div><span class="font-bold text-stone-900 block">Government / Ruler</span> ${dataSrc.government || '--'}</div>
@@ -541,6 +542,20 @@ export const _openCodexModal = (entry) => {
         
         <h4 class="text-[10px] font-bold text-emerald-900 uppercase tracking-widest mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-map-pin mr-1"></i> Details (Public)</h4>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+            <div>
+                <label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Scale / Type</label>
+                <select id="cx-loc-scale" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm font-bold">
+                    <option value="" ${!entry.locationType ? 'selected' : ''}>-- Select Scale --</option>
+                    <option value="Realm / Plane" ${entry.locationType === 'Realm / Plane' ? 'selected' : ''}>Realm / Plane</option>
+                    <option value="Continent" ${entry.locationType === 'Continent' ? 'selected' : ''}>Continent</option>
+                    <option value="Region / Province" ${entry.locationType === 'Region / Province' ? 'selected' : ''}>Region / Province</option>
+                    <option value="City / Settlement" ${entry.locationType === 'City / Settlement' ? 'selected' : ''}>City / Settlement</option>
+                    <option value="District / Neighborhood" ${entry.locationType === 'District / Neighborhood' ? 'selected' : ''}>District / Neighborhood</option>
+                    <option value="Building / Establishment" ${entry.locationType === 'Building / Establishment' ? 'selected' : ''}>Building / Establishment</option>
+                    <option value="Dungeon / Ruin" ${entry.locationType === 'Dungeon / Ruin' ? 'selected' : ''}>Dungeon / Ruin</option>
+                    <option value="Geographical Feature" ${entry.locationType === 'Geographical Feature' ? 'selected' : ''}>Geographical Feature</option>
+                </select>
+            </div>
             <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Region / Territory</label><input type="text" id="cx-loc-region" value="${entry.region || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm" placeholder="e.g. Sword Coast"></div>
             <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Population</label><input type="text" id="cx-loc-population" value="${entry.population || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm" placeholder="e.g. ~130,000 (Diverse)"></div>
             <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Government / Ruler</label><input type="text" id="cx-loc-government" value="${entry.government || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm" placeholder="e.g. Masked Lords"></div>
@@ -644,6 +659,7 @@ export const saveCodexEntry = async () => {
     let locData = {};
     if (typeVal === 'Location') {
         locData = {
+            locationType: document.getElementById('cx-loc-scale')?.value || '',
             region: document.getElementById('cx-loc-region')?.value.trim() || '',
             population: document.getElementById('cx-loc-population')?.value.trim() || '',
             government: document.getElementById('cx-loc-government')?.value.trim() || '',
