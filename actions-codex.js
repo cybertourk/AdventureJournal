@@ -289,12 +289,14 @@ export const _openCodexModal = (entry) => {
     const resolvedImage = image || (linkedPC ? linkedPC.image : "");
     const imgHTML = resolvedImage ? `<div class="mb-5 w-full h-48 sm:h-64 bg-stone-900 border border-[#d4c5a9] rounded-sm overflow-hidden shadow-inner"><img src="${resolvedImage}" class="w-full h-full object-contain object-top" alt="${name}" onerror="this.style.display='none'"></div>` : '';
 
-    // --- DYNAMIC HERO & NPC INJECTION (Unifies Public & Private Knowledge) ---
+    // --- DYNAMIC HERO, NPC & LOCATION INJECTION (Unifies Public & Private Knowledge) ---
     let charDataHTML = '';
+    let locationDataHTML = '';
     let privateDataHTML = '';
 
     const isCharacter = type === 'PC' || type === 'NPC';
-    const dataSrc = linkedPC ? linkedPC : (type === 'NPC' ? entry : null);
+    const isLocation = type === 'Location';
+    const dataSrc = linkedPC ? linkedPC : ((isCharacter || isLocation) ? entry : null);
 
     if (isCharacter && dataSrc) {
         const parsedApp = dataSrc.appearance ? window.appActions.parseSmartText(dataSrc.appearance) : '<span class="text-stone-400 italic">No appearance recorded...</span>';
@@ -321,8 +323,29 @@ export const _openCodexModal = (entry) => {
                 <div class="text-stone-800 text-sm leading-relaxed font-serif">${parsedApp}</div>
             </div>
         `;
+    }
 
-        // Render Private Info for Authorized Users
+    if (isLocation && dataSrc) {
+        const parsedPOI = dataSrc.pointsOfInterest ? window.appActions.parseSmartText(dataSrc.pointsOfInterest) : '<span class="text-stone-400 italic">No points of interest recorded...</span>';
+        
+        locationDataHTML = `
+        <div class="mb-6 bg-white border border-[#d4c5a9] p-4 rounded-sm shadow-inner text-sm">
+            <h4 class="font-bold text-emerald-900 border-b border-[#d4c5a9] pb-1 mb-3"><i class="fa-solid fa-map-location-dot mr-1"></i> Location Details</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-stone-700 mb-4">
+                <div><span class="font-bold text-stone-900 block">Region / Territory</span> ${dataSrc.region || '--'}</div>
+                <div><span class="font-bold text-stone-900 block">Population</span> ${dataSrc.population || '--'}</div>
+                <div><span class="font-bold text-stone-900 block">Government / Ruler</span> ${dataSrc.government || '--'}</div>
+                <div><span class="font-bold text-stone-900 block">Economy / Trade</span> ${dataSrc.economy || '--'}</div>
+                <div class="col-span-1 sm:col-span-2"><span class="font-bold text-stone-900 block">Defenses</span> ${dataSrc.defenses || '--'}</div>
+            </div>
+            <h4 class="font-bold text-emerald-900 border-b border-[#d4c5a9] pb-1 mb-2"><i class="fa-solid fa-location-dot mr-1"></i> Points of Interest</h4>
+            <div class="text-stone-800 text-sm leading-relaxed font-serif">${parsedPOI}</div>
+        </div>
+        `;
+    }
+
+    // Render Private Info for Authorized Users
+    if (dataSrc) {
         const canViewPrivate = isDM || isHeroOwner || (!linkedPC && isAuthor);
         
         if (canViewPrivate) {
@@ -333,7 +356,7 @@ export const _openCodexModal = (entry) => {
                 </div>` : '';
             
             // Check if there is ANY private data to show
-            const hasPrivateData = dataSrc.backstory || dataSrc.traits || dataSrc.ideals || dataSrc.bonds || dataSrc.flaws || dataSrc.organizations || dataSrc.allies || dataSrc.enemies || dataSrc.dmNotes;
+            const hasPrivateData = dataSrc.backstory || dataSrc.traits || dataSrc.ideals || dataSrc.bonds || dataSrc.flaws || dataSrc.organizations || dataSrc.allies || dataSrc.enemies || dataSrc.dmNotes || dataSrc.secrets;
 
             if (hasPrivateData) {
                 privateDataHTML = `
@@ -352,6 +375,7 @@ export const _openCodexModal = (entry) => {
                             ${renderPrivateBlock('Allies', dataSrc.allies)}
                             ${renderPrivateBlock('Enemies', dataSrc.enemies)}
                         </div>
+                        ${renderPrivateBlock('<i class="fa-solid fa-user-secret text-stone-800 mr-1"></i> Hidden Secrets', dataSrc.secrets)}
                         ${renderPrivateBlock('<i class="fa-solid fa-eye text-red-800 mr-1"></i> Secret Notes (DM)', dataSrc.dmNotes)}
                     </div>
                 </div>
@@ -361,8 +385,16 @@ export const _openCodexModal = (entry) => {
     }
 
     const parsedDesc = desc ? window.appActions.parseSmartText(desc) : '<span class="text-stone-400 italic font-sans">No entries found...</span>';
-    const descLabel = isCharacter ? "Public Knowledge (Rumors & Repute)" : "Description";
-    const descPlaceholder = isCharacter ? "What do people know about this character? Scribe their rumors, repute, and public knowledge..." : "Description... Codex names link automatically.";
+    
+    let descLabel = "Description";
+    let descPlaceholder = "Description... Codex names link automatically.";
+    if (isCharacter) {
+        descLabel = "Public Knowledge (Rumors & Repute)";
+        descPlaceholder = "What do people know about this character? Scribe their rumors, repute, and public knowledge...";
+    } else if (isLocation) {
+        descLabel = "Location Description (Public)";
+        descPlaceholder = "Scribe the visual description, atmosphere, and public knowledge about this location...";
+    }
 
     // --- ATLAS MAP INTEGRATION ---
     let mapBtnHtml = '';
@@ -473,6 +505,7 @@ export const _openCodexModal = (entry) => {
                     </div>
                     
                     ${charDataHTML}
+                    ${locationDataHTML}
                     
                     <h4 class="font-bold text-red-900 border-b border-[#d4c5a9] pb-1 mb-2">${descLabel}</h4>
                     <div class="text-stone-800 text-sm font-serif leading-relaxed">${parsedDesc}</div>
@@ -494,46 +527,46 @@ export const _openCodexModal = (entry) => {
 
                     <div class="mb-4">
                         <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Type</label>
-                        <select id="cx-modal-type" ${linkedPC ? 'disabled' : ''} onchange="document.getElementById('npc-edit-fields').classList.toggle('hidden', this.value !== 'NPC');" class="w-full ${linkedPC ? 'bg-stone-200 text-stone-500' : 'bg-white text-stone-900'} border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner font-bold">
+                        <select id="cx-modal-type" ${linkedPC ? 'disabled' : ''} onchange="document.getElementById('npc-edit-fields').classList.toggle('hidden', this.value !== 'NPC'); document.getElementById('location-edit-fields').classList.toggle('hidden', this.value !== 'Location');" class="w-full ${linkedPC ? 'bg-stone-200 text-stone-500' : 'bg-white text-stone-900'} border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner font-bold">
                             <option value="PC" ${type==='PC'?'selected':''}>PC</option>
                             <option value="NPC" ${type==='NPC'?'selected':''}>NPC</option>
-                            <option value="Location" ${type==='Location'?'selected':''}>Location</option>
-                            <option value="Faction" ${type==='Faction'?'selected':''}>Faction</option>
-                            <option value="Route" ${type==='Route'?'selected':''}>Route</option>
-                            <option value="Item" ${type==='Item'?'selected':''}>Item</option>
-                            <option value="Lore" ${type==='Lore'?'selected':''}>Lore</option>
-                        </select>
-                    </div>
+            <textarea id="cx-npc-dmnotes" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif bg-stone-200 text-stone-900 h-24 custom-scrollbar border-l-4 border-l-red-900 outline-none focus:border-red-900 shadow-inner placeholder:italic" placeholder="DM specific notes, stat blocks, or hooks...">${(entry.dmNotes || '').replace(/"/g, '&quot;')}</textarea>
+        </div>
+    </div>
+    
+    <div id="location-edit-fields" class="${type === 'Location' ? '' : 'hidden'} mt-6 pt-6 border-t-2 border-stone-300">
+        <div class="bg-emerald-900/10 border-l-4 border-emerald-600 p-3 rounded-sm text-xs text-stone-800 italic mb-6">
+            <i class="fa-solid fa-circle-info text-emerald-600 mr-1"></i> <strong>Location Details:</strong> Region, demographics, and points of interest are Public. Secrets remain Private (visible to the author and DM).
+        </div>
+        
+        <h4 class="text-[10px] font-bold text-emerald-900 uppercase tracking-widest mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-map-pin mr-1"></i> Details (Public)</h4>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Region / Territory</label><input type="text" id="cx-loc-region" value="${entry.region || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm" placeholder="e.g. Sword Coast"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Population</label><input type="text" id="cx-loc-population" value="${entry.population || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm" placeholder="e.g. ~130,000 (Diverse)"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Government / Ruler</label><input type="text" id="cx-loc-government" value="${entry.government || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm" placeholder="e.g. Masked Lords"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Economy / Trade</label><input type="text" id="cx-loc-economy" value="${entry.economy || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm" placeholder="e.g. Trade Hub, Fishing"></div>
+            <div class="sm:col-span-2"><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Defenses</label><input type="text" id="cx-loc-defenses" value="${entry.defenses || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm" placeholder="e.g. City Guard, High Walls"></div>
+        </div>
 
-                    <div class="mb-4">
-                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Tags (Comma Separated)</label>
-                        <input type="text" id="cx-modal-tags" value="${tags}" ${linkedPC ? 'readonly disabled' : ''} class="w-full ${linkedPC ? 'bg-stone-200 text-stone-500' : 'bg-white text-stone-900 focus:border-red-900'} border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner font-bold" placeholder="e.g. Ally, Vendor">
-                    </div>
-                    
-                    <div class="mb-4">
-                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Image URL</label>
-                        <input type="text" id="cx-modal-image" value="${image}" ${linkedPC ? 'readonly disabled title="Edit this hero\'s image in the PC Manager"' : ''} class="w-full ${linkedPC ? 'bg-stone-200 text-stone-500' : 'bg-white text-stone-900 focus:border-red-900'} border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner font-bold" placeholder="https://example.com/image.jpg">
-                    </div>
+        <div class="mb-6">
+            <div class="flex justify-between items-end mb-1">
+                <label class="block text-[9px] uppercase text-stone-500 font-bold">Points of Interest (Public)</label>
+                <div class="flex gap-1 bg-stone-200 p-0.5 rounded-sm border border-[#d4c5a9]">
+                    <button type="button" onclick="window.appActions.formatText('cx-loc-poi', 'bold')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm"><i class="fa-solid fa-bold"></i></button>
+                    <button type="button" onclick="window.appActions.formatText('cx-loc-poi', 'italic')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm"><i class="fa-solid fa-italic"></i></button>
+                    <button type="button" onclick="window.appActions.formatText('cx-loc-poi', 'list')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm"><i class="fa-solid fa-list-ul"></i></button>
+                </div>
+            </div>
+            <textarea id="cx-loc-poi" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white text-stone-900 h-24 font-serif outline-none focus:border-emerald-900 shadow-inner custom-scrollbar placeholder:italic" placeholder="Taverns, shops, notable structures...">${(entry.pointsOfInterest || '').replace(/"/g, '&quot;')}</textarea>
+        </div>
 
-                    <div class="mb-4">
-                        <div class="flex justify-between items-end mb-1">
-                            <label class="block text-[10px] uppercase text-stone-500 font-bold tracking-widest">${descLabel}</label>
-                            <div class="flex gap-1 bg-stone-200 p-1 rounded-sm border border-[#d4c5a9] overflow-x-auto hide-scrollbar">
-                                <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'bold')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bold"><i class="fa-solid fa-bold"></i></button>
-                                <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'italic')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Italic"><i class="fa-solid fa-italic"></i></button>
-                                <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'underline')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Underline"><i class="fa-solid fa-underline"></i></button>
-                                <div class="w-px bg-[#d4c5a9] mx-1 shrink-0"></div>
-                                <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'h1')" class="w-6 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Heading 1">H1</button>
-                                <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'h2')" class="w-6 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Heading 2">H2</button>
-                                <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'list')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
-                                <div class="w-px bg-[#d4c5a9] mx-1 shrink-0"></div>
-                                <button type="button" onclick="window.appActions.defineEntryFromSelection('cx-modal-desc')" class="px-2 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-amber-700 hover:text-amber-900 hover:bg-[#d4c5a9] rounded-sm transition uppercase tracking-wider" title="Define Highlighted Text"><i class="fa-solid fa-book-medical mr-1"></i> Define</button>
-                            </div>
-                        </div>
-                        <textarea id="cx-modal-desc" class="w-full h-40 bg-white border border-[#d4c5a9] text-stone-900 p-3 text-sm focus:border-red-900 outline-none resize-none rounded-sm shadow-inner custom-scrollbar" placeholder="${descPlaceholder}">${desc}</textarea>
-                    </div>
-
-                    ${npcEditHtml}
+        <h4 class="text-[10px] font-bold text-stone-700 uppercase tracking-widest mb-3 mt-8 border-b border-stone-300 pb-1"><i class="fa-solid fa-lock mr-1"></i> Private Information</h4>
+        
+        <div class="mb-2">
+            <label class="block text-[9px] uppercase text-stone-500 font-bold mb-1"><i class="fa-solid fa-user-secret mr-1"></i> Hidden Secrets & DM Notes</label>
+            <textarea id="cx-loc-secrets" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-stone-200 border-l-4 border-l-red-900 text-stone-900 h-24 custom-scrollbar placeholder:italic" placeholder="Underground cults, hidden treasure, traps, or DM only details...">${(entry.secrets || '').replace(/"/g, '&quot;')}</textarea>
+        </div>
+    </div>
 
                 </div>
 
@@ -608,6 +641,19 @@ export const saveCodexEntry = async () => {
         };
     }
 
+    let locData = {};
+    if (typeVal === 'Location') {
+        locData = {
+            region: document.getElementById('cx-loc-region')?.value.trim() || '',
+            population: document.getElementById('cx-loc-population')?.value.trim() || '',
+            government: document.getElementById('cx-loc-government')?.value.trim() || '',
+            economy: document.getElementById('cx-loc-economy')?.value.trim() || '',
+            defenses: document.getElementById('cx-loc-defenses')?.value.trim() || '',
+            pointsOfInterest: document.getElementById('cx-loc-poi')?.value || '',
+            secrets: document.getElementById('cx-loc-secrets')?.value || ''
+        };
+    }
+
     const newEntry = {
         id: id || generateId(),
         name: name,
@@ -617,7 +663,8 @@ export const saveCodexEntry = async () => {
         image: document.getElementById('cx-modal-image').value.trim(),
         authorId: isNew ? myUid : (existingEntry?.authorId || myUid),
         visibility: existingEntry?.visibility || { mode: 'public' },
-        ...npcData // Inject the detailed NPC characteristics safely
+        ...npcData,
+        ...locData
     };
 
     const newCodexArray = isNew ? [...(camp.codex || []), newEntry] : camp.codex.map(c => c.id === id ? newEntry : c);
