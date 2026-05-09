@@ -4,7 +4,7 @@ import { _canViewCodex } from './actions-codex.js';
 
 // --- CORE MAP MANAGEMENT ---
 
-export const createNewWeb = async () => {
+export const createNewWeb = () => {
     const name = prompt("Enter a name for the new Relationship Web:");
     if (!name || !name.trim()) return;
 
@@ -23,13 +23,18 @@ export const createNewWeb = async () => {
 
     camp.webs = [...(camp.webs || []), newWeb];
     window.appData.activeWebId = newWeb.id;
+    
+    // Reset view state for a fresh map
+    window.appData.webZoom = 1.0;
+    window.appData.webScrollLeft = 0;
+    window.appData.webScrollTop = 0;
 
-    await saveCampaign(camp);
     notify("New Relationship Web forged.", "success");
-    reRender(true); // Force render to bypass Data Protection
+    reRender(true); // Instant UI Feedback
+    setTimeout(() => saveCampaign(camp), 100); // Background Save
 };
 
-export const deleteCurrentWeb = async () => {
+export const deleteCurrentWeb = () => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
     const webId = window.appData.activeWebId;
@@ -40,17 +45,25 @@ export const deleteCurrentWeb = async () => {
     camp.webs = camp.webs.filter(w => w.id !== webId);
     window.appData.activeWebId = camp.webs.length > 0 ? camp.webs[0].id : null;
 
-    await saveCampaign(camp);
+    // Reset view state for a fresh map
+    window.appData.webZoom = 1.0;
+    window.appData.webScrollLeft = 0;
+    window.appData.webScrollTop = 0;
+
     notify("Relationship Web destroyed.", "success");
-    reRender(true); // Force render to bypass Data Protection
+    reRender(true); // Instant UI Feedback
+    setTimeout(() => saveCampaign(camp), 100); // Background Save
 };
 
 export const switchWeb = (id) => {
     window.appData.activeWebId = id;
+    window.appData.webZoom = 1.0;
+    window.appData.webScrollLeft = 0;
+    window.appData.webScrollTop = 0;
     reRender(true); // Force render to bypass Data Protection
 };
 
-export const toggleWebVisibility = async () => {
+export const toggleWebVisibility = () => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
     const web = window.appData.activeWeb;
@@ -62,12 +75,12 @@ export const toggleWebVisibility = async () => {
         visibleTo: [] 
     };
 
-    await saveCampaign(camp);
     notify(web.visibility.mode === 'public' ? "Map is now Public." : "Map is now Hidden (DM Only).", "success");
-    reRender(true); // Force render to bypass Data Protection
+    reRender(true); // Instant UI Feedback
+    setTimeout(() => saveCampaign(camp), 100); // Background Save
 };
 
-export const toggleWebGroup = async (codexId) => {
+export const toggleWebGroup = (codexId) => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
     const web = window.appData.activeWeb;
@@ -81,8 +94,8 @@ export const toggleWebGroup = async (codexId) => {
         web.expandedGroups.push(codexId);
     }
 
-    await saveCampaign(camp);
-    reRender(true); // Force render to bypass Data Protection
+    reRender(true); // Instant UI Feedback
+    setTimeout(() => saveCampaign(camp), 100); // Background Save
 };
 
 // --- DATA EDITING & STRUCTURE ---
@@ -122,7 +135,7 @@ export const openWebEditModal = (type, id) => {
     modal.classList.remove('hidden');
 };
 
-export const saveWebEdit = async () => {
+export const saveWebEdit = () => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
     const web = window.appData.activeWeb;
@@ -142,9 +155,9 @@ export const saveWebEdit = async () => {
         }
     }
 
-    await saveCampaign(camp);
     document.getElementById('web-edit-modal').classList.add('hidden');
-    reRender(true); // Force render to bypass Data Protection
+    reRender(true); // Instant UI Feedback
+    setTimeout(() => saveCampaign(camp), 100); // Background Save
 };
 
 export const openWebMoveModal = (nodeId) => {
@@ -177,7 +190,7 @@ export const openWebMoveModal = (nodeId) => {
     modal.classList.remove('hidden');
 };
 
-export const saveWebMove = async () => {
+export const saveWebMove = () => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
     const web = window.appData.activeWeb;
@@ -203,13 +216,13 @@ export const saveWebMove = async () => {
     }
 
     web.nodes[nodeIndex].parent = newParent;
-    await saveCampaign(camp);
     
     document.getElementById('web-move-modal').classList.add('hidden');
-    reRender(true); // Force render to bypass Data Protection
+    reRender(true); // Instant UI Feedback
+    setTimeout(() => saveCampaign(camp), 100); // Background Save
 };
 
-export const addWebNode = async () => {
+export const addWebNode = () => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
     const web = window.appData.activeWeb;
@@ -251,13 +264,15 @@ export const addWebNode = async () => {
         parent: null
     });
 
-    await saveCampaign(camp);
+    const modal = document.getElementById('web-add-node-modal');
+    if (modal) modal.classList.add('hidden');
     
     notify("Node bound to Web.", "success");
-    reRender(true); // Force render to bypass Data Protection
+    reRender(true); // Instant UI Feedback
+    setTimeout(() => saveCampaign(camp), 100); // Background Save
 };
 
-export const addWebConnection = async () => {
+export const addWebConnection = () => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
     const web = window.appData.activeWeb;
@@ -294,13 +309,16 @@ export const addWebConnection = async () => {
     };
 
     web.connections.push(newConn);
-    await saveCampaign(camp);
+    
+    const modal = document.getElementById('web-add-conn-modal');
+    if (modal) modal.classList.add('hidden');
     
     notify("Connection forged.", "success");
-    reRender(true); // Force render to bypass Data Protection
+    reRender(true); // Instant UI Feedback
+    setTimeout(() => saveCampaign(camp), 100); // Background Save
 };
 
-export const removeWebNode = async (nodeId) => {
+export const removeWebNode = (nodeId) => {
     if (!confirm("Remove this node from the map? (The Codex entry will remain safe in your Library).")) return;
     
     updateDerivedState();
@@ -319,11 +337,11 @@ export const removeWebNode = async (nodeId) => {
     // Remove orphaned connections
     web.connections = web.connections.filter(c => c.source !== nodeId && c.target !== nodeId);
 
-    await saveCampaign(camp);
-    reRender(true); // Force render to bypass Data Protection
+    reRender(true); // Instant UI Feedback
+    setTimeout(() => saveCampaign(camp), 100); // Background Save
 };
 
-export const removeWebConnection = async (connId) => {
+export const removeWebConnection = (connId) => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
     const web = window.appData.activeWeb;
@@ -331,11 +349,11 @@ export const removeWebConnection = async (connId) => {
 
     web.connections = web.connections.filter(c => c.id !== connId);
     
-    await saveCampaign(camp);
-    reRender(true); // Force render to bypass Data Protection
+    reRender(true); // Instant UI Feedback
+    setTimeout(() => saveCampaign(camp), 100); // Background Save
 };
 
-export const cleanupWebOrphans = async () => {
+export const cleanupWebOrphans = () => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
     if (!camp || !camp._isDM) return;
@@ -370,14 +388,14 @@ export const cleanupWebOrphans = async () => {
     });
 
     if (needsSave) {
-        await saveCampaign(camp);
+        setTimeout(() => saveCampaign(camp), 100);
     }
 };
 
-export const syncWebWithCodex = async () => {
-    await cleanupWebOrphans();
+export const syncWebWithCodex = () => {
+    cleanupWebOrphans();
     notify("Maps synchronized with Codex.", "success");
-    reRender(true); // Force render to bypass Data Protection
+    reRender(true); // Instant UI Feedback
 };
 
 // ============================================================================
@@ -443,7 +461,8 @@ export const setWebZoom = (dir) => {
     const wrapper = document.getElementById('mermaid-wrapper');
     const container = document.getElementById('mermaid-container');
     if (!wrapper || !container) return;
-    let currentZoom = parseFloat(wrapper.getAttribute('data-zoom')) || 1.0;
+    
+    let currentZoom = window.appData.webZoom || parseFloat(wrapper.getAttribute('data-zoom')) || 1.0;
     
     if (dir === 'in') currentZoom = Math.min(currentZoom + 0.1, 3.0);
     else if (dir === 'out') currentZoom = Math.max(currentZoom - 0.1, 0.5);
@@ -452,11 +471,15 @@ export const setWebZoom = (dir) => {
     wrapper.setAttribute('data-zoom', currentZoom);
     container.style.transform = `scale(${currentZoom})`;
     container.style.transformOrigin = 'center center';
+    
+    // Dynamically preserve state so the reRender doesn't break it
+    window.appData.webZoom = currentZoom;
 };
 
 export const renderMermaidWeb = async () => {
     const container = document.getElementById('mermaid-container');
-    if (!container) return;
+    const wrapper = document.getElementById('mermaid-wrapper');
+    if (!container || !wrapper) return;
 
     updateDerivedState();
     const camp = window.appData.activeCampaign;
@@ -464,8 +487,9 @@ export const renderMermaidWeb = async () => {
 
     if (!camp || !web) return;
 
-    // Set initial scale from state
-    const currentZoom = parseFloat(document.getElementById('mermaid-wrapper').getAttribute('data-zoom')) || 1.0;
+    // Apply preserved state scales instantly to prevent UI jitter
+    const currentZoom = window.appData.webZoom || 1.0;
+    wrapper.setAttribute('data-zoom', currentZoom);
     container.style.transform = `scale(${currentZoom})`;
     container.style.transformOrigin = 'center center';
 
@@ -478,7 +502,7 @@ export const renderMermaidWeb = async () => {
                 startOnLoad: false,
                 theme: 'base',
                 themeVariables: {
-                    primaryColor: '#fdfbf7', // parchmentLight
+                    primaryColor: '#fdfbf7', 
                     primaryTextColor: '#1c1917',
                     primaryBorderColor: '#d4c5a9',
                     lineColor: '#78716c',
@@ -509,7 +533,6 @@ export const renderMermaidWeb = async () => {
     graph += 'classDef Faction fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#1e3a8a;\n';
     graph += 'classDef Item fill:#faf5ff,stroke:#9333ea,stroke-width:2px,color:#581c87;\n';
     graph += 'classDef Lore fill:#fff1f2,stroke:#c026d3,stroke-width:2px,color:#701a75;\n';
-    
     graph += 'classDef groupRing fill:none,stroke:#78716c,stroke-width:2px,stroke-dasharray: 5 5;\n'; 
 
     // Resolve Nodes to Real Data
@@ -558,7 +581,6 @@ export const renderMermaidWeb = async () => {
         if (isGroupAble) {
             const isExpanded = expandedGroups.has(rn.node.id);
             const icon = isExpanded ? 'fa-compress' : 'fa-expand';
-            // Inject the expand/collapse button securely into the Mermaid HTML Label
             label = `<div class="flex items-center justify-center gap-2"><span>${safeName}</span><span class="group-toggle-btn text-[10px] flex items-center justify-center w-5 h-5 bg-stone-900/10 hover:bg-stone-900/30 rounded transition border border-stone-900/20"><i class="fa-solid ${icon}"></i></span></div>`;
             
             // Note when a group is collapsed
@@ -571,7 +593,6 @@ export const renderMermaidWeb = async () => {
         }
         
         let line = `${rn.node.id}${shapeL}${label}${shapeR}:::${rn.data.type}\n`;
-        // Dummy click binding forces Mermaid to assign pointer-events and styles, which we hijack below
         line += `click ${rn.node.id} href "#" " "\n`;
         
         return line;
@@ -587,7 +608,6 @@ export const renderMermaidWeb = async () => {
             return renderEntity(rn);
         }
 
-        // Security Escape
         const safeName = rn.data.name.replace(/"/g, "'").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         
         let output = `subgraph ${rn.node.id}_sg ["${safeName}"]\n`; 
@@ -621,8 +641,6 @@ export const renderMermaidWeb = async () => {
     // CATCH-ALL FIX: Ensure we do NOT render nodes that are hidden inside collapsed groups!
     visibleNodes.forEach(rn => {
         if (!renderedIds.has(rn.node.id)) {
-            
-            // Check if this node is hidden inside a collapsed parent
             let isHidden = false;
             let current = rn;
             while (current && current.node.parent) {
@@ -646,7 +664,6 @@ export const renderMermaidWeb = async () => {
 
     // RENDER CONNECTIONS
     visibleConns.forEach(c => {
-        // Find effective targets for Collapsed groups
         const getEffectiveTarget = (nodeId) => {
             let current = visibleNodes.find(rn => rn.node.id === nodeId);
             let highestCollapsedParent = nodeId;
@@ -662,13 +679,11 @@ export const renderMermaidWeb = async () => {
         const effSource = getEffectiveTarget(c.source);
         const effTarget = getEffectiveTarget(c.target);
 
-        // Hide the internal connection line if they collapsed into the same parent
         if (effSource === effTarget) return;
 
-        // Security Escape for labels
         const safeLabel = c.label ? `"${c.label.replace(/"/g, "'").replace(/</g, "&lt;").replace(/>/g, "&gt;")}"` : "";
         
-        let arrow = "-->"; // Default: Ally
+        let arrow = "-->"; 
         if (c.type === 'enemy') arrow = "==>"; 
         if (c.type === 'affiliated') arrow = "-.->"; 
         if (c.type === 'debt') arrow = "-.->"; 
@@ -688,36 +703,48 @@ export const renderMermaidWeb = async () => {
         container.innerHTML = svg;
         if (bindFunctions) bindFunctions(container);
 
+        // --- PRESERVE VIEWPORT PANNING ---
+        // Restore scroll positions a few milliseconds later after the browser calculates the SVG bounds
+        setTimeout(() => {
+            if (window.appData.webScrollLeft !== undefined) wrapper.scrollLeft = window.appData.webScrollLeft;
+            if (window.appData.webScrollTop !== undefined) wrapper.scrollTop = window.appData.webScrollTop;
+        }, 10);
+
+        // Capture scroll wheel movements (desktop trackpads)
+        wrapper.onscroll = () => {
+            window.appData.webScrollLeft = wrapper.scrollLeft;
+            window.appData.webScrollTop = wrapper.scrollTop;
+        };
+
         // --- MAP INTERACTIVITY INJECTION ---
+        wrapper.onmousedown = (e) => {
+            if (e.target.closest('.node') || e.target.closest('.edgeLabel')) return; 
+            wrapper.dataset.isDown = 'true';
+            wrapper.dataset.startX = e.pageX - wrapper.offsetLeft;
+            wrapper.dataset.scrollLeft = wrapper.scrollLeft;
+            wrapper.dataset.startY = e.pageY - wrapper.offsetTop;
+            wrapper.dataset.scrollTop = wrapper.scrollTop;
+            wrapper.style.cursor = 'grabbing';
+        };
+        wrapper.onmouseleave = () => { wrapper.dataset.isDown = 'false'; wrapper.style.cursor = 'grab'; };
+        wrapper.onmouseup = () => { wrapper.dataset.isDown = 'false'; wrapper.style.cursor = 'grab'; };
         
-        // 1. Setup Click & Drag Panning
-        const wrapper = document.getElementById('mermaid-wrapper');
-        if (wrapper) {
-            wrapper.onmousedown = (e) => {
-                if (e.target.closest('.node')) return; // Don't pan if they are clicking a node
-                wrapper.dataset.isDown = 'true';
-                wrapper.dataset.startX = e.pageX - wrapper.offsetLeft;
-                wrapper.dataset.scrollLeft = wrapper.scrollLeft;
-                wrapper.dataset.startY = e.pageY - wrapper.offsetTop;
-                wrapper.dataset.scrollTop = wrapper.scrollTop;
-                wrapper.style.cursor = 'grabbing';
-            };
-            wrapper.onmouseleave = () => { wrapper.dataset.isDown = 'false'; wrapper.style.cursor = 'grab'; };
-            wrapper.onmouseup = () => { wrapper.dataset.isDown = 'false'; wrapper.style.cursor = 'grab'; };
-            wrapper.onmousemove = (e) => {
-                if (wrapper.dataset.isDown !== 'true') return;
-                e.preventDefault();
-                const x = e.pageX - wrapper.offsetLeft;
-                const walkX = (x - parseFloat(wrapper.dataset.startX)) * 1.5;
-                wrapper.scrollLeft = parseFloat(wrapper.dataset.scrollLeft) - walkX;
+        wrapper.onmousemove = (e) => {
+            if (wrapper.dataset.isDown !== 'true') return;
+            e.preventDefault();
+            const x = e.pageX - wrapper.offsetLeft;
+            const walkX = (x - parseFloat(wrapper.dataset.startX)) * 1.5;
+            wrapper.scrollLeft = parseFloat(wrapper.dataset.scrollLeft) - walkX;
 
-                const y = e.pageY - wrapper.offsetTop;
-                const walkY = (y - parseFloat(wrapper.dataset.startY)) * 1.5;
-                wrapper.scrollTop = parseFloat(wrapper.dataset.scrollTop) - walkY;
-            };
-        }
+            const y = e.pageY - wrapper.offsetTop;
+            const walkY = (y - parseFloat(wrapper.dataset.startY)) * 1.5;
+            wrapper.scrollTop = parseFloat(wrapper.dataset.scrollTop) - walkY;
 
-        // 2. Hijack Mermaid Node Events (Allows HTML buttons inside labels to function!)
+            // Preserve state dynamically while dragging
+            window.appData.webScrollLeft = wrapper.scrollLeft;
+            window.appData.webScrollTop = wrapper.scrollTop;
+        };
+
         const nodes = container.querySelectorAll('g.node');
         nodes.forEach(node => {
             const domId = node.id;
@@ -726,20 +753,16 @@ export const renderMermaidWeb = async () => {
                 node.style.cursor = "pointer";
                 node.style.pointerEvents = "all";
                 
-                // Clone the node to strip away Mermaid's default D3 event listeners
                 const newNode = node.cloneNode(true);
                 node.parentNode.replaceChild(newNode, node);
                 
-                // Attach our own custom, fully isolated click handler
                 newNode.addEventListener('click', (e) => {
                     e.stopPropagation();
                     e.preventDefault();
                     
-                    // If they specifically clicked the little Expand/Collapse button inside the label
                     if (e.target.closest('.group-toggle-btn')) {
                         window.appActions.toggleWebGroup(charIdMatch);
                     } else {
-                        // Otherwise, open the Codex entry!
                         window.appActions.viewCodex(charIdMatch);
                     }
                 });
