@@ -15,8 +15,9 @@ export function getWebsHTML(state) {
     if (!activeWeb || (!isDM && activeWeb.visibility?.mode !== 'public')) {
         activeWeb = visibleWebs.length > 0 ? visibleWebs[0] : null;
         if (activeWeb && state.activeWebId !== activeWeb.id) {
-            // Silently sync the state ID so the dropdown matches
+            // Silently sync the state ID and the object so the initial render has it instantly
             state.activeWebId = activeWeb.id;
+            state.activeWeb = activeWeb;
         }
     }
 
@@ -232,8 +233,8 @@ export function getWebsHTML(state) {
         </div>
     </div>
     
-    <!-- Auto-Execute Engine Trigger -->
-    <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" onerror="if(window.appActions && window.appActions.renderMermaidWeb) { setTimeout(window.appActions.renderMermaidWeb, 50); }" class="hidden">
+    <!-- Auto-Execute Engine Trigger (100% Reliable Fix) -->
+    <img src="trigger-mermaid.jpg" onerror="if(window.appActions && window.appActions.renderMermaidWeb) { setTimeout(window.appActions.renderMermaidWeb, 50); }" class="hidden">
     `;
 
     return html;
