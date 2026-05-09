@@ -441,7 +441,8 @@ export const selectWebCodexEntry = (id, name) => {
 
 export const setWebZoom = (dir) => {
     const wrapper = document.getElementById('mermaid-wrapper');
-    if (!wrapper) return;
+    const container = document.getElementById('mermaid-container');
+    if (!wrapper || !container) return;
     let currentZoom = parseFloat(wrapper.getAttribute('data-zoom')) || 1.0;
     
     if (dir === 'in') currentZoom = Math.min(currentZoom + 0.1, 3.0);
@@ -449,7 +450,8 @@ export const setWebZoom = (dir) => {
     else if (dir === 'reset') currentZoom = 1.0;
     
     wrapper.setAttribute('data-zoom', currentZoom);
-    wrapper.style.transform = `scale(${currentZoom})`;
+    container.style.transform = `scale(${currentZoom})`;
+    container.style.transformOrigin = 'center center';
 };
 
 export const renderMermaidWeb = async () => {
@@ -461,6 +463,11 @@ export const renderMermaidWeb = async () => {
     const web = window.appData.activeWeb;
 
     if (!camp || !web) return;
+
+    // Set initial scale from state
+    const currentZoom = parseFloat(document.getElementById('mermaid-wrapper').getAttribute('data-zoom')) || 1.0;
+    container.style.transform = `scale(${currentZoom})`;
+    container.style.transformOrigin = 'center center';
 
     // Lazy load the Mermaid Engine if it hasn't been fetched yet
     if (!window.mermaid) {
@@ -539,7 +546,6 @@ export const renderMermaidWeb = async () => {
         // Security Escape to prevent Mermaid Syntax Crashing!
         const safeName = rn.data.name.replace(/"/g, "'").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         
-        // Wrap everything in literal quotes so Mermaid treats it as safe HTML!
         let shapeL = '("'; let shapeR = '")'; // Default (NPC, PC)
         
         if (rn.data.type === 'Location') { shapeL = '{{"'; shapeR = '"}}'; }
@@ -548,17 +554,25 @@ export const renderMermaidWeb = async () => {
 
         let label = safeName || "Unknown";
         
-        // Check if this node is technically a Group, but currently collapsed
         const isGroupAble = ['Faction', 'Location'].includes(rn.data.type);
-        if (isGroupAble && !expandedGroups.has(rn.node.id)) {
-            const hasChildren = visibleNodes.some(child => child.node.parent === rn.node.id);
-            if (hasChildren) {
-                 label = `<b>${safeName}</b><br/><i>(Group)</i>`;
+        if (isGroupAble) {
+            const isExpanded = expandedGroups.has(rn.node.id);
+            const icon = isExpanded ? 'fa-compress' : 'fa-expand';
+            // Inject the expand/collapse button securely into the Mermaid HTML Label
+            label = `<div class="flex items-center justify-center gap-2"><span>${safeName}</span><span class="group-toggle-btn text-[10px] flex items-center justify-center w-5 h-5 bg-stone-900/10 hover:bg-stone-900/30 rounded transition border border-stone-900/20"><i class="fa-solid ${icon}"></i></span></div>`;
+            
+            // Note when a group is collapsed
+            if (!isExpanded) {
+                const hasChildren = visibleNodes.some(child => child.node.parent === rn.node.id);
+                if (hasChildren) {
+                     label += `<br/><i class="text-[9px] opacity-75 mt-0.5">(Group)</i>`;
+                }
             }
         }
         
         let line = `${rn.node.id}${shapeL}${label}${shapeR}:::${rn.data.type}\n`;
-        line += `click ${rn.node.id} call window.appActions.viewCodex("${rn.node.id}") "View Knowledge"\n`;
+        // Dummy click binding forces Mermaid to assign pointer-events and styles, which we hijack below
+        line += `click ${rn.node.id} href "#" " "\n`;
         
         return line;
     };
@@ -673,6 +687,65 @@ export const renderMermaidWeb = async () => {
         const { svg, bindFunctions } = await window.mermaid.render('mermaid-svg-' + Date.now(), graph);
         container.innerHTML = svg;
         if (bindFunctions) bindFunctions(container);
+
+        // --- MAP INTERACTIVITY INJECTION ---
+        
+        // 1. Setup Click & Drag Panning
+        const wrapper = document.getElementById('mermaid-wrapper');
+        if (wrapper) {
+            wrapper.onmousedown = (e) => {
+                if (e.target.closest('.node')) return; // Don't pan if they are clicking a node
+                wrapper.dataset.isDown = 'true';
+                wrapper.dataset.startX = e.pageX - wrapper.offsetLeft;
+                wrapper.dataset.scrollLeft = wrapper.scrollLeft;
+                wrapper.dataset.startY = e.pageY - wrapper.offsetTop;
+                wrapper.dataset.scrollTop = wrapper.scrollTop;
+                wrapper.style.cursor = 'grabbing';
+            };
+            wrapper.onmouseleave = () => { wrapper.dataset.isDown = 'false'; wrapper.style.cursor = 'grab'; };
+            wrapper.onmouseup = () => { wrapper.dataset.isDown = 'false'; wrapper.style.cursor = 'grab'; };
+            wrapper.onmousemove = (e) => {
+                if (wrapper.dataset.isDown !== 'true') return;
+                e.preventDefault();
+                const x = e.pageX - wrapper.offsetLeft;
+                const walkX = (x - parseFloat(wrapper.dataset.startX)) * 1.5;
+                wrapper.scrollLeft = parseFloat(wrapper.dataset.scrollLeft) - walkX;
+
+                const y = e.pageY - wrapper.offsetTop;
+                const walkY = (y - parseFloat(wrapper.dataset.startY)) * 1.5;
+                wrapper.scrollTop = parseFloat(wrapper.dataset.scrollTop) - walkY;
+            };
+        }
+
+        // 2. Hijack Mermaid Node Events (Allows HTML buttons inside labels to function!)
+        const nodes = container.querySelectorAll('g.node');
+        nodes.forEach(node => {
+            const domId = node.id;
+            const charIdMatch = [...validIds].find(id => domId.includes(id));
+            if (charIdMatch) {
+                node.style.cursor = "pointer";
+                node.style.pointerEvents = "all";
+                
+                // Clone the node to strip away Mermaid's default D3 event listeners
+                const newNode = node.cloneNode(true);
+                node.parentNode.replaceChild(newNode, node);
+                
+                // Attach our own custom, fully isolated click handler
+                newNode.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    
+                    // If they specifically clicked the little Expand/Collapse button inside the label
+                    if (e.target.closest('.group-toggle-btn')) {
+                        window.appActions.toggleWebGroup(charIdMatch);
+                    } else {
+                        // Otherwise, open the Codex entry!
+                        window.appActions.viewCodex(charIdMatch);
+                    }
+                });
+            }
+        });
+
     } catch (e) {
         console.warn("Mermaid Engine Rendering Warning:", e);
     }
