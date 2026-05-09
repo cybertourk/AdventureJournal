@@ -391,12 +391,9 @@ export const syncWebWithCodex = async () => {
 // --- GLOBAL WINDOW HELPERS FOR UI ---
 // ============================================================================
 
-if (typeof window !== 'undefined') {
-    window.appActions = window.appActions || {};
-    
-    // --- Local Search Engine for Node Picker ---
-    window.appActions.searchWebCodex = (query) => {
-        const resultsContainer = document.getElementById('web-node-search-results');
+// --- Local Search Engine for Node Picker ---
+export const searchWebCodex = (query) => {
+    const resultsContainer = document.getElementById('web-node-search-results');
         if (!resultsContainer) return;
         
         if (!query || query.trim() === '') {
@@ -421,52 +418,42 @@ if (typeof window !== 'undefined') {
         matches.forEach(m => {
             const safeName = m.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
             html += `
-                <div class="p-3 border-b border-[#d4c5a9] hover:bg-amber-50 cursor-pointer transition-colors" onclick="window.appActions.selectWebCodexEntry('${m.id}', '${safeName}')">
-                    <span class="font-bold text-stone-900">${m.name}</span> 
-                    <span class="text-[9px] uppercase font-bold text-stone-500 ml-2 bg-stone-200 px-1.5 py-0.5 rounded-sm">${m.type}</span>
-                </div>
-            `;
-        });
+        <div class="p-3 bg-stone-100 hover:bg-amber-100 cursor-pointer text-amber-900 font-bold text-xs flex items-center transition-colors border-b border-[#d4c5a9]" onclick="window.appActions.selectWebCodexEntry('', '${safeQuery}')">
+            <i class="fa-solid fa-plus-circle mr-2 text-amber-600"></i> Create New NPC: "${query}"
+        </div>
+    `;
 
-        const safeQuery = query.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-        
-        html += `
-            <div class="p-3 bg-stone-100 hover:bg-amber-100 cursor-pointer text-amber-900 font-bold text-xs flex items-center transition-colors border-b border-[#d4c5a9]" onclick="window.appActions.selectWebCodexEntry('', '${safeQuery}')">
-                <i class="fa-solid fa-plus-circle mr-2 text-amber-600"></i> Create New NPC: "${query}"
-            </div>
-        `;
+    resultsContainer.innerHTML = html;
+    resultsContainer.classList.remove('hidden');
+};
 
-        resultsContainer.innerHTML = html;
-        resultsContainer.classList.remove('hidden');
-    };
+export const selectWebCodexEntry = (id, name) => {
+    const searchInput = document.getElementById('web-node-search');
+    const idInput = document.getElementById('web-node-codex-id');
+    const resultsContainer = document.getElementById('web-node-search-results');
 
-    window.appActions.selectWebCodexEntry = (id, name) => {
-        const searchInput = document.getElementById('web-node-search');
-        const idInput = document.getElementById('web-node-codex-id');
-        const resultsContainer = document.getElementById('web-node-search-results');
+    if (searchInput) searchInput.value = name;
+    if (idInput) idInput.value = id; 
+    if (resultsContainer) resultsContainer.classList.add('hidden');
+};
 
-        if (searchInput) searchInput.value = name;
-        if (idInput) idInput.value = id; 
-        if (resultsContainer) resultsContainer.classList.add('hidden');
-    };
+// --- Graph Zoom Helper ---
+export const setWebZoom = (dir) => {
+    const wrapper = document.getElementById('mermaid-wrapper');
+    if (!wrapper) return;
+    let currentZoom = parseFloat(wrapper.getAttribute('data-zoom')) || 1.0;
+    
+    if (dir === 'in') currentZoom = Math.min(currentZoom + 0.1, 3.0);
+    else if (dir === 'out') currentZoom = Math.max(currentZoom - 0.1, 0.5);
+    else if (dir === 'reset') currentZoom = 1.0;
+    
+    wrapper.setAttribute('data-zoom', currentZoom);
+    wrapper.style.transform = `scale(${currentZoom})`;
+};
 
-    // --- Graph Zoom Helper ---
-    window.appActions.setWebZoom = (dir) => {
-        const wrapper = document.getElementById('mermaid-wrapper');
-        if (!wrapper) return;
-        let currentZoom = parseFloat(wrapper.getAttribute('data-zoom')) || 1.0;
-        
-        if (dir === 'in') currentZoom = Math.min(currentZoom + 0.1, 3.0);
-        else if (dir === 'out') currentZoom = Math.max(currentZoom - 0.1, 0.5);
-        else if (dir === 'reset') currentZoom = 1.0;
-        
-        wrapper.setAttribute('data-zoom', currentZoom);
-        wrapper.style.transform = `scale(${currentZoom})`;
-    };
-
-    // --- Dynamic Mermaid Renderer ---
-    window.appActions.renderMermaidWeb = async () => {
-        const container = document.getElementById('mermaid-container');
+// --- Dynamic Mermaid Renderer ---
+export const renderMermaidWeb = async () => {
+    const container = document.getElementById('mermaid-container');
         if (!container) return;
 
         updateDerivedState();
@@ -658,10 +645,9 @@ if (typeof window !== 'undefined') {
 
         try {
             const { svg, bindFunctions } = await window.mermaid.render('mermaid-svg-' + Date.now(), graph);
-            container.innerHTML = svg;
-            if (bindFunctions) bindFunctions(container);
-        } catch (e) {
-            console.warn("Mermaid Engine Rendering Warning:", e);
-        }
-    };
-}
+        container.innerHTML = svg;
+        if (bindFunctions) bindFunctions(container);
+    } catch (e) {
+        console.warn("Mermaid Engine Rendering Warning:", e);
+    }
+};
