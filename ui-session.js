@@ -197,28 +197,60 @@ export function getSessionEditHTML(state) {
             }
         }
 
-        // Render Clues
+        // --- NEW: COLLABORATIVE CLUES FOR PLAYERS ---
+        dmNarrativeHtml += `<h4 class="font-serif font-bold text-lg text-stone-800 mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-magnifying-glass text-amber-700 mr-2"></i>Discoveries & Objectives</h4>`;
+        dmNarrativeHtml += `<ul class="space-y-2 mb-3">`;
+        
         if (session.clues && session.clues.length > 0) {
             const visibleClues = session.clues.filter(c => isVisible(c.visibility) && c.text.trim());
             if (visibleClues.length > 0) {
-                dmNarrativeHtml += `<h4 class="font-serif font-bold text-lg text-stone-800 mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-magnifying-glass text-amber-700 mr-2"></i>Discoveries & Objectives</h4><ul class="space-y-2 mb-8">`;
                 visibleClues.forEach(clue => {
                     const parsed = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(clue.text) : clue.text;
-                    dmNarrativeHtml += `<li class="bg-white p-3 border border-[#d4c5a9] rounded-sm shadow-sm text-sm text-stone-800 flex gap-3 items-center"><i class="fa-solid fa-magnifying-glass text-amber-600"></i> <span>${parsed}</span></li>`;
+                    
+                    const isDMClue = clue.authorId === camp.dmId || !clue.authorId;
+                    const authorName = isDMClue ? 'DM' : (camp.playerNames?.[clue.authorId] || 'Player');
+                    
+                    // Display badge if a player authored the clue
+                    const authorBadge = isDMClue ? '' : `<span class="ml-2 text-[9px] font-bold uppercase tracking-widest text-blue-700 bg-blue-100 border border-blue-200 px-1.5 py-0.5 rounded-sm shrink-0 whitespace-nowrap align-middle"><i class="fa-solid fa-user mr-1"></i>${authorName}</span>`;
+                    
+                    let deleteBtn = '';
+                    if (clue.authorId === myUid) {
+                        deleteBtn = `<button type="button" onclick="window.appActions.deleteSessionClue('${clue.id}')" class="ml-2 text-stone-400 hover:text-red-600 transition p-1"><i class="fa-solid fa-trash text-[10px]"></i></button>`;
+                    }
+
+                    dmNarrativeHtml += `
+                    <li class="bg-white p-3 border border-[#d4c5a9] rounded-sm shadow-sm text-sm text-stone-800 flex justify-between items-start gap-3 group">
+                        <div class="flex gap-3 items-start min-w-0">
+                            <i class="fa-solid fa-magnifying-glass text-amber-600 mt-1 shrink-0"></i> 
+                            <div class="leading-relaxed break-words">${parsed} ${authorBadge}</div>
+                        </div>
+                        <div class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                            ${deleteBtn}
+                        </div>
+                    </li>`;
                 });
-                dmNarrativeHtml += `</ul>`;
+            } else {
+                dmNarrativeHtml += `<li class="text-stone-500 italic text-sm py-2 px-3">No public discoveries have been revealed.</li>`;
             }
+        } else {
+            dmNarrativeHtml += `<li class="text-stone-500 italic text-sm py-2 px-3">No public discoveries have been revealed.</li>`;
         }
+        
+        dmNarrativeHtml += `</ul>`;
+        
+        // Add Clue Input
+        dmNarrativeHtml += `
+            <div class="mt-3 flex gap-2 items-center bg-stone-100 p-2 border border-[#d4c5a9] rounded-sm shadow-inner mb-8">
+                <input type="text" id="new-player-clue" class="flex-grow p-2 text-xs sm:text-sm border border-[#d4c5a9] rounded-sm focus:border-amber-600 outline-none shadow-sm bg-white font-sans placeholder:italic placeholder:text-stone-400" placeholder="Log a new discovery or objective..." onkeydown="if(event.key === 'Enter') { window.appActions.submitSessionClue(); }">
+                <button type="button" onclick="window.appActions.submitSessionClue()" class="px-4 py-2 bg-amber-700 text-amber-50 rounded-sm hover:bg-amber-600 transition text-[10px] font-bold uppercase tracking-wider shadow-md whitespace-nowrap flex items-center h-full"><i class="fa-solid fa-plus sm:mr-1"></i> <span class="hidden sm:inline">Add Clue</span></button>
+            </div>
+        `;
 
         // Render DM Notes / Epilogue
         if (session.notes && session.notes.trim() && isVisible(session.notesVisibility)) {
             const parsed = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(session.notes) : session.notes;
             dmNarrativeHtml += `<h4 class="font-serif font-bold text-lg text-stone-800 mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-book text-stone-500 mr-2"></i>Epilogue & Notes</h4>`;
             dmNarrativeHtml += `<div class="bg-white p-4 border border-[#d4c5a9] rounded-sm shadow-sm text-sm text-stone-800 font-serif leading-relaxed mb-8">${parsed}</div>`;
-        }
-
-        if (!dmNarrativeHtml) {
-            dmNarrativeHtml = `<div class="text-center p-6 bg-white border border-[#d4c5a9] rounded-sm text-stone-500 italic text-sm mb-8">No public records have been revealed by the Dungeon Master yet.</div>`;
         }
 
         return `
@@ -242,7 +274,7 @@ export function getSessionEditHTML(state) {
                 <div class="max-w-3xl mx-auto">
                     <h3 class="w-full pb-4 mb-6 text-stone-900 font-serif font-bold text-2xl border-b-2 border-stone-300">${session.name || 'Session'}</h3>
                     
-                    <!-- INJECTED DM NARRATIVE -->
+                    <!-- INJECTED DM NARRATIVE & CLUES -->
                     ${dmNarrativeHtml}
 
                     <!-- Collaborative Chronicle -->
@@ -277,7 +309,6 @@ export function getSessionEditHTML(state) {
     const defaultName = isNew ? `Log from ${new Date().toLocaleDateString()}` : (session.name || '');
 
     // Format the date strings for the input fields
-    // If we have an existing timestamp, format it for the date picker (YYYY-MM-DD). Otherwise, use today.
     let defaultRealDate = '';
     try {
         const dateObj = session.timestamp ? new Date(session.timestamp) : new Date();
@@ -353,15 +384,23 @@ export function getSessionEditHTML(state) {
             if (mode === 'hidden') { icon = 'fa-eye-slash'; color = 'text-red-700 hover:text-red-600'; }
             else if (mode === 'specific') { icon = 'fa-user-lock'; color = 'text-blue-600 hover:text-blue-500'; }
             
+            const isDMClue = clue.authorId === camp.dmId || !clue.authorId;
+            const authorName = isDMClue ? '' : (camp.playerNames?.[clue.authorId] || 'Player');
+            const authorBadge = isDMClue ? '' : `<div class="text-[9px] font-bold uppercase tracking-widest text-blue-700 bg-blue-100 border border-blue-200 px-1.5 py-0.5 rounded-sm shrink-0 mx-1 flex items-center" title="Found by ${authorName}"><i class="fa-solid fa-user mr-1"></i>${authorName}</div>`;
+
             cluesHtml += `
             <div class="mb-2 flex gap-2 items-center clue-row vis-container bg-[#fdfbf7] border border-[#d4c5a9] p-1.5 rounded-sm shadow-sm group">
-                <i class="fa-solid fa-magnifying-glass text-stone-400 ml-1"></i>
+                <i class="fa-solid fa-magnifying-glass text-stone-400 ml-1 shrink-0"></i>
                 <input type="hidden" class="vis-mode-input" value="${mode}">
                 <input type="hidden" class="vis-players-input" value="${players}">
+                <input type="hidden" class="clue-id-input" value="${clue.id || ''}">
+                <input type="hidden" class="clue-author-input" value="${clue.authorId || ''}">
                 
-                <input type="text" class="clue-input flex-1 bg-transparent border-none text-stone-900 px-1 text-xs sm:text-sm outline-none placeholder:italic placeholder:text-stone-400" placeholder="Quest update, clue, or objective..." value="${(clue.text || '').replace(/"/g, '&quot;')}">
+                ${authorBadge}
                 
-                <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <input type="text" class="clue-input flex-1 bg-transparent border-none text-stone-900 px-1 text-xs sm:text-sm outline-none placeholder:italic placeholder:text-stone-400 min-w-0" placeholder="Quest update, clue, or objective..." value="${(clue.text || '').replace(/"/g, '&quot;')}">
+                
+                <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                     <button type="button" class="${color} font-bold px-2 py-1 text-[10px] uppercase tracking-widest transition flex items-center" onclick="window.appActions.openVisibilityMenu(this, 'dom')">
                         <i class="fa-solid ${icon}"></i>
                     </button>
@@ -468,7 +507,7 @@ export function getSessionEditHTML(state) {
                     <div id="container-scenes" class="min-h-[10px]">
                         ${scenesHtml}
                     </div>
-                    <button onclick="window.appActions.addLogScene()" class="w-full py-3 border border-dashed border-stone-400 text-stone-500 hover:text-stone-800 hover:border-stone-600 hover:bg-stone-200 transition rounded-sm text-xs font-bold uppercase tracking-wider flex items-center justify-center">
+                    <button type="button" onclick="window.appActions.addLogScene()" class="w-full py-3 border border-dashed border-stone-400 text-stone-500 hover:text-stone-800 hover:border-stone-600 hover:bg-stone-200 transition rounded-sm text-xs font-bold uppercase tracking-wider flex items-center justify-center">
                         <i class="fa-solid fa-plus mr-2"></i> Add Scene
                     </button>
                 </div>
@@ -481,7 +520,7 @@ export function getSessionEditHTML(state) {
                     <div id="container-clues" class="min-h-[10px]">
                         ${cluesHtml}
                     </div>
-                    <button onclick="window.appActions.addLogClue()" class="w-full py-2.5 border border-dashed border-stone-400 text-stone-500 hover:text-stone-800 hover:border-stone-600 hover:bg-stone-200 transition rounded-sm text-xs font-bold uppercase tracking-wider flex items-center justify-center mt-2">
+                    <button type="button" onclick="window.appActions.addLogClue()" class="w-full py-2.5 border border-dashed border-stone-400 text-stone-500 hover:text-stone-800 hover:border-stone-600 hover:bg-stone-200 transition rounded-sm text-xs font-bold uppercase tracking-wider flex items-center justify-center mt-2">
                         <i class="fa-solid fa-plus mr-2"></i> Add Clue
                     </button>
                 </div>
