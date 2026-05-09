@@ -604,9 +604,29 @@ export const renderMermaidWeb = async () => {
         }
     });
 
+    // CATCH-ALL FIX: Ensure we do NOT render nodes that are hidden inside collapsed groups!
     visibleNodes.forEach(rn => {
         if (!renderedIds.has(rn.node.id)) {
-            graph += renderEntity(rn);
+            
+            // Check if this node is hidden inside a collapsed parent
+            let isHidden = false;
+            let current = rn;
+            while (current && current.node.parent) {
+                if (!expandedGroups.has(current.node.parent)) {
+                    isHidden = true;
+                    break;
+                }
+                current = visibleNodes.find(p => p.node.id === current.node.parent);
+            }
+            
+            if (!isHidden) {
+                const isGroupAble = ['Faction', 'Location'].includes(rn.data.type);
+                if (isGroupAble && expandedGroups.has(rn.node.id)) {
+                     graph += renderSubgraph(rn);
+                } else {
+                     graph += renderEntity(rn);
+                }
+            }
         }
     });
 
