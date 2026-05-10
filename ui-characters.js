@@ -200,7 +200,7 @@ export function getPCEditHTML(state) {
     
     const pc = !isNew && camp?.playerCharacters 
         ? camp.playerCharacters.find(p => p.id === state.activePcId) 
-        : { name: '', race: '', classLevel: '', background: '', alignment: '', faith: '', gender: '', age: '', size: '', height: '', weight: '', eyes: '', hair: '', skin: '', traits: '', ideals: '', bonds: '', flaws: '', appearance: '', backstory: '', organizations: '', allies: '', enemies: '', dmNotes: '', playerId: '', image: '', boonBackstory: false, boon1stBday: '', boon2ndBday: '', extraBdayBoons: [], unlockAutoSuccess: false, availableDowntime: 0 };
+        : { name: '', race: '', classLevel: '', background: '', alignment: '', faith: '', gender: '', age: '', size: '', height: '', weight: '', eyes: '', hair: '', skin: '', traits: '', ideals: '', bonds: '', flaws: '', appearance: '', backstory: '', organizations: '', allies: '', enemies: '', dmNotes: '', playerId: '', image: '', boonBackstory: false, boon1stBday: '', boon2ndBday: '', extraBdayBoons: [], unlockAutoSuccess: false, availableDowntime: 0, downtimeLog: '' };
 
     if (!pc && !isNew) return `<div class="text-center text-red-500 p-8 font-serif font-bold text-xl">Hero not found in the archives.</div>`;
 
@@ -302,13 +302,10 @@ export function getPCEditHTML(state) {
     let extraBoonsHtml = '';
     const extraBoonsData = pc.extraBdayBoons || [];
     
-    // We pre-render 10 additional slots (spanning up to a 12 year campaign).
-    // The calculateBirthdaysLive function will dynamically un-hide them as the dates change!
     for (let i = 0; i < 10; i++) {
         const boonNumber = i + 3; // Starts at 3rd Birthday
         const suffix = boonNumber === 3 ? 'rd' : 'th';
         
-        // Only render the slot visibly if they have earned it mathematically OR if they already saved data into it
         const isVisible = boonNumber <= calculatedBirthdays || i < extraBoonsData.length;
         const hiddenClass = isVisible ? '' : 'hidden';
         const selectedVal = extraBoonsData[i] || '';
@@ -326,7 +323,6 @@ export function getPCEditHTML(state) {
     return `
     <div class="animate-in slide-in-from-bottom-4 duration-300 bg-[#f4ebd8] rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col max-w-4xl mx-auto mb-8">
         
-        <!-- Header -->
         <div class="bg-stone-900 p-4 border-b-4 border-red-900 text-amber-500 flex justify-between items-center relative">
             <h2 class="text-xl sm:text-2xl font-serif font-bold z-10 flex items-center">
                 <i class="fa-solid fa-user-pen mr-3 text-red-700"></i> ${title}
@@ -336,7 +332,6 @@ export function getPCEditHTML(state) {
             </div>
         </div>
 
-        <!-- Form Content -->
         <div class="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
             
             <div class="bg-blue-900/10 border-l-4 border-blue-600 p-4 rounded-sm text-sm text-stone-800 italic flex flex-col sm:flex-row gap-4 items-center justify-between">
@@ -345,7 +340,6 @@ export function getPCEditHTML(state) {
                 </div>
             </div>
             
-            <!-- Downtime Resource Tracker -->
             <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-sm shadow-inner flex flex-wrap gap-4 items-center justify-between">
                 <div>
                     <h3 class="text-xs font-bold text-blue-900 uppercase tracking-widest mb-1"><i class="fa-solid fa-hourglass-half mr-1"></i> Available Downtime</h3>
@@ -356,7 +350,6 @@ export function getPCEditHTML(state) {
                 </div>
             </div>
 
-            <!-- Basic Info Grid -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 bg-[#fdfbf7] p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-inner">
                 ${playerAssignHTML}
                 <div class="col-span-1 sm:col-span-2 lg:col-span-1">
@@ -389,7 +382,6 @@ export function getPCEditHTML(state) {
                 </div>
             </div>
 
-            <!-- Characteristics Grid -->
             <div class="bg-[#fdfbf7] p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-inner">
                 <h3 class="text-xs sm:text-sm font-bold text-stone-800 font-serif mb-3 border-b border-[#d4c5a9] pb-1">Characteristics</h3>
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -428,7 +420,6 @@ export function getPCEditHTML(state) {
                 </div>
             </div>
 
-            <!-- Roleplay Grid (Universal Editor Linked) -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                 ${renderSmartField('pc-edit-traits', 'Personality Traits', pc.traits || '', 'What are their unique quirks?', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', false)}
                 ${renderSmartField('pc-edit-ideals', 'Ideals', pc.ideals || '', 'What drives them?', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', false)}
@@ -436,7 +427,6 @@ export function getPCEditHTML(state) {
                 ${renderSmartField('pc-edit-flaws', 'Flaws', pc.flaws || '', 'What are their weaknesses?', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', false)}
             </div>
 
-            <!-- Detailed Notes & Checklist -->
             <div class="space-y-4 sm:space-y-6">
                 ${renderSmartField('pc-edit-appearance', `<i class="fa-solid fa-user text-stone-500 mr-2"></i> Appearance`, pc.appearance || '', "Detailed physical description, scars, tattoos, clothing...", 4, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', false)}
                 ${renderSmartField('pc-edit-backstory', `<i class="fa-solid fa-book-open text-stone-500 mr-2"></i> Backstory`, pc.backstory || '', "The hero's origins...", 5, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', false)}
@@ -447,7 +437,8 @@ export function getPCEditHTML(state) {
                     ${renderSmartField('pc-edit-enemies', `<i class="fa-solid fa-skull-crossbones text-stone-500 mr-2"></i> Enemies`, pc.enemies || '', "Rivals, villains...", 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner h-full flex-grow', false)}
                 </div>
                 
-                <!-- DM ONLY: ANNIVERSARY & BOONS -->
+                ${renderSmartField('pc-edit-downtimelog', `<i class="fa-solid fa-clock-rotate-left text-blue-600 mr-2"></i> Downtime Activity Log`, pc.downtimeLog || '', "A record of this hero's downtime activities will populate here automatically...", 8, 'bg-blue-50/30 border border-blue-300 shadow-inner mt-4', false)}
+
                 ${isDM ? `
                 <div class="mt-6 bg-stone-100 p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-inner">
                     <h3 class="text-xs sm:text-sm font-bold text-stone-800 font-serif mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-cake-candles mr-2 text-pink-600"></i> Player Anniversary & Birthday</h3>
@@ -496,20 +487,17 @@ export function getPCEditHTML(state) {
                             ${renderBoonSelect('pc-edit-boon-2nd', pc.boon2ndBday)}
                         </div>
                         
-                        <!-- DYNAMIC EXTRA BOONS (3rd, 4th, etc.) -->
                         ${extraBoonsHtml}
 
                     </div>
                 </div>
                 ` : ''}
 
-                <!-- DM ONLY -->
                 ${isDM ? renderSmartField('pc-edit-dmnotes', `<i class="fa-solid fa-eye text-red-900 mr-2"></i> DM's Secret Notes`, pc.dmNotes || '', 'Hooks, secrets, curses, or background ties...', 4, 'bg-stone-200 border border-[#d4c5a9] shadow-inner border-l-4 border-l-red-900', false) : ''}
             </div>
 
         </div>
 
-        <!-- Footer Actions -->
         <div class="bg-[#e8dec7] p-4 border-t border-[#d4c5a9] flex flex-wrap-reverse sm:flex-nowrap justify-between items-center gap-4">
             <div>
                 ${(!isNew && isDM) ? `<button onclick="window.appActions.deletePC('${pc.id}')" class="px-4 py-2 text-stone-500 hover:text-red-700 hover:bg-red-900/10 rounded-sm transition font-bold uppercase tracking-wider text-[10px] sm:text-xs flex items-center"><i class="fa-solid fa-skull mr-2"></i> Remove Hero</button>` : '<div></div>'}
@@ -540,7 +528,8 @@ export const savePCEdit = async () => {
     birthMonth: null,
     birthDay: null,
     extraBdayBoons: [],
-    availableDowntime: 0
+    availableDowntime: 0,
+    downtimeLog: ''
   };
   
   const isOwner = existingPC.playerId === myUid;
@@ -560,8 +549,6 @@ export const savePCEdit = async () => {
   const bMonthEl = document.getElementById('pc-edit-birth-month');
   const bDayEl = document.getElementById('pc-edit-birth-day');
   
-  // If the inputs are active (!disabled), grab their value. 
-  // If they are disabled, it means the UI is showing the Account's birthday, so we silently preserve the old manual value underneath.
   const localBMonth = isDM ? ((bMonthEl && !bMonthEl.disabled) ? (parseInt(bMonthEl.value) || null) : existingPC.birthMonth) : existingPC.birthMonth;
   const localBDay = isDM ? ((bDayEl && !bDayEl.disabled) ? (parseInt(bDayEl.value) || null) : existingPC.birthDay) : existingPC.birthDay;
 
@@ -574,7 +561,6 @@ export const savePCEdit = async () => {
               extraBdayBoons.push(select.value);
           }
       }
-      // Trim trailing empty strings so we don't save a bunch of useless blanks
       while (extraBdayBoons.length > 0 && extraBdayBoons[extraBdayBoons.length - 1] === '') {
           extraBdayBoons.pop();
       }
@@ -584,7 +570,7 @@ export const savePCEdit = async () => {
   const updatedPC = {
     ...existingPC,
     id: pcId,
-    // Core Identity (Now editable by Owner AND DM)
+    // Core Identity
     name: nameInput,
     race: document.getElementById('pc-edit-race')?.value.trim() || '',
     classLevel: document.getElementById('pc-edit-class')?.value.trim() || '',
@@ -611,6 +597,7 @@ export const savePCEdit = async () => {
     organizations: document.getElementById('input-pc-edit-organizations')?.value || '',
     allies: document.getElementById('input-pc-edit-allies')?.value || '',
     enemies: document.getElementById('input-pc-edit-enemies')?.value || '',
+    downtimeLog: document.getElementById('input-pc-edit-downtimelog')?.value || '',
     // DM Restricted Administrative Fields
     playerId: isDM ? (document.getElementById('pc-edit-player-id')?.value || '') : (existingPC.playerId || ''),
     dmNotes: isDM ? (document.getElementById('input-pc-edit-dmnotes')?.value || '') : (existingPC.dmNotes || ''),
@@ -633,7 +620,7 @@ export const savePCEdit = async () => {
   const existingCodexEntry = updatedCodexArray.find(c => c.id === pcId);
   
   if (!existingCodexEntry) {
-    // Generate entirely new public codex entry with updated default description
+    // Generate entirely new public codex entry
     updatedCodexArray.push({
       id: pcId,
       name: updatedPC.name,
@@ -644,7 +631,7 @@ export const savePCEdit = async () => {
       image: updatedPC.image
     });
   } else {
-    // Update existing entry's name, type, tags and image to stay in sync
+    // Update existing entry's header tags to stay in sync
     updatedCodexArray = updatedCodexArray.map(c => {
       if (c.id === pcId) {
         return {
@@ -653,7 +640,6 @@ export const savePCEdit = async () => {
           type: 'PC',
           tags: ['Hero', updatedPC.race, updatedPC.classLevel].filter(Boolean),
           image: updatedPC.image
-          // Desc and visibility are preserved so the player's custom edits remain intact
         };
       }
       return c;
