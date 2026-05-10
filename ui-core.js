@@ -213,18 +213,29 @@ export const toggleActionMenu = () => {
     const sheet = document.getElementById('action-sheet');
     const overlay = document.getElementById('action-overlay');
     const icon = document.getElementById('center-action-icon');
+    const dmAssignBtn = document.getElementById('dm-assign-downtime-btn');
     
     if (!sheet || !overlay || !icon) return;
+    
+    // Unhide the DM Assign Downtime button if the user is the DM
+    const camp = window.appData?.activeCampaign;
+    if (dmAssignBtn) {
+        if (camp && camp._isDM) {
+            dmAssignBtn.classList.remove('hidden');
+        } else {
+            dmAssignBtn.classList.add('hidden');
+        }
+    }
     
     if (sheet.classList.contains('open')) {
         sheet.classList.remove('open');
         overlay.style.opacity = '0';
-        icon.className = 'fa-solid fa-pen-nib text-xl transition-all duration-300';
+        icon.className = 'fa-solid fa-pen-nib text-lg transition-all duration-300';
         setTimeout(() => overlay.classList.add('hidden'), 300);
     } else {
         sheet.classList.add('open');
         overlay.classList.remove('hidden');
-        icon.className = 'fa-solid fa-xmark text-xl transition-all duration-300 rotate-90';
+        icon.className = 'fa-solid fa-xmark text-lg transition-all duration-300 rotate-90';
         setTimeout(() => overlay.style.opacity = '1', 10);
     }
 };
