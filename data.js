@@ -34,7 +34,7 @@ import { openCrimeModal, updateCrimeMath, executeCrime, openGamblingModal, updat
 import { openRelaxationModal, updateRelaxationMath, executeRelaxation, openReligiousServiceModal, updateReligiousServiceMath, executeReligiousService, openResearchModal, updateResearchMath, executeResearch, openScribingModal, updateScribingMath, executeScribing } from './actions-downtime-3.js';
 
 // Import Downtime Activity Functionality (Part 4)
-import { openSellingModal, updateSellingMath, executeSelling, openTrainingModal, updateTrainingMath, executeTraining, openWorkModal, executeWork } from './actions-downtime-4.js';
+import { openSellingModal, updateSellingMath, executeSelling, openTrainingModal, updateTrainingMath, executeTraining, openWorkModal, executeWork, openAssignDowntimeModal, executeAssignDowntime } from './actions-downtime-4.js';
 
 // --- APP ACTIONS HUB --- 
 // We bind all our imported modular functions back to the global window.appActions 
@@ -259,7 +259,10 @@ window.appActions = {
   executeTraining,
 
   openWorkModal,
-  executeWork
+  executeWork,
+  
+  openAssignDowntimeModal,
+  executeAssignDowntime
 }; 
 
 // ============================================================================
