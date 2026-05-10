@@ -76,6 +76,8 @@ export function getPCManagerHTML(state) {
             // The badge only shows if the player has unlocked the feature AND it is currently available to use!
             const hasAutoSuccess = pc.automaticSuccess === true && pc.unlockAutoSuccess === true;
             
+            const downtimeDays = parseInt(pc.availableDowntime) || 0;
+
             const activeBoons = [];
             if (pc.boon1stBday) activeBoons.push(`1st B-Day: ${pc.boon1stBday}`);
             if (pc.boon2ndBday) activeBoons.push(`2nd B-Day: ${pc.boon2ndBday}`);
@@ -101,6 +103,9 @@ export function getPCManagerHTML(state) {
                     <i class="fa-solid fa-check-double mr-1.5 text-emerald-600"></i> Auto-Success
                 </div>
                 ` : ''}
+                <div class="bg-blue-100 border border-blue-300 text-blue-800 px-2 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wider flex items-center shadow-sm" title="Available Downtime Days">
+                    <i class="fa-solid fa-hourglass-half mr-1.5 text-blue-600"></i> ${downtimeDays} Days
+                </div>
             </div>
             `;
 
@@ -195,7 +200,7 @@ export function getPCEditHTML(state) {
     
     const pc = !isNew && camp?.playerCharacters 
         ? camp.playerCharacters.find(p => p.id === state.activePcId) 
-        : { name: '', race: '', classLevel: '', background: '', alignment: '', faith: '', gender: '', age: '', size: '', height: '', weight: '', eyes: '', hair: '', skin: '', traits: '', ideals: '', bonds: '', flaws: '', appearance: '', backstory: '', organizations: '', allies: '', enemies: '', dmNotes: '', playerId: '', image: '', boonBackstory: false, boon1stBday: '', boon2ndBday: '', extraBdayBoons: [], unlockAutoSuccess: false };
+        : { name: '', race: '', classLevel: '', background: '', alignment: '', faith: '', gender: '', age: '', size: '', height: '', weight: '', eyes: '', hair: '', skin: '', traits: '', ideals: '', bonds: '', flaws: '', appearance: '', backstory: '', organizations: '', allies: '', enemies: '', dmNotes: '', playerId: '', image: '', boonBackstory: false, boon1stBday: '', boon2ndBday: '', extraBdayBoons: [], unlockAutoSuccess: false, availableDowntime: 0 };
 
     if (!pc && !isNew) return `<div class="text-center text-red-500 p-8 font-serif font-bold text-xl">Hero not found in the archives.</div>`;
 
@@ -316,6 +321,8 @@ export function getPCEditHTML(state) {
         `;
     }
 
+    const downtimeDays = parseInt(pc.availableDowntime) || 0;
+
     return `
     <div class="animate-in slide-in-from-bottom-4 duration-300 bg-[#f4ebd8] rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col max-w-4xl mx-auto mb-8">
         
@@ -332,8 +339,21 @@ export function getPCEditHTML(state) {
         <!-- Form Content -->
         <div class="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
             
-            <div class="bg-blue-900/10 border-l-4 border-blue-600 p-4 rounded-sm text-sm text-stone-800 italic">
-                <i class="fa-solid fa-circle-info text-blue-600 mr-2"></i> When you save this journal, a <strong>Public Profile</strong> will automatically be generated (or updated) in the Codex so the rest of the party can read what your hero looks like!
+            <div class="bg-blue-900/10 border-l-4 border-blue-600 p-4 rounded-sm text-sm text-stone-800 italic flex flex-col sm:flex-row gap-4 items-center justify-between">
+                <div>
+                    <i class="fa-solid fa-circle-info text-blue-600 mr-2"></i> When you save this journal, a <strong>Public Profile</strong> will automatically be generated (or updated) in the Codex so the rest of the party can read what your hero looks like!
+                </div>
+            </div>
+            
+            <!-- Downtime Resource Tracker -->
+            <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-sm shadow-inner flex flex-wrap gap-4 items-center justify-between">
+                <div>
+                    <h3 class="text-xs font-bold text-blue-900 uppercase tracking-widest mb-1"><i class="fa-solid fa-hourglass-half mr-1"></i> Available Downtime</h3>
+                    <p class="text-[10px] text-blue-700 italic">Used for resting, crafting, researching, and other off-screen activities.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    ${isDM ? `<input type="number" id="pc-edit-downtime" value="${downtimeDays}" class="w-20 p-2 border border-blue-300 rounded-sm text-sm font-bold text-blue-900 bg-white text-center shadow-inner focus:outline-none focus:border-blue-600"> <span class="text-[10px] font-bold uppercase text-blue-800 tracking-wider">Days</span>` : `<span class="text-2xl font-black text-blue-600">${downtimeDays}</span> <span class="text-[10px] font-bold uppercase text-blue-800 tracking-wider mt-1">Days</span>`}
+                </div>
             </div>
 
             <!-- Basic Info Grid -->
@@ -504,3 +524,151 @@ export function getPCEditHTML(state) {
     </div>
     `;
 }
+
+export const savePCEdit = async () => {
+  updateDerivedState();
+  const camp = window.appData.activeCampaign;
+  if (!camp) return;
+  const isDM = camp._isDM;
+  const myUid = window.appData.currentUserUid;
+  const pcId = window.appData.activePcId || generateId();
+  
+  const existingPC = camp.playerCharacters?.find(p => p.id === pcId) || {
+    inspiration: 0,
+    automaticSuccess: false,
+    playerId: '',
+    birthMonth: null,
+    birthDay: null,
+    extraBdayBoons: [],
+    availableDowntime: 0
+  };
+  
+  const isOwner = existingPC.playerId === myUid;
+  
+  if (!isDM && !isOwner) {
+    notify("You do not have permission to modify this hero.", "error");
+    return;
+  }
+
+  const nameInput = document.getElementById('pc-edit-name')?.value.trim();
+  if (!nameInput) {
+    notify("Hero must have a name.", "error");
+    return;
+  }
+
+  // Handle DM's manual birthday entry vs Account linkage
+  const bMonthEl = document.getElementById('pc-edit-birth-month');
+  const bDayEl = document.getElementById('pc-edit-birth-day');
+  
+  // If the inputs are active (!disabled), grab their value. 
+  // If they are disabled, it means the UI is showing the Account's birthday, so we silently preserve the old manual value underneath.
+  const localBMonth = isDM ? ((bMonthEl && !bMonthEl.disabled) ? (parseInt(bMonthEl.value) || null) : existingPC.birthMonth) : existingPC.birthMonth;
+  const localBDay = isDM ? ((bDayEl && !bDayEl.disabled) ? (parseInt(bDayEl.value) || null) : existingPC.birthDay) : existingPC.birthDay;
+
+  // Gather Extra Birthday Boons (3rd+)
+  const extraBdayBoons = [];
+  if (isDM) {
+      for (let i = 3; i <= 12; i++) {
+          const select = document.getElementById(`pc-edit-boon-${i}`);
+          if (select) {
+              extraBdayBoons.push(select.value);
+          }
+      }
+      // Trim trailing empty strings so we don't save a bunch of useless blanks
+      while (extraBdayBoons.length > 0 && extraBdayBoons[extraBdayBoons.length - 1] === '') {
+          extraBdayBoons.pop();
+      }
+  }
+
+  // Gather Inputs safely based on access level
+  const updatedPC = {
+    ...existingPC,
+    id: pcId,
+    // Core Identity (Now editable by Owner AND DM)
+    name: nameInput,
+    race: document.getElementById('pc-edit-race')?.value.trim() || '',
+    classLevel: document.getElementById('pc-edit-class')?.value.trim() || '',
+    background: document.getElementById('pc-edit-background')?.value.trim() || '',
+    image: document.getElementById('pc-edit-image')?.value.trim() || '',
+    // Characteristics
+    alignment: document.getElementById('pc-edit-alignment')?.value.trim() || '',
+    faith: document.getElementById('pc-edit-faith')?.value.trim() || '',
+    gender: document.getElementById('pc-edit-gender')?.value.trim() || '',
+    age: document.getElementById('pc-edit-age')?.value.trim() || '',
+    size: document.getElementById('pc-edit-size')?.value.trim() || '',
+    height: document.getElementById('pc-edit-height')?.value.trim() || '',
+    weight: document.getElementById('pc-edit-weight')?.value.trim() || '',
+    eyes: document.getElementById('pc-edit-eyes')?.value.trim() || '',
+    hair: document.getElementById('pc-edit-hair')?.value.trim() || '',
+    skin: document.getElementById('pc-edit-skin')?.value.trim() || '',
+    // Personality & Roleplay
+    traits: document.getElementById('input-pc-edit-traits')?.value || '',
+    ideals: document.getElementById('input-pc-edit-ideals')?.value || '',
+    bonds: document.getElementById('input-pc-edit-bonds')?.value || '',
+    flaws: document.getElementById('input-pc-edit-flaws')?.value || '',
+    appearance: document.getElementById('input-pc-edit-appearance')?.value || '',
+    backstory: document.getElementById('input-pc-edit-backstory')?.value || '',
+    organizations: document.getElementById('input-pc-edit-organizations')?.value || '',
+    allies: document.getElementById('input-pc-edit-allies')?.value || '',
+    enemies: document.getElementById('input-pc-edit-enemies')?.value || '',
+    // DM Restricted Administrative Fields
+    playerId: isDM ? (document.getElementById('pc-edit-player-id')?.value || '') : (existingPC.playerId || ''),
+    dmNotes: isDM ? (document.getElementById('input-pc-edit-dmnotes')?.value || '') : (existingPC.dmNotes || ''),
+    joinDate: isDM ? (document.getElementById('pc-edit-join-date')?.value || '') : (existingPC.joinDate || ''), 
+    birthMonth: localBMonth,
+    birthDay: localBDay,
+    boonBackstory: isDM ? (document.getElementById('pc-edit-boon-backstory')?.checked || false) : (existingPC.boonBackstory || false),
+    unlockAutoSuccess: isDM ? (document.getElementById('pc-edit-unlock-auto-success')?.checked || false) : (existingPC.unlockAutoSuccess || false),
+    boon1stBday: isDM ? (document.getElementById('pc-edit-boon-1st')?.value.trim() || '') : (existingPC.boon1stBday || ''),
+    boon2ndBday: isDM ? (document.getElementById('pc-edit-boon-2nd')?.value.trim() || '') : (existingPC.boon2ndBday || ''),
+    extraBdayBoons: isDM ? extraBdayBoons : (existingPC.extraBdayBoons || []),
+    availableDowntime: isDM ? (parseInt(document.getElementById('pc-edit-downtime')?.value) || 0) : (parseInt(existingPC.availableDowntime) || 0)
+  };
+
+  const isNew = !camp.playerCharacters?.some(p => p.id === pcId);
+  const newPCs = isNew ? [...(camp.playerCharacters || []), updatedPC] : camp.playerCharacters.map(p => p.id === pcId ? updatedPC : p);
+
+  // --- Auto-Generate / Update Linked Codex Entry for the Hero ---
+  let updatedCodexArray = [...(camp.codex || [])];
+  const existingCodexEntry = updatedCodexArray.find(c => c.id === pcId);
+  
+  if (!existingCodexEntry) {
+    // Generate entirely new public codex entry with updated default description
+    updatedCodexArray.push({
+      id: pcId,
+      name: updatedPC.name,
+      type: 'PC',
+      tags: ['Hero', updatedPC.race, updatedPC.classLevel].filter(Boolean),
+      desc: 'Rumors and public knowledge surrounding this hero are yet to be penned.',
+      visibility: { mode: 'public' },
+      image: updatedPC.image
+    });
+  } else {
+    // Update existing entry's name, type, tags and image to stay in sync
+    updatedCodexArray = updatedCodexArray.map(c => {
+      if (c.id === pcId) {
+        return {
+          ...c,
+          name: updatedPC.name,
+          type: 'PC',
+          tags: ['Hero', updatedPC.race, updatedPC.classLevel].filter(Boolean),
+          image: updatedPC.image
+          // Desc and visibility are preserved so the player's custom edits remain intact
+        };
+      }
+      return c;
+    });
+  }
+
+  let updatedCamp = { ...camp, playerCharacters: newPCs, codex: updatedCodexArray };
+  
+  // Track Player Edits!
+  if (!isDM) {
+      updatedCamp = logPlayerActivity(updatedCamp, myUid, `updated the private journal for <span class="font-bold text-amber-700">${updatedPC.name}</span>.`, 'fa-user-pen');
+  }
+
+  await saveCampaign(updatedCamp);
+  
+  window.appActions.setView('pc-manager');
+  notify("Hero profile inscribed.", "success");
+};
