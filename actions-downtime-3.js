@@ -41,7 +41,10 @@ export const openRelaxationModal = () => {
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Select Hero</label>
                             <select id="dt-relax-pc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-sky-700 bg-white shadow-inner">
-                                ${validPCs.map(pc => `<option value="${pc.id}">${pc.name}</option>`).join('')}
+                                ${validPCs.map(pc => {
+                                    const currentDays = parseInt(pc.availableDowntime) || 0;
+                                    return `<option value="${pc.id}">${pc.name} (${currentDays} Days)</option>`;
+                                }).join('')}
                             </select>
                         </div>
                     </div>
@@ -164,6 +167,7 @@ export const updateRelaxationMath = () => {
 
     descEl.textContent = data.desc;
 
+    // Toggle Benefit Group visibility based on Lifestyle
     if (data.benefit) {
         benefitGroup.classList.remove('opacity-50', 'pointer-events-none');
         warningEl.classList.add('hidden');
@@ -172,6 +176,7 @@ export const updateRelaxationMath = () => {
         warningEl.classList.remove('hidden');
     }
 
+    // Auto-fill description based on benefit dropdown if they haven't explicitly typed "other"
     if (document.activeElement !== benefitDescEl) {
         if (benefitTypeEl.value === 'hp') benefitDescEl.value = "Ending an effect that prevents hit point regeneration.";
         else if (benefitTypeEl.value === 'ability') benefitDescEl.value = "Restoring a drained ability score (e.g., Strength).";
@@ -196,6 +201,12 @@ export const executeRelaxation = async () => {
     const pcId = document.getElementById('dt-relax-pc').value;
     const pc = camp.playerCharacters?.find(p => p.id === pcId);
     if (!pc) return;
+
+    // DOWNTIME DAYS CHECK
+    if ((parseInt(pc.availableDowntime) || 0) < 5) {
+        notify(`Not enough downtime days. ${pc.name} only has ${parseInt(pc.availableDowntime) || 0} days available.`, "error");
+        return;
+    }
 
     const loc = document.getElementById('dt-relax-loc').value.trim();
     if (!loc) {
@@ -231,6 +242,7 @@ export const executeRelaxation = async () => {
     const igM = parseInt(document.getElementById('dt-relax-m').value, 10) || camp.calendar.currentMonth || 0;
     const igD = parseInt(document.getElementById('dt-relax-d').value, 10) || camp.calendar.currentDay || 1;
 
+    // --- FORMAT RESULTS ---
     let recoveryMessage = ``;
     if (data.benefit && effectDesc) {
         recoveryMessage = `✅ **Recovery Successful!**\nAt the week's end, ${pc.name} recovered from the following effect:\n> *"${effectDesc}"*`;
@@ -240,13 +252,18 @@ export const executeRelaxation = async () => {
 
     const noteText = `**Downtime: Relaxation**\n*Hero:* ${pc.name}\n\n**Location:** ${loc}\n**Time Spent:** 5 Days\n**Lifestyle Maintained:** ${data.label} (${costStr})\n\n${recoveryMessage}\n\n*(Note: During this week, ${pc.name} also gains advantage on saving throws against long-acting diseases and poisons).*`;
 
+    // --- SAVE TO CALENDAR ---
     const dateKey = `${igY}-${igM}-${igD}`;
     const newNote = {
         id: generateId(), text: noteText, authorId: myUid, visibility: { mode: 'public', visibleTo: [] },
         timestamp: Date.now(), duration: 5, repeatsYearly: false, category: 'Downtime'
     };
 
-    let updatedCamp = { ...camp };
+    const updatedPCs = camp.playerCharacters.map(p => 
+        p.id === pc.id ? { ...p, availableDowntime: (parseInt(p.availableDowntime) || 0) - 5 } : p
+    );
+
+    let updatedCamp = { ...camp, playerCharacters: updatedPCs };
 
     if (!updatedCamp.calendar) updatedCamp.calendar = {};
     if (!updatedCamp.calendar.notes) updatedCamp.calendar.notes = {};
@@ -265,7 +282,7 @@ export const executeRelaxation = async () => {
     await saveCampaign(updatedCamp);
     
     document.getElementById('global-popup-container').innerHTML = '';
-    notify("Relaxation resolved and logged to the calendar.", "success");
+    notify(`Relaxation resolved. 5 days deducted from ${pc.name}.`, "success");
     reRender();
 };
 
@@ -340,7 +357,10 @@ export const openReligiousServiceModal = () => {
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Select Hero</label>
                             <select id="dt-relig-pc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-yellow-600 bg-white shadow-inner">
-                                ${validPCs.map(pc => `<option value="${pc.id}">${pc.name}</option>`).join('')}
+                                ${validPCs.map(pc => {
+                                    const currentDays = parseInt(pc.availableDowntime) || 0;
+                                    return `<option value="${pc.id}">${pc.name} (${currentDays} Days)</option>`;
+                                }).join('')}
                             </select>
                         </div>
                     </div>
@@ -476,6 +496,12 @@ export const executeReligiousService = async () => {
     const pc = camp.playerCharacters?.find(p => p.id === pcId);
     if (!pc) return;
 
+    // DOWNTIME DAYS CHECK
+    if ((parseInt(pc.availableDowntime) || 0) < 5) {
+        notify(`Not enough downtime days. ${pc.name} only has ${parseInt(pc.availableDowntime) || 0} days available.`, "error");
+        return;
+    }
+
     let deityName = document.getElementById('dt-relig-deity').value;
     if (deityName === 'other') deityName = document.getElementById('dt-relig-custom-deity').value.trim();
     
@@ -540,7 +566,11 @@ export const executeReligiousService = async () => {
         timestamp: Date.now(), duration: 5, repeatsYearly: false, category: 'Downtime'
     };
 
-    let updatedCamp = { ...camp };
+    const updatedPCs = camp.playerCharacters.map(p => 
+        p.id === pc.id ? { ...p, availableDowntime: (parseInt(p.availableDowntime) || 0) - 5 } : p
+    );
+
+    let updatedCamp = { ...camp, playerCharacters: updatedPCs };
 
     if (!updatedCamp.calendar) updatedCamp.calendar = {};
     if (!updatedCamp.calendar.notes) updatedCamp.calendar.notes = {};
@@ -559,7 +589,7 @@ export const executeReligiousService = async () => {
     await saveCampaign(updatedCamp);
     
     document.getElementById('global-popup-container').innerHTML = '';
-    notify("Religious Service resolved and logged to the calendar.", "success");
+    notify(`Religious Service resolved. 5 days deducted from ${pc.name}.`, "success");
     reRender();
 };
 
@@ -602,7 +632,10 @@ export const openResearchModal = () => {
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Select Hero</label>
                             <select id="dt-research-pc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-teal-700 bg-white shadow-inner">
-                                ${validPCs.map(pc => `<option value="${pc.id}">${pc.name}</option>`).join('')}
+                                ${validPCs.map(pc => {
+                                    const currentDays = parseInt(pc.availableDowntime) || 0;
+                                    return `<option value="${pc.id}">${pc.name} (${currentDays} Days)</option>`;
+                                }).join('')}
                             </select>
                         </div>
                         <div>
@@ -781,6 +814,12 @@ export const executeResearch = async () => {
     if (hasHarperSupport) totalGoldCost = Math.ceil(totalGoldCost * 0.5);
     const totalDaysCost = 5 + travelDays;
 
+    // DOWNTIME DAYS CHECK
+    if ((parseInt(pc.availableDowntime) || 0) < totalDaysCost) {
+        notify(`Not enough downtime days. ${pc.name} only has ${parseInt(pc.availableDowntime) || 0} days available.`, "error");
+        return;
+    }
+
     const igY = parseInt(document.getElementById('dt-research-y').value, 10) || camp.calendar.currentYear || 1492;
     const igM = parseInt(document.getElementById('dt-research-m').value, 10) || camp.calendar.currentMonth || 0;
     const igD = parseInt(document.getElementById('dt-research-d').value, 10) || camp.calendar.currentDay || 1;
@@ -843,7 +882,11 @@ export const executeResearch = async () => {
         timestamp: Date.now(), duration: totalDaysCost, repeatsYearly: false, category: 'Downtime'
     };
 
-    let updatedCamp = { ...camp };
+    const updatedPCs = camp.playerCharacters.map(p => 
+        p.id === pc.id ? { ...p, availableDowntime: (parseInt(p.availableDowntime) || 0) - totalDaysCost } : p
+    );
+
+    let updatedCamp = { ...camp, playerCharacters: updatedPCs };
 
     if (!updatedCamp.calendar) updatedCamp.calendar = {};
     if (!updatedCamp.calendar.notes) updatedCamp.calendar.notes = {};
@@ -862,7 +905,7 @@ export const executeResearch = async () => {
     await saveCampaign(updatedCamp);
     
     document.getElementById('global-popup-container').innerHTML = '';
-    notify("Research resolved and logged to the calendar.", "success");
+    notify(`Research resolved. ${totalDaysCost} days deducted from ${pc.name}.`, "success");
     reRender();
 };
 
@@ -905,7 +948,10 @@ export const openScribingModal = () => {
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Select Hero</label>
                             <select id="dt-scribe-pc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-fuchsia-700 bg-white shadow-inner">
-                                ${validPCs.map(pc => `<option value="${pc.id}">${pc.name}</option>`).join('')}
+                                ${validPCs.map(pc => {
+                                    const currentDays = parseInt(pc.availableDowntime) || 0;
+                                    return `<option value="${pc.id}">${pc.name} (${currentDays} Days)</option>`;
+                                }).join('')}
                             </select>
                         </div>
                     </div>
@@ -1086,6 +1132,12 @@ export const executeScribing = async () => {
     const daysSpent = parseInt(document.getElementById('dt-scribe-days-spent').value) || 1;
     const isComplete = daysSpent >= effectiveTime;
 
+    // DOWNTIME DAYS CHECK
+    if ((parseInt(pc.availableDowntime) || 0) < daysSpent) {
+        notify(`Not enough downtime days. ${pc.name} only has ${parseInt(pc.availableDowntime) || 0} days available.`, "error");
+        return;
+    }
+
     const igY = parseInt(document.getElementById('dt-scribe-y').value, 10) || camp.calendar.currentYear || 1492;
     const igM = parseInt(document.getElementById('dt-scribe-m').value, 10) || camp.calendar.currentMonth || 0;
     const igD = parseInt(document.getElementById('dt-scribe-d').value, 10) || camp.calendar.currentDay || 1;
@@ -1131,7 +1183,11 @@ export const executeScribing = async () => {
         timestamp: Date.now(), duration: daysSpent, repeatsYearly: false, category: 'Downtime'
     };
 
-    let updatedCamp = { ...camp };
+    const updatedPCs = camp.playerCharacters.map(p => 
+        p.id === pc.id ? { ...p, availableDowntime: (parseInt(p.availableDowntime) || 0) - daysSpent } : p
+    );
+
+    let updatedCamp = { ...camp, playerCharacters: updatedPCs };
 
     if (!updatedCamp.calendar) updatedCamp.calendar = {};
     if (!updatedCamp.calendar.notes) updatedCamp.calendar.notes = {};
@@ -1150,7 +1206,7 @@ export const executeScribing = async () => {
     await saveCampaign(updatedCamp);
     
     document.getElementById('global-popup-container').innerHTML = '';
-    notify("Scribing progress logged to the calendar.", "success");
+    notify(`Scribing progress logged. ${daysSpent} days deducted from ${pc.name}.`, "success");
     reRender();
 };
 
