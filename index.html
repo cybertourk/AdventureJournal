@@ -255,6 +255,12 @@
                     <div class="w-10 h-10 rounded-full bg-purple-100 text-purple-800 flex items-center justify-center text-lg"><i class="fa-solid fa-hourglass-half"></i></div>
                     <span class="text-[10px] font-bold uppercase tracking-widest text-stone-700">Downtime Activity</span>
                 </button>
+                
+                <!-- NEW: Assign Downtime Button (Hidden by default, shown to DM via JS) -->
+                <button id="dm-assign-downtime-btn" onclick="window.appActions.toggleActionMenu(); window.appActions.openAssignDowntimeModal();" class="hidden col-span-2 bg-stone-900 p-3 rounded-xl shadow-sm border border-amber-600 flex flex-col items-center gap-2 active:scale-95 transition-transform">
+                    <div class="w-10 h-10 rounded-full bg-amber-500 text-stone-900 flex items-center justify-center text-lg shadow-inner"><i class="fa-solid fa-calendar-plus"></i></div>
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-amber-50">Assign Downtime (DM)</span>
+                </button>
             </div>
         </div>
     </div>
