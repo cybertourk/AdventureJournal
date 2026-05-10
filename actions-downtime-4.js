@@ -28,11 +28,6 @@ export const openSellingModal = () => {
     const container = document.getElementById('global-popup-container');
     if (!container) return;
 
-    const cal = camp.calendar;
-    const igY = cal?.currentYear || 1492;
-    const igM = cal?.currentMonth || 0;
-    const igD = cal?.currentDay || 1;
-
     container.innerHTML = `
         <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[18000] backdrop-blur-sm animate-in">
             <div class="bg-[#f4ebd8] rounded-sm w-full max-w-2xl border border-[#d4c5a9] shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
@@ -63,24 +58,6 @@ export const openSellingModal = () => {
                                 <span class="bg-stone-200 border border-r-0 border-[#d4c5a9] px-3 py-2 text-sm font-bold text-stone-600 rounded-l-sm">+</span>
                                 <input type="number" id="dt-sell-mod" value="0" class="w-full p-2 border border-[#d4c5a9] rounded-r-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner text-center">
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- Date Selection -->
-                    <div class="mb-5 bg-stone-100 p-3 rounded-sm border border-[#d4c5a9] shadow-inner">
-                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-2 tracking-widest"><i class="fa-regular fa-calendar mr-1"></i> Start Date on Calendar</label>
-                        <div class="flex items-center gap-2">
-                            <input type="number" id="dt-sell-y" value="${igY}" class="w-20 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-emerald-600 text-center bg-white shadow-sm" title="Year">
-                            <select id="dt-sell-m" onchange="window.updateDayOptions(this.value, 'dt-sell-d')" class="flex-grow p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-sm" title="Month">
-                                ${(cal?.months || []).map((m, idx) => {
-                                    let mName = m.name;
-                                    if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
-                                    return `<option value="${idx}" ${idx === igM ? 'selected' : ''}>${mName}</option>`;
-                                }).join('')}
-                            </select>
-                            <select id="dt-sell-d" class="w-16 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-emerald-600 text-center bg-white shadow-sm" title="Day">
-                                ${Array.from({ length: Math.max(1, parseInt(cal?.months[igM]?.days || 1, 10)) }).map((_, i) => `<option value="${i+1}" ${i+1 === igD ? 'selected' : ''}>${i+1}</option>`).join('')}
-                            </select>
                         </div>
                     </div>
 
@@ -124,7 +101,7 @@ export const openSellingModal = () => {
                                 <span class="text-emerald-400" title="Roll 21+ (150%)"><i class="fa-solid fa-arrow-trend-up mr-1"></i> <span id="dt-sell-out-great">150 gp</span></span>
                             </div>
                         </div>
-                        <div class="sm:text-right border-t sm:border-t-0 sm:border-l-2 border-stone-800 pt-3 sm:pt-0 sm:pl-4 flex flex-col justify-end">
+                        <div class="sm:text-right border-t sm:border-t-0 sm:border-l-2 border-stone-800 pt-3 sm:pt-0 sm:pl-4 flex flex-col justify-end shrink-0">
                             <span class="block text-[10px] uppercase tracking-widest text-stone-400 font-bold mb-0.5">Downtime Required</span>
                             <span class="text-sm font-bold text-stone-300">5 Days & 25 gp <span class="text-[10px] font-normal italic">(Expenses)</span></span>
                         </div>
@@ -199,10 +176,6 @@ export const executeSelling = async () => {
     const customPrice = parseInt(document.getElementById('dt-sell-custom-price').value) || 0;
     const isConsumable = document.getElementById('dt-sell-consumable').checked;
 
-    const igY = parseInt(document.getElementById('dt-sell-y').value, 10) || camp.calendar.currentYear || 1492;
-    const igM = parseInt(document.getElementById('dt-sell-m').value, 10) || camp.calendar.currentMonth || 0;
-    const igD = parseInt(document.getElementById('dt-sell-d').value, 10) || camp.calendar.currentDay || 1;
-
     // --- MATH EXECUTION ---
     let basePrice = customPrice > 0 ? customPrice : (BASE_PRICES_BY_RARITY[rarity] || 0);
     if (isConsumable) basePrice = Math.floor(basePrice / 2);
@@ -245,37 +218,25 @@ export const executeSelling = async () => {
 
     const noteText = `**Downtime: Selling a Magic Item**\n*Hero:* ${pc.name}\n\n${resultHeader}\n\n**Time Spent:** 5 Days\n**Gold Spent (Expenses):** 25 gp\n**Persuasion Check:** ${checkTotal} (Rolled ${d20} ${pMod >= 0 ? `+ ${pMod}` : `- ${Math.abs(pMod)}`})\n\n${resultBody}${complicationText}`;
 
-    // --- SAVE TO CALENDAR ---
-    const dateKey = `${igY}-${igM}-${igD}`;
-    const newNote = {
-        id: generateId(), text: noteText, authorId: myUid, visibility: { mode: 'public', visibleTo: [] },
-        timestamp: Date.now(), duration: 5, repeatsYearly: false, category: 'Downtime'
-    };
+    const timestampStr = new Date().toLocaleDateString();
+    const logAddition = `${pc.downtimeLog ? '\n\n---\n\n' : ''}**Logged on ${timestampStr}**\n${noteText}`;
 
     const updatedPCs = camp.playerCharacters.map(p => 
-        p.id === pc.id ? { ...p, availableDowntime: (parseInt(p.availableDowntime) || 0) - 5 } : p
+        p.id === pc.id ? { 
+            ...p, 
+            availableDowntime: Math.max(0, (parseInt(p.availableDowntime) || 0) - 5),
+            downtimeLog: (p.downtimeLog || '') + logAddition
+        } : p
     );
 
     let updatedCamp = { ...camp, playerCharacters: updatedPCs };
-
-    if (!updatedCamp.calendar) updatedCamp.calendar = {};
-    if (!updatedCamp.calendar.notes) updatedCamp.calendar.notes = {};
-    
-    let dayNotes = updatedCamp.calendar.notes[dateKey];
-    if (dayNotes && !Array.isArray(dayNotes)) {
-        dayNotes = [{ id: generateId(), text: dayNotes.text, visibility: dayNotes.visibility, authorId: updatedCamp.dmId, category: 'Misc' }];
-    }
-    if (!dayNotes) dayNotes = [];
-
-    dayNotes.push(newNote);
-    updatedCamp.calendar.notes[dateKey] = dayNotes;
 
     updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime seeking a buyer for a magic item with <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-coins');
 
     await saveCampaign(updatedCamp);
     
     document.getElementById('global-popup-container').innerHTML = '';
-    notify(`Selling attempt resolved. 5 days deducted from ${pc.name}.`, "success");
+    notify(`Selling attempt resolved. 5 days deducted from ${pc.name}. Log saved to Hero Journal.`, "success");
     reRender();
 };
 
@@ -338,11 +299,6 @@ export const openTrainingModal = () => {
     const container = document.getElementById('global-popup-container');
     if (!container) return;
 
-    const cal = camp.calendar;
-    const igY = cal?.currentYear || 1492;
-    const igM = cal?.currentMonth || 0;
-    const igD = cal?.currentDay || 1;
-
     container.innerHTML = `
         <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[18000] backdrop-blur-sm animate-in">
             <div class="bg-[#f4ebd8] rounded-sm w-full max-w-2xl border border-[#d4c5a9] shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
@@ -373,24 +329,6 @@ export const openTrainingModal = () => {
                                 <span class="bg-stone-200 border border-r-0 border-[#d4c5a9] px-3 py-2 text-sm font-bold text-stone-600 rounded-l-sm">+</span>
                                 <input type="number" id="dt-train-int" value="0" oninput="window.appActions.updateTrainingMath()" class="w-full p-2 border border-[#d4c5a9] rounded-r-sm text-sm font-bold text-stone-900 outline-none focus:border-fuchsia-700 bg-white shadow-inner text-center">
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- Date Selection -->
-                    <div class="mb-5 bg-stone-100 p-3 rounded-sm border border-[#d4c5a9] shadow-inner">
-                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-2 tracking-widest"><i class="fa-regular fa-calendar mr-1"></i> Start Date on Calendar</label>
-                        <div class="flex items-center gap-2">
-                            <input type="number" id="dt-train-y" value="${igY}" class="w-20 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-fuchsia-700 text-center bg-white shadow-sm" title="Year">
-                            <select id="dt-train-m" onchange="window.updateDayOptions(this.value, 'dt-train-d')" class="flex-grow p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-fuchsia-700 bg-white shadow-sm" title="Month">
-                                ${(cal?.months || []).map((m, idx) => {
-                                    let mName = m.name;
-                                    if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
-                                    return `<option value="${idx}" ${idx === igM ? 'selected' : ''}>${mName}</option>`;
-                                }).join('')}
-                            </select>
-                            <select id="dt-train-d" class="w-16 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-fuchsia-700 text-center bg-white shadow-sm" title="Day">
-                                ${Array.from({ length: Math.max(1, parseInt(cal?.months[igM]?.days || 1, 10)) }).map((_, i) => `<option value="${i+1}" ${i+1 === igD ? 'selected' : ''}>${i+1}</option>`).join('')}
-                            </select>
                         </div>
                     </div>
 
@@ -578,10 +516,6 @@ export const executeTraining = async () => {
         return;
     }
 
-    const igY = parseInt(document.getElementById('dt-train-y').value, 10) || camp.calendar.currentYear || 1492;
-    const igM = parseInt(document.getElementById('dt-train-m').value, 10) || camp.calendar.currentMonth || 0;
-    const igD = parseInt(document.getElementById('dt-train-d').value, 10) || camp.calendar.currentDay || 1;
-
     // --- MATH EXECUTION ---
 
     // Complication Roll (10% chance per workweek actually spent in this log)
@@ -619,37 +553,25 @@ export const executeTraining = async () => {
 
     const noteText = `**Downtime: Training**\n*Hero:* ${pc.name}\n\n${resultHeader}\n**Instructor:** ${instName} (${instSpecies}) at ${instLoc}\n\n**Work Days Logged:** ${daysSpent} Days (+${travelDays} Travel)\n${costNote}\n\n${resultBody}${modifiersNote}${complicationText}`;
 
-    // --- SAVE TO CALENDAR ---
-    const dateKey = `${igY}-${igM}-${igD}`;
-    const newNote = {
-        id: generateId(), text: noteText, authorId: myUid, visibility: { mode: 'public', visibleTo: [] },
-        timestamp: Date.now(), duration: totalDaysLogged, repeatsYearly: false, category: 'Downtime'
-    };
+    const timestampStr = new Date().toLocaleDateString();
+    const logAddition = `${pc.downtimeLog ? '\n\n---\n\n' : ''}**Logged on ${timestampStr}**\n${noteText}`;
 
     const updatedPCs = camp.playerCharacters.map(p => 
-        p.id === pc.id ? { ...p, availableDowntime: (parseInt(p.availableDowntime) || 0) - totalDaysLogged } : p
+        p.id === pc.id ? { 
+            ...p, 
+            availableDowntime: Math.max(0, (parseInt(p.availableDowntime) || 0) - totalDaysLogged),
+            downtimeLog: (p.downtimeLog || '') + logAddition
+        } : p
     );
 
     let updatedCamp = { ...camp, playerCharacters: updatedPCs };
-
-    if (!updatedCamp.calendar) updatedCamp.calendar = {};
-    if (!updatedCamp.calendar.notes) updatedCamp.calendar.notes = {};
-    
-    let dayNotes = updatedCamp.calendar.notes[dateKey];
-    if (dayNotes && !Array.isArray(dayNotes)) {
-        dayNotes = [{ id: generateId(), text: dayNotes.text, visibility: dayNotes.visibility, authorId: updatedCamp.dmId, category: 'Misc' }];
-    }
-    if (!dayNotes) dayNotes = [];
-
-    dayNotes.push(newNote);
-    updatedCamp.calendar.notes[dateKey] = dayNotes;
 
     updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime training with <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-graduation-cap');
 
     await saveCampaign(updatedCamp);
     
     document.getElementById('global-popup-container').innerHTML = '';
-    notify(`Training progress logged. ${totalDaysLogged} days deducted from ${pc.name}.`, "success");
+    notify(`Training progress logged. ${totalDaysLogged} days deducted. Log saved to Hero Journal.`, "success");
     reRender();
 };
 
@@ -670,11 +592,6 @@ export const openWorkModal = () => {
 
     const container = document.getElementById('global-popup-container');
     if (!container) return;
-
-    const cal = camp.calendar;
-    const igY = cal?.currentYear || 1492;
-    const igM = cal?.currentMonth || 0;
-    const igD = cal?.currentDay || 1;
 
     container.innerHTML = `
         <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[18000] backdrop-blur-sm animate-in">
@@ -698,24 +615,6 @@ export const openWorkModal = () => {
                                     const currentDays = parseInt(pc.availableDowntime) || 0;
                                     return `<option value="${pc.id}">${pc.name} (${currentDays} Days)</option>`;
                                 }).join('')}
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Date Selection -->
-                    <div class="mb-5 bg-stone-100 p-3 rounded-sm border border-[#d4c5a9] shadow-inner">
-                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-2 tracking-widest"><i class="fa-regular fa-calendar mr-1"></i> Start Date on Calendar</label>
-                        <div class="flex items-center gap-2">
-                            <input type="number" id="dt-work-y" value="${igY}" class="w-20 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-orange-700 text-center bg-white shadow-sm" title="Year">
-                            <select id="dt-work-m" onchange="window.updateDayOptions(this.value, 'dt-work-d')" class="flex-grow p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-orange-700 bg-white shadow-sm" title="Month">
-                                ${(cal?.months || []).map((m, idx) => {
-                                    let mName = m.name;
-                                    if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
-                                    return `<option value="${idx}" ${idx === igM ? 'selected' : ''}>${mName}</option>`;
-                                }).join('')}
-                            </select>
-                            <select id="dt-work-d" class="w-16 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-orange-700 text-center bg-white shadow-sm" title="Day">
-                                ${Array.from({ length: Math.max(1, parseInt(cal?.months[igM]?.days || 1, 10)) }).map((_, i) => `<option value="${i+1}" ${i+1 === igD ? 'selected' : ''}>${i+1}</option>`).join('')}
                             </select>
                         </div>
                     </div>
@@ -819,10 +718,6 @@ export const executeWork = async () => {
 
     const modifier = parseInt(document.getElementById('dt-work-mod').value) || 0;
 
-    const igY = parseInt(document.getElementById('dt-work-y').value, 10) || camp.calendar.currentYear || 1492;
-    const igM = parseInt(document.getElementById('dt-work-m').value, 10) || camp.calendar.currentMonth || 0;
-    const igD = parseInt(document.getElementById('dt-work-d').value, 10) || camp.calendar.currentDay || 1;
-
     // --- MATH EXECUTION ---
     const d20 = Math.floor(Math.random() * 20) + 1;
     const checkTotal = d20 + modifier;
@@ -872,36 +767,25 @@ export const executeWork = async () => {
 
     const noteText = `**Downtime: Work**\n*Hero:* ${pc.name}\n\n${resultHeader}\n**Location:** ${workplace} in ${loc}\n**Time Spent:** 5 Days\n\n**${skillName} Check:** ${checkTotal} (Rolled ${d20} ${modifier >= 0 ? `+ ${modifier}` : `- ${Math.abs(modifier)}`})\n\n${resultBody}${complicationText}`;
 
-    // --- SAVE TO CALENDAR ---
-    const dateKey = `${igY}-${igM}-${igD}`;
-    const newNote = {
-        id: generateId(), text: noteText, authorId: myUid, visibility: { mode: 'public', visibleTo: [] },
-        timestamp: Date.now(), duration: 5, repeatsYearly: false, category: 'Downtime'
-    };
+    const timestampStr = new Date().toLocaleDateString();
+    const logAddition = `${pc.downtimeLog ? '\n\n---\n\n' : ''}**Logged on ${timestampStr}**\n${noteText}`;
 
     const updatedPCs = camp.playerCharacters.map(p => 
-        p.id === pc.id ? { ...p, availableDowntime: (parseInt(p.availableDowntime) || 0) - 5 } : p
+        p.id === pc.id ? { 
+            ...p, 
+            availableDowntime: Math.max(0, (parseInt(p.availableDowntime) || 0) - 5),
+            downtimeLog: (p.downtimeLog || '') + logAddition
+        } : p
     );
 
     let updatedCamp = { ...camp, playerCharacters: updatedPCs };
-    if (!updatedCamp.calendar) updatedCamp.calendar = {};
-    if (!updatedCamp.calendar.notes) updatedCamp.calendar.notes = {};
-    
-    let dayNotes = updatedCamp.calendar.notes[dateKey];
-    if (dayNotes && !Array.isArray(dayNotes)) {
-        dayNotes = [{ id: generateId(), text: dayNotes.text, visibility: dayNotes.visibility, authorId: updatedCamp.dmId, category: 'Misc' }];
-    }
-    if (!dayNotes) dayNotes = [];
-
-    dayNotes.push(newNote);
-    updatedCamp.calendar.notes[dateKey] = dayNotes;
 
     updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime working in ${loc} with <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-briefcase');
 
     await saveCampaign(updatedCamp);
     
     document.getElementById('global-popup-container').innerHTML = '';
-    notify(`Work resolved. 5 days deducted from ${pc.name}.`, "success");
+    notify(`Work resolved. 5 days deducted from ${pc.name}. Log saved to Hero Journal.`, "success");
     reRender();
 };
 
@@ -983,7 +867,7 @@ export const openAssignDowntimeModal = () => {
                         </div>
                     </div>
 
-                    <!-- Date Selection -->
+                    <!-- Date Selection (Kept for Historical DM Logging) -->
                     <div class="mb-5 bg-stone-100 p-3 rounded-sm border border-[#d4c5a9] shadow-inner">
                         <label class="block text-[10px] uppercase text-stone-500 font-bold mb-2 tracking-widest"><i class="fa-regular fa-calendar mr-1"></i> Date of Assignment</label>
                         <div class="flex items-center gap-2">
@@ -999,6 +883,7 @@ export const openAssignDowntimeModal = () => {
                                 ${Array.from({ length: Math.max(1, parseInt(cal?.months[igM]?.days || 1, 10)) }).map((_, i) => `<option value="${i+1}" ${i+1 === igD ? 'selected' : ''}>${i+1}</option>`).join('')}
                             </select>
                         </div>
+                        <p class="text-[9px] text-stone-500 italic mt-2">Downtime assignments will still be stamped into the campaign calendar timeline for historical reference.</p>
                     </div>
 
                     <!-- Notes -->
@@ -1037,38 +922,48 @@ export const executeAssignDowntime = async () => {
     const actualDays = adjustType === 'add' ? daysInput : -daysInput;
     let namesAffected = [];
 
-    // Update PC balances
-    const updatedPCs = camp.playerCharacters.map(pc => {
-        if (targetType === 'all' || pc.id === pcId) {
-            namesAffected.push(pc.name);
-            let current = parseInt(pc.availableDowntime) || 0;
-            let newBalance = current + actualDays;
-            return { ...pc, availableDowntime: newBalance };
-        }
-        return pc;
-    });
-
-    if (namesAffected.length === 0) return;
-
     const actionWord = adjustType === 'add' ? 'Granted' : 'Deducted';
-    let targetStr = targetType === 'all' ? 'the Entire Party' : namesAffected[0];
+    let targetStr = targetType === 'all' ? 'the Entire Party' : 'Target Hero';
     
-    let resultBody = `The Dungeon Master ${actionWord.toLowerCase()} **${daysInput} Downtime Day${daysInput !== 1 ? 's' : ''}** for ${targetStr}.`;
+    let resultBody = `The Dungeon Master ${actionWord.toLowerCase()} **${daysInput} Downtime Day${daysInput !== 1 ? 's' : ''}**.`;
     if (reason) {
         resultBody += `\n\n*Reason: ${reason}*`;
     }
 
     const noteText = `**DM Assignment: Downtime**\n\n${resultBody}`;
+    
+    // Also push the assignment record to the players' personal logs so they see the adjustment!
+    const timestampStr = new Date().toLocaleDateString();
+    const logAddition = `\n\n---\n\n**Logged on ${timestampStr}**\n${noteText}`;
+
+    // Update PC balances and append personal log
+    const updatedPCs = camp.playerCharacters.map(pc => {
+        if (targetType === 'all' || pc.id === pcId) {
+            namesAffected.push(pc.name);
+            let current = parseInt(pc.availableDowntime) || 0;
+            let newBalance = Math.max(0, current + actualDays);
+            return { 
+                ...pc, 
+                availableDowntime: newBalance,
+                downtimeLog: (pc.downtimeLog || '') + logAddition
+            };
+        }
+        return pc;
+    });
+
+    if (namesAffected.length === 0) return;
+    if (targetType !== 'all') targetStr = namesAffected[0];
 
     const igY = parseInt(document.getElementById('dt-assign-y').value, 10) || camp.calendar.currentYear || 1492;
     const igM = parseInt(document.getElementById('dt-assign-m').value, 10) || camp.calendar.currentMonth || 0;
     const igD = parseInt(document.getElementById('dt-assign-d').value, 10) || camp.calendar.currentDay || 1;
 
     // --- SAVE TO CALENDAR ---
+    // DM assignments still go to the Calendar because they define "When" a 6-month break occurred between adventures.
     const dateKey = `${igY}-${igM}-${igD}`;
     const newNote = {
         id: generateId(), 
-        text: noteText, 
+        text: `**DM Assignment: Downtime**\n\nThe Dungeon Master ${actionWord.toLowerCase()} **${daysInput} Downtime Day${daysInput !== 1 ? 's' : ''}** for ${targetStr}.${reason ? `\n\n*Reason: ${reason}*` : ''}`, 
         authorId: camp.dmId, 
         visibility: { mode: 'public', visibleTo: [] },
         timestamp: Date.now(), 
