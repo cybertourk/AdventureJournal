@@ -63,7 +63,7 @@ export const openDowntimeMenu = () => {
                     <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="text-stone-500 hover:text-red-900 transition"><i class="fa-solid fa-xmark text-xl p-1"></i></button>
                 </div>
 
-                <p class="text-xs text-stone-600 italic mb-4 shrink-0 border-l-2 border-blue-500 pl-2">Select a downtime activity to automatically roll checks, calculate costs, and log the results directly to the campaign calendar.</p>
+                <p class="text-xs text-stone-600 italic mb-4 shrink-0 border-l-2 border-blue-500 pl-2">Select a downtime activity to automatically roll checks, deduct days, and log the results directly to your hero's Private Journal.</p>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 overflow-y-auto custom-scrollbar pr-2 pb-4">
                     ${activitiesHtml}
@@ -88,11 +88,6 @@ export const openBuyMagicItemModal = () => {
 
     const container = document.getElementById('global-popup-container');
     if (!container) return;
-
-    const cal = camp.calendar;
-    const igY = cal?.currentYear || 1492;
-    const igM = cal?.currentMonth || 0;
-    const igD = cal?.currentDay || 1;
 
     container.innerHTML = `
         <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[18000] backdrop-blur-sm animate-in">
@@ -123,24 +118,7 @@ export const openBuyMagicItemModal = () => {
                         </div>
                     </div>
 
-                    <div class="mb-5 bg-stone-100 p-3 rounded-sm border border-[#d4c5a9] shadow-inner">
-                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-2 tracking-widest"><i class="fa-regular fa-calendar mr-1"></i> Start Date on Calendar</label>
-                        <div class="flex items-center gap-2">
-                            <input type="number" id="dt-buy-y" value="${igY}" class="w-20 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-blue-600 text-center bg-white shadow-sm" title="Year">
-                            <select id="dt-buy-m" onchange="window.updateDayOptions(this.value, 'dt-buy-d')" class="flex-grow p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-blue-600 bg-white shadow-sm" title="Month">
-                                ${(cal?.months || []).map((m, idx) => {
-                                    let mName = m.name;
-                                    if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
-                                    return `<option value="${idx}" ${idx === igM ? 'selected' : ''}>${mName}</option>`;
-                                }).join('')}
-                            </select>
-                            <select id="dt-buy-d" class="w-16 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-blue-600 text-center bg-white shadow-sm" title="Day">
-                                ${Array.from({ length: Math.max(1, parseInt(cal?.months[igM]?.days || 1, 10)) }).map((_, i) => `<option value="${i+1}" ${i+1 === igD ? 'selected' : ''}>${i+1}</option>`).join('')}
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5 border-t border-[#d4c5a9] pt-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Time Spent Searching</label>
                             <select id="dt-buy-days" onchange="window.appActions.updateBuyMagicItemMath()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-white shadow-inner">
@@ -295,10 +273,6 @@ export const executeBuyMagicItem = async () => {
         return;
     }
 
-    const igY = parseInt(document.getElementById('dt-buy-y').value, 10) || camp.calendar.currentYear || 1492;
-    const igM = parseInt(document.getElementById('dt-buy-m').value, 10) || camp.calendar.currentMonth || 0;
-    const igD = parseInt(document.getElementById('dt-buy-d').value, 10) || camp.calendar.currentDay || 1;
-
     const workweeks = Math.floor(days / 5);
     let workweeksBonus = Math.max(0, workweeks - 1);
     if (isHarper) workweeksBonus *= 2;
@@ -369,33 +343,23 @@ export const executeBuyMagicItem = async () => {
 
     const noteText = `**Downtime: Buying a Magic Item**\n*Hero:* ${pc.name}\n\n${resultHeader}\n\n**Time Spent:** ${days} Days (+${travelDays} Travel)\n**Gold Spent (Expenses):** ${gold} gp\n**Check Result:** ${checkTotal} (Rolled ${d20} ${totalBonus >= 0 ? `+ ${totalBonus}` : `- ${Math.abs(totalBonus)}`})\n\n${resultBody}${modifiersNote}${complicationText}`;
 
-    const dateKey = `${igY}-${igM}-${igD}`;
-    const newNote = {
-        id: generateId(), text: noteText, authorId: myUid, visibility: { mode: 'public', visibleTo: [] },
-        timestamp: Date.now(), duration: totalDays, repeatsYearly: false, category: 'Downtime'
-    };
+    const timestampStr = new Date().toLocaleDateString();
+    const logAddition = `${pc.downtimeLog ? '\n\n---\n\n' : ''}**Logged on ${timestampStr}**\n${noteText}`;
 
     const updatedPCs = camp.playerCharacters.map(p => 
-        p.id === pc.id ? { ...p, availableDowntime: (parseInt(p.availableDowntime) || 0) - totalDays } : p
+        p.id === pc.id ? { 
+            ...p, 
+            availableDowntime: Math.max(0, (parseInt(p.availableDowntime) || 0) - totalDays),
+            downtimeLog: (p.downtimeLog || '') + logAddition
+        } : p
     );
 
     let updatedCamp = { ...camp, playerCharacters: updatedPCs };
-    if (!updatedCamp.calendar) updatedCamp.calendar = {};
-    if (!updatedCamp.calendar.notes) updatedCamp.calendar.notes = {};
-    
-    let dayNotes = updatedCamp.calendar.notes[dateKey];
-    if (dayNotes && !Array.isArray(dayNotes)) {
-        dayNotes = [{ id: generateId(), text: dayNotes.text, visibility: dayNotes.visibility, authorId: updatedCamp.dmId, category: 'Misc' }];
-    }
-    if (!dayNotes) dayNotes = [];
-
-    dayNotes.push(newNote);
-    updatedCamp.calendar.notes[dateKey] = dayNotes;
     updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime searching for magic items with <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-gem');
 
     await saveCampaign(updatedCamp);
     document.getElementById('global-popup-container').innerHTML = '';
-    notify(`Downtime complete! ${totalDays} days deducted from ${pc.name}.`, "success");
+    notify(`Downtime complete! ${totalDays} days deducted. Log saved to Hero Journal.`, "success");
     reRender();
 };
 
@@ -415,11 +379,6 @@ export const openCarousingModal = () => {
 
     const container = document.getElementById('global-popup-container');
     if (!container) return;
-
-    const cal = camp.calendar;
-    const igY = cal?.currentYear || 1492;
-    const igM = cal?.currentMonth || 0;
-    const igD = cal?.currentDay || 1;
 
     container.innerHTML = `
         <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[18000] backdrop-blur-sm animate-in">
@@ -448,23 +407,6 @@ export const openCarousingModal = () => {
                                 <span class="bg-stone-200 border border-r-0 border-[#d4c5a9] px-3 py-2 text-sm font-bold text-stone-600 rounded-l-sm">+</span>
                                 <input type="number" id="dt-carouse-mod" value="0" class="w-full p-2 border border-[#d4c5a9] rounded-r-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-white shadow-inner text-center">
                             </div>
-                        </div>
-                    </div>
-
-                    <div class="mb-5 bg-stone-100 p-3 rounded-sm border border-[#d4c5a9] shadow-inner">
-                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-2 tracking-widest"><i class="fa-regular fa-calendar mr-1"></i> Start Date on Calendar</label>
-                        <div class="flex items-center gap-2">
-                            <input type="number" id="dt-carouse-y" value="${igY}" class="w-20 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-blue-600 text-center bg-white shadow-sm" title="Year">
-                            <select id="dt-carouse-m" onchange="window.updateDayOptions(this.value, 'dt-carouse-d')" class="flex-grow p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-blue-600 bg-white shadow-sm" title="Month">
-                                ${(cal?.months || []).map((m, idx) => {
-                                    let mName = m.name;
-                                    if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
-                                    return `<option value="${idx}" ${idx === igM ? 'selected' : ''}>${mName}</option>`;
-                                }).join('')}
-                            </select>
-                            <select id="dt-carouse-d" class="w-16 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-blue-600 text-center bg-white shadow-sm" title="Day">
-                                ${Array.from({ length: Math.max(1, parseInt(cal?.months[igM]?.days || 1, 10)) }).map((_, i) => `<option value="${i+1}" ${i+1 === igD ? 'selected' : ''}>${i+1}</option>`).join('')}
-                            </select>
                         </div>
                     </div>
 
@@ -570,10 +512,6 @@ export const executeCarousing = async () => {
     if (socialClass === 'middle') goldCost = 50;
     if (socialClass === 'upper') goldCost = 250;
 
-    const igY = parseInt(document.getElementById('dt-carouse-y').value, 10) || camp.calendar.currentYear || 1492;
-    const igM = parseInt(document.getElementById('dt-carouse-m').value, 10) || camp.calendar.currentMonth || 0;
-    const igD = parseInt(document.getElementById('dt-carouse-d').value, 10) || camp.calendar.currentDay || 1;
-
     const d20 = Math.floor(Math.random() * 20) + 1;
     const checkTotal = d20 + pMod;
     
@@ -606,33 +544,23 @@ export const executeCarousing = async () => {
 
     const noteText = `**Downtime: Carousing (${socialClass.charAt(0).toUpperCase() + socialClass.slice(1)} Class)**\n*Hero:* ${pc.name}\n\n**Time Spent:** 5 Days\n**Gold Spent (Expenses):** ${goldCost} gp\n**Check Result:** ${checkTotal} (Rolled ${d20} ${pMod >= 0 ? `+ ${pMod}` : `- ${Math.abs(pMod)}`})\n\n${resultBody}\n*(Be sure to scribe any new named contacts into your hero's Private Journal under Allies/Enemies!)*${complicationText}`;
 
-    const dateKey = `${igY}-${igM}-${igD}`;
-    const newNote = {
-        id: generateId(), text: noteText, authorId: myUid, visibility: { mode: 'public', visibleTo: [] },
-        timestamp: Date.now(), duration: 5, repeatsYearly: false, category: 'Downtime'
-    };
+    const timestampStr = new Date().toLocaleDateString();
+    const logAddition = `${pc.downtimeLog ? '\n\n---\n\n' : ''}**Logged on ${timestampStr}**\n${noteText}`;
 
     const updatedPCs = camp.playerCharacters.map(p => 
-        p.id === pc.id ? { ...p, availableDowntime: (parseInt(p.availableDowntime) || 0) - 5 } : p
+        p.id === pc.id ? { 
+            ...p, 
+            availableDowntime: Math.max(0, (parseInt(p.availableDowntime) || 0) - 5),
+            downtimeLog: (p.downtimeLog || '') + logAddition
+        } : p
     );
 
     let updatedCamp = { ...camp, playerCharacters: updatedPCs };
-    if (!updatedCamp.calendar) updatedCamp.calendar = {};
-    if (!updatedCamp.calendar.notes) updatedCamp.calendar.notes = {};
-    
-    let dayNotes = updatedCamp.calendar.notes[dateKey];
-    if (dayNotes && !Array.isArray(dayNotes)) {
-        dayNotes = [{ id: generateId(), text: dayNotes.text, visibility: dayNotes.visibility, authorId: updatedCamp.dmId, category: 'Misc' }];
-    }
-    if (!dayNotes) dayNotes = [];
-
-    dayNotes.push(newNote);
-    updatedCamp.calendar.notes[dateKey] = dayNotes;
     updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime carousing with <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-beer-mug-empty');
 
     await saveCampaign(updatedCamp);
     document.getElementById('global-popup-container').innerHTML = '';
-    notify(`Carousing complete! 5 days deducted from ${pc.name}.`, "success");
+    notify(`Carousing complete! 5 days deducted. Log saved to Hero Journal.`, "success");
     reRender();
 };
 
@@ -652,11 +580,6 @@ export const openCraftingModal = () => {
 
     const container = document.getElementById('global-popup-container');
     if (!container) return;
-
-    const cal = camp.calendar;
-    const igY = cal?.currentYear || 1492;
-    const igM = cal?.currentMonth || 0;
-    const igD = cal?.currentDay || 1;
 
     container.innerHTML = `
         <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[18000] backdrop-blur-sm animate-in">
@@ -687,24 +610,6 @@ export const openCraftingModal = () => {
                                 <option value="magic">Magic Item</option>
                                 <option value="healing_potion">Standard Potion of Healing</option>
                                 <option value="other_potion">Other Potion</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Date Selection -->
-                    <div class="mb-5 bg-stone-100 p-3 rounded-sm border border-[#d4c5a9] shadow-inner">
-                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-2 tracking-widest"><i class="fa-regular fa-calendar mr-1"></i> Start Date on Calendar</label>
-                        <div class="flex items-center gap-2">
-                            <input type="number" id="dt-craft-y" value="${igY}" class="w-20 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-blue-600 text-center bg-white shadow-sm" title="Year">
-                            <select id="dt-craft-m" onchange="window.updateDayOptions(this.value, 'dt-craft-d')" class="flex-grow p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-blue-600 bg-white shadow-sm" title="Month">
-                                ${(cal?.months || []).map((m, idx) => {
-                                    let mName = m.name;
-                                    if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
-                                    return `<option value="${idx}" ${idx === igM ? 'selected' : ''}>${mName}</option>`;
-                                }).join('')}
-                            </select>
-                            <select id="dt-craft-d" class="w-16 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-blue-600 text-center bg-white shadow-sm" title="Day">
-                                ${Array.from({ length: Math.max(1, parseInt(cal?.months[igM]?.days || 1, 10)) }).map((_, i) => `<option value="${i+1}" ${i+1 === igD ? 'selected' : ''}>${i+1}</option>`).join('')}
                             </select>
                         </div>
                     </div>
@@ -1052,38 +957,23 @@ export const executeCrafting = async () => {
 
     const noteText = `**Downtime: Crafting an Item**\n*Hero:* ${pc.name}\n\n${resultHeader}\n\n**Work Days Logged:** ${daysSpent} Days (+${travelDays} Travel)\n${costNote}\n\n${resultBody}${modifiersNote}${complicationText}`;
 
-    // Capture Calendar Settings
-    const igY = parseInt(document.getElementById('dt-craft-y').value, 10) || camp.calendar.currentYear || 1492;
-    const igM = parseInt(document.getElementById('dt-craft-m').value, 10) || camp.calendar.currentMonth || 0;
-    const igD = parseInt(document.getElementById('dt-craft-d').value, 10) || camp.calendar.currentDay || 1;
-    const dateKey = `${igY}-${igM}-${igD}`;
-
-    const newNote = {
-        id: generateId(), text: noteText, authorId: myUid, visibility: { mode: 'public', visibleTo: [] },
-        timestamp: Date.now(), duration: totalDaysLogged, repeatsYearly: false, category: 'Downtime'
-    };
+    const timestampStr = new Date().toLocaleDateString();
+    const logAddition = `${pc.downtimeLog ? '\n\n---\n\n' : ''}**Logged on ${timestampStr}**\n${noteText}`;
 
     const updatedPCs = camp.playerCharacters.map(p => 
-        p.id === pc.id ? { ...p, availableDowntime: (parseInt(p.availableDowntime) || 0) - totalDaysLogged } : p
+        p.id === pc.id ? { 
+            ...p, 
+            availableDowntime: Math.max(0, (parseInt(p.availableDowntime) || 0) - totalDaysLogged),
+            downtimeLog: (p.downtimeLog || '') + logAddition
+        } : p
     );
 
     let updatedCamp = { ...camp, playerCharacters: updatedPCs };
-    if (!updatedCamp.calendar) updatedCamp.calendar = {};
-    if (!updatedCamp.calendar.notes) updatedCamp.calendar.notes = {};
-    
-    let dayNotes = updatedCamp.calendar.notes[dateKey];
-    if (dayNotes && !Array.isArray(dayNotes)) {
-        dayNotes = [{ id: generateId(), text: dayNotes.text, visibility: dayNotes.visibility, authorId: updatedCamp.dmId, category: 'Misc' }];
-    }
-    if (!dayNotes) dayNotes = [];
-
-    dayNotes.push(newNote);
-    updatedCamp.calendar.notes[dateKey] = dayNotes;
     updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime crafting with <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-hammer');
 
     await saveCampaign(updatedCamp);
     document.getElementById('global-popup-container').innerHTML = '';
-    notify(`Crafting progress logged. ${totalDaysLogged} days deducted from ${pc.name}.`, "success");
+    notify(`Crafting progress logged. ${totalDaysLogged} days deducted. Log saved to Hero Journal.`, "success");
     reRender();
 };
 
