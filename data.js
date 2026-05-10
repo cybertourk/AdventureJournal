@@ -24,8 +24,11 @@ import { initAtlas, setAtlasMode, updateAtlasGridAndScale, updateAtlasDistanceCa
 // Import Relationship Web Functionality
 import { createNewWeb, deleteCurrentWeb, switchWeb, toggleWebGroup, openWebEditModal, openWebMoveModal, saveWebMove, saveWebEdit, addWebNode, addWebConnection, removeWebNode, removeWebConnection, toggleWebVisibility, cleanupWebOrphans, syncWebWithCodex, searchWebCodex, selectWebCodexEntry, setWebZoom, renderMermaidWeb } from './actions-webs.js';
 
-// Import Downtime Activity Functionality
-import { openDowntimeMenu, openBuyMagicItemModal, updateBuyMagicItemMath, executeBuyMagicItem, openCarousingModal, updateCarousingMath, executeCarousing, openCraftingModal, updateCraftingMath, executeCrafting, openCrimeModal, updateCrimeMath, executeCrime } from './actions-downtime.js';
+// Import Downtime Activity Functionality (Part 1)
+import { openDowntimeMenu, openBuyMagicItemModal, updateBuyMagicItemMath, executeBuyMagicItem, openCarousingModal, updateCarousingMath, executeCarousing, openCraftingModal, updateCraftingMath, executeCrafting } from './actions-downtime.js';
+
+// Import Downtime Activity Functionality (Part 2)
+import { openCrimeModal, updateCrimeMath, executeCrime, openGamblingModal, updateGamblingMath, executeGambling, openPitFightingModal, updatePitFightingMath, executePitFighting } from './actions-downtime-2.js';
 
 // --- APP ACTIONS HUB --- 
 // We bind all our imported modular functions back to the global window.appActions 
@@ -211,7 +214,13 @@ window.appActions = {
   executeCrafting,
   openCrimeModal,
   updateCrimeMath,
-  executeCrime
+  executeCrime,
+  openGamblingModal,
+  updateGamblingMath,
+  executeGambling,
+  openPitFightingModal,
+  updatePitFightingMath,
+  executePitFighting
 }; 
 
 // ============================================================================
