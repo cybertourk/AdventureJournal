@@ -20,11 +20,6 @@ export const openCrimeModal = () => {
     const container = document.getElementById('global-popup-container');
     if (!container) return;
 
-    const cal = camp.calendar;
-    const igY = cal?.currentYear || 1492;
-    const igM = cal?.currentMonth || 0;
-    const igD = cal?.currentDay || 1;
-
     container.innerHTML = `
         <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[18000] backdrop-blur-sm animate-in">
             <div class="bg-[#f4ebd8] rounded-sm w-full max-w-2xl border border-[#d4c5a9] shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
@@ -45,24 +40,6 @@ export const openCrimeModal = () => {
                                     const currentDays = parseInt(pc.availableDowntime) || 0;
                                     return `<option value="${pc.id}">${pc.name} (${currentDays} Days)</option>`;
                                 }).join('')}
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Date Selection -->
-                    <div class="mb-5 bg-stone-100 p-3 rounded-sm border border-[#d4c5a9] shadow-inner">
-                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-2 tracking-widest"><i class="fa-regular fa-calendar mr-1"></i> Start Date on Calendar</label>
-                        <div class="flex items-center gap-2">
-                            <input type="number" id="dt-crime-y" value="${igY}" class="w-20 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-red-900 text-center bg-white shadow-sm" title="Year">
-                            <select id="dt-crime-m" onchange="window.updateDayOptions(this.value, 'dt-crime-d')" class="flex-grow p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-red-900 bg-white shadow-sm" title="Month">
-                                ${(cal?.months || []).map((m, idx) => {
-                                    let mName = m.name;
-                                    if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
-                                    return `<option value="${idx}" ${idx === igM ? 'selected' : ''}>${mName}</option>`;
-                                }).join('')}
-                            </select>
-                            <select id="dt-crime-d" class="w-16 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-red-900 text-center bg-white shadow-sm" title="Day">
-                                ${Array.from({ length: Math.max(1, parseInt(cal?.months[igM]?.days || 1, 10)) }).map((_, i) => `<option value="${i+1}" ${i+1 === igD ? 'selected' : ''}>${i+1}</option>`).join('')}
                             </select>
                         </div>
                     </div>
@@ -203,10 +180,6 @@ export const executeCrime = async () => {
     const modTools = parseInt(document.getElementById('dt-crime-tools').value) || 0;
     const modThird = parseInt(document.getElementById('dt-crime-third-mod').value) || 0;
 
-    const igY = parseInt(document.getElementById('dt-crime-y').value, 10) || camp.calendar.currentYear || 1492;
-    const igM = parseInt(document.getElementById('dt-crime-m').value, 10) || camp.calendar.currentMonth || 0;
-    const igD = parseInt(document.getElementById('dt-crime-d').value, 10) || camp.calendar.currentDay || 1;
-
     // --- MATH EXECUTION ---
     let payoutMax = 50;
     if (dc === 15) payoutMax = 100;
@@ -269,36 +242,24 @@ export const executeCrime = async () => {
 
     const noteText = `**Downtime: Crime**\n*Hero:* ${pc.name}\n\n${resultHeader}\n\n**Time Spent:** 5 Days\n**Gold Spent (Expenses):** 25 gp\n\n${checksText}\n\n${resultBody}${complicationText}`;
 
-    // --- SAVE TO CALENDAR ---
-    const dateKey = `${igY}-${igM}-${igD}`;
-    const newNote = {
-        id: generateId(), text: noteText, authorId: myUid, visibility: { mode: 'hidden', visibleTo: [] },
-        timestamp: Date.now(), duration: 5, repeatsYearly: false, category: 'Downtime'
-    };
+    const timestampStr = new Date().toLocaleDateString();
+    const logAddition = `${pc.downtimeLog ? '\n\n---\n\n' : ''}**Logged on ${timestampStr}**\n${noteText}`;
 
     const updatedPCs = camp.playerCharacters.map(p => 
-        p.id === pc.id ? { ...p, availableDowntime: (parseInt(p.availableDowntime) || 0) - 5 } : p
+        p.id === pc.id ? { 
+            ...p, 
+            availableDowntime: Math.max(0, (parseInt(p.availableDowntime) || 0) - 5),
+            downtimeLog: (p.downtimeLog || '') + logAddition
+        } : p
     );
 
     let updatedCamp = { ...camp, playerCharacters: updatedPCs };
-    if (!updatedCamp.calendar) updatedCamp.calendar = {};
-    if (!updatedCamp.calendar.notes) updatedCamp.calendar.notes = {};
-    
-    let dayNotes = updatedCamp.calendar.notes[dateKey];
-    if (dayNotes && !Array.isArray(dayNotes)) {
-        dayNotes = [{ id: generateId(), text: dayNotes.text, visibility: dayNotes.visibility, authorId: updatedCamp.dmId, category: 'Misc' }];
-    }
-    if (!dayNotes) dayNotes = [];
-
-    dayNotes.push(newNote);
-    updatedCamp.calendar.notes[dateKey] = dayNotes;
-
     updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime attempting a heist with <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-mask');
 
     await saveCampaign(updatedCamp);
     
     document.getElementById('global-popup-container').innerHTML = '';
-    notify(`Crime resolved. 5 days deducted from ${pc.name}.`, "success");
+    notify(`Crime resolved. 5 days deducted from ${pc.name}. Log saved to Hero Journal.`, "success");
     reRender();
 };
 
@@ -320,11 +281,6 @@ export const openGamblingModal = () => {
     const container = document.getElementById('global-popup-container');
     if (!container) return;
 
-    const cal = camp.calendar;
-    const igY = cal?.currentYear || 1492;
-    const igM = cal?.currentMonth || 0;
-    const igD = cal?.currentDay || 1;
-
     container.innerHTML = `
         <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[18000] backdrop-blur-sm animate-in">
             <div class="bg-[#f4ebd8] rounded-sm w-full max-w-2xl border border-[#d4c5a9] shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
@@ -345,24 +301,6 @@ export const openGamblingModal = () => {
                                     const currentDays = parseInt(pc.availableDowntime) || 0;
                                     return `<option value="${pc.id}">${pc.name} (${currentDays} Days)</option>`;
                                 }).join('')}
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Date Selection -->
-                    <div class="mb-5 bg-stone-100 p-3 rounded-sm border border-[#d4c5a9] shadow-inner">
-                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-2 tracking-widest"><i class="fa-regular fa-calendar mr-1"></i> Start Date on Calendar</label>
-                        <div class="flex items-center gap-2">
-                            <input type="number" id="dt-gamble-y" value="${igY}" class="w-20 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 text-center bg-white shadow-sm" title="Year">
-                            <select id="dt-gamble-m" onchange="window.updateDayOptions(this.value, 'dt-gamble-d')" class="flex-grow p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 bg-white shadow-sm" title="Month">
-                                ${(cal?.months || []).map((m, idx) => {
-                                    let mName = m.name;
-                                    if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
-                                    return `<option value="${idx}" ${idx === igM ? 'selected' : ''}>${mName}</option>`;
-                                }).join('')}
-                            </select>
-                            <select id="dt-gamble-d" class="w-16 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 text-center bg-white shadow-sm" title="Day">
-                                ${Array.from({ length: Math.max(1, parseInt(cal?.months[igM]?.days || 1, 10)) }).map((_, i) => `<option value="${i+1}" ${i+1 === igD ? 'selected' : ''}>${i+1}</option>`).join('')}
                             </select>
                         </div>
                     </div>
@@ -515,10 +453,6 @@ export const executeGambling = async () => {
         if (toolReplaceSkill === 'itm') { modItm = modTool; skillReplacedText = " (Intimidation replaced by Gaming Set)"; }
     }
 
-    const igY = parseInt(document.getElementById('dt-gamble-y').value, 10) || camp.calendar.currentYear || 1492;
-    const igM = parseInt(document.getElementById('dt-gamble-m').value, 10) || camp.calendar.currentMonth || 0;
-    const igD = parseInt(document.getElementById('dt-gamble-d').value, 10) || camp.calendar.currentDay || 1;
-
     // --- MATH EXECUTION ---
     
     // Generate the 3 random DCs (5 + 2d10)
@@ -579,37 +513,24 @@ export const executeGambling = async () => {
 
     const noteText = `**Downtime: Gambling**\n*Hero:* ${pc.name}\n\n**Objective:** Gambling at ${loc}\n**Gold Staked:** ${stake} gp\n**Time Spent:** 5 Days\n\n${checksText}${skillReplacedText}\n\n${resultBody}${complicationText}`;
 
-    // --- SAVE TO CALENDAR ---
-    const dateKey = `${igY}-${igM}-${igD}`;
-    const newNote = {
-        id: generateId(), text: noteText, authorId: myUid, visibility: { mode: 'public', visibleTo: [] },
-        timestamp: Date.now(), duration: 5, repeatsYearly: false, category: 'Downtime'
-    };
+    const timestampStr = new Date().toLocaleDateString();
+    const logAddition = `${pc.downtimeLog ? '\n\n---\n\n' : ''}**Logged on ${timestampStr}**\n${noteText}`;
 
     const updatedPCs = camp.playerCharacters.map(p => 
-        p.id === pc.id ? { ...p, availableDowntime: (parseInt(p.availableDowntime) || 0) - 5 } : p
+        p.id === pc.id ? { 
+            ...p, 
+            availableDowntime: Math.max(0, (parseInt(p.availableDowntime) || 0) - 5),
+            downtimeLog: (p.downtimeLog || '') + logAddition
+        } : p
     );
 
     let updatedCamp = { ...camp, playerCharacters: updatedPCs };
-
-    if (!updatedCamp.calendar) updatedCamp.calendar = {};
-    if (!updatedCamp.calendar.notes) updatedCamp.calendar.notes = {};
-    
-    let dayNotes = updatedCamp.calendar.notes[dateKey];
-    if (dayNotes && !Array.isArray(dayNotes)) {
-        dayNotes = [{ id: generateId(), text: dayNotes.text, visibility: dayNotes.visibility, authorId: updatedCamp.dmId, category: 'Misc' }];
-    }
-    if (!dayNotes) dayNotes = [];
-
-    dayNotes.push(newNote);
-    updatedCamp.calendar.notes[dateKey] = dayNotes;
-
     updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime gambling with <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-dice');
 
     await saveCampaign(updatedCamp);
     
     document.getElementById('global-popup-container').innerHTML = '';
-    notify(`Gambling resolved. 5 days deducted from ${pc.name}.`, "success");
+    notify(`Gambling resolved. 5 days deducted from ${pc.name}. Log saved to Hero Journal.`, "success");
     reRender();
 };
 
@@ -631,11 +552,6 @@ export const openPitFightingModal = () => {
     const container = document.getElementById('global-popup-container');
     if (!container) return;
 
-    const cal = camp.calendar;
-    const igY = cal?.currentYear || 1492;
-    const igM = cal?.currentMonth || 0;
-    const igD = cal?.currentDay || 1;
-
     container.innerHTML = `
         <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[18000] backdrop-blur-sm animate-in">
             <div class="bg-[#f4ebd8] rounded-sm w-full max-w-2xl border border-[#d4c5a9] shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
@@ -656,24 +572,6 @@ export const openPitFightingModal = () => {
                                     const currentDays = parseInt(pc.availableDowntime) || 0;
                                     return `<option value="${pc.id}">${pc.name} (${currentDays} Days)</option>`;
                                 }).join('')}
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Date Selection -->
-                    <div class="mb-5 bg-stone-100 p-3 rounded-sm border border-[#d4c5a9] shadow-inner">
-                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-2 tracking-widest"><i class="fa-regular fa-calendar mr-1"></i> Start Date on Calendar</label>
-                        <div class="flex items-center gap-2">
-                            <input type="number" id="dt-pit-y" value="${igY}" class="w-20 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-red-900 text-center bg-white shadow-sm" title="Year">
-                            <select id="dt-pit-m" onchange="window.updateDayOptions(this.value, 'dt-pit-d')" class="flex-grow p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-red-900 bg-white shadow-sm" title="Month">
-                                ${(cal?.months || []).map((m, idx) => {
-                                    let mName = m.name;
-                                    if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
-                                    return `<option value="${idx}" ${idx === igM ? 'selected' : ''}>${mName}</option>`;
-                                }).join('')}
-                            </select>
-                            <select id="dt-pit-d" class="w-16 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-red-900 text-center bg-white shadow-sm" title="Day">
-                                ${Array.from({ length: Math.max(1, parseInt(cal?.months[igM]?.days || 1, 10)) }).map((_, i) => `<option value="${i+1}" ${i+1 === igD ? 'selected' : ''}>${i+1}</option>`).join('')}
                             </select>
                         </div>
                     </div>
@@ -818,10 +716,6 @@ export const executePitFighting = async () => {
     const replaceTarget = document.getElementById('dt-pit-replace-target').value;
     const modAtk = parseInt(document.getElementById('dt-pit-atk').value) || 0;
 
-    const igY = parseInt(document.getElementById('dt-pit-y').value, 10) || camp.calendar.currentYear || 1492;
-    const igM = parseInt(document.getElementById('dt-pit-m').value, 10) || camp.calendar.currentMonth || 0;
-    const igD = parseInt(document.getElementById('dt-pit-d').value, 10) || camp.calendar.currentDay || 1;
-
     // --- MATH EXECUTION ---
     
     // Generate the 3 random DCs (5 + 2d10)
@@ -900,37 +794,24 @@ export const executePitFighting = async () => {
 
     const noteText = `**Downtime: Pit Fighting**\n*Hero:* ${pc.name}\n\n**Objective:** Fighting at ${loc}\n**Time Spent:** 5 Days\n\n${checksText}\n\n${resultBody}${complicationText}`;
 
-    // --- SAVE TO CALENDAR ---
-    const dateKey = `${igY}-${igM}-${igD}`;
-    const newNote = {
-        id: generateId(), text: noteText, authorId: myUid, visibility: { mode: 'public', visibleTo: [] },
-        timestamp: Date.now(), duration: 5, repeatsYearly: false, category: 'Downtime'
-    };
+    const timestampStr = new Date().toLocaleDateString();
+    const logAddition = `${pc.downtimeLog ? '\n\n---\n\n' : ''}**Logged on ${timestampStr}**\n${noteText}`;
 
     const updatedPCs = camp.playerCharacters.map(p => 
-        p.id === pc.id ? { ...p, availableDowntime: (parseInt(p.availableDowntime) || 0) - 5 } : p
+        p.id === pc.id ? { 
+            ...p, 
+            availableDowntime: Math.max(0, (parseInt(p.availableDowntime) || 0) - 5),
+            downtimeLog: (p.downtimeLog || '') + logAddition
+        } : p
     );
 
     let updatedCamp = { ...camp, playerCharacters: updatedPCs };
-
-    if (!updatedCamp.calendar) updatedCamp.calendar = {};
-    if (!updatedCamp.calendar.notes) updatedCamp.calendar.notes = {};
-    
-    let dayNotes = updatedCamp.calendar.notes[dateKey];
-    if (dayNotes && !Array.isArray(dayNotes)) {
-        dayNotes = [{ id: generateId(), text: dayNotes.text, visibility: dayNotes.visibility, authorId: updatedCamp.dmId, category: 'Misc' }];
-    }
-    if (!dayNotes) dayNotes = [];
-
-    dayNotes.push(newNote);
-    updatedCamp.calendar.notes[dateKey] = dayNotes;
-
     updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime pit fighting with <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-hand-fist');
 
     await saveCampaign(updatedCamp);
     
     document.getElementById('global-popup-container').innerHTML = '';
-    notify(`Pit Fighting resolved. 5 days deducted from ${pc.name}.`, "success");
+    notify(`Pit Fighting resolved. 5 days deducted from ${pc.name}. Log saved to Hero Journal.`, "success");
     reRender();
 };
 
