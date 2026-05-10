@@ -11,13 +11,13 @@ const DOWNTIME_ACTIVITIES = {
     "Crime": { icon: "fa-mask", desc: "Attempt illicit activities for profit.", action: "openCrimeModal" },
     "Gambling": { icon: "fa-dice", desc: "Play games of chance to win or lose money.", action: "openGamblingModal" },
     "Pit Fighting": { icon: "fa-hand-fist", desc: "Engage in combat to win prize money.", action: "openPitFightingModal" },
-    "Relaxation": { icon: "fa-bed", desc: "Recover from injuries or stress.", action: "comingSoon" },
-    "Religious Service": { icon: "fa-hands-praying", desc: "Serve a temple to earn favors.", action: "comingSoon" },
-    "Research": { icon: "fa-book-open", desc: "Delve into lore about a specific topic.", action: "comingSoon" },
-    "Scribing a Spell Scroll": { icon: "fa-scroll", desc: "Transfer a spell to a scroll.", action: "comingSoon" },
-    "Selling a Magic Item": { icon: "fa-coins", desc: "Find a buyer for a magic item.", action: "comingSoon" },
-    "Training": { icon: "fa-dumbbell", desc: "Learn a new language or tool proficiency.", action: "comingSoon" },
-    "Work": { icon: "fa-briefcase", desc: "Perform honest labor to earn a living.", action: "comingSoon" },
+    "Relaxation": { icon: "fa-bed", desc: "Recover from injuries or stress.", action: "openRelaxationModal" },
+    "Religious Service": { icon: "fa-hands-praying", desc: "Serve a temple to earn favors.", action: "openReligiousServiceModal" },
+    "Research": { icon: "fa-book-open", desc: "Delve into lore about a specific topic.", action: "openResearchModal" },
+    "Scribing a Spell Scroll": { icon: "fa-scroll", desc: "Transfer a spell to a scroll.", action: "openScribingModal" },
+    "Selling a Magic Item": { icon: "fa-coins", desc: "Find a buyer for a magic item.", action: "openSellingModal" },
+    "Training": { icon: "fa-dumbbell", desc: "Learn a new language or tool proficiency.", action: "openTrainingModal" },
+    "Work": { icon: "fa-briefcase", desc: "Perform honest labor to earn a living.", action: "openWorkModal" },
 };
 
 export const openDowntimeMenu = () => {
@@ -1047,31 +1047,3 @@ export const executeCrafting = async () => {
     notify("Crafting progress logged to the calendar.", "success");
     reRender();
 };
-
-// ============================================================================
-// --- GLOBAL EXPORTS BINDING ---
-// ============================================================================
-
-if (typeof window !== 'undefined') {
-    window.appActions = window.appActions || {};
-    
-    // Binding the new Magic Item logic
-    window.appActions.openBuyMagicItemModal = openBuyMagicItemModal;
-    window.appActions.updateBuyMagicItemMath = updateBuyMagicItemMath;
-    window.appActions.executeBuyMagicItem = executeBuyMagicItem;
-    
-    // Binding the new Carousing logic
-    window.appActions.openCarousingModal = openCarousingModal;
-    window.appActions.updateCarousingMath = updateCarousingMath;
-    window.appActions.executeCarousing = executeCarousing;
-
-    // Binding the new Crafting logic
-    window.appActions.openCraftingModal = openCraftingModal;
-    window.appActions.updateCraftingMath = updateCraftingMath;
-    window.appActions.executeCrafting = executeCrafting;
-    
-    // Coming soon placeholder
-    window.appActions.comingSoon = () => {
-        notify("This downtime activity is currently being forged.", "info");
-    };
-}
