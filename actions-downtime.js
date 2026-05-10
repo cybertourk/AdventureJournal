@@ -108,7 +108,10 @@ export const openBuyMagicItemModal = () => {
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Select Hero</label>
                             <select id="dt-buy-pc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-white shadow-inner">
-                                ${validPCs.map(pc => `<option value="${pc.id}">${pc.name}</option>`).join('')}
+                                ${validPCs.map(pc => {
+                                    const currentDays = parseInt(pc.availableDowntime) || 0;
+                                    return `<option value="${pc.id}">${pc.name} (${currentDays} Days)</option>`;
+                                }).join('')}
                             </select>
                         </div>
                         <div>
@@ -286,6 +289,12 @@ export const executeBuyMagicItem = async () => {
     if (isSpecific && !itemName) { notify("Please enter the specific item name you are searching for.", "error"); return; }
     if (isHarper && !harperLoc) { notify("Please enter the Harper Safe House location.", "error"); return; }
 
+    // DOWNTIME DAYS CHECK
+    if ((parseInt(pc.availableDowntime) || 0) < totalDays) {
+        notify(`Not enough downtime days. ${pc.name} only has ${parseInt(pc.availableDowntime) || 0} days available.`, "error");
+        return;
+    }
+
     const igY = parseInt(document.getElementById('dt-buy-y').value, 10) || camp.calendar.currentYear || 1492;
     const igM = parseInt(document.getElementById('dt-buy-m').value, 10) || camp.calendar.currentMonth || 0;
     const igD = parseInt(document.getElementById('dt-buy-d').value, 10) || camp.calendar.currentDay || 1;
@@ -366,7 +375,11 @@ export const executeBuyMagicItem = async () => {
         timestamp: Date.now(), duration: totalDays, repeatsYearly: false, category: 'Downtime'
     };
 
-    let updatedCamp = { ...camp };
+    const updatedPCs = camp.playerCharacters.map(p => 
+        p.id === pc.id ? { ...p, availableDowntime: (parseInt(p.availableDowntime) || 0) - totalDays } : p
+    );
+
+    let updatedCamp = { ...camp, playerCharacters: updatedPCs };
     if (!updatedCamp.calendar) updatedCamp.calendar = {};
     if (!updatedCamp.calendar.notes) updatedCamp.calendar.notes = {};
     
@@ -382,7 +395,7 @@ export const executeBuyMagicItem = async () => {
 
     await saveCampaign(updatedCamp);
     document.getElementById('global-popup-container').innerHTML = '';
-    notify("Downtime complete! Results inscribed into the calendar.", "success");
+    notify(`Downtime complete! ${totalDays} days deducted from ${pc.name}.`, "success");
     reRender();
 };
 
@@ -423,7 +436,10 @@ export const openCarousingModal = () => {
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Select Hero</label>
                             <select id="dt-carouse-pc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-white shadow-inner">
-                                ${validPCs.map(pc => `<option value="${pc.id}">${pc.name}</option>`).join('')}
+                                ${validPCs.map(pc => {
+                                    const currentDays = parseInt(pc.availableDowntime) || 0;
+                                    return `<option value="${pc.id}">${pc.name} (${currentDays} Days)</option>`;
+                                }).join('')}
                             </select>
                         </div>
                         <div>
@@ -541,6 +557,12 @@ export const executeCarousing = async () => {
     const pc = camp.playerCharacters?.find(p => p.id === pcId);
     if (!pc) return;
 
+    // DOWNTIME DAYS CHECK
+    if ((parseInt(pc.availableDowntime) || 0) < 5) {
+        notify(`Not enough downtime days. ${pc.name} only has ${parseInt(pc.availableDowntime) || 0} days available.`, "error");
+        return;
+    }
+
     const pMod = parseInt(document.getElementById('dt-carouse-mod').value) || 0;
     const socialClass = document.getElementById('dt-carouse-class').value;
     
@@ -590,7 +612,11 @@ export const executeCarousing = async () => {
         timestamp: Date.now(), duration: 5, repeatsYearly: false, category: 'Downtime'
     };
 
-    let updatedCamp = { ...camp };
+    const updatedPCs = camp.playerCharacters.map(p => 
+        p.id === pc.id ? { ...p, availableDowntime: (parseInt(p.availableDowntime) || 0) - 5 } : p
+    );
+
+    let updatedCamp = { ...camp, playerCharacters: updatedPCs };
     if (!updatedCamp.calendar) updatedCamp.calendar = {};
     if (!updatedCamp.calendar.notes) updatedCamp.calendar.notes = {};
     
@@ -606,7 +632,7 @@ export const executeCarousing = async () => {
 
     await saveCampaign(updatedCamp);
     document.getElementById('global-popup-container').innerHTML = '';
-    notify("Carousing complete! Results inscribed into the calendar.", "success");
+    notify(`Carousing complete! 5 days deducted from ${pc.name}.`, "success");
     reRender();
 };
 
@@ -648,7 +674,10 @@ export const openCraftingModal = () => {
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Select Hero</label>
                             <select id="dt-craft-pc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-white shadow-inner">
-                                ${validPCs.map(pc => `<option value="${pc.id}">${pc.name}</option>`).join('')}
+                                ${validPCs.map(pc => {
+                                    const currentDays = parseInt(pc.availableDowntime) || 0;
+                                    return `<option value="${pc.id}">${pc.name} (${currentDays} Days)</option>`;
+                                }).join('')}
                             </select>
                         </div>
                         <div>
@@ -982,6 +1011,12 @@ export const executeCrafting = async () => {
     const totalDaysLogged = daysSpent + travelDays;
     const isComplete = daysSpent >= effectiveTime;
 
+    // DOWNTIME DAYS CHECK
+    if ((parseInt(pc.availableDowntime) || 0) < totalDaysLogged) {
+        notify(`Not enough downtime days. ${pc.name} only has ${parseInt(pc.availableDowntime) || 0} days available.`, "error");
+        return;
+    }
+
     // Complication Roll (10% flat chance for magic items/potions)
     let complicationText = "";
     if (cType !== 'nonmagical') {
@@ -1028,7 +1063,11 @@ export const executeCrafting = async () => {
         timestamp: Date.now(), duration: totalDaysLogged, repeatsYearly: false, category: 'Downtime'
     };
 
-    let updatedCamp = { ...camp };
+    const updatedPCs = camp.playerCharacters.map(p => 
+        p.id === pc.id ? { ...p, availableDowntime: (parseInt(p.availableDowntime) || 0) - totalDaysLogged } : p
+    );
+
+    let updatedCamp = { ...camp, playerCharacters: updatedPCs };
     if (!updatedCamp.calendar) updatedCamp.calendar = {};
     if (!updatedCamp.calendar.notes) updatedCamp.calendar.notes = {};
     
@@ -1044,6 +1083,34 @@ export const executeCrafting = async () => {
 
     await saveCampaign(updatedCamp);
     document.getElementById('global-popup-container').innerHTML = '';
-    notify("Crafting progress logged to the calendar.", "success");
+    notify(`Crafting progress logged. ${totalDaysLogged} days deducted from ${pc.name}.`, "success");
     reRender();
 };
+
+// ============================================================================
+// --- GLOBAL EXPORTS BINDING ---
+// ============================================================================
+
+if (typeof window !== 'undefined') {
+    window.appActions = window.appActions || {};
+    
+    // Binding the new Magic Item logic
+    window.appActions.openBuyMagicItemModal = openBuyMagicItemModal;
+    window.appActions.updateBuyMagicItemMath = updateBuyMagicItemMath;
+    window.appActions.executeBuyMagicItem = executeBuyMagicItem;
+    
+    // Binding the new Carousing logic
+    window.appActions.openCarousingModal = openCarousingModal;
+    window.appActions.updateCarousingMath = updateCarousingMath;
+    window.appActions.executeCarousing = executeCarousing;
+
+    // Binding the new Crafting logic
+    window.appActions.openCraftingModal = openCraftingModal;
+    window.appActions.updateCraftingMath = updateCraftingMath;
+    window.appActions.executeCrafting = executeCrafting;
+    
+    // Coming soon placeholder
+    window.appActions.comingSoon = () => {
+        notify("This downtime activity is currently being forged.", "info");
+    };
+}
