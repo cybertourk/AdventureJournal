@@ -30,6 +30,12 @@ import { openDowntimeMenu, openBuyMagicItemModal, updateBuyMagicItemMath, execut
 // Import Downtime Activity Functionality (Part 2)
 import { openCrimeModal, updateCrimeMath, executeCrime, openGamblingModal, updateGamblingMath, executeGambling, openPitFightingModal, updatePitFightingMath, executePitFighting } from './actions-downtime-2.js';
 
+// Import Downtime Activity Functionality (Part 3)
+import { openRelaxationModal, updateRelaxationMath, executeRelaxation, openReligiousServiceModal, updateReligiousServiceMath, executeReligiousService, openResearchModal, updateResearchMath, executeResearch, openScribingModal, updateScribingMath, executeScribing } from './actions-downtime-3.js';
+
+// Import Downtime Activity Functionality (Part 4)
+import { openSellingModal, updateSellingMath, executeSelling, openTrainingModal, updateTrainingMath, executeTraining, openWorkModal, executeWork } from './actions-downtime-4.js';
+
 // --- APP ACTIONS HUB --- 
 // We bind all our imported modular functions back to the global window.appActions 
 // object so that the UI's inline onclick handlers can still reach them! 
@@ -203,24 +209,57 @@ window.appActions = {
 
   // Downtime Activities
   openDowntimeMenu,
+  
   openBuyMagicItemModal,
   updateBuyMagicItemMath,
   executeBuyMagicItem,
+  
   openCarousingModal,
   updateCarousingMath,
   executeCarousing,
+  
   openCraftingModal,
   updateCraftingMath,
   executeCrafting,
+  
   openCrimeModal,
   updateCrimeMath,
   executeCrime,
+  
   openGamblingModal,
   updateGamblingMath,
   executeGambling,
+  
   openPitFightingModal,
   updatePitFightingMath,
-  executePitFighting
+  executePitFighting,
+
+  openRelaxationModal,
+  updateRelaxationMath,
+  executeRelaxation,
+
+  openReligiousServiceModal,
+  updateReligiousServiceMath,
+  executeReligiousService,
+
+  openResearchModal,
+  updateResearchMath,
+  executeResearch,
+
+  openScribingModal,
+  updateScribingMath,
+  executeScribing,
+
+  openSellingModal,
+  updateSellingMath,
+  executeSelling,
+
+  openTrainingModal,
+  updateTrainingMath,
+  executeTraining,
+
+  openWorkModal,
+  executeWork
 }; 
 
 // ============================================================================
