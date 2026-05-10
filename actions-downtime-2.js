@@ -41,7 +41,10 @@ export const openCrimeModal = () => {
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Select Hero</label>
                             <select id="dt-crime-pc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-red-900 bg-white shadow-inner">
-                                ${validPCs.map(pc => `<option value="${pc.id}">${pc.name}</option>`).join('')}
+                                ${validPCs.map(pc => {
+                                    const currentDays = parseInt(pc.availableDowntime) || 0;
+                                    return `<option value="${pc.id}">${pc.name} (${currentDays} Days)</option>`;
+                                }).join('')}
                             </select>
                         </div>
                     </div>
@@ -178,6 +181,12 @@ export const executeCrime = async () => {
     const pc = camp.playerCharacters?.find(p => p.id === pcId);
     if (!pc) return;
 
+    // DOWNTIME DAYS CHECK
+    if ((parseInt(pc.availableDowntime) || 0) < 5) {
+        notify(`Not enough downtime days. ${pc.name} only has ${parseInt(pc.availableDowntime) || 0} days available.`, "error");
+        return;
+    }
+
     const dc = parseInt(document.getElementById('dt-crime-dc').value) || 10;
     const thirdSkillName = document.getElementById('dt-crime-third-skill').value;
     const isRival = document.getElementById('dt-crime-rival').checked;
@@ -267,7 +276,11 @@ export const executeCrime = async () => {
         timestamp: Date.now(), duration: 5, repeatsYearly: false, category: 'Downtime'
     };
 
-    let updatedCamp = { ...camp };
+    const updatedPCs = camp.playerCharacters.map(p => 
+        p.id === pc.id ? { ...p, availableDowntime: (parseInt(p.availableDowntime) || 0) - 5 } : p
+    );
+
+    let updatedCamp = { ...camp, playerCharacters: updatedPCs };
     if (!updatedCamp.calendar) updatedCamp.calendar = {};
     if (!updatedCamp.calendar.notes) updatedCamp.calendar.notes = {};
     
@@ -285,7 +298,7 @@ export const executeCrime = async () => {
     await saveCampaign(updatedCamp);
     
     document.getElementById('global-popup-container').innerHTML = '';
-    notify("Crime resolved and logged to the calendar.", "success");
+    notify(`Crime resolved. 5 days deducted from ${pc.name}.`, "success");
     reRender();
 };
 
@@ -328,7 +341,10 @@ export const openGamblingModal = () => {
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Select Hero</label>
                             <select id="dt-gamble-pc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 bg-white shadow-inner">
-                                ${validPCs.map(pc => `<option value="${pc.id}">${pc.name}</option>`).join('')}
+                                ${validPCs.map(pc => {
+                                    const currentDays = parseInt(pc.availableDowntime) || 0;
+                                    return `<option value="${pc.id}">${pc.name} (${currentDays} Days)</option>`;
+                                }).join('')}
                             </select>
                         </div>
                     </div>
@@ -470,6 +486,12 @@ export const executeGambling = async () => {
     const pc = camp.playerCharacters?.find(p => p.id === pcId);
     if (!pc) return;
 
+    // DOWNTIME DAYS CHECK
+    if ((parseInt(pc.availableDowntime) || 0) < 5) {
+        notify(`Not enough downtime days. ${pc.name} only has ${parseInt(pc.availableDowntime) || 0} days available.`, "error");
+        return;
+    }
+
     const stake = parseInt(document.getElementById('dt-gamble-stake-text').value) || 10;
     const loc = document.getElementById('dt-gamble-loc').value.trim();
 
@@ -564,7 +586,11 @@ export const executeGambling = async () => {
         timestamp: Date.now(), duration: 5, repeatsYearly: false, category: 'Downtime'
     };
 
-    let updatedCamp = { ...camp };
+    const updatedPCs = camp.playerCharacters.map(p => 
+        p.id === pc.id ? { ...p, availableDowntime: (parseInt(p.availableDowntime) || 0) - 5 } : p
+    );
+
+    let updatedCamp = { ...camp, playerCharacters: updatedPCs };
 
     if (!updatedCamp.calendar) updatedCamp.calendar = {};
     if (!updatedCamp.calendar.notes) updatedCamp.calendar.notes = {};
@@ -583,7 +609,7 @@ export const executeGambling = async () => {
     await saveCampaign(updatedCamp);
     
     document.getElementById('global-popup-container').innerHTML = '';
-    notify("Gambling resolved and logged to the calendar.", "success");
+    notify(`Gambling resolved. 5 days deducted from ${pc.name}.`, "success");
     reRender();
 };
 
@@ -626,7 +652,10 @@ export const openPitFightingModal = () => {
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Select Hero</label>
                             <select id="dt-pit-pc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-red-900 bg-white shadow-inner">
-                                ${validPCs.map(pc => `<option value="${pc.id}">${pc.name}</option>`).join('')}
+                                ${validPCs.map(pc => {
+                                    const currentDays = parseInt(pc.availableDowntime) || 0;
+                                    return `<option value="${pc.id}">${pc.name} (${currentDays} Days)</option>`;
+                                }).join('')}
                             </select>
                         </div>
                     </div>
@@ -767,6 +796,12 @@ export const executePitFighting = async () => {
     const pc = camp.playerCharacters?.find(p => p.id === pcId);
     if (!pc) return;
 
+    // DOWNTIME DAYS CHECK
+    if ((parseInt(pc.availableDowntime) || 0) < 5) {
+        notify(`Not enough downtime days. ${pc.name} only has ${parseInt(pc.availableDowntime) || 0} days available.`, "error");
+        return;
+    }
+
     const loc = document.getElementById('dt-pit-loc').value.trim();
 
     if (!loc) {
@@ -872,7 +907,11 @@ export const executePitFighting = async () => {
         timestamp: Date.now(), duration: 5, repeatsYearly: false, category: 'Downtime'
     };
 
-    let updatedCamp = { ...camp };
+    const updatedPCs = camp.playerCharacters.map(p => 
+        p.id === pc.id ? { ...p, availableDowntime: (parseInt(p.availableDowntime) || 0) - 5 } : p
+    );
+
+    let updatedCamp = { ...camp, playerCharacters: updatedPCs };
 
     if (!updatedCamp.calendar) updatedCamp.calendar = {};
     if (!updatedCamp.calendar.notes) updatedCamp.calendar.notes = {};
@@ -891,7 +930,7 @@ export const executePitFighting = async () => {
     await saveCampaign(updatedCamp);
     
     document.getElementById('global-popup-container').innerHTML = '';
-    notify("Pit Fighting resolved and logged to the calendar.", "success");
+    notify(`Pit Fighting resolved. 5 days deducted from ${pc.name}.`, "success");
     reRender();
 };
 
