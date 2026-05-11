@@ -24,17 +24,24 @@ import { initAtlas, setAtlasMode, updateAtlasGridAndScale, updateAtlasDistanceCa
 // Import Relationship Web Functionality
 import { createNewWeb, deleteCurrentWeb, switchWeb, toggleWebGroup, openWebEditModal, openWebMoveModal, saveWebMove, saveWebEdit, addWebNode, addWebConnection, removeWebNode, removeWebConnection, toggleWebVisibility, cleanupWebOrphans, syncWebWithCodex, searchWebCodex, selectWebCodexEntry, setWebZoom, renderMermaidWeb } from './actions-webs.js';
 
-// Import Downtime Activity Functionality (Part 1)
-import { openDowntimeMenu, openBuyMagicItemModal, updateBuyMagicItemMath, executeBuyMagicItem, openCarousingModal, updateCarousingMath, executeCarousing, openCraftingModal, updateCraftingMath, executeCrafting } from './actions-downtime.js';
+// Import Downtime Menu Hub
+import { openDowntimeMenu } from './actions-downtime.js';
 
-// Import Downtime Activity Functionality (Part 2)
-import { openCrimeModal, updateCrimeMath, executeCrime, openGamblingModal, updateGamblingMath, executeGambling, openPitFightingModal, updatePitFightingMath, executePitFighting } from './actions-downtime-2.js';
-
-// Import Downtime Activity Functionality (Part 3)
-import { openRelaxationModal, updateRelaxationMath, executeRelaxation, openReligiousServiceModal, updateReligiousServiceMath, executeReligiousService, openResearchModal, updateResearchMath, executeResearch, openScribingModal, updateScribingMath, executeScribing } from './actions-downtime-3.js';
-
-// Import Downtime Activity Functionality (Part 4)
-import { openSellingModal, updateSellingMath, executeSelling, openTrainingModal, updateTrainingMath, executeTraining, openWorkModal, executeWork, openAssignDowntimeModal, executeAssignDowntime } from './actions-downtime-4.js';
+// --- NEW MODULAR DOWNTIME IMPORTS ---
+import { openBuyMagicItemModal, updateBuyMagicItemMath, executeBuyMagicItem } from './dt-buy-magic-item.js';
+import { openCarousingModal, updateCarousingMath, executeCarousing } from './dt-carousing.js';
+import { openCraftingModal, updateCraftingMath, executeCrafting } from './dt-crafting.js';
+import { openCrimeModal, updateCrimeMath, executeCrime } from './dt-crime.js';
+import { openGamblingModal, updateGamblingMath, executeGambling } from './dt-gambling.js';
+import { openPitFightingModal, updatePitFightingMath, executePitFighting } from './dt-pit-fighting.js';
+import { openRelaxationModal, updateRelaxationMath, executeRelaxation } from './dt-relaxation.js';
+import { openReligiousServiceModal, updateReligiousServiceMath, executeReligiousService } from './dt-religious-service.js';
+import { openResearchModal, updateResearchMath, executeResearch } from './dt-research.js';
+import { openScribingModal, updateScribingMath, executeScribing } from './dt-scribing.js';
+import { openSellingModal, updateSellingMath, executeSelling } from './dt-selling.js';
+import { openTrainingModal, updateTrainingMath, executeTraining } from './dt-training.js';
+import { openWorkModal, executeWork } from './dt-work.js';
+import { openAssignDowntimeModal, executeAssignDowntime } from './dt-assign.js';
 
 // --- APP ACTIONS HUB --- 
 // We bind all our imported modular functions back to the global window.appActions 
@@ -207,7 +214,7 @@ window.appActions = {
   setWebZoom,
   renderMermaidWeb,
 
-  // Downtime Activities
+  // Modular Downtime Activities
   openDowntimeMenu,
   
   openBuyMagicItemModal,
