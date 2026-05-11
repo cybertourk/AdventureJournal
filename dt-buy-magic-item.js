@@ -151,6 +151,116 @@ const MAGIC_ITEM_TABLES = {
     ]
 };
 
+const SCROLL_TABLES = {
+    'cantrip': [
+        "Infestation", "Guidance", "Prestidigitation", "Frostbite", "Light", "Booming Blade", "Blade Ward", 
+        "Mold Earth", "Green-Flame Blade", "Create Bonfire", "Sacred Flame", "Resistance", "Fire Bolt", 
+        "Eldritch Blast", "Lightning Lure", "Minor Illusion", "Dancing Lights", "Ray of Frost", "Produce Flame", 
+        "Encode Thoughts", "Thaumaturgy", "Sword Burst", "Acid Splash", "Shocking Grasp", "Control Flames", 
+        "Mage Hand", "Toll the Dead", "Gust", "Thorn Whip", "Chill Touch", "True Strike", "Druidcraft", 
+        "Shillelagh", "Primal Savagery", "Poison Spray", "Friends", "Spare the Dying", "Thunderclap", "Shape Water", 
+        "Vicious Mockery", "Word of Radiance", "Mind Sliver", "Message", "Magic Stone", "Mending"
+    ],
+    '1st': [
+        "Bane", "Jump", "Feather Fall", "Silent Image", "Create or Destroy Water", "Fog Cloud", "Guiding Bolt", 
+        "Cause Fear", "Burning Hands", "Cure Wounds", "Illusory Script", "Longstrider", "Detect Evil and Good", 
+        "Hex", "Identify", "Grease", "Wrathful Smite", "Expeditious Retreat", "Searing Smite", "Arms of Hadar", 
+        "Hunter's Mark", "Detect Magic", "Hail of Thorns", "Heroism", "Magic Missile", "Ice Knife", "Jim's Magic Missile", 
+        "Shield of Faith", "Divine Favor", "Thunderwave", "Dissonant Whispers", "Protection from Evil and Good", 
+        "Zephyr Strike", "False Life", "Purify Food and Drink", "Tenser's Floating Disk", "Distort Value", 
+        "Find Familiar", "Sleep", "Mage Armor", "Healing Word", "Tasha's Hideous Laughter", "Sanctuary", "Color Spray", 
+        "Bless", "Goodberry", "Ensnaring Strike", "Catapult", "Witch Bolt", "Beast Bond", "Absorb Elements", 
+        "Speak with Animals", "Compelled Duel", "Detect Poison and Disease", "Unseen Servant", "Entangle", "Command", 
+        "Animal Friendship", "Armor of Agathys", "Inflict Wounds", "Ceremony", "Charm Person", "Tasha's Caustic Brew", 
+        "Thunderous Smite", "Hellish Rebuke", "Earth Tremor", "Shield", "Chromatic Orb", "Ray of Sickness", 
+        "Comprehend Languages", "Snare", "Faerie Fire", "Chaos Bolt", "Alarm", "Disguise Self"
+    ],
+    '2nd': [
+        "Enhance Ability", "Enthrall", "Magic Mouth", "Spiritual Weapon", "Mind Spike", "Alter Self", "Misty Step", 
+        "Zone of Truth", "Rope Trick", "Prayer of Healing", "Levitate", "Continual Flame", "Locate Object", 
+        "Snilloc's Snowball Swarm", "Jim's Glowing Coin", "Suggestion", "Shadow Blade", "Flaming Sphere", "Darkvision", 
+        "Find Steed", "Phantasmal Force", "See Invisibility", "Shatter", "Warding Bond", "Silence", "Pyrotechnics", 
+        "Invisibility", "Find Traps", "Cordon of Arrows", "Jim's Glowing Coin", "Spider Climb", "Locate Animals or Plants", 
+        "Skywrite", "Augury", "Protection from Poison", "Aid", "Cloud of Daggers", "Animal Messenger", "Spray of Cards", 
+        "Melf's Acid Arrow", "Enlarge/Reduce", "Aganazzar's Scorcher", "Flame Blade", "Nystul's Magic Aura", 
+        "Pass without Trace", "Spike Growth", "Hold Person", "Web", "Dust Devil", "Crown of Madness", "Mirror Image", 
+        "Scorching Ray", "Calm Emotions", "Blindness/Deafness", "Knock", "Arcane Lock", "Earthbind", "Blur", 
+        "Gust of Wind", "Ray of Enfeeblement", "Branding Smite", "Warding Wind", "Healing Spirit", "Lesser Restoration", 
+        "Darkness", "Dragon's Breath", "Magic Weapon", "Detect Thoughts", "Moonbeam", "Heat Metal", 
+        "Maximilian's Earthen Grasp", "Gentle Repose", "Barkskin", "Beast Sense", "Gift of Gab", "Summon Beast", 
+        "Tasha's Mind Whip"
+    ],
+    '3rd': [
+        "Animate Dead", "Aura of Vitality", "Beacon of Hope", "Bestow Curse", "Blinding Smite", "Blink", "Call Lightning",
+        "Catnap", "Clairvoyance", "Conjure Animals", "Conjure Barrage", "Counterspell", "Create Food and Water",
+        "Crusader's Mantle", "Daylight", "Dispel Magic", "Elemental Weapon", "Enemies Abound", "Erupting Earth",
+        "Fast Friends", "Fear", "Feign Death", "Fireball", "Flame Arrows", "Fly", "Freedom of the Waves", "Gaseous Form",
+        "Glyph of Warding", "Haste", "Hunger of Hadar", "Hypnotic Pattern", "Incite Greed", "Intellect Fortress",
+        "Leomund's Tiny Hut", "Life Transference", "Lightning Arrow", "Lightning Bolt", "Magic Circle", "Major Image",
+        "Mass Healing Word", "Meld into Stone", "Melf's Minute Meteors", "Motivational Speech", "Nondetection",
+        "Phantom Steed", "Plant Growth", "Protection from Energy", "Remove Curse", "Revivify", "Sending", "Sleet Storm",
+        "Slow", "Speak with Dead", "Speak with Plants", "Spirit Guardians", "Spirit Shroud", "Summon Fey",
+        "Summon Lesser Demons", "Summon Shadowspawn", "Summon Undead", "Thunder Step", "Tidal Wave", "Tiny Servant",
+        "Tongues", "Vampiric Touch", "Wall of Sand", "Wall of Water", "Wind Wall", "Water Breathing", "Water Walk",
+        "Antagonize"
+    ],
+    '4th': [
+        "Arcane Eye", "Aura of Life", "Aura of Purity", "Banishment", "Blight", "Compulsion", "Confusion",
+        "Conjure Minor Elementals", "Conjure Woodland Beings", "Control Water", "Death Ward", "Dimension Door",
+        "Divination", "Dominate Beast", "Elemental Bane", "Evard's Black Tentacles", "Fabricate", "Find Greater Steed",
+        "Fire Shield", "Freedom of Movement", "Giant Insect", "Grasping Vine", "Greater Invisibility", "Guardian of Nature",
+        "Guardian of Faith", "Hallucinatory Terrain", "Ice Storm", "Leomund's Secret Chest", "Locate Creature",
+        "Mordenkainen's Faithful Hound", "Mordenkainen's Private Sanctum", "Otiluke's Resilient Sphere", "Phantasmal Killer",
+        "Polymorph", "Shadow of Moil", "Sickening Radiance", "Staggering Smite", "Stone Shape", "Stoneskin", "Storm Sphere",
+        "Summon Aberration", "Summon Construct", "Summon Elemental", "Vitriolic Sphere", "Wall of Fire", "Watery Sphere",
+        "Spirit of Death"
+    ],
+    '5th': [
+        "Animate Objects", "Antilife Shell", "Awaken", "Banishing Smite", "Bigby's Hand", "Circle of Power", "Cloudkill",
+        "Commune", "Commune with Nature", "Cone of Cold", "Conjure Elemental", "Conjure Volley", "Contact Other Plane",
+        "Contagion", "Control Water", "Control Winds", "Creation", "Danse Macabre", "Dawn", "Destructive Wave",
+        "Dispel Evil and Good", "Dominate Person", "Dream", "Enervation", "Far Step", "Flame Strike", "Freedom of the Winds",
+        "Geas", "Greater Restoration", "Hallow", "Hold Monster", "Holy Weapon", "Immolation", "Infernal Calling",
+        "Insect Plague", "Legend Lore", "Maelstrom", "Mass Cure Wounds", "Mislead", "Modify Memory", "Negative Energy Flood",
+        "Passwall", "Planar Binding", "Raise Dead", "Rary's Telepathic Bond", "Reincarnate", "Scrying", "Seeming",
+        "Skill Empowerment", "Steel Wind Strike", "Summon Celestial", "Swift Quiver", "Synaptic Static", "Telekinesis",
+        "Teleportation Circle", "Transmute Rock", "Tree Stride", "Wall of Force", "Wall of Light", "Wall of Stone",
+        "Wrath of Nature"
+    ]
+};
+
+const AMMUNITION_TABLE = [
+    "Arrows", "Blowgun Needles", "Renaissance Bullets", "Crossbow Bolts", "Darts", "Sling Bullets"
+];
+
+const FIGURINE_TABLE = [
+    "Bronze griffon", "Ebony fly", "Golden lions", "Ivory goats", "Marble elephant", "Onyx dog", "Onyx dog", "Serpentine owl"
+];
+
+const MAGIC_ARMOR_TABLE = [
+    "Armor, +2 half plate", "Armor, +2 half plate", "Armor, +2 plate", "Armor, +2 plate", 
+    "Armor, +3 studded leather", "Armor, +3 studded leather", "Armor, +3 breastplate", "Armor, +3 breastplate", 
+    "Armor, +3 splint", "Armor, +3 splint", "Armor, +3 half plate", "Armor, +3 plate"
+];
+
+const MARINERS_ARMOR_TABLE = [
+    "Breastplate", "Chain Mail", "Chain Shirt", "Half Plate", "Hide", "Leather", 
+    "Padded", "Plate", "Ring Mail", "Scale Mail", "Splint", "Studded Leather"
+];
+
+const MITHRAL_ARMOR_TABLE = [
+    "Breastplate", "Chain Mail", "Chain Shirt", "Half Plate", 
+    "Plate", "Ring Mail", "Scale Mail", "Splint"
+];
+
+const RESISTANCE_POTION_TABLE = [
+    "Acid", "Cold", "Fire", "Force", "Lightning", "Necrotic", "Poison", "Psychic", "Radiant", "Thunder"
+];
+
+const FEATHER_TOKEN_TABLE = [
+    "Anchor", "Bird", "Fan", "Swan Boat", "Tree", "Whip"
+];
+
 // ============================================================================
 // --- 1. BUYING A MAGIC ITEM ---
 // ============================================================================
@@ -426,6 +536,50 @@ export const executeBuyMagicItem = async () => {
                         break;
                     }
                 }
+                
+                // --- SUB-ROLL EVALUATION ---
+                if (found === "Spell scroll (cantrip)" && SCROLL_TABLES['cantrip']) {
+                    const spell = SCROLL_TABLES['cantrip'][Math.floor(Math.random() * SCROLL_TABLES['cantrip'].length)];
+                    found = `Spell scroll (${spell})`;
+                } else if (found === "Spell scroll (1st level)" && SCROLL_TABLES['1st']) {
+                    const spell = SCROLL_TABLES['1st'][Math.floor(Math.random() * SCROLL_TABLES['1st'].length)];
+                    found = `Spell scroll (${spell})`;
+                } else if (found === "Spell scroll (2nd level)" && SCROLL_TABLES['2nd']) {
+                    const spell = SCROLL_TABLES['2nd'][Math.floor(Math.random() * SCROLL_TABLES['2nd'].length)];
+                    found = `Spell scroll (${spell})`;
+                } else if (found === "Spell scroll (3rd level)" && SCROLL_TABLES['3rd']) {
+                    const spell = SCROLL_TABLES['3rd'][Math.floor(Math.random() * SCROLL_TABLES['3rd'].length)];
+                    found = `Spell scroll (${spell})`;
+                } else if (found === "Spell scroll (4th level)" && SCROLL_TABLES['4th']) {
+                    const spell = SCROLL_TABLES['4th'][Math.floor(Math.random() * SCROLL_TABLES['4th'].length)];
+                    found = `Spell scroll (${spell})`;
+                } else if (found === "Spell scroll (5th level)" && SCROLL_TABLES['5th']) {
+                    const spell = SCROLL_TABLES['5th'][Math.floor(Math.random() * SCROLL_TABLES['5th'].length)];
+                    found = `Spell scroll (${spell})`;
+                } else if (found.startsWith("Ammunition, +")) {
+                    const bonus = found.split("+")[1];
+                    const ammoType = AMMUNITION_TABLE[Math.floor(Math.random() * AMMUNITION_TABLE.length)];
+                    found = `${ammoType}, +${bonus}`;
+                } else if (found === "Figurine of wondrous power (roll d8)") {
+                    const fig = FIGURINE_TABLE[Math.floor(Math.random() * FIGURINE_TABLE.length)];
+                    found = `Figurine of wondrous power (${fig})`;
+                } else if (found === "Magic armor (roll d12)") {
+                    const arm = MAGIC_ARMOR_TABLE[Math.floor(Math.random() * MAGIC_ARMOR_TABLE.length)];
+                    found = arm;
+                } else if (found === "Mariner's armor") {
+                    const armor = MARINERS_ARMOR_TABLE[Math.floor(Math.random() * MARINERS_ARMOR_TABLE.length)];
+                    found = `Mariner's ${armor}`;
+                } else if (found === "Mithral armor") {
+                    const armor = MITHRAL_ARMOR_TABLE[Math.floor(Math.random() * MITHRAL_ARMOR_TABLE.length)];
+                    found = `Mithral ${armor}`;
+                } else if (found === "Potion of resistance") {
+                    const res = RESISTANCE_POTION_TABLE[Math.floor(Math.random() * RESISTANCE_POTION_TABLE.length)];
+                    found = `Potion of ${res} Resistance`;
+                } else if (found === "Quaal's feather token") {
+                    const token = FEATHER_TOKEN_TABLE[Math.floor(Math.random() * FEATHER_TOKEN_TABLE.length)];
+                    found = `Quaal's Feather Token (${token})`;
+                }
+                
                 foundItems.push(found);
             }
             
