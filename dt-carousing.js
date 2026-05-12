@@ -330,13 +330,17 @@ export const saveNewCarouseContact = async () => {
         active: true
     };
 
+    const typeDisplay = type === 'ally' ? 'Allied Contact' : 'Hostile Contact';
+    const classDisplay = socialClass.charAt(0).toUpperCase() + socialClass.slice(1);
+    const logAddition = `\n\n---\n\n**Logged on ${new Date().toLocaleDateString()}**\n**Downtime: Contact Scribed**\n*Hero:* ${pc.name}\n\nDefined a new **${classDisplay} ${typeDisplay}**: **${name}**.\n> *"${desc}"*`;
+
     const updatedPCs = camp.playerCharacters.map(p => {
         if (p.id === pcId) {
             let banked = p.bankedContacts || [];
             if (defineId) {
                 banked = banked.filter(b => b.id !== defineId);
             }
-            return { ...p, carousingContacts: [...(p.carousingContacts || []), newContact], bankedContacts: banked };
+            return { ...p, carousingContacts: [...(p.carousingContacts || []), newContact], bankedContacts: banked, downtimeLog: (p.downtimeLog || '') + logAddition };
         }
         return p;
     });
@@ -577,8 +581,8 @@ export const executeCarousing = async () => {
     }
 
     let resultBody = ``;
-    if (hostileGained > 0) resultBody += `❌ You made a poor impression and gained **${hostileGained} Hostile Contact(s)** in the ${socialClass} class.\n`;
-    if (actualAlliedGained > 0) resultBody += `✅ You socialized successfully and gained **${actualAlliedGained} Allied Contact(s)** in the ${socialClass} class!\n`;
+    if (hostileGained > 0) resultBody += `❌ You made a poor impression and gained **${hostileGained} Banked Hostile Contact(s)** in the ${socialClass} class.\n`;
+    if (actualAlliedGained > 0) resultBody += `✅ You socialized successfully and gained **${actualAlliedGained} Banked Allied Contact(s)** in the ${socialClass} class!\n`;
     if (lostAllies > 0) resultBody += `⚠️ **Limit Reached:** You met ${lostAllies} more potential allies, but your social network is full! Banked Allies are capped by your Charisma modifier (Max: ${maxAllies}).\n`;
     if (hostileGained === 0 && actualAlliedGained === 0 && lostAllies === 0) resultBody += `You made no notable new contacts during this time.\n`;
 
