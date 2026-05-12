@@ -25,8 +25,13 @@ export const openCarousingModal = () => {
             <div class="bg-[#f4ebd8] rounded-sm w-full max-w-2xl border border-[#d4c5a9] shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
                 
                 <div class="bg-blue-900 p-4 border-b-4 border-amber-600 shadow-md shrink-0 flex justify-between items-center text-amber-50">
-                    <h2 class="text-lg font-serif font-bold flex items-center"><i class="fa-solid fa-beer-mug-empty mr-2 text-amber-400"></i> Carousing</h2>
-                    <button onclick="window.appActions.openDowntimeMenu()" class="text-stone-400 hover:text-white transition" title="Back to Menu"><i class="fa-solid fa-arrow-left text-xl"></i></button>
+                    <div class="flex items-center gap-3">
+                        <h2 class="text-lg font-serif font-bold flex items-center"><i class="fa-solid fa-beer-mug-empty mr-2 text-amber-400"></i> Carousing</h2>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button onclick="window.appActions.openCarouseContacts()" class="text-[10px] font-bold uppercase tracking-widest bg-stone-900/50 hover:bg-stone-900 px-3 py-1.5 rounded-sm border border-amber-500/50 hover:border-amber-400 transition shadow-sm"><i class="fa-solid fa-address-book mr-1.5"></i> Manage Contacts</button>
+                        <button onclick="window.appActions.openDowntimeMenu()" class="text-stone-400 hover:text-white transition" title="Back to Menu"><i class="fa-solid fa-arrow-left text-xl"></i></button>
+                    </div>
                 </div>
 
                 <div class="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-grow bg-[#fdfbf7]">
@@ -95,11 +100,192 @@ export const openCarousingModal = () => {
                     <button onclick="window.appActions.executeCarousing()" class="px-5 py-2 bg-blue-800 text-amber-50 rounded-sm hover:bg-blue-700 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs flex items-center shadow-md"><i class="fa-solid fa-dice-d20 mr-2"></i> Execute Carousing</button>
                 </div>
             </div>
+            
+            <!-- Contacts Management Modal (Hidden by default, overlays the Carousing Modal) -->
+            <div id="dt-carouse-contacts-modal" class="hidden absolute inset-0 bg-stone-950/95 flex items-center justify-center p-4 z-[19000] backdrop-blur-sm animate-in">
+                <div class="bg-[#f4ebd8] rounded-sm w-full max-w-lg border border-[#d4c5a9] shadow-2xl relative flex flex-col max-h-[90vh]">
+                    <div class="bg-stone-900 p-3 sm:p-4 border-b-2 border-amber-600 shadow-md shrink-0 flex justify-between items-center text-amber-50">
+                        <h3 class="text-base font-serif font-bold flex items-center"><i class="fa-solid fa-address-book mr-2 text-amber-500"></i> Manage Contacts</h3>
+                        <button onclick="window.appActions.closeCarouseContacts()" class="text-stone-400 hover:text-white transition"><i class="fa-solid fa-xmark text-lg"></i></button>
+                    </div>
+                    
+                    <div class="p-4 sm:p-5 overflow-y-auto custom-scrollbar flex-grow bg-[#fdfbf7] space-y-5">
+                        <input type="hidden" id="dt-carouse-contact-pc-id">
+                        
+                        <!-- Add New Contact Form -->
+                        <div class="bg-stone-100 p-3 sm:p-4 border border-[#d4c5a9] rounded-sm shadow-inner">
+                            <h4 class="text-[10px] uppercase font-bold text-stone-500 tracking-widest mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-feather-pointed mr-1 text-stone-400"></i> Scribe New Contact</h4>
+                            <div class="grid grid-cols-2 gap-3 mb-3">
+                                <input type="text" id="dt-carouse-contact-name" placeholder="Contact Name" class="col-span-2 p-2 text-xs border border-[#d4c5a9] rounded-sm outline-none focus:border-amber-600 shadow-sm bg-white font-bold text-stone-900">
+                                <select id="dt-carouse-contact-type" class="p-2 text-xs border border-[#d4c5a9] rounded-sm outline-none focus:border-amber-600 shadow-sm bg-white font-bold text-stone-900">
+                                    <option value="ally">Ally</option>
+                                    <option value="hostile">Hostile</option>
+                                </select>
+                                <select id="dt-carouse-contact-class" class="p-2 text-xs border border-[#d4c5a9] rounded-sm outline-none focus:border-amber-600 shadow-sm bg-white font-bold text-stone-900">
+                                    <option value="Lower Class">Lower Class</option>
+                                    <option value="Middle Class">Middle Class</option>
+                                    <option value="Upper Class">Upper Class</option>
+                                </select>
+                                <textarea id="dt-carouse-contact-desc" placeholder="Description & Notes..." class="col-span-2 p-2 text-xs border border-[#d4c5a9] rounded-sm outline-none focus:border-amber-600 shadow-sm bg-white font-serif resize-none h-20 custom-scrollbar"></textarea>
+                            </div>
+                            <div class="flex justify-end">
+                                <button onclick="window.appActions.saveNewCarouseContact()" class="px-4 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] shadow-md flex items-center"><i class="fa-solid fa-plus mr-1.5"></i> Add Contact</button>
+                            </div>
+                        </div>
+
+                        <!-- Existing Contacts List -->
+                        <div>
+                            <h4 class="text-[10px] uppercase font-bold text-stone-500 tracking-widest mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-users mr-1 text-stone-400"></i> Known Contacts</h4>
+                            <div id="dt-carouse-contacts-list" class="space-y-3">
+                                <!-- Populated via JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     `;
 
     setTimeout(window.appActions.updateCarousingMath, 50);
 };
+
+// --- NEW CONTACT MANAGEMENT SYSTEM ---
+
+export const openCarouseContacts = () => {
+    const pcId = document.getElementById('dt-carouse-pc').value;
+    if (!pcId) return notify("Please select a hero first.", "error");
+
+    const modal = document.getElementById('dt-carouse-contacts-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        window.appActions.renderCarouseContactsList(pcId);
+    }
+};
+
+export const closeCarouseContacts = () => {
+    const modal = document.getElementById('dt-carouse-contacts-modal');
+    if (modal) modal.classList.add('hidden');
+};
+
+export const renderCarouseContactsList = (pcId) => {
+    const camp = window.appData.activeCampaign;
+    const pc = camp.playerCharacters?.find(p => p.id === pcId);
+    const listContainer = document.getElementById('dt-carouse-contacts-list');
+    if (!pc || !listContainer) return;
+
+    const contacts = pc.carousingContacts || [];
+    let html = '';
+
+    if (contacts.length === 0) {
+        html = '<p class="text-stone-500 italic text-xs py-2">No contacts recorded yet.</p>';
+    } else {
+        contacts.forEach(c => {
+            const statusColor = c.active ? 'text-emerald-700' : 'text-stone-400';
+            const statusBg = c.active ? 'bg-emerald-50 border-emerald-200' : 'bg-stone-100 border-stone-300';
+            const statusText = c.active ? '<i class="fa-solid fa-check mr-1"></i> Active' : '<i class="fa-solid fa-times mr-1"></i> Inactive';
+            const typeIcon = c.type === 'ally' ? '<i class="fa-solid fa-handshake text-emerald-600" title="Ally"></i>' : '<i class="fa-solid fa-skull-crossbones text-red-600" title="Hostile"></i>';
+            
+            html += `
+            <div class="bg-white p-3 sm:p-4 border border-[#d4c5a9] rounded-sm shadow-sm flex flex-col gap-2 relative group hover:border-amber-300 transition-colors">
+                <div class="flex justify-between items-start border-b border-[#d4c5a9] pb-2">
+                    <div class="min-w-0 pr-2">
+                        <span class="font-bold text-stone-900 text-sm truncate block">${c.name}</span>
+                        <span class="text-[9px] uppercase tracking-widest text-stone-500 font-bold">${c.socialClass}</span>
+                    </div>
+                    <div class="flex gap-2 items-center shrink-0">
+                        ${typeIcon}
+                        <div class="w-px h-4 bg-stone-300 mx-1"></div>
+                        <button onclick="window.appActions.toggleCarouseContact('${pcId}', '${c.id}')" class="text-[9px] uppercase tracking-widest font-bold ${statusColor} ${statusBg} px-2 py-1 rounded shadow-sm hover:brightness-95 transition whitespace-nowrap w-20 text-center">${statusText}</button>
+                        <button onclick="window.appActions.deleteCarouseContact('${pcId}', '${c.id}')" class="text-stone-400 hover:text-red-700 transition ml-1" title="Delete Contact"><i class="fa-solid fa-trash text-sm"></i></button>
+                    </div>
+                </div>
+                <p class="text-xs text-stone-700 font-serif leading-relaxed mt-1">${(c.description || '').replace(/"/g, '&quot;').replace(/\n/g, '<br>')}</p>
+            </div>
+            `;
+        });
+    }
+    
+    listContainer.innerHTML = html;
+    document.getElementById('dt-carouse-contact-pc-id').value = pcId;
+};
+
+export const saveNewCarouseContact = async () => {
+    const pcId = document.getElementById('dt-carouse-contact-pc-id').value;
+    const name = document.getElementById('dt-carouse-contact-name').value.trim();
+    const type = document.getElementById('dt-carouse-contact-type').value;
+    const socialClass = document.getElementById('dt-carouse-contact-class').value;
+    const desc = document.getElementById('dt-carouse-contact-desc').value.trim();
+
+    if (!name || !desc) {
+        notify("Name and Description are required.", "error");
+        return;
+    }
+
+    const camp = window.appData.activeCampaign;
+    const pc = camp.playerCharacters?.find(p => p.id === pcId);
+    if (!pc) return;
+
+    const newContact = {
+        id: generateId(),
+        name,
+        type,
+        socialClass,
+        description: desc,
+        active: true
+    };
+
+    const updatedPCs = camp.playerCharacters.map(p => {
+        if (p.id === pcId) {
+            return { ...p, carousingContacts: [...(p.carousingContacts || []), newContact] };
+        }
+        return p;
+    });
+
+    const updatedCamp = { ...camp, playerCharacters: updatedPCs };
+    await saveCampaign(updatedCamp);
+    
+    // Reset form
+    document.getElementById('dt-carouse-contact-name').value = '';
+    document.getElementById('dt-carouse-contact-desc').value = '';
+    
+    window.appActions.renderCarouseContactsList(pcId);
+    notify("Contact scribed successfully.", "success");
+};
+
+export const toggleCarouseContact = async (pcId, contactId) => {
+    const camp = window.appData.activeCampaign;
+    const updatedPCs = camp.playerCharacters.map(p => {
+        if (p.id === pcId) {
+            const updatedContacts = (p.carousingContacts || []).map(c => 
+                c.id === contactId ? { ...c, active: !c.active } : c
+            );
+            return { ...p, carousingContacts: updatedContacts };
+        }
+        return p;
+    });
+    
+    await saveCampaign({ ...camp, playerCharacters: updatedPCs });
+    window.appActions.renderCarouseContactsList(pcId);
+};
+
+export const deleteCarouseContact = async (pcId, contactId) => {
+    if(!confirm("Are you sure you want to permanently erase this contact?")) return;
+    
+    const camp = window.appData.activeCampaign;
+    const updatedPCs = camp.playerCharacters.map(p => {
+        if (p.id === pcId) {
+            const updatedContacts = (p.carousingContacts || []).filter(c => c.id !== contactId);
+            return { ...p, carousingContacts: updatedContacts };
+        }
+        return p;
+    });
+    
+    await saveCampaign({ ...camp, playerCharacters: updatedPCs });
+    window.appActions.renderCarouseContactsList(pcId);
+};
+
+// --- CORE CAROUSING MATH ---
 
 export const updateCarousingMath = () => {
     const classSelect = document.getElementById('dt-carouse-class');
@@ -209,7 +395,7 @@ export const executeCarousing = async () => {
     else if (alliedGained > 0) resultBody += `✅ You socialized successfully and gained **${alliedGained} Allied Contact(s)** in the ${socialClass} class!`;
     else resultBody += `You made no notable new contacts during this time.`;
 
-    const noteText = `**Downtime: Carousing (${socialClass.charAt(0).toUpperCase() + socialClass.slice(1)} Class)**\n*Hero:* ${pc.name}\n\n**Time Spent:** 5 Days\n**Gold Spent (Expenses):** ${goldCost} gp\n**Check Result:** ${checkTotal} (Rolled ${d20} ${pMod >= 0 ? `+ ${pMod}` : `- ${Math.abs(pMod)}`})\n\n${resultBody}\n*(Be sure to scribe any new named contacts into your hero's Private Journal under Allies/Enemies!)*${complicationText}`;
+    const noteText = `**Downtime: Carousing (${socialClass.charAt(0).toUpperCase() + socialClass.slice(1)} Class)**\n*Hero:* ${pc.name}\n\n**Time Spent:** 5 Days\n**Gold Spent (Expenses):** ${goldCost} gp\n**Check Result:** ${checkTotal} (Rolled ${d20} ${pMod >= 0 ? `+ ${pMod}` : `- ${Math.abs(pMod)}`})\n\n${resultBody}\n*(Be sure to record your new contacts using the **Manage Contacts** button!)*${complicationText}`;
 
     const timestampStr = new Date().toLocaleDateString();
     const logAddition = `${pc.downtimeLog ? '\n\n---\n\n' : ''}**Logged on ${timestampStr}**\n${noteText}`;
@@ -230,3 +416,24 @@ export const executeCarousing = async () => {
     notify(`Carousing complete! 5 days deducted. Log saved to Hero Journal.`, "success");
     reRender();
 };
+
+// ============================================================================
+// --- GLOBAL EXPORTS BINDING ---
+// ============================================================================
+
+if (typeof window !== 'undefined') {
+    window.appActions = window.appActions || {};
+    
+    // Core Carousing
+    window.appActions.openCarousingModal = openCarousingModal;
+    window.appActions.updateCarousingMath = updateCarousingMath;
+    window.appActions.executeCarousing = executeCarousing;
+    
+    // Contact Management System
+    window.appActions.openCarouseContacts = openCarouseContacts;
+    window.appActions.closeCarouseContacts = closeCarouseContacts;
+    window.appActions.renderCarouseContactsList = renderCarouseContactsList;
+    window.appActions.saveNewCarouseContact = saveNewCarouseContact;
+    window.appActions.toggleCarouseContact = toggleCarouseContact;
+    window.appActions.deleteCarouseContact = deleteCarouseContact;
+}
