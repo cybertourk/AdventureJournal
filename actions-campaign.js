@@ -667,172 +667,162 @@ export const calculateBirthdaysLive = () => {
 };
 
 export const savePCEdit = async () => {
+    updateDerivedState();
     const camp = window.appData.activeCampaign;
     if (!camp) return;
 
-    const pcId = document.getElementById('pc-edit-id').value;
-    const name = document.getElementById('pc-edit-name').value.trim();
-    const availableDowntime = document.getElementById('pc-edit-downtime').value;
-    const journal = document.getElementById('pc-edit-journal').value;
-    const downtimeLog = document.getElementById('pc-edit-log').value;
-    const birthday = document.getElementById('pc-edit-birthday').value;
+    const isDM = camp._isDM;
+    const myUid = window.appData.currentUserUid;
+    const pcId = window.appData.activePcId || generateId();
 
-    if (!name) { notify("Hero name is required.", "error"); return; }
+    const existingPC = camp.playerCharacters?.find(p => p.id === pcId) || {
+        inspiration: 0,
+        automaticSuccess: false,
+        playerId: '',
+        birthMonth: null,
+        birthDay: null,
+        extraBdayBoons: [],
+        availableDowntime: 0,
+        downtimeLog: ''
+    };
 
-    const updatedPCs = (camp.playerCharacters || []).map(pc => {
-        if (pc.id === pcId) {
-            return {
-                ...pc,
-                name,
-                availableDowntime: parseInt(availableDowntime) || 0,
-                // Explicitly allow empty strings to overwrite old data
-                journal: journal || "", 
-                downtimeLog: downtimeLog || "",
-                birthday
-            };
+    const isOwner = existingPC.playerId === myUid;
+
+    if (!isDM && !isOwner) {
+        notify("You do not have permission to modify this hero.", "error");
+        return;
+    }
+
+    const nameInput = document.getElementById('pc-edit-name')?.value.trim();
+    if (!nameInput) {
+        notify("Hero must have a name.", "error");
+        return;
+    }
+
+    // Handle DM's manual birthday entry vs Account linkage
+    const bMonthEl = document.getElementById('pc-edit-birth-month');
+    const bDayEl = document.getElementById('pc-edit-birth-day');
+
+    const localBMonth = isDM ? ((bMonthEl && !bMonthEl.disabled) ? (parseInt(bMonthEl.value) || null) : existingPC.birthMonth) : existingPC.birthMonth;
+    const localBDay = isDM ? ((bDayEl && !bDayEl.disabled) ? (parseInt(bDayEl.value) || null) : existingPC.birthDay) : existingPC.birthDay;
+
+    // Gather Extra Birthday Boons (3rd+)
+    const extraBdayBoons = [];
+    if (isDM) {
+        for (let i = 3; i <= 12; i++) {
+            const select = document.getElementById(`pc-edit-boon-${i}`);
+            if (select) {
+                extraBdayBoons.push(select.value);
+            }
         }
-        return pc;
-    });
+        while (extraBdayBoons.length > 0 && extraBdayBoons[extraBdayBoons.length - 1] === '') {
+            extraBdayBoons.pop();
+        }
+    }
 
-    const updatedCamp = { ...camp, playerCharacters: updatedPCs };
-    
-    // Optimistic Update
+    // Helper to gracefully extract values, allowing empty strings to overwrite existing data
+    const getVal = (id, fallback) => {
+        const el = document.getElementById(id);
+        if (el) return el.value; 
+        return fallback || '';
+    };
+
+    // Gather Inputs safely based on access level
+    const updatedPC = {
+        ...existingPC,
+        id: pcId,
+        // Core Identity
+        name: nameInput,
+        race: getVal('pc-edit-race', existingPC.race),
+        classLevel: getVal('pc-edit-class', existingPC.classLevel),
+        background: getVal('pc-edit-background', existingPC.background),
+        image: getVal('pc-edit-image', existingPC.image),
+        // Characteristics
+        alignment: getVal('pc-edit-alignment', existingPC.alignment),
+        faith: getVal('pc-edit-faith', existingPC.faith),
+        gender: getVal('pc-edit-gender', existingPC.gender),
+        age: getVal('pc-edit-age', existingPC.age),
+        size: getVal('pc-edit-size', existingPC.size),
+        height: getVal('pc-edit-height', existingPC.height),
+        weight: getVal('pc-edit-weight', existingPC.weight),
+        eyes: getVal('pc-edit-eyes', existingPC.eyes),
+        hair: getVal('pc-edit-hair', existingPC.hair),
+        skin: getVal('pc-edit-skin', existingPC.skin),
+        // Personality & Roleplay
+        traits: getVal('input-pc-edit-traits', existingPC.traits),
+        ideals: getVal('input-pc-edit-ideals', existingPC.ideals),
+        bonds: getVal('input-pc-edit-bonds', existingPC.bonds),
+        flaws: getVal('input-pc-edit-flaws', existingPC.flaws),
+        appearance: getVal('input-pc-edit-appearance', existingPC.appearance),
+        backstory: getVal('input-pc-edit-backstory', existingPC.backstory),
+        organizations: getVal('input-pc-edit-organizations', existingPC.organizations),
+        allies: getVal('input-pc-edit-allies', existingPC.allies),
+        enemies: getVal('input-pc-edit-enemies', existingPC.enemies),
+
+        // Downtime Log (Explicitly allowing it to be cleared out)
+        downtimeLog: getVal('input-pc-edit-downtimelog', existingPC.downtimeLog),
+
+        // DM Restricted Administrative Fields
+        playerId: isDM ? getVal('pc-edit-player-id', existingPC.playerId) : (existingPC.playerId || ''),
+        dmNotes: isDM ? getVal('input-pc-edit-dmnotes', existingPC.dmNotes) : (existingPC.dmNotes || ''),
+        joinDate: isDM ? getVal('pc-edit-join-date', existingPC.joinDate) : (existingPC.joinDate || ''), 
+        birthMonth: localBMonth,
+        birthDay: localBDay,
+        boonBackstory: isDM ? (document.getElementById('pc-edit-boon-backstory')?.checked || false) : (existingPC.boonBackstory || false),
+        unlockAutoSuccess: isDM ? (document.getElementById('pc-edit-unlock-auto-success')?.checked || false) : (existingPC.unlockAutoSuccess || false),
+        boon1stBday: isDM ? getVal('pc-edit-boon-1st', existingPC.boon1stBday) : (existingPC.boon1stBday || ''),
+        boon2ndBday: isDM ? getVal('pc-edit-boon-2nd', existingPC.boon2ndBday) : (existingPC.boon2ndBday || ''),
+        extraBdayBoons: isDM ? extraBdayBoons : (existingPC.extraBdayBoons || []),
+        availableDowntime: isDM ? (parseInt(document.getElementById('pc-edit-downtime')?.value) || 0) : (parseInt(existingPC.availableDowntime) || 0)
+    };
+
+    const isNew = !camp.playerCharacters?.some(p => p.id === pcId);
+    const newPCs = isNew ? [...(camp.playerCharacters || []), updatedPC] : camp.playerCharacters.map(p => p.id === pcId ? updatedPC : p);
+
+    // --- Auto-Generate / Update Linked Codex Entry for the Hero ---
+    let updatedCodexArray = [...(camp.codex || [])];
+    const existingCodexEntry = updatedCodexArray.find(c => c.id === pcId);
+
+    if (!existingCodexEntry) {
+        updatedCodexArray.push({
+            id: pcId,
+            name: updatedPC.name,
+            type: 'PC',
+            tags: ['Hero', updatedPC.race, updatedPC.classLevel].filter(Boolean),
+            desc: 'Rumors and public knowledge surrounding this hero are yet to be penned.',
+            visibility: { mode: 'public' },
+            image: updatedPC.image
+        });
+    } else {
+        updatedCodexArray = updatedCodexArray.map(c => {
+            if (c.id === pcId) {
+                return {
+                    ...c,
+                    name: updatedPC.name,
+                    type: 'PC',
+                    tags: ['Hero', updatedPC.race, updatedPC.classLevel].filter(Boolean),
+                    image: updatedPC.image
+                };
+            }
+            return c;
+        });
+    }
+
+    let updatedCamp = { ...camp, playerCharacters: newPCs, codex: updatedCodexArray };
+
+    // Track Player Edits!
+    if (!isDM) {
+        updatedCamp = logPlayerActivity(updatedCamp, myUid, `updated the private journal for <span class="font-bold text-amber-700">${updatedPC.name}</span>.`, 'fa-user-pen');
+    }
+
+    // Local Optimistic Update
     window.appData.activeCampaign = updatedCamp;
     reRender();
 
     await saveCampaign(updatedCamp);
-    closeUniversalEditor(); // Close editor if open
-    document.getElementById('global-popup-container').innerHTML = '';
-    notify("Hero records updated.", "success");
-};
-  
-  const isOwner = existingPC.playerId === myUid;
-  
-  if (!isDM && !isOwner) {
-    notify("You do not have permission to modify this hero.", "error");
-    return;
-  }
 
-  const nameInput = document.getElementById('pc-edit-name')?.value.trim();
-  if (!nameInput) {
-    notify("Hero must have a name.", "error");
-    return;
-  }
-
-  // Handle DM's manual birthday entry vs Account linkage
-  const bMonthEl = document.getElementById('pc-edit-birth-month');
-  const bDayEl = document.getElementById('pc-edit-birth-day');
-  
-  // If the inputs are active (!disabled), grab their value. 
-  // If they are disabled, it means the UI is showing the Account's birthday, so we silently preserve the old manual value underneath.
-  const localBMonth = isDM ? ((bMonthEl && !bMonthEl.disabled) ? (parseInt(bMonthEl.value) || null) : existingPC.birthMonth) : existingPC.birthMonth;
-  const localBDay = isDM ? ((bDayEl && !bDayEl.disabled) ? (parseInt(bDayEl.value) || null) : existingPC.birthDay) : existingPC.birthDay;
-
-  // Gather Extra Birthday Boons (3rd+)
-  const extraBdayBoons = [];
-  if (isDM) {
-      for (let i = 3; i <= 12; i++) {
-          const select = document.getElementById(`pc-edit-boon-${i}`);
-          if (select) {
-              extraBdayBoons.push(select.value);
-          }
-      }
-      // Trim trailing empty strings so we don't save a bunch of useless blanks
-      while (extraBdayBoons.length > 0 && extraBdayBoons[extraBdayBoons.length - 1] === '') {
-          extraBdayBoons.pop();
-      }
-  }
-
-  // Gather Inputs safely based on access level
-  const updatedPC = {
-    ...existingPC,
-    id: pcId,
-    // Core Identity (Now editable by Owner AND DM)
-    name: nameInput,
-    race: document.getElementById('pc-edit-race')?.value.trim() || '',
-    classLevel: document.getElementById('pc-edit-class')?.value.trim() || '',
-    background: document.getElementById('pc-edit-background')?.value.trim() || '',
-    image: document.getElementById('pc-edit-image')?.value.trim() || '',
-    // Characteristics
-    alignment: document.getElementById('pc-edit-alignment')?.value.trim() || '',
-    faith: document.getElementById('pc-edit-faith')?.value.trim() || '',
-    gender: document.getElementById('pc-edit-gender')?.value.trim() || '',
-    age: document.getElementById('pc-edit-age')?.value.trim() || '',
-    size: document.getElementById('pc-edit-size')?.value.trim() || '',
-    height: document.getElementById('pc-edit-height')?.value.trim() || '',
-    weight: document.getElementById('pc-edit-weight')?.value.trim() || '',
-    eyes: document.getElementById('pc-edit-eyes')?.value.trim() || '',
-    hair: document.getElementById('pc-edit-hair')?.value.trim() || '',
-    skin: document.getElementById('pc-edit-skin')?.value.trim() || '',
-    // Personality & Roleplay
-    traits: document.getElementById('input-pc-edit-traits')?.value || '',
-    ideals: document.getElementById('input-pc-edit-ideals')?.value || '',
-    bonds: document.getElementById('input-pc-edit-bonds')?.value || '',
-    flaws: document.getElementById('input-pc-edit-flaws')?.value || '',
-    appearance: document.getElementById('input-pc-edit-appearance')?.value || '',
-    backstory: document.getElementById('input-pc-edit-backstory')?.value || '',
-    organizations: document.getElementById('input-pc-edit-organizations')?.value || '',
-    allies: document.getElementById('input-pc-edit-allies')?.value || '',
-    enemies: document.getElementById('input-pc-edit-enemies')?.value || '',
-    // DM Restricted Administrative Fields
-    playerId: isDM ? (document.getElementById('pc-edit-player-id')?.value || '') : (existingPC.playerId || ''),
-    dmNotes: isDM ? (document.getElementById('input-pc-edit-dmnotes')?.value || '') : (existingPC.dmNotes || ''),
-    joinDate: isDM ? (document.getElementById('pc-edit-join-date')?.value || '') : (existingPC.joinDate || ''), 
-    birthMonth: localBMonth,
-    birthDay: localBDay,
-    boonBackstory: isDM ? (document.getElementById('pc-edit-boon-backstory')?.checked || false) : (existingPC.boonBackstory || false),
-    unlockAutoSuccess: isDM ? (document.getElementById('pc-edit-unlock-auto-success')?.checked || false) : (existingPC.unlockAutoSuccess || false),
-    boon1stBday: isDM ? (document.getElementById('pc-edit-boon-1st')?.value.trim() || '') : (existingPC.boon1stBday || ''),
-    boon2ndBday: isDM ? (document.getElementById('pc-edit-boon-2nd')?.value.trim() || '') : (existingPC.boon2ndBday || ''),
-    extraBdayBoons: isDM ? extraBdayBoons : (existingPC.extraBdayBoons || []) // Add the 3rd+ boons
-  };
-
-  const isNew = !camp.playerCharacters?.some(p => p.id === pcId);
-  const newPCs = isNew ? [...(camp.playerCharacters || []), updatedPC] : camp.playerCharacters.map(p => p.id === pcId ? updatedPC : p);
-
-  // --- Auto-Generate / Update Linked Codex Entry for the Hero ---
-  let updatedCodexArray = [...(camp.codex || [])];
-  const existingCodexEntry = updatedCodexArray.find(c => c.id === pcId);
-  
-  if (!existingCodexEntry) {
-    // Generate entirely new public codex entry with updated default description
-    updatedCodexArray.push({
-      id: pcId,
-      name: updatedPC.name,
-      type: 'PC',
-      tags: ['Hero', updatedPC.race, updatedPC.classLevel].filter(Boolean),
-      desc: 'Rumors and public knowledge surrounding this hero are yet to be penned.',
-      visibility: { mode: 'public' },
-      image: updatedPC.image
-    });
-  } else {
-    // Update existing entry's name, type, tags and image to stay in sync
-    updatedCodexArray = updatedCodexArray.map(c => {
-      if (c.id === pcId) {
-        return {
-          ...c,
-          name: updatedPC.name,
-          type: 'PC',
-          tags: ['Hero', updatedPC.race, updatedPC.classLevel].filter(Boolean),
-          image: updatedPC.image
-          // Desc and visibility are preserved so the player's custom edits remain intact
-        };
-      }
-      return c;
-    });
-  }
-
-  let updatedCamp = { ...camp, playerCharacters: newPCs, codex: updatedCodexArray };
-  
-  // Track Player Edits!
-  if (!isDM) {
-      updatedCamp = logPlayerActivity(updatedCamp, myUid, `updated the private journal for <span class="font-bold text-amber-700">${updatedPC.name}</span>.`, 'fa-user-pen');
-  }
-
-  await saveCampaign(updatedCamp);
-  
-  window.appActions.setView('pc-manager');
-  notify("Hero profile inscribed.", "success");
+    window.appActions.setView('pc-manager');
+    notify("Hero profile inscribed.", "success");
 };
 
 export const deletePC = async (pcId) => {
