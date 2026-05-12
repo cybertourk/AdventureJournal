@@ -206,10 +206,10 @@ export const executeCrime = async () => {
     if (successes === 0) {
         const fine = payoutMax;
         const jailWeeks = Math.ceil(fine / 25);
-        const jailDays = jailWeeks * 7;
+        const jailDays = jailWeeks * 5; // XGtE downtime math: 5 days = 1 workweek
         const bribeCost = fine + (jailDays * 10);
         
-        resultBody = `🚨 **Caught! (0 Successes)**\n\nYour heist was a spectacular failure. You have been sentenced to **${jailWeeks} week(s) (${jailDays} days)** in jail and must pay a fine of **${fine} gp**.\n*(Alternatively, you can bribe your way out for ${bribeCost} gp).*`;
+        resultBody = `🚨 **Caught! (0 Successes)**\n\nYour heist was a spectacular failure. You have been caught and sentenced by the local authorities!\n\n**The Sentence:** **${jailWeeks} week(s) (${jailDays} days)** in jail and a **${fine} gp** fine.\n\n**Resolution Options (Discuss with your DM):**\n- **Serve Full Sentence:** Deduct ${jailDays} more downtime days.\n- **Work Release:** Deduct ${jailDays} more downtime days, but retain a debt to society.\n- **Bribe the Guards:** Pay a total of **${bribeCost} gp** (Fine + Bribes) to avoid jail time completely.`;
     } 
     else if (successes === 1) {
         resultBody = `❌ **Failure (1 Success)**\n\nYou failed to secure the loot, but you managed to escape without being caught.`;
