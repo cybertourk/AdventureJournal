@@ -251,8 +251,8 @@ export const updateCrimeMath = (triggerSource = 'input') => {
             const fineRem = rec.fineTotal - rec.finePaid;
 
             if (triggerSource === 'pc' || triggerSource === 'init' || triggerSource === 'record') {
-                document.getElementById('crime-res-desc').textContent = rec.desc;
-                document.getElementById('crime-res-loc').textContent = rec.loc;
+                document.getElementById('dt-crime-res-desc').textContent = rec.desc;
+                document.getElementById('dt-crime-res-loc').textContent = rec.loc;
                 document.getElementById('dt-crime-res-jail-remaining').textContent = `${jailRem} Days`;
                 document.getElementById('dt-crime-res-fine-remaining').textContent = `${fineRem} gp`;
                 
