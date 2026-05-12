@@ -15,12 +15,59 @@ import {
     FEATHER_TOKEN_TABLE 
 } from './data-roll-tables.js';
 
-const BASE_PRICES_BY_RARITY = {
-    "common": 100,
-    "uncommon": 400,
-    "rare": 4000,
-    "veryRare": 40000,
-    "legendary": 200000
+// --- CUSTOM CAMPAIGN PRICING ENGINE ---
+const CUSTOM_PRICING = {
+    "common": 50,
+    "uncommon": 500,
+    "rare": 5000,
+    "very-rare": 50000,
+    "legendary": 500000 // Assumed 10x scaling based on prior tiers
+};
+
+const getArmorBaseCost = (itemName) => {
+    const n = itemName.toLowerCase();
+    if (n.includes("plate armor") || (n.includes("armor") && n.includes("plate") && !n.includes("half") && !n.includes("breast"))) return 1500;
+    if (n.includes("half plate")) return 750;
+    if (n.includes("breastplate")) return 400;
+    if (n.includes("splint")) return 200;
+    if (n.includes("chain mail") || n.includes("efreeti chain") || n.includes("elven chain")) return 75;
+    if (n.includes("scale mail") || n.includes("dragon scale")) return 50;
+    if (n.includes("chain shirt")) return 50;
+    if (n.includes("studded leather") || n.includes("glamoured studded")) return 45;
+    if (n.includes("ring mail")) return 30;
+    if (n.includes("hide")) return 10;
+    if (n.includes("leather")) return 10;
+    if (n.includes("padded")) return 5;
+    if (n.includes("shield")) return 10;
+    return 0;
+};
+
+const isConsumable = (itemName) => {
+    const n = itemName.toLowerCase();
+    return n.includes("potion") || n.includes("scroll") || n.includes("ammunition") || 
+           n.includes("arrows") || n.includes("bolts") || n.includes("darts") || 
+           n.includes("bullets") || n.includes("needles") || n.includes("elixir") || 
+           n.includes("oil") || n.includes("dust") || n.includes("solvent") || 
+           n.includes("glue") || n.includes("ointment") || n.includes("feather token") || 
+           n.includes("bean") || n.includes("bead");
+};
+
+const getTableRarity = (tableLetter) => {
+    switch(tableLetter) {
+        case 'A': return 'common';
+        case 'B': case 'F': return 'uncommon';
+        case 'C': case 'G': return 'rare';
+        case 'D': case 'H': return 'very-rare';
+        case 'E': case 'I': return 'legendary';
+        default: return 'uncommon';
+    }
+};
+
+const calculateCustomPrice = (itemName, rarity) => {
+    let base = CUSTOM_PRICING[rarity] || 500;
+    if (isConsumable(itemName)) base = Math.floor(base / 2);
+    base += getArmorBaseCost(itemName);
+    return base;
 };
 
 // ============================================================================
@@ -176,18 +223,19 @@ export const updateBuyMagicItemMath = () => {
     const travelDays = isHarper ? (parseInt(travelEl.value) || 0) : 0;
     const magicLvl = magicLvlEl.value;
 
-    const workweeks = Math.floor(days / 5);
-    let workweeksBonus = Math.max(0, workweeks - 1);
-    if (isHarper) workweeksBonus *= 2;
-    workweeksBonus = Math.min(10, workweeksBonus); 
+    let wBonus = Math.max(0, Math.floor(days / 5) - 1);
+    if (isHarper) wBonus *= 2; 
 
-    const goldBonus = Math.max(0, (gold - 100) / 100);
+    const goldBonus = Math.max(0, Math.floor((gold - 100) / 100));
+    
+    // Xanathar's Rule: Time and Money combined max at +10
+    const combinedEffortBonus = Math.min(10, wBonus + goldBonus);
     
     let magicBonus = 0;
     if (magicLvl === 'low') magicBonus = -10;
     if (magicLvl === 'high') magicBonus = 10;
 
-    const totalBonus = pMod + workweeksBonus + goldBonus + magicBonus;
+    const totalBonus = pMod + combinedEffortBonus + magicBonus;
     
     bonusOut.textContent = totalBonus >= 0 ? `+${totalBonus}` : `${totalBonus}`;
     
@@ -225,21 +273,25 @@ export const executeBuyMagicItem = async () => {
         return;
     }
 
-    const workweeks = Math.floor(days / 5);
-    let workweeksBonus = Math.max(0, workweeks - 1);
-    if (isHarper) workweeksBonus *= 2;
-    workweeksBonus = Math.min(10, workweeksBonus); 
-    const goldBonus = Math.max(0, (gold - 100) / 100);
+    let wBonus = Math.max(0, Math.floor(days / 5) - 1);
+    if (isHarper) wBonus *= 2; 
+
+    const goldBonus = Math.max(0, Math.floor((gold - 100) / 100));
+    
+    // Xanathar's Rule: Time and Money combined max at +10
+    const combinedEffortBonus = Math.min(10, wBonus + goldBonus);
+    
     const magicLvl = document.getElementById('dt-buy-magic-lvl').value;
     let magicBonus = 0;
     if (magicLvl === 'low') magicBonus = -10;
     if (magicLvl === 'high') magicBonus = 10;
 
-    const totalBonus = pMod + workweeksBonus + goldBonus + magicBonus;
+    const totalBonus = pMod + combinedEffortBonus + magicBonus;
     
     const d20 = Math.floor(Math.random() * 20) + 1;
     const checkTotal = d20 + totalBonus;
     
+    // XGtE Complication Roll (10% flat chance)
     const d100 = Math.floor(Math.random() * 100) + 1;
     const hasComplication = d100 <= 10;
     
@@ -247,12 +299,20 @@ export const executeBuyMagicItem = async () => {
     if (hasComplication) {
         const d12 = Math.floor(Math.random() * 12) + 1;
         const compTable = [
-            "The item is a fake.", "The item is stolen.", "The item is cursed.", "The item's original owner wants it back.",
-            "The item is at the center of a dark prophecy.", "The seller is murdered.", "The seller is a devil.", 
-            "The item is the key to freeing an evil entity.", "A third party bids on the item, doubling its price.", 
-            "The item is an enslaved, intelligent entity.", "The item is tied to a cult.", "Enemies spread rumors that your work is evil."
+            "The item is a fake, planted by an enemy.",
+            "The item is stolen by the party's enemies.",
+            "The item is cursed by a god.",
+            "The item's original owner will kill to reclaim it; the party's enemies spread news of its sale.",
+            "The item is at the center of a dark prophecy.",
+            "The seller is murdered before the sale.",
+            "The seller is a devil looking to make a bargain.",
+            "The item is the key to freeing an evil entity.",
+            "A third party bids on the item, doubling its price.",
+            "The item is an enslaved, intelligent entity.",
+            "The item is tied to a cult.",
+            "The party's enemies spread rumors that the item is an artifact of evil."
         ];
-        complicationText = `\n\n**⚠️ Complication Rolled!** (${d100}/100)\n> *Result:* ${compTable[d12 - 1]}`;
+        complicationText = `\n\n**⚠️ Complication Rolled!** (${d100}/100)\n> *Result (d12=${d12}):* ${compTable[d12 - 1]}`;
     } else {
         complicationText = `\n\n*No complications occurred during the search (${d100}/100).*`;
     }
@@ -266,7 +326,8 @@ export const executeBuyMagicItem = async () => {
         const dc = dcMap[itemRarity];
         
         if (checkTotal >= dc) {
-            resultBody = `✅ **Success!** You found a seller for the **${itemName}** (DC ${dc}).`;
+            const finalPrice = calculateCustomPrice(itemName, itemRarity);
+            resultBody = `✅ **Success!** You found a seller for the **${itemName}** (DC ${dc}).\n> Asking Price: **${finalPrice.toLocaleString()} gp**`;
         } else {
             resultBody = `❌ **Failure.** You could not locate a seller for the **${itemName}** (DC ${dc}).`;
         }
@@ -361,11 +422,13 @@ export const executeBuyMagicItem = async () => {
             foundItems.forEach(i => counts[i] = (counts[i] || 0) + 1);
             
             let itemsStr = "";
+            const baseRarity = getTableRarity(tableLetter);
             Object.keys(counts).forEach(k => {
-                itemsStr += `\n> • **${k}**` + (counts[k] > 1 ? ` (x${counts[k]})` : '');
+                const price = calculateCustomPrice(k, baseRarity);
+                itemsStr += `\n> • **${k}**` + (counts[k] > 1 ? ` (x${counts[k]})` : '') + ` - *Asking Price: ${price.toLocaleString()} gp*`;
             });
             
-            resultBody = `✅ **Success!** You found a seller offering the following items (Table ${tableLetter}):${itemsStr}\n\n*(Prices are determined by the DM based on the item's rarity and the seller's disposition).*`;
+            resultBody = `✅ **Success!** You found a seller offering the following items (Table ${tableLetter}):${itemsStr}`;
         } else {
             resultBody = `❌ **Failure.** Your search yielded no results.`;
         }
