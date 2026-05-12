@@ -29,7 +29,7 @@ import { openDowntimeMenu } from './actions-downtime.js';
 
 // --- NEW MODULAR DOWNTIME IMPORTS ---
 import { openBuyMagicItemModal, updateBuyMagicItemMath, executeBuyMagicItem } from './dt-buy-magic-item.js';
-import { openCarousingModal, updateCarousingMath, executeCarousing, openCarouseContacts, closeCarouseContacts, renderCarouseContactsList, saveNewCarouseContact, toggleCarouseContact, deleteCarouseContact } from './dt-carousing.js';
+import { openCarousingModal, updateCarousingMath, executeCarousing, openCarouseContacts, closeCarouseContacts, prepDefineContact, renderCarouseContactsList, saveNewCarouseContact, toggleCarouseContact, deleteCarouseContact } from './dt-carousing.js';
 import { openCraftingModal, updateCraftingMath, executeCrafting } from './dt-crafting.js';
 import { openCrimeModal, updateCrimeMath, executeCrime } from './dt-crime.js';
 import { openGamblingModal, updateGamblingMath, executeGambling } from './dt-gambling.js';
@@ -226,6 +226,7 @@ window.appActions = {
   executeCarousing,
   openCarouseContacts,
   closeCarouseContacts,
+  prepDefineContact,
   renderCarouseContactsList,
   saveNewCarouseContact,
   toggleCarouseContact,
