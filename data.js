@@ -27,10 +27,10 @@ import { createNewWeb, deleteCurrentWeb, switchWeb, toggleWebGroup, openWebEditM
 // Import Downtime Menu Hub
 import { openDowntimeMenu } from './actions-downtime.js';
 
-// --- NEW MODULAR DOWNTIME IMPORTS ---
+// --- MODULAR DOWNTIME IMPORTS ---
 import { openBuyMagicItemModal, updateBuyMagicItemMath, executeBuyMagicItem } from './dt-buy-magic-item.js';
 import { openCarousingModal, updateCarousingMath, executeCarousing, openCarouseContacts, closeCarouseContacts, prepDefineContact, renderCarouseContactsList, saveNewCarouseContact, markCarouseContactUsed, reactivateCarouseContact, deleteCarouseContact, deleteBankedContact } from './dt-carousing.js';
-import { openCraftingModal, updateCraftingMath, executeCrafting } from './dt-crafting.js';
+import { openCraftingModal, updateCraftingMath, executeCrafting, abandonCraftingProject, openRecipeBrowser, closeRecipeBrowser, filterRecipes, selectRecipe } from './dt-crafting.js';
 import { openCrimeModal, updateCrimeMath, executeCrime } from './dt-crime.js';
 import { openGamblingModal, updateGamblingMath, executeGambling } from './dt-gambling.js';
 import { openPitFightingModal, updatePitFightingMath, executePitFighting } from './dt-pit-fighting.js';
@@ -46,356 +46,365 @@ import { openAssignDowntimeModal, executeAssignDowntime } from './dt-assign.js';
 // --- APP ACTIONS HUB --- 
 // We bind all our imported modular functions back to the global window.appActions 
 // object so that the UI's inline onclick handlers can still reach them! 
-window.appActions = { 
-  // Navigation & UI Core
-  navigateBack,
-  toggleActionMenu,
+if (typeof window !== 'undefined') {
+    window.appActions = { 
+      // Navigation & UI Core
+      navigateBack,
+      toggleActionMenu,
 
-  // Navigation & Campaigns 
-  setView, 
-  openCampaign, 
-  openAdventure, 
-  toggleNewCampaignForm, 
-  createCampaign, 
-  deleteCampaign: deleteCampaignAction, 
-  openActivityLog,
-  clearActivityLog,
-  
-  // Player Actions 
-  copyCampaignId, 
-  toggleJoinCampaignForm, 
-  joinCampaign: joinCampaignAction, 
-  
-  // Adventures 
-  toggleNewAdventureForm, 
-  createAdventure, 
-  deleteAdventure, 
-  openEditAdventureModal,
-  saveEditAdventure,
-  refreshPartyBoons,
-  openAdvRoster, 
-  toggleAdvRosterPc, 
-  saveAdvRoster, 
-  
-  // PC Manager & Sheet Updates 
-  openPCEdit, 
-  calculateBirthdaysLive,
-  savePCEdit, 
-  deletePC, 
-  kickPlayer, 
-  openChecklistMenu, 
-  closeChecklistMenu, 
-  addSheetUpdate, 
-  toggleSheetUpdateResolved, 
-  toggleSheetUpdateVis, 
-  deleteSheetUpdate, 
-  
-  // Session Editing & Collaborative Chronicle
-  openSessionEdit, 
-  switchSessionTab, 
-  updateSessionBudget, 
-  _readDynamicList, 
-  _gatherSessionDraft, 
-  updateSessionPreview, 
-  saveSession, 
-  deleteSession, 
-  addLogScene, 
-  addLogClue, 
-  submitSessionClue,
-  deleteSessionClue,
-  addChronicleEntry,
-  editChronicleEntry,
-  cancelChronicleEdit,
-  deleteChronicleEntry,
-  syncSessionDates,
-  
-  // Visibility 
-  openVisibilityMenu, 
-  toggleVisSpecificList, 
-  saveVisibility, 
-  _saveCampaignHelper, 
-  
-  // Universal Editor 
-  openUniversalEditor, 
-  closeUniversalEditor, 
-  saveUniversalEditor, 
-  formatText, 
-  
-  // Smart Text & Codex 
-  _canViewCodex, 
-  parseSmartText, 
-  handleSmartInput, 
-  _showSuggestions, 
-  viewCodex, 
-  _openCodexModal, 
-  saveCodexEntry, 
-  deleteCodexEntry, 
-  openJournal, 
-  closeJournal, 
-  copyJournal,
-  defineEntryFromSelection,
+      // Navigation & Campaigns 
+      setView, 
+      openCampaign, 
+      openAdventure, 
+      toggleNewCampaignForm, 
+      createCampaign, 
+      deleteCampaign: deleteCampaignAction, 
+      openActivityLog,
+      clearActivityLog,
+      
+      // Player Actions 
+      copyCampaignId, 
+      toggleJoinCampaignForm, 
+      joinCampaign: joinCampaignAction, 
+      
+      // Adventures 
+      toggleNewAdventureForm, 
+      createAdventure, 
+      deleteAdventure, 
+      openEditAdventureModal,
+      saveEditAdventure,
+      refreshPartyBoons,
+      openAdvRoster, 
+      toggleAdvRosterPc, 
+      saveAdvRoster, 
+      
+      // PC Manager & Sheet Updates 
+      openPCEdit, 
+      calculateBirthdaysLive,
+      savePCEdit, 
+      deletePC, 
+      kickPlayer, 
+      openChecklistMenu, 
+      closeChecklistMenu, 
+      addSheetUpdate, 
+      toggleSheetUpdateResolved, 
+      toggleSheetUpdateVis, 
+      deleteSheetUpdate, 
+      
+      // Session Editing & Collaborative Chronicle
+      openSessionEdit, 
+      switchSessionTab, 
+      updateSessionBudget, 
+      _readDynamicList, 
+      _gatherSessionDraft, 
+      updateSessionPreview, 
+      saveSession, 
+      deleteSession, 
+      addLogScene, 
+      addLogClue, 
+      submitSessionClue,
+      deleteSessionClue,
+      addChronicleEntry,
+      editChronicleEntry,
+      cancelChronicleEdit,
+      deleteChronicleEntry,
+      syncSessionDates,
+      
+      // Visibility 
+      openVisibilityMenu, 
+      toggleVisSpecificList, 
+      saveVisibility, 
+      _saveCampaignHelper, 
+      
+      // Universal Editor 
+      openUniversalEditor, 
+      closeUniversalEditor, 
+      saveUniversalEditor, 
+      formatText, 
+      
+      // Smart Text & Codex 
+      _canViewCodex, 
+      parseSmartText, 
+      handleSmartInput, 
+      _showSuggestions, 
+      viewCodex, 
+      _openCodexModal, 
+      saveCodexEntry, 
+      deleteCodexEntry, 
+      openJournal, 
+      closeJournal, 
+      copyJournal,
+      defineEntryFromSelection,
 
-  // Calendar System
-  openCalendar,
-  navCalendarMonth,
-  jumpToCurrentDate,
-  jumpToSpecificDate,
-  openCalendarLore,
-  closeCalendarLore,
-  openMonthInfo,
-  closeMonthInfo,
-  openCalendarDay,
-  closeCalendarDay,
-  setCurrentCampaignDate,
-  syncCalendarNoteDates,
-  saveCalendarNote,
-  editCalendarNote,
-  deleteCalendarNote,
-  openCalendarSettings,
-  closeCalendarSettings,
-  addCalendarMonthRow,
-  saveCalendarSettings,
-  resetCalendarToDefault,
-  importFoundryCalendarNotes,
+      // Calendar System
+      openCalendar,
+      navCalendarMonth,
+      jumpToCurrentDate,
+      jumpToSpecificDate,
+      openCalendarLore,
+      closeCalendarLore,
+      openMonthInfo,
+      closeMonthInfo,
+      openCalendarDay,
+      closeCalendarDay,
+      setCurrentCampaignDate,
+      syncCalendarNoteDates,
+      saveCalendarNote,
+      editCalendarNote,
+      deleteCalendarNote,
+      openCalendarSettings,
+      closeCalendarSettings,
+      addCalendarMonthRow,
+      saveCalendarSettings,
+      resetCalendarToDefault,
+      importFoundryCalendarNotes,
 
-  // Rules Glossary & Calculators
-  openRulesGlossary,
-  viewRule,
-  openRuleModal,
-  saveRule,
-  deleteRule,
-  updateTravelPresets,
-  calculateTravel,
-  calculateEncumbrance,
-  calculateJump,
-  
-  // Atlas / Interactive Maps
-  initAtlas,
-  setAtlasMode,
-  updateAtlasGridAndScale,
-  updateAtlasDistanceCalc,
-  atlasUndoLastPoint,
-  atlasFinishDrawing,
-  confirmAtlasPin,
-  confirmAtlasRoute,
-  deleteAtlasPin,
-  deleteAtlasRoute,
-  toggleAtlasSettings,
-  saveAtlasSettings,
-  searchAtlasCodex,
-  selectAtlasCodexEntry,
-  viewOnMap,
-  toggleAtlasLayers,
-  toggleAtlasRouteVis,
-  refreshAtlasEntities,
-  toggleAtlasFullScreen,
-  calculateAtlasRouteLive,
-  addAtlasRouteStop,
-  atlasMarkLastPointAsStop,
+      // Rules Glossary & Calculators
+      openRulesGlossary,
+      viewRule,
+      openRuleModal,
+      saveRule,
+      deleteRule,
+      updateTravelPresets,
+      calculateTravel,
+      calculateEncumbrance,
+      calculateJump,
+      
+      // Atlas / Interactive Maps
+      initAtlas,
+      setAtlasMode,
+      updateAtlasGridAndScale,
+      updateAtlasDistanceCalc,
+      atlasUndoLastPoint,
+      atlasFinishDrawing,
+      confirmAtlasPin,
+      confirmAtlasRoute,
+      deleteAtlasPin,
+      deleteAtlasRoute,
+      toggleAtlasSettings,
+      saveAtlasSettings,
+      searchAtlasCodex,
+      selectAtlasCodexEntry,
+      viewOnMap,
+      toggleAtlasLayers,
+      toggleAtlasRouteVis,
+      refreshAtlasEntities,
+      toggleAtlasFullScreen,
+      calculateAtlasRouteLive,
+      addAtlasRouteStop,
+      atlasMarkLastPointAsStop,
 
-  // Relationship Webs
-  createNewWeb,
-  deleteCurrentWeb,
-  switchWeb,
-  toggleWebGroup,
-  openWebEditModal,
-  openWebMoveModal,
-  saveWebMove,
-  saveWebEdit,
-  addWebNode,
-  addWebConnection,
-  removeWebNode,
-  removeWebConnection,
-  toggleWebVisibility,
-  cleanupWebOrphans,
-  syncWebWithCodex,
-  searchWebCodex,
-  selectWebCodexEntry,
-  setWebZoom,
-  renderMermaidWeb,
+      // Relationship Webs
+      createNewWeb,
+      deleteCurrentWeb,
+      switchWeb,
+      toggleWebGroup,
+      openWebEditModal,
+      openWebMoveModal,
+      saveWebMove,
+      saveWebEdit,
+      addWebNode,
+      addWebConnection,
+      removeWebNode,
+      removeWebConnection,
+      toggleWebVisibility,
+      cleanupWebOrphans,
+      syncWebWithCodex,
+      searchWebCodex,
+      selectWebCodexEntry,
+      setWebZoom,
+      renderMermaidWeb,
 
-  // Modular Downtime Activities
-  openDowntimeMenu,
-  
-  openBuyMagicItemModal,
-  updateBuyMagicItemMath,
-  executeBuyMagicItem,
-  
-  openCarousingModal,
-  updateCarousingMath,
-  executeCarousing,
-  openCarouseContacts,
-  closeCarouseContacts,
-  prepDefineContact,
-  renderCarouseContactsList,
-  saveNewCarouseContact,
-  markCarouseContactUsed,
-  reactivateCarouseContact,
-  deleteCarouseContact,
-  deleteBankedContact,
-  
-  openCraftingModal,
-  updateCraftingMath,
-  executeCrafting,
-  
-  openCrimeModal,
-  updateCrimeMath,
-  executeCrime,
-  
-  openGamblingModal,
-  updateGamblingMath,
-  executeGambling,
-  
-  openPitFightingModal,
-  updatePitFightingMath,
-  executePitFighting,
+      // Modular Downtime Activities
+      openDowntimeMenu,
+      
+      openBuyMagicItemModal,
+      updateBuyMagicItemMath,
+      executeBuyMagicItem,
+      
+      openCarousingModal,
+      updateCarousingMath,
+      executeCarousing,
+      openCarouseContacts,
+      closeCarouseContacts,
+      prepDefineContact,
+      renderCarouseContactsList,
+      saveNewCarouseContact,
+      markCarouseContactUsed,
+      reactivateCarouseContact,
+      deleteCarouseContact,
+      deleteBankedContact,
+      
+      openCraftingModal,
+      updateCraftingMath,
+      executeCrafting,
+      abandonCraftingProject,
+      openRecipeBrowser,
+      closeRecipeBrowser,
+      filterRecipes,
+      selectRecipe,
+      
+      openCrimeModal,
+      updateCrimeMath,
+      executeCrime,
+      
+      openGamblingModal,
+      updateGamblingMath,
+      executeGambling,
+      
+      openPitFightingModal,
+      updatePitFightingMath,
+      executePitFighting,
 
-  openRelaxationModal,
-  updateRelaxationMath,
-  executeRelaxation,
+      openRelaxationModal,
+      updateRelaxationMath,
+      executeRelaxation,
 
-  openReligiousServiceModal,
-  updateReligiousServiceMath,
-  executeReligiousService,
+      openReligiousServiceModal,
+      updateReligiousServiceMath,
+      executeReligiousService,
 
-  openResearchModal,
-  updateResearchMath,
-  executeResearch,
+      openResearchModal,
+      updateResearchMath,
+      executeResearch,
 
-  openScribingModal,
-  updateScribingMath,
-  executeScribing,
+      openScribingModal,
+      updateScribingMath,
+      executeScribing,
 
-  openSellingModal,
-  updateSellingMath,
-  executeSelling,
+      openSellingModal,
+      updateSellingMath,
+      executeSelling,
 
-  openTrainingModal,
-  updateTrainingMath,
-  executeTraining,
+      openTrainingModal,
+      updateTrainingMath,
+      executeTraining,
 
-  openWorkModal,
-  executeWork,
-  
-  openAssignDowntimeModal,
-  executeAssignDowntime
-}; 
+      openWorkModal,
+      executeWork,
+      
+      openAssignDowntimeModal,
+      executeAssignDowntime
+    }; 
+}
 
 // ============================================================================
 // --- HISTORY API INTERCEPTOR (Native Phone Back Button Support) ---
 // ============================================================================
 
-// 1. Set the initial anchor state so the browser knows where "Home" is
-history.replaceState({
-    currentView: 'home',
-    activeCampaignId: null,
-    activeAdventureId: null,
-    activeSessionId: null
-}, "", "#home");
+if (typeof window !== 'undefined' && typeof history !== 'undefined') {
+    // 1. Set the initial anchor state so the browser knows where "Home" is
+    history.replaceState({
+        currentView: 'home',
+        activeCampaignId: null,
+        activeAdventureId: null,
+        activeSessionId: null
+    }, "", "#home");
 
-// 2. Intercept our internal navigation router to push states automatically
-const originalSetView = window.appActions.setView;
-window.appActions.setView = function(viewName, skipHistory = false) {
-    // If we are leaving the Atlas, automatically compress it out of Full Screen mode
-    if (viewName !== 'atlas' && window.appData?.isAtlasFullScreen) {
-        window.appData.isAtlasFullScreen = false;
-    }
-
-    // Execute the visual change first
-    originalSetView(viewName);
-    
-    // NEW: Atlas Init Hook - Mount the Leaflet map right after the DOM renders
-    if (viewName === 'atlas') {
-        setTimeout(() => window.appActions.initAtlas(), 50);
-    }
-    
-    // Push the resulting state to the browser history
-    if (!skipHistory) {
-        const stateObj = {
-            currentView: viewName,
-            activeCampaignId: window.appData?.activeCampaignId || null,
-            activeAdventureId: window.appData?.activeAdventureId || null,
-            activeSessionId: window.appData?.activeSessionId || null
-        };
-        history.pushState(stateObj, "", `#${viewName}`);
-    }
-};
-
-// 3. Override the visual App Header Back Arrow to use the browser history
-window.appActions.navigateBack = function() {
-    history.back(); // This naturally triggers the popstate listener below!
-};
-
-// 4. Listen for the Phone's physical Back Button or Swipe gestures
-window.addEventListener('popstate', (event) => {
-    
-    // A. Soft-Close open modals instead of navigating away!
-    const popupContainer = document.getElementById('global-popup-container');
-    const actionSheet = document.getElementById('action-sheet');
-    const checklist = document.getElementById('checklist-modal');
-    const univEditor = document.getElementById('universal-editor-modal');
-    const settingsModal = document.getElementById('account-settings-modal');
-    const visibilityModal = document.getElementById('visibility-modal');
-    
-    let modalClosed = false;
-    
-    // Check if Atlas is in Full Screen Mode
-    if (window.appData && window.appData.isAtlasFullScreen) {
-        window.appActions.toggleAtlasFullScreen();
-        modalClosed = true;
-    } else if (visibilityModal && !visibilityModal.classList.contains('hidden')) {
-        visibilityModal.classList.add('hidden');
-        modalClosed = true;
-    } else if (popupContainer && popupContainer.innerHTML.trim() !== '') {
-        popupContainer.innerHTML = '';
-        modalClosed = true;
-    } else if (actionSheet && actionSheet.classList.contains('open')) {
-        window.appActions.toggleActionMenu();
-        modalClosed = true;
-    } else if (checklist && !checklist.classList.contains('hidden')) {
-        window.appActions.closeChecklistMenu();
-        modalClosed = true;
-    } else if (univEditor && !univEditor.classList.contains('hidden')) {
-        window.appActions.closeUniversalEditor();
-        modalClosed = true;
-    } else if (settingsModal && !settingsModal.classList.contains('hidden')) {
-        settingsModal.classList.add('hidden');
-        modalClosed = true;
-    }
-
-    if (modalClosed) {
-        // We intercepted the back button to close a modal or exit Full Screen.
-        // We must push the current state back onto the stack so the underlying page doesn't change.
-        const recoveredState = {
-            currentView: window.appData?.currentView || 'home',
-            activeCampaignId: window.appData?.activeCampaignId || null,
-            activeAdventureId: window.appData?.activeAdventureId || null,
-            activeSessionId: window.appData?.activeSessionId || null
-        };
-        history.pushState(recoveredState, "", `#${window.appData?.currentView || 'home'}`);
-        return;
-    }
-
-    // B. Perform actual deep navigation back through the app history
-    if (event.state && window.appData) {
-        window.appData.currentView = event.state.currentView;
-        window.appData.activeCampaignId = event.state.activeCampaignId;
-        window.appData.activeAdventureId = event.state.activeAdventureId;
-        window.appData.activeSessionId = event.state.activeSessionId;
-        
-        updateDerivedState();
-        reRender();
-
-        // NEW: Atlas Re-Init Hook for Back/Forward navigation
-        if (event.state.currentView === 'atlas') {
-            setTimeout(() => window.appActions.initAtlas(), 50);
+    // 2. Intercept our internal navigation router to push states automatically
+    const originalSetView = window.appActions.setView;
+    window.appActions.setView = function(viewName, skipHistory = false) {
+        // If we are leaving the Atlas, automatically compress it out of Full Screen mode
+        if (viewName !== 'atlas' && window.appData?.isAtlasFullScreen) {
+            window.appData.isAtlasFullScreen = false;
         }
 
-    } else {
-        // Fallback to Home if we lose state
-        if (window.appData) window.appData.currentView = 'home';
-        reRender();
-    }
-});
+        // Execute the visual change first
+        originalSetView(viewName);
+        
+        // NEW: Atlas Init Hook - Mount the Leaflet map right after the DOM renders
+        if (viewName === 'atlas') {
+            setTimeout(() => window.appActions.initAtlas(), 50);
+        }
+        
+        // Push the resulting state to the browser history
+        if (!skipHistory) {
+            const stateObj = {
+                currentView: viewName,
+                activeCampaignId: window.appData?.activeCampaignId || null,
+                activeAdventureId: window.appData?.activeAdventureId || null,
+                activeSessionId: window.appData?.activeSessionId || null
+            };
+            history.pushState(stateObj, "", `#${viewName}`);
+        }
+    };
+
+    // 3. Override the visual App Header Back Arrow to use the browser history
+    window.appActions.navigateBack = function() {
+        history.back(); // This naturally triggers the popstate listener below!
+    };
+
+    // 4. Listen for the Phone's physical Back Button or Swipe gestures
+    window.addEventListener('popstate', (event) => {
+        
+        // A. Soft-Close open modals instead of navigating away!
+        const popupContainer = document.getElementById('global-popup-container');
+        const actionSheet = document.getElementById('action-sheet');
+        const checklist = document.getElementById('checklist-modal');
+        const univEditor = document.getElementById('universal-editor-modal');
+        const settingsModal = document.getElementById('account-settings-modal');
+        const visibilityModal = document.getElementById('visibility-modal');
+        
+        let modalClosed = false;
+        
+        // Check if Atlas is in Full Screen Mode
+        if (window.appData && window.appData.isAtlasFullScreen) {
+            window.appActions.toggleAtlasFullScreen();
+            modalClosed = true;
+        } else if (visibilityModal && !visibilityModal.classList.contains('hidden')) {
+            visibilityModal.classList.add('hidden');
+            modalClosed = true;
+        } else if (popupContainer && popupContainer.innerHTML.trim() !== '') {
+            popupContainer.innerHTML = '';
+            modalClosed = true;
+        } else if (actionSheet && actionSheet.classList.contains('open')) {
+            window.appActions.toggleActionMenu();
+            modalClosed = true;
+        } else if (checklist && !checklist.classList.contains('hidden')) {
+            window.appActions.closeChecklistMenu();
+            modalClosed = true;
+        } else if (univEditor && !univEditor.classList.contains('hidden')) {
+            window.appActions.closeUniversalEditor();
+            modalClosed = true;
+        } else if (settingsModal && !settingsModal.classList.contains('hidden')) {
+            settingsModal.classList.add('hidden');
+            modalClosed = true;
+        }
+
+        if (modalClosed) {
+            // We intercepted the back button to close a modal or exit Full Screen.
+            // We must push the current state back onto the stack so the underlying page doesn't change.
+            const recoveredState = {
+                currentView: window.appData?.currentView || 'home',
+                activeCampaignId: window.appData?.activeCampaignId || null,
+                activeAdventureId: window.appData?.activeAdventureId || null,
+                activeSessionId: window.appData?.activeSessionId || null
+            };
+            history.pushState(recoveredState, "", `#${window.appData?.currentView || 'home'}`);
+            return;
+        }
+
+        // B. Perform actual deep navigation back through the app history
+        if (event.state && window.appData) {
+            window.appData.currentView = event.state.currentView;
+            window.appData.activeCampaignId = event.state.activeCampaignId;
+            window.appData.activeAdventureId = event.state.activeAdventureId;
+            window.appData.activeSessionId = event.state.activeSessionId;
+            
+            updateDerivedState();
+            reRender();
+
+            // NEW: Atlas Re-Init Hook for Back/Forward navigation
+            if (event.state.currentView === 'atlas') {
+                setTimeout(() => window.appActions.initAtlas(), 50);
+            }
+
+        } else {
+            // Fallback to Home if we lose state
+            if (window.appData) window.appData.currentView = 'home';
+            reRender();
+        }
+    });
+}
 
 export { setCampaignsData };
