@@ -156,41 +156,42 @@ export const openCrimeModal = () => {
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
-                            <div class="bg-blue-50 border border-blue-200 p-3 rounded-sm shadow-sm flex flex-col justify-between">
-                                <div>
-                                    <label class="block text-[10px] uppercase text-blue-800 font-bold mb-1 tracking-widest"><i class="fa-solid fa-calendar mr-1"></i> Serve Time</label>
-                                    <p class="text-[9px] text-blue-700 italic mb-2 leading-snug">Deduct downtime days to serve your sentence.</p>
-                                </div>
-                                <div class="flex items-center">
-                                    <input type="number" id="dt-crime-res-serve" value="0" min="0" oninput="window.appActions.updateCrimeMath('serve')" class="w-full p-2 border border-blue-300 rounded-l-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-white text-center shadow-inner">
-                                    <span class="bg-blue-200 border border-l-0 border-blue-300 px-2 py-2 text-xs font-bold text-blue-800 rounded-r-sm shadow-inner uppercase tracking-wider">Days</span>
-                                </div>
-                            </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
                             
-                            <div class="bg-amber-50 border border-amber-200 p-3 rounded-sm shadow-sm flex flex-col justify-between">
+                            <!-- Option 1: Serve Time -->
+                            <div class="bg-stone-100 border border-stone-300 p-3 rounded-sm shadow-sm flex flex-col justify-between">
                                 <div>
-                                    <label class="block text-[10px] uppercase text-amber-800 font-bold mb-1 tracking-widest"><i class="fa-solid fa-coins mr-1"></i> Pay Fine</label>
-                                    <p class="text-[9px] text-amber-700 italic mb-2 leading-snug">Pay off the flat fine (deduct manually from inventory).</p>
+                                    <h4 class="text-[10px] uppercase text-stone-800 font-bold mb-1 tracking-widest border-b border-stone-200 pb-1">Option 1: Serve Sentence</h4>
+                                    <p class="text-[9px] text-stone-600 italic mb-3 leading-snug">Deduct downtime days to serve your sentence, and pay off the flat fine over time.</p>
                                 </div>
-                                <div class="flex items-center">
-                                    <input type="number" id="dt-crime-res-fine" value="0" min="0" oninput="window.appActions.updateCrimeMath('fine')" class="w-full p-2 border border-amber-300 rounded-l-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 bg-white text-center shadow-inner">
-                                    <span class="bg-amber-200 border border-l-0 border-amber-300 px-2 py-2 text-xs font-bold text-amber-900 rounded-r-sm shadow-inner uppercase tracking-wider">GP</span>
+                                <div class="space-y-2 mb-3">
+                                    <div class="flex items-center">
+                                        <label class="w-16 text-[9px] font-bold text-stone-500 uppercase tracking-widest">Time</label>
+                                        <input type="number" id="dt-crime-res-serve" value="0" min="0" oninput="window.appActions.updateCrimeMath('serve')" class="w-full p-1.5 border border-blue-300 rounded-l-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-white text-center shadow-inner">
+                                        <span class="bg-blue-100 border border-l-0 border-blue-300 px-2 py-1.5 text-[10px] font-bold text-blue-800 rounded-r-sm shadow-inner uppercase tracking-wider">Days</span>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <label class="w-16 text-[9px] font-bold text-stone-500 uppercase tracking-widest">Fine</label>
+                                        <input type="number" id="dt-crime-res-fine" value="0" min="0" oninput="window.appActions.updateCrimeMath('fine')" class="w-full p-1.5 border border-amber-300 rounded-l-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 bg-white text-center shadow-inner">
+                                        <span class="bg-amber-100 border border-l-0 border-amber-300 px-2 py-1.5 text-[10px] font-bold text-amber-900 rounded-r-sm shadow-inner uppercase tracking-wider">GP</span>
+                                    </div>
                                 </div>
+                                <button id="dt-crime-serve-btn" onclick="window.appActions.executeCrime('serve')" class="w-full py-1.5 bg-blue-800 text-amber-50 rounded-sm hover:bg-blue-700 transition font-bold uppercase tracking-wider text-[10px] shadow-sm"><i class="fa-solid fa-file-pen mr-1"></i> Log Time / Payment</button>
                             </div>
 
+                            <!-- Option 2: Bribe -->
                             <div class="bg-red-50 border border-red-200 p-3 rounded-sm shadow-sm flex flex-col justify-between">
                                 <div>
-                                    <label class="block text-[10px] uppercase text-red-800 font-bold mb-1 tracking-widest"><i class="fa-solid fa-sack-dollar mr-1"></i> Bribe Guards</label>
-                                    <p class="text-[9px] text-red-700 italic mb-2 leading-snug">Pay 10 gp per day to skip jail time entirely.</p>
+                                    <h4 class="text-[10px] uppercase text-red-800 font-bold mb-1 tracking-widest border-b border-red-200 pb-1">Option 2: Bribe Authorities</h4>
+                                    <p class="text-[9px] text-red-700 italic mb-2 leading-snug">Pay the original fine plus a bribe of 10 gp per day of remaining jail time to make this disappear instantly without spending downtime.</p>
                                 </div>
-                                <div class="flex items-center">
-                                    <input type="number" id="dt-crime-res-bribe" value="0" min="0" step="10" oninput="window.appActions.updateCrimeMath('bribe')" class="w-full p-2 border border-red-300 rounded-l-sm text-sm font-bold text-stone-900 outline-none focus:border-red-600 bg-white text-center shadow-inner">
-                                    <span class="bg-red-200 border border-l-0 border-red-300 px-2 py-2 text-xs font-bold text-red-900 rounded-r-sm shadow-inner uppercase tracking-wider">GP</span>
+                                <div class="text-center py-2 bg-white rounded-sm border border-red-200 mb-3 shadow-inner">
+                                    <span class="block text-[9px] uppercase font-bold text-stone-500 tracking-widest">Total Bribe Cost</span>
+                                    <span id="dt-crime-res-bribe-cost" class="text-lg font-black text-red-700">0 gp</span>
                                 </div>
+                                <button id="dt-crime-bribe-btn" onclick="window.appActions.executeCrime('bribe')" class="w-full py-1.5 bg-red-800 text-amber-50 rounded-sm hover:bg-red-700 transition font-bold uppercase tracking-wider text-[10px] shadow-sm"><i class="fa-solid fa-sack-dollar mr-1"></i> Pay Bribe & Clear</button>
                             </div>
                         </div>
-
                     </div>
                     <!-- ========================================== -->
 
@@ -199,7 +200,7 @@ export const openCrimeModal = () => {
 
                 <div class="bg-[#e8dec7] p-4 border-t border-[#d4c5a9] flex justify-end gap-2 shrink-0 z-10 shadow-[0_-4px_10px_rgba(0,0,0,0.1)]">
                     <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="px-4 py-2 text-stone-600 border border-stone-400 rounded-sm hover:bg-stone-300 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs">Cancel</button>
-                    <button id="dt-crime-submit-btn" onclick="window.appActions.executeCrime()" class="px-5 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs flex items-center shadow-md"><i class="fa-solid fa-mask mr-2"></i> Commit Crime</button>
+                    <button id="dt-crime-submit-btn" onclick="window.appActions.executeCrime('new')" class="px-5 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs flex items-center shadow-md"><i class="fa-solid fa-mask mr-2"></i> Commit Crime</button>
                 </div>
             </div>
         </div>
@@ -245,6 +246,8 @@ export const updateCrimeMath = (triggerSource = 'input') => {
         resConfigDiv.classList.remove('hidden');
         clearBtn.classList.remove('hidden');
 
+        if (submitBtn) submitBtn.classList.add('hidden');
+
         const rec = records[recordId];
         if (rec) {
             const jailRem = rec.jailDaysTotal - rec.jailDaysServed;
@@ -258,49 +261,33 @@ export const updateCrimeMath = (triggerSource = 'input') => {
                 
                 document.getElementById('dt-crime-res-serve').value = 0;
                 document.getElementById('dt-crime-res-fine').value = 0;
-                document.getElementById('dt-crime-res-bribe').value = 0;
             }
 
-            // Interactive Resolution Math Caps
+            // Interactive Resolution Math Caps for Option 1
             let serveInput = parseInt(document.getElementById('dt-crime-res-serve').value) || 0;
             let fineInput = parseInt(document.getElementById('dt-crime-res-fine').value) || 0;
-            let bribeInput = parseInt(document.getElementById('dt-crime-res-bribe').value) || 0;
 
+            if (serveInput > jailRem) {
+                serveInput = jailRem;
+                document.getElementById('dt-crime-res-serve').value = serveInput;
+            }
             if (fineInput > fineRem) {
                 fineInput = fineRem;
                 document.getElementById('dt-crime-res-fine').value = fineInput;
             }
 
-            let bribeDays = Math.floor(bribeInput / 10);
-            
-            // Limit serve/bribe combined to not exceed remaining jail time
-            if (serveInput + bribeDays > jailRem) {
-                if (triggerSource === 'serve') {
-                    if (serveInput > jailRem) serveInput = jailRem;
-                    bribeInput = (jailRem - serveInput) * 10;
-                } else if (triggerSource === 'bribe') {
-                    if (bribeDays > jailRem) {
-                        bribeDays = jailRem;
-                        bribeInput = bribeDays * 10;
-                    }
-                    serveInput = jailRem - bribeDays;
-                } else {
-                    serveInput = 0;
-                    bribeInput = 0;
-                }
-                document.getElementById('dt-crime-res-serve').value = serveInput;
-                document.getElementById('dt-crime-res-bribe').value = bribeInput;
-            }
+            // Calculate instantaneous Bribe Cost for Option 2
+            const bribeCost = fineRem + (jailRem * 10);
+            document.getElementById('dt-crime-res-bribe-cost').textContent = `${bribeCost.toLocaleString()} gp`;
 
-            const willComplete = (serveInput + bribeDays >= jailRem) && (fineInput >= fineRem);
-
-            if (submitBtn) {
-                if (willComplete) {
-                    submitBtn.innerHTML = `<i class="fa-solid fa-gavel mr-2"></i> Resolve Sentence`;
-                    submitBtn.className = submitBtn.className.replace('bg-stone-900', 'bg-emerald-700').replace('hover:bg-stone-800', 'hover:bg-emerald-600');
+            const serveBtn = document.getElementById('dt-crime-serve-btn');
+            if (serveBtn) {
+                if (serveInput >= jailRem && fineInput >= fineRem) {
+                    serveBtn.innerHTML = `<i class="fa-solid fa-gavel mr-1"></i> Resolve Sentence`;
+                    serveBtn.className = "w-full py-1.5 bg-emerald-700 text-amber-50 rounded-sm hover:bg-emerald-600 transition font-bold uppercase tracking-wider text-[10px] shadow-sm";
                 } else {
-                    submitBtn.innerHTML = `<i class="fa-solid fa-file-pen mr-2"></i> Log Payment / Time`;
-                    submitBtn.className = submitBtn.className.replace('bg-emerald-700', 'bg-blue-800').replace('hover:bg-emerald-600', 'hover:bg-blue-700');
+                    serveBtn.innerHTML = `<i class="fa-solid fa-file-pen mr-1"></i> Log Time / Payment`;
+                    serveBtn.className = "w-full py-1.5 bg-blue-800 text-amber-50 rounded-sm hover:bg-blue-700 transition font-bold uppercase tracking-wider text-[10px] shadow-sm";
                 }
             }
         }
@@ -310,6 +297,7 @@ export const updateCrimeMath = (triggerSource = 'input') => {
         clearBtn.classList.add('hidden');
 
         if (submitBtn) {
+            submitBtn.classList.remove('hidden');
             submitBtn.innerHTML = `<i class="fa-solid fa-mask mr-2"></i> Commit Crime`;
             submitBtn.className = submitBtn.className.replace('bg-emerald-700', 'bg-stone-900').replace('hover:bg-emerald-600', 'hover:bg-stone-800').replace('bg-blue-800', 'bg-stone-900').replace('hover:bg-blue-700', 'hover:bg-stone-800');
         }
@@ -356,7 +344,7 @@ export const clearCrimeRecord = async () => {
     window.appActions.updateCrimeMath('init');
 };
 
-export const executeCrime = async () => {
+export const executeCrime = async (actionType = 'new') => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
     const myUid = window.appData.currentUserUid;
@@ -378,43 +366,61 @@ export const executeCrime = async () => {
         const rec = recordsDict[recordId];
         if (!rec) return;
 
-        const serveDays = parseInt(document.getElementById('dt-crime-res-serve').value) || 0;
-        const finePaid = parseInt(document.getElementById('dt-crime-res-fine').value) || 0;
-        const bribePaid = parseInt(document.getElementById('dt-crime-res-bribe').value) || 0;
-        const bribeDays = Math.floor(bribePaid / 10);
-
-        if (serveDays === 0 && finePaid === 0 && bribePaid === 0) {
-            notify("You must enter an amount of time or gold to resolve.", "error");
-            return;
-        }
-
-        if ((parseInt(pc.availableDowntime) || 0) < serveDays) {
-            notify(`Not enough downtime days. ${pc.name} only has ${parseInt(pc.availableDowntime) || 0} days available to serve in jail.`, "error");
-            return;
-        }
-
-        rec.jailDaysServed += (serveDays + bribeDays);
-        rec.finePaid += finePaid;
-
-        daysToDeduct = serveDays;
-
         const jailRem = rec.jailDaysTotal - rec.jailDaysServed;
         const fineRem = rec.fineTotal - rec.finePaid;
-        const isComplete = jailRem <= 0 && fineRem <= 0;
 
-        let resText = `**Downtime: Sentence Resolution**\n*Hero:* ${pc.name}\n\n**Crime:** ${rec.desc} at ${rec.loc}\n`;
-        resText += `**Downtime Spent:** ${serveDays} Days in Jail\n`;
-        resText += `**Gold Spent:** ${finePaid + bribePaid} gp (${finePaid} gp towards fine, ${bribePaid} gp in bribes)\n\n`;
+        if (actionType === 'bribe') {
+            const bribeCost = fineRem + (jailRem * 10);
+            
+            if (!confirm(`Are you sure you want to pay ${bribeCost.toLocaleString()} gp to clear this record instantly?`)) return;
 
-        if (isComplete) {
-            resText += `✅ **Debt to Society Paid!** You have completely resolved your sentence for this crime.`;
-            delete recordsDict[recordId]; // Erase the record when fully paid
-        } else {
-            resText += `⏳ **Progress Logged:** You still owe **${Math.max(0, jailRem)} days** in jail and **${Math.max(0, fineRem)} gp** in fines.`;
+            let resText = `**Downtime: Bribed Authorities**\n*Hero:* ${pc.name}\n\n**Crime:** ${rec.desc} at ${rec.loc}\n`;
+            resText += `**Gold Spent:** ${bribeCost.toLocaleString()} gp (${fineRem.toLocaleString()} gp towards fine, ${(jailRem * 10).toLocaleString()} gp in bribes)\n\n`;
+            resText += `✅ **Debt to Society Cleared!** You paid off the authorities and your record was expunged.`;
+
+            delete recordsDict[recordId]; // Erase the record when bribed
+
+            daysToDeduct = 0; // Bribing does not consume downtime
+            const timestampStr = new Date().toLocaleDateString();
+            logAddition = `${pc.downtimeLog ? '\n\n---\n\n' : ''}**Logged on ${timestampStr}**\n${resText}`;
+
+        } else if (actionType === 'serve') {
+            const serveDays = parseInt(document.getElementById('dt-crime-res-serve').value) || 0;
+            const finePaid = parseInt(document.getElementById('dt-crime-res-fine').value) || 0;
+
+            if (serveDays === 0 && finePaid === 0) {
+                notify("You must enter an amount of time or gold to resolve.", "error");
+                return;
+            }
+
+            if ((parseInt(pc.availableDowntime) || 0) < serveDays) {
+                notify(`Not enough downtime days. ${pc.name} only has ${parseInt(pc.availableDowntime) || 0} days available to serve in jail.`, "error");
+                return;
+            }
+
+            rec.jailDaysServed += serveDays;
+            rec.finePaid += finePaid;
+            daysToDeduct = serveDays;
+
+            const newJailRem = rec.jailDaysTotal - rec.jailDaysServed;
+            const newFineRem = rec.fineTotal - rec.finePaid;
+            const isComplete = newJailRem <= 0 && newFineRem <= 0;
+
+            let resText = `**Downtime: Sentence Resolution**\n*Hero:* ${pc.name}\n\n**Crime:** ${rec.desc} at ${rec.loc}\n`;
+            if (serveDays > 0) resText += `**Downtime Spent:** ${serveDays} Days in Jail\n`;
+            if (finePaid > 0) resText += `**Gold Spent:** ${finePaid.toLocaleString()} gp towards fine\n`;
+            resText += `\n`;
+
+            if (isComplete) {
+                resText += `✅ **Debt to Society Paid!** You have completely resolved your sentence for this crime.`;
+                delete recordsDict[recordId]; // Erase the record when fully paid
+            } else {
+                resText += `⏳ **Progress Logged:** You still owe **${Math.max(0, newJailRem)} days** in jail and **${Math.max(0, newFineRem).toLocaleString()} gp** in fines.`;
+            }
+
+            const timestampStr = new Date().toLocaleDateString();
+            logAddition = `${pc.downtimeLog ? '\n\n---\n\n' : ''}**Logged on ${timestampStr}**\n${resText}`;
         }
-
-        const timestampStr = new Date().toLocaleDateString();
-        logAddition = `${pc.downtimeLog ? '\n\n---\n\n' : ''}**Logged on ${timestampStr}**\n${resText}`;
 
     } else {
         // --- PROCESS NEW CRIME ---
@@ -531,7 +537,7 @@ export const executeCrime = async () => {
     let updatedCamp = { ...camp, playerCharacters: updatedPCs };
     
     if (isResuming) {
-        updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime serving a criminal sentence with <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-gavel');
+        updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime resolving a criminal sentence with <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-gavel');
     } else {
         updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime attempting a heist with <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-mask');
     }
@@ -539,7 +545,14 @@ export const executeCrime = async () => {
     await saveCampaign(updatedCamp);
     
     document.getElementById('global-popup-container').innerHTML = '';
-    notify(`Activity logged. ${daysToDeduct} days deducted from ${pc.name}.`, "success");
+    
+    // Customize the notification text based on whether it was a new crime, bribe, or serving time
+    if (isResuming) {
+        notify(`Record updated successfully. ${daysToDeduct > 0 ? `${daysToDeduct} days deducted.` : ''} Log saved.`, "success");
+    } else {
+        notify(`Activity logged. 5 days deducted from ${pc.name}.`, "success");
+    }
+    
     reRender();
 };
 
