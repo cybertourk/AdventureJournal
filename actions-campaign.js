@@ -667,21 +667,44 @@ export const calculateBirthdaysLive = () => {
 };
 
 export const savePCEdit = async () => {
-  updateDerivedState();
-  const camp = window.appData.activeCampaign;
-  if (!camp) return;
-  const isDM = camp._isDM;
-  const myUid = window.appData.currentUserUid;
-  const pcId = window.appData.activePcId || generateId();
-  
-  const existingPC = camp.playerCharacters?.find(p => p.id === pcId) || {
-    inspiration: 0,
-    automaticSuccess: false,
-    playerId: '',
-    birthMonth: null,
-    birthDay: null,
-    extraBdayBoons: []
-  };
+    const camp = window.appData.activeCampaign;
+    if (!camp) return;
+
+    const pcId = document.getElementById('pc-edit-id').value;
+    const name = document.getElementById('pc-edit-name').value.trim();
+    const availableDowntime = document.getElementById('pc-edit-downtime').value;
+    const journal = document.getElementById('pc-edit-journal').value;
+    const downtimeLog = document.getElementById('pc-edit-log').value;
+    const birthday = document.getElementById('pc-edit-birthday').value;
+
+    if (!name) { notify("Hero name is required.", "error"); return; }
+
+    const updatedPCs = (camp.playerCharacters || []).map(pc => {
+        if (pc.id === pcId) {
+            return {
+                ...pc,
+                name,
+                availableDowntime: parseInt(availableDowntime) || 0,
+                // Explicitly allow empty strings to overwrite old data
+                journal: journal || "", 
+                downtimeLog: downtimeLog || "",
+                birthday
+            };
+        }
+        return pc;
+    });
+
+    const updatedCamp = { ...camp, playerCharacters: updatedPCs };
+    
+    // Optimistic Update
+    window.appData.activeCampaign = updatedCamp;
+    reRender();
+
+    await saveCampaign(updatedCamp);
+    closeUniversalEditor(); // Close editor if open
+    document.getElementById('global-popup-container').innerHTML = '';
+    notify("Hero records updated.", "success");
+};
   
   const isOwner = existingPC.playerId === myUid;
   
