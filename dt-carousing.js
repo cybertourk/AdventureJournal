@@ -246,7 +246,10 @@ export const renderCarouseContactsList = (pcId) => {
                         <span class="text-[10px] sm:text-xs font-bold text-stone-800 uppercase tracking-widest truncate">Unidentified ${b.type}</span>
                         <span class="text-[8px] uppercase tracking-widest text-stone-500 bg-stone-100 px-1.5 py-0.5 border border-stone-200 rounded-sm shrink-0 whitespace-nowrap">${b.socialClass}</span>
                     </div>
-                    <button onclick="window.appActions.prepDefineContact('${b.id}', '${b.type}', '${b.socialClass}')" class="px-3 py-1 bg-stone-800 text-amber-50 rounded-sm text-[9px] font-bold uppercase tracking-wider hover:bg-stone-700 transition shadow-sm shrink-0">Define</button>
+                    <div class="flex items-center gap-1 shrink-0">
+                        <button onclick="window.appActions.prepDefineContact('${b.id}', '${b.type}', '${b.socialClass}')" class="px-3 py-1 bg-stone-800 text-amber-50 rounded-sm text-[9px] font-bold uppercase tracking-wider hover:bg-stone-700 transition shadow-sm shrink-0">Define</button>
+                        <button onclick="window.appActions.deleteBankedContact('${pcId}', '${b.id}')" class="w-6 h-6 flex items-center justify-center text-stone-400 hover:text-red-700 hover:bg-red-50 rounded transition ml-1" title="Discard"><i class="fa-solid fa-trash"></i></button>
+                    </div>
                 </div>
             `;
         });
@@ -307,6 +310,26 @@ export const renderCarouseContactsList = (pcId) => {
     
     listContainer.innerHTML = html;
     document.getElementById('dt-carouse-contact-pc-id').value = pcId;
+};
+
+export const deleteBankedContact = async (pcId, bankedId) => {
+    if(!confirm("Are you sure you want to discard this unassigned contact?")) return;
+    
+    const camp = window.appData.activeCampaign;
+    const updatedPCs = camp.playerCharacters.map(p => {
+        if (p.id === pcId) {
+            const updatedBanked = (p.bankedContacts || []).filter(b => b.id !== bankedId);
+            return { ...p, bankedContacts: updatedBanked };
+        }
+        return p;
+    });
+    
+    // Local Optimistic Update
+    window.appData.activeCampaign.playerCharacters = updatedPCs;
+    window.appActions.renderCarouseContactsList(pcId);
+
+    await saveCampaign({ ...camp, playerCharacters: updatedPCs });
+    notify("Banked contact discarded.", "success");
 };
 
 export const saveNewCarouseContact = async () => {
@@ -655,8 +678,8 @@ if (typeof window !== 'undefined') {
     window.appActions.renderCarouseContactsList = renderCarouseContactsList;
     window.appActions.saveNewCarouseContact = saveNewCarouseContact;
     
-    // Updated specific exports for the local UI behavior:
     window.appActions.markCarouseContactUsed = markCarouseContactUsed;
     window.appActions.reactivateCarouseContact = reactivateCarouseContact;
     window.appActions.deleteCarouseContact = deleteCarouseContact;
+    window.appActions.deleteBankedContact = deleteBankedContact;
 }
