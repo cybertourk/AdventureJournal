@@ -32,10 +32,10 @@ export const openCraftingModal = () => {
                 <div class="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-grow bg-[#fdfbf7]">
                     
                     <!-- Core Configuration -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Select Hero</label>
-                            <select id="dt-craft-pc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-white shadow-inner">
+                            <select id="dt-craft-pc" onchange="window.appActions.updateCraftingMath('pc')" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-white shadow-inner">
                                 ${validPCs.map(pc => {
                                     const currentDays = parseInt(pc.availableDowntime) || 0;
                                     return `<option value="${pc.id}">${pc.name} (${currentDays} Days)</option>`;
@@ -43,29 +43,39 @@ export const openCraftingModal = () => {
                             </select>
                         </div>
                         <div>
-                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Project Type</label>
-                            <select id="dt-craft-type" onchange="window.appActions.updateCraftingMath()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-white shadow-inner">
-                                <option value="nonmagical">Nonmagical Item</option>
-                                <option value="magic">Magic Item</option>
-                                <option value="healing_potion">Standard Potion of Healing</option>
-                                <option value="other_potion">Other Potion</option>
-                            </select>
+                            <label class="block text-[10px] uppercase text-amber-700 font-bold mb-1 tracking-widest"><i class="fa-solid fa-book-open mr-1"></i> Active Projects</label>
+                            <div class="flex gap-2">
+                                <select id="dt-craft-project" onchange="window.appActions.updateCraftingMath('project')" class="flex-grow p-2 border border-amber-300 rounded-sm text-sm font-bold text-amber-900 outline-none focus:border-amber-600 bg-amber-50 shadow-inner">
+                                    <option value="new">-- Start New Project --</option>
+                                    <!-- Populated dynamically via JS -->
+                                </select>
+                                <button type="button" id="dt-craft-abandon-btn" onclick="window.appActions.abandonCraftingProject()" class="hidden px-3 py-2 bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 rounded-sm transition" title="Abandon Project"><i class="fa-solid fa-trash"></i></button>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Dynamic Fields based on Project Type -->
-                    <div class="mb-5 bg-white p-4 border border-[#d4c5a9] rounded-sm shadow-sm transition-all duration-300">
-                        
-                        <!-- Name Input (Shared by most) -->
-                        <div id="dt-craft-name-wrapper" class="mb-4">
-                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Item Name</label>
-                            <input type="text" id="dt-craft-item-name" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-stone-50 shadow-inner" placeholder="e.g. Plate Armor">
+                    <!-- New Project Fields (Hidden if resuming) -->
+                    <div id="dt-craft-new-config" class="mb-5 bg-white p-4 border border-[#d4c5a9] rounded-sm shadow-sm transition-all duration-300">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Project Type</label>
+                                <select id="dt-craft-type" onchange="window.appActions.updateCraftingMath('type')" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-stone-50 shadow-inner">
+                                    <option value="nonmagical">Nonmagical Item</option>
+                                    <option value="magic">Magic Item</option>
+                                    <option value="healing_potion">Standard Potion of Healing</option>
+                                    <option value="other_potion">Other Potion</option>
+                                </select>
+                            </div>
+                            <div id="dt-craft-name-wrapper">
+                                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Item Name</label>
+                                <input type="text" id="dt-craft-item-name" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-stone-50 shadow-inner" placeholder="e.g. Plate Armor">
+                            </div>
                         </div>
 
                         <!-- Nonmagical specific -->
                         <div id="dt-craft-nonmagical-fields" class="mb-4">
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Market Price (gp)</label>
-                            <input type="number" id="dt-craft-cost" min="1" value="50" oninput="window.appActions.updateCraftingMath()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-stone-50 shadow-inner text-center">
+                            <input type="number" id="dt-craft-cost" min="1" value="50" oninput="window.appActions.updateCraftingMath('input')" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-stone-50 shadow-inner text-center">
                             <p class="text-[9px] text-stone-400 mt-1 italic">Crafting requires materials worth half the market value.</p>
                         </div>
 
@@ -73,7 +83,7 @@ export const openCraftingModal = () => {
                         <div id="dt-craft-rarity-fields" class="hidden mb-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Item Rarity</label>
-                                <select id="dt-craft-rarity" onchange="window.appActions.updateCraftingMath()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-stone-50 shadow-inner">
+                                <select id="dt-craft-rarity" onchange="window.appActions.updateCraftingMath('input')" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-stone-50 shadow-inner">
                                     <option value="common">Common</option>
                                     <option value="uncommon">Uncommon</option>
                                     <option value="rare">Rare</option>
@@ -83,7 +93,7 @@ export const openCraftingModal = () => {
                             </div>
                             <div id="dt-craft-consumable-wrapper" class="flex flex-col justify-center">
                                 <label class="flex items-center gap-2 cursor-pointer group">
-                                    <input type="checkbox" id="dt-craft-consumable" onchange="window.appActions.updateCraftingMath()" class="w-4 h-4 text-blue-600 rounded-sm cursor-pointer shadow-sm border-blue-300">
+                                    <input type="checkbox" id="dt-craft-consumable" onchange="window.appActions.updateCraftingMath('input')" class="w-4 h-4 text-blue-600 rounded-sm cursor-pointer shadow-sm border-blue-300">
                                     <span class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-stone-700 group-hover:text-blue-800 transition">Is Consumable?</span>
                                 </label>
                                 <p class="text-[9px] text-stone-400 mt-1 italic">Halves required time and cost.</p>
@@ -93,30 +103,43 @@ export const openCraftingModal = () => {
                         <!-- Standard Healing Potion specific -->
                         <div id="dt-craft-healing-fields" class="hidden mb-4">
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Potion Type</label>
-                            <select id="dt-craft-healing-type" onchange="window.appActions.updateCraftingMath()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-stone-50 shadow-inner">
+                            <select id="dt-craft-healing-type" onchange="window.appActions.updateCraftingMath('input')" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-stone-50 shadow-inner">
                                 <option value="healing">Potion of Healing (1 d / 25 gp)</option>
                                 <option value="greater">Greater Healing (5 d / 100 gp)</option>
                                 <option value="superior">Superior Healing (15 d / 1,000 gp)</option>
                                 <option value="supreme">Supreme Healing (20 d / 10,000 gp)</option>
                             </select>
                         </div>
+                        
+                        <div class="border-t border-[#d4c5a9] pt-3 mt-1">
+                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Proficiency Used <span class="normal-case font-normal">(Optional)</span></label>
+                            <input type="text" id="dt-craft-prof" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-stone-50 shadow-inner" placeholder="e.g. Smith's Tools, Arcana...">
+                        </div>
                     </div>
 
-                    <!-- Modifiers -->
+                    <!-- Modifiers & Collaborators -->
+                    <h3 class="text-xs sm:text-sm font-bold text-stone-800 font-serif mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-users-gear mr-2 text-stone-500"></i> Modifiers & Collaborators</h3>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                        <div class="bg-amber-50 border border-amber-200 p-3 rounded-sm shadow-sm">
+                        <div class="bg-amber-50 border border-amber-200 p-3 rounded-sm shadow-sm" id="dt-craft-artificer-box">
                             <label class="flex items-center gap-2 cursor-pointer group mb-1">
-                                <input type="checkbox" id="dt-craft-artificer" onchange="window.appActions.updateCraftingMath()" class="w-4 h-4 text-amber-600 rounded-sm cursor-pointer shadow-sm border-amber-400">
+                                <input type="checkbox" id="dt-craft-artificer" onchange="window.appActions.updateCraftingMath('input')" class="w-4 h-4 text-amber-600 rounded-sm cursor-pointer shadow-sm border-amber-400">
                                 <span class="text-[10px] font-bold uppercase tracking-widest text-amber-900 group-hover:text-amber-700 transition">Artificer Magic Item Adept</span>
                             </label>
                             <p class="text-[9px] text-amber-700 italic leading-snug">Quarter time & half cost for Common/Uncommon magic items and standard potions.</p>
                         </div>
-                        <div class="bg-blue-50 border border-blue-200 p-3 rounded-sm shadow-sm">
+                        <div class="bg-blue-50 border border-blue-200 p-3 rounded-sm shadow-sm" id="dt-craft-harper-box">
                             <label class="flex items-center gap-2 cursor-pointer group mb-1">
-                                <input type="checkbox" id="dt-craft-harper" onchange="document.getElementById('dt-craft-harper-details').classList.toggle('hidden'); window.appActions.updateCraftingMath();" class="w-4 h-4 text-blue-600 rounded-sm cursor-pointer shadow-sm border-blue-300">
+                                <input type="checkbox" id="dt-craft-harper" onchange="document.getElementById('dt-craft-harper-details').classList.toggle('hidden'); window.appActions.updateCraftingMath('input');" class="w-4 h-4 text-blue-600 rounded-sm cursor-pointer shadow-sm border-blue-300">
                                 <span class="text-[10px] font-bold uppercase tracking-widest text-blue-900 group-hover:text-blue-700 transition">Harper Network Support</span>
                             </label>
                             <p class="text-[9px] text-blue-700 italic leading-snug">Reduces time & cost. Requires a safe house.</p>
+                        </div>
+                        <div class="sm:col-span-2 bg-stone-100 border border-[#d4c5a9] p-3 rounded-sm shadow-inner">
+                            <label class="block text-[10px] font-bold uppercase tracking-widest text-stone-600 mb-2">Select Assistants</label>
+                            <div id="dt-craft-collaborators" class="flex flex-wrap gap-2">
+                                <!-- Populated dynamically -->
+                            </div>
+                            <p class="text-[9px] text-stone-500 italic leading-snug mt-2">Multiple characters combining their efforts divide the time needed to create an item. (Days spent will be deducted from all selected helpers).</p>
                         </div>
                     </div>
 
@@ -128,14 +151,17 @@ export const openCraftingModal = () => {
                         </div>
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Travel Days Required</label>
-                            <input type="number" id="dt-craft-harper-travel" value="0" min="0" oninput="window.appActions.updateCraftingMath()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 shadow-inner bg-stone-50 text-center">
+                            <input type="number" id="dt-craft-harper-travel" value="0" min="0" oninput="window.appActions.updateCraftingMath('input')" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 shadow-inner bg-stone-50 text-center">
                         </div>
                     </div>
 
                     <!-- Progress Input -->
                     <div class="bg-stone-900 text-amber-50 p-4 rounded-sm shadow-inner mb-2">
                         <div class="flex justify-between items-center mb-3 pb-2 border-b border-stone-700">
-                            <span class="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Total Project Requirements</span>
+                            <div>
+                                <span class="block text-[10px] uppercase tracking-widest text-stone-400 font-bold">Total Project Scope</span>
+                                <span id="dt-craft-progress-text" class="text-xs font-bold text-amber-200">0 / 0 Days Complete</span>
+                            </div>
                             <div class="text-right">
                                 <span id="dt-craft-total-days" class="text-sm font-bold text-emerald-400 mr-3">0 Days</span>
                                 <span id="dt-craft-total-gold" class="text-sm font-bold text-amber-400">0 gp</span>
@@ -143,17 +169,17 @@ export const openCraftingModal = () => {
                         </div>
                         <div class="flex items-center justify-between gap-4">
                             <div class="flex-1">
-                                <label class="block text-[10px] uppercase text-stone-400 font-bold mb-1 tracking-widest">Work Days Spent <span class="normal-case font-normal">(Progress)</span></label>
-                                <input type="number" id="dt-craft-days-spent" value="1" min="1" oninput="window.appActions.updateCraftingMath()" class="w-full p-2 border border-stone-600 rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-500 text-center bg-stone-200">
+                                <label class="block text-[10px] uppercase text-stone-400 font-bold mb-1 tracking-widest">Work Days to Spend <span class="normal-case font-normal">(Per Hero)</span></label>
+                                <input type="number" id="dt-craft-days-spent" value="1" min="1" oninput="window.appActions.updateCraftingMath('input')" class="w-full p-2 border border-stone-600 rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-500 text-center bg-stone-200">
                             </div>
                             <div class="flex-1 text-right flex flex-col justify-end">
-                                <span class="block text-[10px] uppercase tracking-widest text-stone-400 font-bold mb-0.5">Total Days Logged</span>
+                                <span class="block text-[10px] uppercase tracking-widest text-stone-400 font-bold mb-0.5">Total Days Deducted</span>
                                 <span id="dt-craft-logged-days" class="text-xl font-bold text-amber-500">1 Day</span>
                                 <p class="text-[8px] text-stone-500 italic mt-0.5">Includes travel time</p>
                             </div>
                         </div>
                     </div>
-                    <p class="text-[9px] text-stone-500 text-center italic font-bold uppercase tracking-widest">Note: Gold must be deducted from your inventory manually.</p>
+                    <p id="dt-craft-cost-warning" class="text-[10px] text-stone-500 text-center italic font-bold uppercase tracking-widest mt-2">Note: Materials cost must be paid up front when starting.</p>
 
                 </div>
 
@@ -165,125 +191,206 @@ export const openCraftingModal = () => {
         </div>
     `;
 
-    setTimeout(window.appActions.updateCraftingMath, 50);
+    // Initialize dynamic UI elements
+    setTimeout(() => {
+        window.appActions.updateCraftingMath('init');
+    }, 50);
 };
 
-export const updateCraftingMath = () => {
-    const typeEl = document.getElementById('dt-craft-type');
-    const nameEl = document.getElementById('dt-craft-item-name');
-    const costEl = document.getElementById('dt-craft-cost');
-    const rarityEl = document.getElementById('dt-craft-rarity');
-    const consEl = document.getElementById('dt-craft-consumable');
-    const healTypeEl = document.getElementById('dt-craft-healing-type');
-    
-    const isHarper = document.getElementById('dt-craft-harper').checked;
-    const isArtificer = document.getElementById('dt-craft-artificer').checked;
-    const travelDays = isHarper ? (parseInt(document.getElementById('dt-craft-harper-travel').value) || 0) : 0;
-    
-    const daysSpentEl = document.getElementById('dt-craft-days-spent');
-    
-    if (!typeEl || !daysSpentEl) return;
-    
-    const cType = typeEl.value;
-    
-    // Toggle Visibility
-    document.getElementById('dt-craft-name-wrapper').classList.remove('hidden');
-    document.getElementById('dt-craft-nonmagical-fields').classList.add('hidden');
-    document.getElementById('dt-craft-rarity-fields').classList.add('hidden');
-    document.getElementById('dt-craft-healing-fields').classList.add('hidden');
-    document.getElementById('dt-craft-consumable-wrapper').classList.remove('hidden');
+export const updateCraftingMath = (triggerSource = 'input') => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    if (!camp) return;
 
-    if (cType === 'nonmagical') {
-        document.getElementById('dt-craft-nonmagical-fields').classList.remove('hidden');
-    } else if (cType === 'magic') {
-        document.getElementById('dt-craft-rarity-fields').classList.remove('hidden');
-    } else if (cType === 'healing_potion') {
-        document.getElementById('dt-craft-name-wrapper').classList.add('hidden');
-        document.getElementById('dt-craft-healing-fields').classList.remove('hidden');
-    } else if (cType === 'other_potion') {
-        document.getElementById('dt-craft-rarity-fields').classList.remove('hidden');
-        document.getElementById('dt-craft-consumable-wrapper').classList.add('hidden'); // Potions are always consumable
+    const pcId = document.getElementById('dt-craft-pc').value;
+    const pc = camp.playerCharacters?.find(p => p.id === pcId);
+    if (!pc) return;
+
+    const projectSelect = document.getElementById('dt-craft-project');
+    const newConfigDiv = document.getElementById('dt-craft-new-config');
+    const abandonBtn = document.getElementById('dt-craft-abandon-btn');
+    const harperBox = document.getElementById('dt-craft-harper-box');
+    const artificerBox = document.getElementById('dt-craft-artificer-box');
+
+    // Rebuild Collaborators List if PC changed
+    if (triggerSource === 'pc' || triggerSource === 'init') {
+        const collabDiv = document.getElementById('dt-craft-collaborators');
+        if (collabDiv) {
+            let collabHtml = '';
+            camp.playerCharacters.forEach(otherPc => {
+                if (otherPc.id !== pcId) {
+                    const days = parseInt(otherPc.availableDowntime) || 0;
+                    collabHtml += `
+                        <label class="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 border border-[#d4c5a9] rounded-sm hover:bg-amber-50 transition">
+                            <input type="checkbox" value="${otherPc.id}" class="dt-collab-check w-3 h-3 text-amber-600 rounded-sm" onchange="window.appActions.updateCraftingMath('input')">
+                            <span class="text-[10px] font-bold text-stone-700">${otherPc.name} <span class="font-normal italic text-stone-500">(${days}d)</span></span>
+                        </label>
+                    `;
+                }
+            });
+            collabDiv.innerHTML = collabHtml || '<span class="text-[10px] text-stone-500 italic">No other heroes available.</span>';
+        }
     }
 
-    let baseTime = 0;
-    let baseCost = 0;
-    let isConsumable = false;
+    // Rebuild Projects List if PC changed
+    const projects = pc.craftingProjects || {};
+    if (triggerSource === 'pc' || triggerSource === 'init') {
+        let projHtml = `<option value="new">-- Start New Project --</option>`;
+        Object.entries(projects).forEach(([pid, proj]) => {
+            projHtml += `<option value="${pid}">${proj.name} (${proj.progress}/${proj.totalTime} days)</option>`;
+        });
+        projectSelect.innerHTML = projHtml;
+    }
 
-    // Base Math
-    if (cType === 'nonmagical') {
-        const mCost = parseInt(costEl.value) || 0;
-        baseTime = Math.max(1, Math.ceil(mCost / 10));
-        baseCost = Math.ceil(mCost / 2);
-    } else if (cType === 'healing_potion') {
-        const hType = healTypeEl.value;
-        const healingData = {
-            healing: { time: 1, cost: 25 },
-            greater: { time: 5, cost: 100 },
-            superior: { time: 15, cost: 1000 },
-            supreme: { time: 20, cost: 10000 }
-        };
-        baseTime = healingData[hType].time;
-        baseCost = healingData[hType].cost;
-        isConsumable = true;
-    } else { // Magic Item or Other Potion
-        const rarity = rarityEl.value;
-        isConsumable = cType === 'other_potion' ? true : consEl.checked;
+    const projectId = projectSelect.value;
+    const isResuming = projectId !== 'new';
+    
+    // Toggle New vs Resume modes
+    if (isResuming) {
+        newConfigDiv.classList.add('hidden');
+        abandonBtn.classList.remove('hidden');
+        harperBox.classList.add('opacity-50', 'pointer-events-none');
+        artificerBox.classList.add('opacity-50', 'pointer-events-none');
+        document.getElementById('dt-craft-cost-warning').textContent = "Note: Materials cost was paid when this project began.";
+    } else {
+        newConfigDiv.classList.remove('hidden');
+        abandonBtn.classList.add('hidden');
+        harperBox.classList.remove('opacity-50', 'pointer-events-none');
+        artificerBox.classList.remove('opacity-50', 'pointer-events-none');
+        document.getElementById('dt-craft-cost-warning').textContent = "Note: Materials cost must be paid up front when starting.";
+    }
+
+    // --- MATH CALCULATION ---
+    let totalTime = 0;
+    let totalCost = 0;
+    let currentProgress = 0;
+    let itemName = "";
+
+    if (isResuming) {
+        const proj = projects[projectId];
+        totalTime = proj.totalTime;
+        totalCost = proj.cost;
+        currentProgress = proj.progress;
+        itemName = proj.name;
+    } else {
+        // Calculate New Project from Inputs
+        const typeEl = document.getElementById('dt-craft-type');
+        const cType = typeEl.value;
+        itemName = document.getElementById('dt-craft-item-name').value.trim() || "Unknown Item";
         
-        const rarityData = {
-            common: { workweeks: 1, cost: 50 },
-            uncommon: { workweeks: 2, cost: 200 },
-            rare: { workweeks: 10, cost: 2000 },
-            'very-rare': { workweeks: 25, cost: 20000 },
-            legendary: { workweeks: 50, cost: 100000 }
-        };
-        
-        let rw = rarityData[rarity].workweeks;
-        let rc = rarityData[rarity].cost;
-        
-        baseTime = (isConsumable ? Math.max(1, Math.ceil(rw / 2)) : rw) * 5;
-        baseCost = isConsumable ? Math.max(1, Math.ceil(rc / 2)) : rc;
+        // Visibility Logic for New Form
+        document.getElementById('dt-craft-name-wrapper').classList.remove('hidden');
+        document.getElementById('dt-craft-nonmagical-fields').classList.add('hidden');
+        document.getElementById('dt-craft-rarity-fields').classList.add('hidden');
+        document.getElementById('dt-craft-healing-fields').classList.add('hidden');
+        document.getElementById('dt-craft-consumable-wrapper').classList.remove('hidden');
+
+        if (cType === 'nonmagical') {
+            document.getElementById('dt-craft-nonmagical-fields').classList.remove('hidden');
+        } else if (cType === 'magic') {
+            document.getElementById('dt-craft-rarity-fields').classList.remove('hidden');
+        } else if (cType === 'healing_potion') {
+            document.getElementById('dt-craft-name-wrapper').classList.add('hidden');
+            document.getElementById('dt-craft-healing-fields').classList.remove('hidden');
+            itemName = "Potion of Healing"; // Generic placeholder for live UI
+        } else if (cType === 'other_potion') {
+            document.getElementById('dt-craft-rarity-fields').classList.remove('hidden');
+            document.getElementById('dt-craft-consumable-wrapper').classList.add('hidden'); 
+        }
+
+        let baseTime = 0;
+        let baseCost = 0;
+        let isConsumable = false;
+        const rarityEl = document.getElementById('dt-craft-rarity');
+
+        if (cType === 'nonmagical') {
+            const mCost = parseInt(document.getElementById('dt-craft-cost').value) || 0;
+            baseTime = Math.max(1, Math.ceil(mCost / 10));
+            baseCost = Math.ceil(mCost / 2);
+        } else if (cType === 'healing_potion') {
+            const hType = document.getElementById('dt-craft-healing-type').value;
+            const healingData = {
+                healing: { time: 1, cost: 25 },
+                greater: { time: 5, cost: 100 },
+                superior: { time: 15, cost: 1000 },
+                supreme: { time: 20, cost: 10000 }
+            };
+            baseTime = healingData[hType].time;
+            baseCost = healingData[hType].cost;
+            isConsumable = true;
+        } else {
+            const rarity = rarityEl.value;
+            isConsumable = cType === 'other_potion' ? true : document.getElementById('dt-craft-consumable').checked;
+            
+            const rarityData = {
+                common: { workweeks: 1, cost: 50 },
+                uncommon: { workweeks: 2, cost: 200 },
+                rare: { workweeks: 10, cost: 2000 },
+                'very-rare': { workweeks: 25, cost: 20000 },
+                legendary: { workweeks: 50, cost: 100000 }
+            };
+            
+            let rw = rarityData[rarity].workweeks;
+            let rc = rarityData[rarity].cost;
+            
+            baseTime = (isConsumable ? Math.max(1, Math.ceil(rw / 2)) : rw) * 5;
+            baseCost = isConsumable ? Math.max(1, Math.ceil(rc / 2)) : rc;
+        }
+
+        let applyArtificer = false;
+        const isArtificer = document.getElementById('dt-craft-artificer').checked;
+        if (isArtificer) {
+            const hType = document.getElementById('dt-craft-healing-type').value;
+            if (cType === 'healing_potion' && (hType === 'healing' || hType === 'greater')) applyArtificer = true;
+            if ((cType === 'magic' || cType === 'other_potion') && (rarityEl.value === 'common' || rarityEl.value === 'uncommon')) applyArtificer = true;
+        }
+
+        if (applyArtificer) {
+            baseTime = Math.ceil(baseTime * 0.25);
+            baseCost = Math.ceil(baseCost * 0.5);
+        }
+
+        const isHarper = document.getElementById('dt-craft-harper').checked;
+        if (isHarper) {
+            baseTime = Math.ceil(baseTime * 0.8);
+            baseCost = isConsumable ? Math.ceil(baseCost * 0.75) : Math.ceil(baseCost * 0.9);
+        }
+
+        totalTime = baseTime;
+        totalCost = baseCost;
     }
 
-    let effectiveTime = baseTime;
-    let effectiveCost = baseCost;
-
-    // Apply Artificer (Applies to common/uncommon magic items, or healing/greater potions)
-    let applyArtificer = false;
-    if (isArtificer) {
-        if (cType === 'healing_potion' && (healTypeEl.value === 'healing' || healTypeEl.value === 'greater')) applyArtificer = true;
-        if ((cType === 'magic' || cType === 'other_potion') && (rarityEl.value === 'common' || rarityEl.value === 'uncommon')) applyArtificer = true;
-    }
-
-    if (applyArtificer) {
-        effectiveTime = Math.ceil(baseTime * 0.25);
-        effectiveCost = Math.ceil(baseCost * 0.5);
-    }
-
-    // Apply Harper
-    if (isHarper) {
-        effectiveTime = Math.ceil(effectiveTime * 0.8);
-        effectiveCost = isConsumable ? Math.ceil(effectiveCost * 0.75) : Math.ceil(effectiveCost * 0.9);
-    }
+    // --- APPLY COLLABORATORS TO REMAINING TIME ---
+    const checkedCollabs = Array.from(document.querySelectorAll('.dt-collab-check:checked'));
+    const numWorkers = 1 + checkedCollabs.length;
+    
+    const workRemaining = totalTime - currentProgress;
+    const effectiveDaysToComplete = Math.max(1, Math.ceil(workRemaining / numWorkers));
 
     // Update Totals UI
-    document.getElementById('dt-craft-total-days').textContent = `${effectiveTime} Days`;
-    document.getElementById('dt-craft-total-gold').textContent = `${effectiveCost} gp`;
+    document.getElementById('dt-craft-total-days').textContent = `${totalTime} Days`;
+    document.getElementById('dt-craft-total-gold').textContent = `${totalCost} gp`;
+    document.getElementById('dt-craft-progress-text').textContent = `${currentProgress} / ${totalTime} Days Complete`;
 
-    // Process "Days Spent" vs "Total Required"
+    // Process "Days Spent" Input
+    const daysSpentEl = document.getElementById('dt-craft-days-spent');
     let daysSpent = parseInt(daysSpentEl.value) || 1;
     
-    // Auto-cap input to max time needed to prevent over-spending
-    if (daysSpent > effectiveTime) {
-        daysSpent = effectiveTime;
-        daysSpentEl.value = effectiveTime;
+    if (daysSpent > effectiveDaysToComplete) {
+        daysSpent = effectiveDaysToComplete;
+        daysSpentEl.value = effectiveDaysToComplete;
     }
 
+    const travelDays = document.getElementById('dt-craft-harper').checked && !isResuming ? (parseInt(document.getElementById('dt-craft-harper-travel').value) || 0) : 0;
     const totalLogged = daysSpent + travelDays;
+    
     document.getElementById('dt-craft-logged-days').textContent = `${totalLogged} Day${totalLogged !== 1 ? 's' : ''}`;
+
+    const willComplete = (currentProgress + (daysSpent * numWorkers)) >= totalTime;
 
     const submitBtn = document.getElementById('dt-craft-submit-btn');
     if (submitBtn) {
-        if (daysSpent >= effectiveTime) {
+        if (willComplete) {
             submitBtn.innerHTML = `<i class="fa-solid fa-hammer mr-2"></i> Complete Project`;
             submitBtn.className = submitBtn.className.replace('bg-blue-800', 'bg-emerald-700').replace('hover:bg-blue-700', 'hover:bg-emerald-600');
         } else {
@@ -291,6 +398,33 @@ export const updateCraftingMath = () => {
             submitBtn.className = submitBtn.className.replace('bg-emerald-700', 'bg-blue-800').replace('hover:bg-emerald-600', 'hover:bg-blue-700');
         }
     }
+};
+
+export const abandonCraftingProject = async () => {
+    const projectId = document.getElementById('dt-craft-project').value;
+    if (projectId === 'new') return;
+
+    if (!confirm("Are you sure you want to permanently abandon this incomplete project? The materials will be lost.")) return;
+
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    const pcId = document.getElementById('dt-craft-pc').value;
+    
+    const updatedPCs = camp.playerCharacters.map(p => {
+        if (p.id === pcId && p.craftingProjects) {
+            const newProjects = { ...p.craftingProjects };
+            delete newProjects[projectId];
+            return { ...p, craftingProjects: newProjects };
+        }
+        return p;
+    });
+
+    const updatedCamp = { ...camp, playerCharacters: updatedPCs };
+    await saveCampaign(updatedCamp);
+    notify("Project abandoned.", "success");
+    
+    // Refresh modal
+    window.appActions.updateCraftingMath('init');
 };
 
 export const executeCrafting = async () => {
@@ -303,67 +437,103 @@ export const executeCrafting = async () => {
     const pc = camp.playerCharacters?.find(p => p.id === pcId);
     if (!pc) return;
 
-    const cType = document.getElementById('dt-craft-type').value;
-    let itemName = document.getElementById('dt-craft-item-name').value.trim();
+    const projectId = document.getElementById('dt-craft-project').value;
+    const isResuming = projectId !== 'new';
     
-    if (cType === 'healing_potion') {
-        const hType = document.getElementById('dt-craft-healing-type').value;
-        if (hType === 'healing') itemName = 'Potion of Healing';
-        if (hType === 'greater') itemName = 'Potion of Greater Healing';
-        if (hType === 'superior') itemName = 'Potion of Superior Healing';
-        if (hType === 'supreme') itemName = 'Potion of Supreme Healing';
-    }
+    let projectData = {};
+    const checkedCollabs = Array.from(document.querySelectorAll('.dt-collab-check:checked')).map(el => camp.playerCharacters.find(p => p.id === el.value));
+    const numWorkers = 1 + checkedCollabs.length;
+    let travelDays = 0;
 
-    if (!itemName) { notify("Please enter the item name you are crafting.", "error"); return; }
-
-    const isHarper = document.getElementById('dt-craft-harper').checked;
-    const harperLoc = document.getElementById('dt-craft-harper-loc').value.trim();
-    const travelDays = isHarper ? (parseInt(document.getElementById('dt-craft-harper-travel').value) || 0) : 0;
-    
-    if (isHarper && !harperLoc) { notify("Please enter the Harper Safe House location.", "error"); return; }
-
-    // Re-run the exact math logic to get the final target numbers
-    let baseTime = 0, baseCost = 0, isConsumable = false;
-    const isArtificer = document.getElementById('dt-craft-artificer').checked;
-    const rarity = document.getElementById('dt-craft-rarity').value;
-
-    if (cType === 'nonmagical') {
-        const mCost = parseInt(document.getElementById('dt-craft-cost').value) || 0;
-        baseTime = Math.max(1, Math.ceil(mCost / 10));
-        baseCost = Math.ceil(mCost / 2);
-    } else if (cType === 'healing_potion') {
-        const hType = document.getElementById('dt-craft-healing-type').value;
-        const healingData = { healing: { time: 1, cost: 25 }, greater: { time: 5, cost: 100 }, superior: { time: 15, cost: 1000 }, supreme: { time: 20, cost: 10000 } };
-        baseTime = healingData[hType].time; baseCost = healingData[hType].cost; isConsumable = true;
+    if (isResuming) {
+        projectData = JSON.parse(JSON.stringify(pc.craftingProjects[projectId]));
     } else {
-        isConsumable = cType === 'other_potion' ? true : document.getElementById('dt-craft-consumable').checked;
-        const rarityData = { common: { workweeks: 1, cost: 50 }, uncommon: { workweeks: 2, cost: 200 }, rare: { workweeks: 10, cost: 2000 }, 'very-rare': { workweeks: 25, cost: 20000 }, legendary: { workweeks: 50, cost: 100000 } };
-        baseTime = (isConsumable ? Math.max(1, Math.ceil(rarityData[rarity].workweeks / 2)) : rarityData[rarity].workweeks) * 5;
-        baseCost = isConsumable ? Math.max(1, Math.ceil(rarityData[rarity].cost / 2)) : rarityData[rarity].cost;
-    }
+        // --- GATHER NEW PROJECT DATA ---
+        const cType = document.getElementById('dt-craft-type').value;
+        let itemName = document.getElementById('dt-craft-item-name').value.trim();
+        
+        if (cType === 'healing_potion') {
+            const hType = document.getElementById('dt-craft-healing-type').value;
+            if (hType === 'healing') itemName = 'Potion of Healing';
+            if (hType === 'greater') itemName = 'Potion of Greater Healing';
+            if (hType === 'superior') itemName = 'Potion of Superior Healing';
+            if (hType === 'supreme') itemName = 'Potion of Supreme Healing';
+        }
 
-    let effectiveTime = baseTime, effectiveCost = baseCost;
-    let applyArtificer = false;
-    if (isArtificer) {
-        if (cType === 'healing_potion' && (itemName.includes('Greater') || itemName === 'Potion of Healing')) applyArtificer = true;
-        if ((cType === 'magic' || cType === 'other_potion') && (rarity === 'common' || rarity === 'uncommon')) applyArtificer = true;
+        if (!itemName) { notify("Please enter the item name.", "error"); return; }
+
+        const isHarper = document.getElementById('dt-craft-harper').checked;
+        const harperLoc = document.getElementById('dt-craft-harper-loc').value.trim();
+        travelDays = isHarper ? (parseInt(document.getElementById('dt-craft-harper-travel').value) || 0) : 0;
+        
+        if (isHarper && !harperLoc) { notify("Please enter the Harper Safe House location.", "error"); return; }
+
+        let baseTime = 0, baseCost = 0, isConsumable = false;
+        const isArtificer = document.getElementById('dt-craft-artificer').checked;
+        const rarity = document.getElementById('dt-craft-rarity').value;
+
+        if (cType === 'nonmagical') {
+            const mCost = parseInt(document.getElementById('dt-craft-cost').value) || 0;
+            baseTime = Math.max(1, Math.ceil(mCost / 10));
+            baseCost = Math.ceil(mCost / 2);
+        } else if (cType === 'healing_potion') {
+            const hType = document.getElementById('dt-craft-healing-type').value;
+            const healingData = { healing: { time: 1, cost: 25 }, greater: { time: 5, cost: 100 }, superior: { time: 15, cost: 1000 }, supreme: { time: 20, cost: 10000 } };
+            baseTime = healingData[hType].time; baseCost = healingData[hType].cost; isConsumable = true;
+        } else {
+            isConsumable = cType === 'other_potion' ? true : document.getElementById('dt-craft-consumable').checked;
+            const rarityData = { common: { workweeks: 1, cost: 50 }, uncommon: { workweeks: 2, cost: 200 }, rare: { workweeks: 10, cost: 2000 }, 'very-rare': { workweeks: 25, cost: 20000 }, legendary: { workweeks: 50, cost: 100000 } };
+            baseTime = (isConsumable ? Math.max(1, Math.ceil(rarityData[rarity].workweeks / 2)) : rarityData[rarity].workweeks) * 5;
+            baseCost = isConsumable ? Math.max(1, Math.ceil(rarityData[rarity].cost / 2)) : rarityData[rarity].cost;
+        }
+
+        let effectiveTime = baseTime, effectiveCost = baseCost;
+        let applyArtificer = false;
+        if (isArtificer) {
+            if (cType === 'healing_potion' && (itemName.includes('Greater') || itemName === 'Potion of Healing')) applyArtificer = true;
+            if ((cType === 'magic' || cType === 'other_potion') && (rarity === 'common' || rarity === 'uncommon')) applyArtificer = true;
+        }
+        if (applyArtificer) { effectiveTime = Math.ceil(baseTime * 0.25); effectiveCost = Math.ceil(baseCost * 0.5); }
+        if (isHarper) { effectiveTime = Math.ceil(effectiveTime * 0.8); effectiveCost = isConsumable ? Math.ceil(effectiveCost * 0.75) : Math.ceil(effectiveCost * 0.9); }
+
+        projectData = {
+            id: generateId(),
+            name: itemName,
+            type: cType,
+            totalTime: effectiveTime,
+            cost: effectiveCost,
+            progress: 0,
+            prof: document.getElementById('dt-craft-prof').value.trim()
+        };
+        
+        if (applyArtificer) projectData.artificerNote = true;
+        if (isHarper) projectData.harperNote = harperLoc;
     }
-    if (applyArtificer) { effectiveTime = Math.ceil(baseTime * 0.25); effectiveCost = Math.ceil(baseCost * 0.5); }
-    if (isHarper) { effectiveTime = Math.ceil(effectiveTime * 0.8); effectiveCost = isConsumable ? Math.ceil(effectiveCost * 0.75) : Math.ceil(effectiveCost * 0.9); }
 
     const daysSpent = parseInt(document.getElementById('dt-craft-days-spent').value) || 1;
-    const totalDaysLogged = daysSpent + travelDays;
-    const isComplete = daysSpent >= effectiveTime;
+    const progressMade = daysSpent * numWorkers;
+    const isComplete = (projectData.progress + progressMade) >= projectData.totalTime;
 
-    // DOWNTIME DAYS CHECK
-    if ((parseInt(pc.availableDowntime) || 0) < totalDaysLogged) {
-        notify(`Not enough downtime days. ${pc.name} only has ${parseInt(pc.availableDowntime) || 0} days available.`, "error");
-        return;
+    // We only charge the primary hero for travel days on new projects. Collaborators just pay standard days.
+    const primaryDowntimeCost = daysSpent + travelDays;
+
+    // VERIFY EVERYONE HAS ENOUGH TIME!
+    if ((parseInt(pc.availableDowntime) || 0) < primaryDowntimeCost) {
+        notify(`Not enough downtime days. ${pc.name} only has ${parseInt(pc.availableDowntime) || 0} days available.`, "error"); return;
+    }
+    for (const collab of checkedCollabs) {
+        if ((parseInt(collab.availableDowntime) || 0) < daysSpent) {
+            notify(`${collab.name} does not have enough downtime days to help.`, "error"); return;
+        }
     }
 
-    // Complication Roll (10% flat chance for magic items/potions)
+    // --- APPLY MATH & COMPLICATIONS ---
+    
+    // Update progress safely
+    projectData.progress += isComplete ? (projectData.totalTime - projectData.progress) : progressMade;
+
     let complicationText = "";
-    if (cType !== 'nonmagical') {
+    if (projectData.type !== 'nonmagical') {
         const d100 = Math.floor(Math.random() * 100) + 1;
         if (d100 <= 10) {
             const d6 = Math.floor(Math.random() * 6) + 1;
@@ -381,37 +551,65 @@ export const executeCrafting = async () => {
         }
     }
 
-    // Build the log text
-    let resultHeader = `**Objective:** Crafting ${itemName}`;
+    // --- BUILD PRIMARY LOG ---
+    let resultHeader = `**Objective:** Crafting ${projectData.name}`;
+    if (projectData.prof) resultHeader += ` (using ${projectData.prof})`;
+
+    const collabNamesStr = checkedCollabs.map(c => c.name).join(', ');
+    const helpMsg = collabNamesStr ? ` (with help from ${collabNamesStr})` : ``;
+
     let resultBody = isComplete 
-        ? `✅ **Project Completed!** You have successfully crafted the **${itemName}**.` 
-        : `⏳ **Progress Logged:** You spent ${daysSpent} days working on the **${itemName}**. *(Remaining: ${effectiveTime - daysSpent} Days)*`;
+        ? `✅ **Project Completed!** You${helpMsg} have successfully crafted the **${projectData.name}**.` 
+        : `⏳ **Progress Logged:** You${helpMsg} spent ${daysSpent} days working on the **${projectData.name}**.\n**Progress:** ${projectData.progress} / ${projectData.totalTime} work-days.`;
 
     let modifiersNote = "";
-    if (applyArtificer) modifiersNote += `\n*Magic Item Adept bonus applied.*`;
-    if (isHarper) modifiersNote += `\n*Silver Harbingers support was utilized${harperLoc ? ` at ${harperLoc}` : ''}.*`;
+    if (projectData.artificerNote) modifiersNote += `\n*Magic Item Adept bonus applied.*`;
+    if (projectData.harperNote) modifiersNote += `\n*Silver Harbingers support utilized at ${projectData.harperNote}.*`;
 
-    let costNote = `**Total Project Material Cost:** ${effectiveCost} gp`;
-    if (!isComplete) costNote += ` *(Materials must be purchased up front when starting a project).*`;
+    let costNote = `**Total Project Material Cost:** ${projectData.cost.toLocaleString()} gp`;
+    if (!isResuming) costNote += ` *(Materials must be purchased up front when starting a project).*`;
 
-    const noteText = `**Downtime: Crafting an Item**\n*Hero:* ${pc.name}\n\n${resultHeader}\n\n**Work Days Logged:** ${daysSpent} Days (+${travelDays} Travel)\n${costNote}\n\n${resultBody}${modifiersNote}${complicationText}`;
-
+    const primaryNoteText = `**Downtime: Crafting an Item**\n*Hero:* ${pc.name}\n\n${resultHeader}\n\n**Work Days Logged:** ${daysSpent} Days ${travelDays > 0 ? `(+${travelDays} Travel)` : ''}\n${costNote}\n\n${resultBody}${modifiersNote}${complicationText}`;
     const timestampStr = new Date().toLocaleDateString();
-    const logAddition = `${pc.downtimeLog ? '\n\n---\n\n' : ''}**Logged on ${timestampStr}**\n${noteText}`;
+    
+    // --- BUILD COLLABORATOR LOG ---
+    const collabNoteText = `**Downtime: Assisted Crafting**\n*Hero:* {CollabName}\n\n**Objective:** Assisting ${pc.name} with ${projectData.name}\n**Work Days Logged:** ${daysSpent} Days\n\n${isComplete ? `✅ **Project Completed!** With your help, the item was finished.` : `⏳ **Progress Logged:** The project is now at ${projectData.progress} / ${projectData.totalTime} work-days.`}`;
 
-    const updatedPCs = camp.playerCharacters.map(p => 
-        p.id === pc.id ? { 
-            ...p, 
-            availableDowntime: Math.max(0, (parseInt(p.availableDowntime) || 0) - totalDaysLogged),
-            downtimeLog: (p.downtimeLog || '') + logAddition
-        } : p
-    );
+    // --- UPDATE ALL CHARACTERS ---
+    const updatedPCs = camp.playerCharacters.map(p => {
+        if (p.id === pcId) {
+            let projectsDict = { ...(p.craftingProjects || {}) };
+            if (isComplete) {
+                delete projectsDict[projectData.id];
+            } else {
+                projectsDict[projectData.id] = projectData;
+            }
+            return { 
+                ...p, 
+                craftingProjects: projectsDict,
+                availableDowntime: Math.max(0, (parseInt(p.availableDowntime) || 0) - primaryDowntimeCost),
+                downtimeLog: (p.downtimeLog || '') + `${p.downtimeLog ? '\n\n---\n\n' : ''}**Logged on ${timestampStr}**\n${primaryNoteText}`
+            };
+        }
+        
+        const isCollab = checkedCollabs.find(c => c.id === p.id);
+        if (isCollab) {
+            const specificCollabLog = collabNoteText.replace('{CollabName}', p.name);
+            return {
+                ...p,
+                availableDowntime: Math.max(0, (parseInt(p.availableDowntime) || 0) - daysSpent),
+                downtimeLog: (p.downtimeLog || '') + `${p.downtimeLog ? '\n\n---\n\n' : ''}**Logged on ${timestampStr}**\n${specificCollabLog}`
+            };
+        }
+        
+        return p;
+    });
 
     let updatedCamp = { ...camp, playerCharacters: updatedPCs };
-    updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime crafting with <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-hammer');
+    updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime crafting with <span class="font-bold text-amber-700">${pc.name}</span>${collabNamesStr ? ` and allies` : ''}.`, 'fa-hammer');
 
     await saveCampaign(updatedCamp);
     document.getElementById('global-popup-container').innerHTML = '';
-    notify(`Crafting progress logged. ${totalDaysLogged} days deducted. Log saved to Hero Journal.`, "success");
+    notify(`Crafting progress logged for all participants.`, "success");
     reRender();
 };
