@@ -167,7 +167,7 @@ export const openCraftingModal = () => {
                         </div>
                         
                         <div class="border-t border-[#d4c5a9] pt-3 mt-1">
-                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Proficiency Used <span class="normal-case font-normal">(Optional)</span></label>
+                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Proficiency Used <span class="normal-case font-normal">(Optional, for the log)</span></label>
                             <input type="text" id="dt-craft-prof" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-stone-50 shadow-inner" placeholder="e.g. Smith's Tools, Arcana...">
                         </div>
                     </div>
@@ -234,7 +234,7 @@ export const openCraftingModal = () => {
                                     <span class="block text-[10px] uppercase tracking-widest text-stone-400 font-bold">Days Deducted</span>
                                 </div>
                                 <div class="flex justify-end gap-3 items-end">
-                                    <span id="dt-craft-risk-text" class="text-lg font-bold text-red-500" title="10% risk per 5 work-days spent">10%</span>
+                                    <span id="dt-craft-risk-text" class="text-lg font-bold text-red-500" title="10% risk per 25 work-days spent">10%</span>
                                     <span id="dt-craft-logged-days" class="text-xl font-bold text-amber-500">1 Day</span>
                                 </div>
                                 <p class="text-[8px] text-stone-500 italic mt-0.5 text-right w-full pr-1">Includes travel time</p>
@@ -515,7 +515,7 @@ export const updateCraftingMath = (triggerSource = 'input') => {
 
         if (cType === 'nonmagical') {
             const mCost = parseInt(document.getElementById('dt-craft-cost').value) || 0;
-            baseTime = Math.max(1, Math.ceil(mCost / 10));
+            baseTime = Math.max(1, Math.ceil(mCost / 10)); // Time is purely based on value / 50 gp * 5 days = / 10 days
             baseCost = Math.ceil(mCost / 2);
         } else if (cType === 'healing_potion') {
             const hType = document.getElementById('dt-craft-healing-type').value;
@@ -543,7 +543,8 @@ export const updateCraftingMath = (triggerSource = 'input') => {
             let rw = rarityData[rarity].workweeks;
             let rc = rarityData[rarity].cost;
             
-            baseTime = (isConsumable ? Math.max(1, Math.ceil(rw / 2)) : rw) * 5;
+            let baseDays = rw * 5;
+            baseTime = isConsumable ? Math.max(1, Math.ceil(baseDays / 2)) : baseDays;
             baseCost = isConsumable ? Math.max(1, Math.ceil(rc / 2)) : rc;
         }
 
@@ -599,14 +600,13 @@ export const updateCraftingMath = (triggerSource = 'input') => {
         daysSpentEl.value = effectiveDaysToComplete;
     }
 
-    // Complication Risk UI Update (10% per workweek logged)
+    // Complication Risk UI Update (XGtE Rule: 10% chance per 5 workweeks (25 days) spent)
     if (riskEl) {
         const typeEl = document.getElementById('dt-craft-type')?.value;
         const isMagical = isResuming ? (projects[projectId].type !== 'nonmagical') : (typeEl !== 'nonmagical');
         
         if (isMagical) {
-            const workweeks = Math.max(1, Math.ceil(daysSpent / 5));
-            const risk = Math.min(100, workweeks * 10);
+            const risk = Math.min(100, Math.max(1, Math.round((daysSpent / 25) * 10)));
             riskEl.textContent = `${risk}%`;
         } else {
             riskEl.textContent = `0%`;
@@ -726,7 +726,9 @@ export const executeCrafting = async () => {
         } else {
             isConsumable = cType === 'other_potion' ? true : document.getElementById('dt-craft-consumable').checked;
             const rarityData = { common: { workweeks: 1, cost: 50 }, uncommon: { workweeks: 2, cost: 200 }, rare: { workweeks: 10, cost: 2000 }, 'very-rare': { workweeks: 25, cost: 20000 }, legendary: { workweeks: 50, cost: 100000 } };
-            baseTime = (isConsumable ? Math.max(1, Math.ceil(rarityData[rarity].workweeks / 2)) : rarityData[rarity].workweeks) * 5;
+            
+            let baseDays = rarityData[rarity].workweeks * 5;
+            baseTime = isConsumable ? Math.max(1, Math.ceil(baseDays / 2)) : baseDays;
             baseCost = isConsumable ? Math.max(1, Math.ceil(rarityData[rarity].cost / 2)) : rarityData[rarity].cost;
         }
 
@@ -777,8 +779,8 @@ export const executeCrafting = async () => {
 
     let complicationText = "";
     if (projectData.type !== 'nonmagical') {
-        const workweeks = Math.max(1, Math.ceil(daysSpent / 5));
-        const risk = Math.min(100, workweeks * 10);
+        // XGtE Rule: 10% chance per 5 workweeks (25 days) spent
+        const risk = Math.min(100, Math.max(1, Math.round((daysSpent / 25) * 10)));
         const d100 = Math.floor(Math.random() * 100) + 1;
         
         if (d100 <= risk) {
