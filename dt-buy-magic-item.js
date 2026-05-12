@@ -117,19 +117,44 @@ export const openBuyMagicItemModal = () => {
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Time Spent Searching</label>
                             <select id="dt-buy-days" onchange="window.appActions.updateBuyMagicItemMath()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-white shadow-inner">
-                                <option value="5">1 Workweek (5 Days)</option><option value="10">2 Workweeks (10 Days)</option><option value="15">3 Workweeks (15 Days)</option><option value="20">4 Workweeks (20 Days)</option><option value="25">5 Workweeks (25 Days)</option><option value="30">6 Workweeks (30 Days)</option><option value="35">7 Workweeks (35 Days)</option><option value="40">8 Workweeks (40 Days)</option><option value="45">9 Workweeks (45 Days)</option><option value="50">10 Workweeks (50 Days)</option>
+                                <option value="5">1 Workweek (5 Days)</option>
+                                <option value="10">2 Workweeks (10 Days)</option>
+                                <option value="15">3 Workweeks (15 Days)</option>
+                                <option value="20">4 Workweeks (20 Days)</option>
+                                <option value="25">5 Workweeks (25 Days)</option>
+                                <option value="30">6 Workweeks (30 Days)</option>
+                                <option value="35">7 Workweeks (35 Days)</option>
+                                <option value="40">8 Workweeks (40 Days)</option>
+                                <option value="45">9 Workweeks (45 Days)</option>
+                                <option value="50">10 Workweeks (50 Days)</option>
                             </select>
                         </div>
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Gold Spent (Expenses)</label>
                             <select id="dt-buy-gold" onchange="window.appActions.updateBuyMagicItemMath()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-amber-900 outline-none focus:border-blue-600 bg-amber-50 shadow-inner">
-                                <option value="100">100 gp (+0)</option><option value="200">200 gp (+1)</option><option value="300">300 gp (+2)</option><option value="400">400 gp (+3)</option><option value="500">500 gp (+4)</option><option value="600">600 gp (+5)</option><option value="700">700 gp (+6)</option><option value="800">800 gp (+7)</option><option value="900">900 gp (+8)</option><option value="1000">1000 gp (+9)</option><option value="1100">1100 gp (+10)</option>
+                                <option value="100">100 gp (+0)</option>
+                                <option value="200">200 gp (+1)</option>
+                                <option value="300">300 gp (+2)</option>
+                                <option value="400">400 gp (+3)</option>
+                                <option value="500">500 gp (+4)</option>
+                                <option value="600">600 gp (+5)</option>
+                                <option value="700">700 gp (+6)</option>
+                                <option value="800">800 gp (+7)</option>
+                                <option value="900">900 gp (+8)</option>
+                                <option value="1000">1000 gp (+9)</option>
+                                <option value="1100">1100 gp (+10)</option>
                             </select>
                         </div>
+                    </div>
+
+                    <!-- Dynamic Cap Warning -->
+                    <div id="dt-buy-cap-warning" class="hidden mb-5 bg-red-50 border border-red-200 p-2.5 rounded-sm flex items-center gap-2 shadow-sm animate-in">
+                        <i class="fa-solid fa-triangle-exclamation text-red-600"></i>
+                        <p id="dt-buy-cap-text" class="text-[9px] text-red-800 font-bold uppercase tracking-widest leading-snug">Time and Gold bonuses combined cannot exceed +10. Options exceeding this cap are disabled.</p>
                     </div>
 
                     <div class="mb-5 bg-stone-50 p-4 border border-[#d4c5a9] rounded-sm shadow-inner">
@@ -145,7 +170,11 @@ export const openBuyMagicItemModal = () => {
                             <div>
                                 <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Rarity DC</label>
                                 <select id="dt-buy-rarity" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-white shadow-sm">
-                                    <option value="common">Common (DC 10)</option><option value="uncommon">Uncommon (DC 15)</option><option value="rare">Rare (DC 20)</option><option value="very-rare">Very Rare (DC 25)</option><option value="legendary">Legendary (DC 30)</option>
+                                    <option value="common">Common (DC 10)</option>
+                                    <option value="uncommon">Uncommon (DC 15)</option>
+                                    <option value="rare">Rare (DC 20)</option>
+                                    <option value="very-rare">Very Rare (DC 25)</option>
+                                    <option value="legendary">Legendary (DC 30)</option>
                                 </select>
                             </div>
                         </div>
@@ -203,8 +232,8 @@ export const openBuyMagicItemModal = () => {
 };
 
 export const updateBuyMagicItemMath = () => {
-    const daysEl = document.getElementById('dt-buy-days');
-    const goldEl = document.getElementById('dt-buy-gold');
+    const daysSelect = document.getElementById('dt-buy-days');
+    const goldSelect = document.getElementById('dt-buy-gold');
     const modEl = document.getElementById('dt-buy-mod');
     const magicLvlEl = document.getElementById('dt-buy-magic-lvl');
     const harperToggle = document.getElementById('dt-buy-harper-toggle');
@@ -212,25 +241,73 @@ export const updateBuyMagicItemMath = () => {
     
     const bonusOut = document.getElementById('dt-buy-bonus-out');
     const daysOut = document.getElementById('dt-buy-days-out');
+    const capWarning = document.getElementById('dt-buy-cap-warning');
+    const capText = document.getElementById('dt-buy-cap-text');
 
-    if (!daysEl || !bonusOut) return;
+    if (!daysSelect || !bonusOut) return;
 
-    const days = parseInt(daysEl.value) || 0;
-    const gold = parseInt(goldEl.value) || 0;
+    let currentDays = parseInt(daysSelect.value) || 5;
+    let currentGold = parseInt(goldSelect.value) || 100;
     const pMod = parseInt(modEl.value) || 0;
     
     const isHarper = harperToggle.checked;
     const travelDays = isHarper ? (parseInt(travelEl.value) || 0) : 0;
     const magicLvl = magicLvlEl.value;
 
-    let wBonus = Math.max(0, Math.floor(days / 5) - 1);
-    if (isHarper) wBonus *= 2; 
+    const getDaysBonus = (d) => {
+        let b = Math.max(0, Math.floor(d / 5) - 1);
+        if (isHarper) b *= 2;
+        return b;
+    };
+    
+    const getGoldBonus = (g) => Math.max(0, Math.floor((g - 100) / 100));
 
-    const goldBonus = Math.max(0, Math.floor((gold - 100) / 100));
+    // 1. Force cap if current selection exceeds 10 (e.g., from toggling Harper Network on)
+    let wasAdjusted = false;
+    while (getDaysBonus(currentDays) + getGoldBonus(currentGold) > 10) {
+        wasAdjusted = true;
+        // Step down Gold first, as it is the more liquid resource
+        if (currentGold > 100) {
+            currentGold -= 100;
+        } else if (currentDays > 5) {
+            currentDays -= 5;
+        }
+    }
+
+    if (wasAdjusted) {
+        goldSelect.value = currentGold;
+        daysSelect.value = currentDays;
+    }
+
+    const currentDaysBonus = getDaysBonus(currentDays);
+    const currentGoldBonus = getGoldBonus(currentGold);
+    const combinedEffortBonus = currentDaysBonus + currentGoldBonus;
+
+    // 2. Display appropriate warning message
+    if (capWarning && capText) {
+        if (wasAdjusted) {
+            capWarning.classList.remove('hidden');
+            capText.textContent = "Values adjusted: Time and Gold bonuses combined cannot exceed +10.";
+        } else if (combinedEffortBonus === 10) {
+            capWarning.classList.remove('hidden');
+            capText.textContent = "Maximum +10 combined search bonus reached. Options exceeding this cap are disabled.";
+        } else {
+            capWarning.classList.add('hidden');
+        }
+    }
+
+    // 3. Disable options in the dropdowns that would illegally exceed the +10 cap
+    Array.from(goldSelect.options).forEach(opt => {
+        const g = parseInt(opt.value);
+        opt.disabled = (getGoldBonus(g) + currentDaysBonus > 10);
+    });
     
-    // Xanathar's Rule: Time and Money combined max at +10
-    const combinedEffortBonus = Math.min(10, wBonus + goldBonus);
-    
+    Array.from(daysSelect.options).forEach(opt => {
+        const d = parseInt(opt.value);
+        opt.disabled = (getDaysBonus(d) + currentGoldBonus > 10);
+    });
+
+    // 4. Resolve final math
     let magicBonus = 0;
     if (magicLvl === 'low') magicBonus = -10;
     if (magicLvl === 'high') magicBonus = 10;
@@ -239,7 +316,7 @@ export const updateBuyMagicItemMath = () => {
     
     bonusOut.textContent = totalBonus >= 0 ? `+${totalBonus}` : `${totalBonus}`;
     
-    const totalDays = days + travelDays;
+    const totalDays = currentDays + travelDays;
     daysOut.textContent = `${totalDays} Day${totalDays !== 1 ? 's' : ''}`;
 };
 
