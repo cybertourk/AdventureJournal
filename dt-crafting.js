@@ -229,9 +229,15 @@ export const openCraftingModal = () => {
                                 <p id="dt-craft-progress-rate" class="text-[9px] text-emerald-400 italic mt-1 font-bold text-center hidden"></p>
                             </div>
                             <div class="flex-1 text-right flex flex-col justify-end">
-                                <span class="block text-[10px] uppercase tracking-widest text-stone-400 font-bold mb-0.5">Total Days Deducted</span>
-                                <span id="dt-craft-logged-days" class="text-xl font-bold text-amber-500">1 Day</span>
-                                <p class="text-[8px] text-stone-500 italic mt-0.5">Includes travel time</p>
+                                <div class="flex justify-end gap-3 mb-0.5">
+                                    <span class="block text-[10px] uppercase tracking-widest text-stone-400 font-bold">Complication Risk</span>
+                                    <span class="block text-[10px] uppercase tracking-widest text-stone-400 font-bold">Days Deducted</span>
+                                </div>
+                                <div class="flex justify-end gap-3 items-end">
+                                    <span id="dt-craft-risk-text" class="text-lg font-bold text-red-500" title="10% risk per 5 work-days spent">10%</span>
+                                    <span id="dt-craft-logged-days" class="text-xl font-bold text-amber-500">1 Day</span>
+                                </div>
+                                <p class="text-[8px] text-stone-500 italic mt-0.5 text-right w-full pr-1">Includes travel time</p>
                             </div>
                         </div>
                     </div>
@@ -253,7 +259,17 @@ export const openCraftingModal = () => {
                         <button onclick="window.appActions.closeRecipeBrowser()" class="text-stone-400 hover:text-white transition"><i class="fa-solid fa-xmark text-lg"></i></button>
                     </div>
                     <div class="p-4 sm:p-5 flex-grow flex flex-col min-h-0 bg-[#fdfbf7]">
-                        <input type="text" id="dt-craft-recipe-search" placeholder="Search Xanathar's Magic Items..." class="w-full p-2.5 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 bg-white shadow-inner mb-4" oninput="window.appActions.filterRecipes()">
+                        <div class="flex gap-2 mb-4">
+                            <input type="text" id="dt-craft-recipe-search" placeholder="Search Xanathar's Magic Items..." class="flex-grow p-2.5 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 bg-white shadow-inner" oninput="window.appActions.filterRecipes()">
+                            <select id="dt-craft-recipe-rarity" class="w-1/3 p-2.5 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 bg-white shadow-inner" onchange="window.appActions.filterRecipes()">
+                                <option value="all">All Rarities</option>
+                                <option value="common">Common</option>
+                                <option value="uncommon">Uncommon</option>
+                                <option value="rare">Rare</option>
+                                <option value="very-rare">Very Rare</option>
+                                <option value="legendary">Legendary</option>
+                            </select>
+                        </div>
                         <div id="dt-craft-recipe-list" class="flex-grow overflow-y-auto custom-scrollbar space-y-1 border border-[#d4c5a9] rounded-sm p-1 bg-white shadow-inner">
                             <!-- Populated by JS -->
                         </div>
@@ -292,13 +308,20 @@ export const closeRecipeBrowser = () => {
 export const filterRecipes = () => {
     const searchInput = document.getElementById('dt-craft-recipe-search');
     const listEl = document.getElementById('dt-craft-recipe-list');
+    const rarityFilter = document.getElementById('dt-craft-recipe-rarity')?.value || 'all';
+
     if (!searchInput || !listEl) return;
     
     const query = searchInput.value.toLowerCase().trim();
-    const filtered = RECIPE_CACHE.filter(r => r.name.toLowerCase().includes(query));
+    
+    const filtered = RECIPE_CACHE.filter(r => {
+        const matchName = r.name.toLowerCase().includes(query);
+        const matchRarity = rarityFilter === 'all' || r.rarity === rarityFilter;
+        return matchName && matchRarity;
+    });
     
     if (filtered.length === 0) {
-        listEl.innerHTML = `<p class="text-xs text-stone-500 italic p-4 text-center">No recipes found matching "${query}".</p>`;
+        listEl.innerHTML = `<p class="text-xs text-stone-500 italic p-4 text-center">No recipes found matching the criteria.</p>`;
         return;
     }
 
@@ -329,19 +352,33 @@ export const selectRecipe = (name, rarity, type, isConsumable) => {
     const typeEl = document.getElementById('dt-craft-type');
     if (typeEl) typeEl.value = type;
     
-    // Force the DOM to reveal the correct fields (e.g. rarity options) based on the new type
+    // Force the DOM to reveal the correct fields based on the new type
     window.appActions.updateCraftingMath('type'); 
 
+    // Apply specific locked values so they can't mess with the recipe logic
     const nameEl = document.getElementById('dt-craft-item-name');
-    if (nameEl) nameEl.value = name;
+    if (nameEl) {
+        nameEl.value = name;
+        nameEl.disabled = true;
+        nameEl.classList.add('bg-stone-200', 'text-stone-500');
+        nameEl.classList.remove('bg-stone-50', 'text-stone-900');
+    }
     
     if (type === 'magic' || type === 'other_potion') {
         const rarityEl = document.getElementById('dt-craft-rarity');
-        if (rarityEl) rarityEl.value = rarity;
+        if (rarityEl) {
+            rarityEl.value = rarity;
+            rarityEl.disabled = true;
+            rarityEl.classList.add('bg-stone-200', 'text-stone-500');
+            rarityEl.classList.remove('bg-stone-50', 'text-stone-900');
+        }
         
         if (type === 'magic') {
             const consEl = document.getElementById('dt-craft-consumable');
-            if (consEl) consEl.checked = isConsumable;
+            if (consEl) {
+                consEl.checked = isConsumable;
+                consEl.disabled = true;
+            }
         }
     }
     
@@ -363,6 +400,27 @@ export const updateCraftingMath = (triggerSource = 'input') => {
     const abandonBtn = document.getElementById('dt-craft-abandon-btn');
     const harperBox = document.getElementById('dt-craft-harper-box');
     const artificerBox = document.getElementById('dt-craft-artificer-box');
+
+    // UNLOCK RECIPE FIELDS IF MANUALLY CHANGING PROJECT TYPE OR SWITCHING HEROES
+    if (triggerSource === 'type' || triggerSource === 'init' || triggerSource === 'project' || triggerSource === 'pc') {
+        const nameEl = document.getElementById('dt-craft-item-name');
+        const rarityEl = document.getElementById('dt-craft-rarity');
+        const consEl = document.getElementById('dt-craft-consumable');
+        
+        if (nameEl) {
+            nameEl.disabled = false;
+            nameEl.classList.remove('bg-stone-200', 'text-stone-500');
+            nameEl.classList.add('bg-stone-50', 'text-stone-900');
+        }
+        if (rarityEl) {
+            rarityEl.disabled = false;
+            rarityEl.classList.remove('bg-stone-200', 'text-stone-500');
+            rarityEl.classList.add('bg-stone-50', 'text-stone-900');
+        }
+        if (consEl) {
+            consEl.disabled = false;
+        }
+    }
 
     // Rebuild Collaborators List if PC changed
     if (triggerSource === 'pc' || triggerSource === 'init') {
@@ -532,12 +590,28 @@ export const updateCraftingMath = (triggerSource = 'input') => {
     // Process "Days Spent" Input
     const daysSpentEl = document.getElementById('dt-craft-days-spent');
     const rateEl = document.getElementById('dt-craft-progress-rate');
+    const riskEl = document.getElementById('dt-craft-risk-text');
     
     let daysSpent = parseInt(daysSpentEl.value) || 1;
     
     if (daysSpent > effectiveDaysToComplete) {
         daysSpent = effectiveDaysToComplete;
         daysSpentEl.value = effectiveDaysToComplete;
+    }
+
+    // Complication Risk UI Update (10% per workweek logged)
+    if (riskEl) {
+        const typeEl = document.getElementById('dt-craft-type')?.value;
+        const isMagical = isResuming ? (projects[projectId].type !== 'nonmagical') : (typeEl !== 'nonmagical');
+        
+        if (isMagical) {
+            const workweeks = Math.max(1, Math.ceil(daysSpent / 5));
+            const risk = Math.min(100, workweeks * 10);
+            riskEl.textContent = `${risk}%`;
+        } else {
+            riskEl.textContent = `0%`;
+            riskEl.title = "Nonmagical crafting has no risk of magical complications.";
+        }
     }
 
     // Reveal the rate multiplier if there are helpers so the player understands the speed boost
@@ -703,8 +777,11 @@ export const executeCrafting = async () => {
 
     let complicationText = "";
     if (projectData.type !== 'nonmagical') {
+        const workweeks = Math.max(1, Math.ceil(daysSpent / 5));
+        const risk = Math.min(100, workweeks * 10);
         const d100 = Math.floor(Math.random() * 100) + 1;
-        if (d100 <= 10) {
+        
+        if (d100 <= risk) {
             const d6 = Math.floor(Math.random() * 6) + 1;
             const compTable = [
                 "Rumors swirl that what you’re working on is unstable and a threat to the community.",
@@ -714,7 +791,7 @@ export const executeCrafting = async () => {
                 "A dwarf clan accuses you of stealing its secret lore to fuel your work.",
                 "A competitor spreads rumors that your work is shoddy and prone to failure."
             ];
-            complicationText = `\n\n**⚠️ Complication Rolled!** (${d100}/100)\n> *Result:* ${compTable[d6 - 1]}`;
+            complicationText = `\n\n**⚠️ Complication Occurred!** (${d100}/100 vs ${risk}% Risk)\n> *Result:* ${compTable[d6 - 1]}`;
         } else {
             complicationText = `\n\n*No complications occurred (${d100}/100).*`;
         }
