@@ -1,10 +1,58 @@
 import { generateId, updateDerivedState, reRender } from './state.js';
 import { saveCampaign, notify } from './firebase-manager.js';
 import { logPlayerActivity } from './actions-campaign.js';
+import { MAGIC_ITEM_TABLES } from './data-roll-tables.js'; // Import our official magic item tables!
 
 // ============================================================================
 // --- 3. CRAFTING AN ITEM ---
 // ============================================================================
+
+// --- RECIPE BROWSER ENGINE ---
+let RECIPE_CACHE = [];
+
+const buildRecipeCache = () => {
+    if (RECIPE_CACHE.length > 0) return;
+    const itemMap = new Map();
+    
+    const getTableRarity = (tableLetter) => {
+        switch(tableLetter) {
+            case 'A': return 'common';
+            case 'B': case 'F': return 'uncommon';
+            case 'C': case 'G': return 'rare';
+            case 'D': case 'H': return 'very-rare';
+            case 'E': case 'I': return 'legendary';
+            default: return 'uncommon';
+        }
+    };
+
+    const isConsumable = (itemName) => {
+        const n = itemName.toLowerCase();
+        return n.includes("potion") || n.includes("scroll") || n.includes("ammunition") || 
+               n.includes("arrow") || n.includes("bolt") || n.includes("dart") || 
+               n.includes("bullet") || n.includes("needle") || n.includes("elixir") || 
+               n.includes("oil") || n.includes("dust") || n.includes("solvent") || 
+               n.includes("glue") || n.includes("ointment") || n.includes("feather token") || 
+               n.includes("bean") || n.includes("bead");
+    };
+
+    // Scrape every item from the massive Xanathar's roll tables
+    for (const [tableLetter, items] of Object.entries(MAGIC_ITEM_TABLES)) {
+        const rarity = getTableRarity(tableLetter);
+        items.forEach(row => {
+            const itemName = row[2];
+            // If the item appears on multiple tables, keep the highest rarity version (or first found)
+            if (!itemMap.has(itemName)) {
+                const cons = isConsumable(itemName);
+                const isPotion = itemName.toLowerCase().includes("potion") || itemName.toLowerCase().includes("elixir") || itemName.toLowerCase().includes("oil");
+                const type = isPotion ? 'other_potion' : 'magic';
+                itemMap.set(itemName, { name: itemName, rarity, type, consumable: cons });
+            }
+        });
+    }
+    
+    // Sort alphabetically for the UI
+    RECIPE_CACHE = Array.from(itemMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+};
 
 export const openCraftingModal = () => {
     updateDerivedState();
@@ -69,6 +117,13 @@ export const openCraftingModal = () => {
                             <div id="dt-craft-name-wrapper">
                                 <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Item Name</label>
                                 <input type="text" id="dt-craft-item-name" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-stone-50 shadow-inner" placeholder="e.g. Plate Armor">
+                            </div>
+                            
+                            <!-- RECIPE BROWSER BUTTON -->
+                            <div class="col-span-1 sm:col-span-2 mb-1" id="dt-craft-recipe-btn-wrapper">
+                                <button type="button" onclick="window.appActions.openRecipeBrowser()" class="w-full py-2 bg-stone-100 text-stone-600 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-400 transition text-[10px] font-bold uppercase tracking-wider rounded-sm shadow-sm border border-[#d4c5a9] flex items-center justify-center">
+                                    <i class="fa-solid fa-search mr-2"></i> Browse Magic Item Recipes
+                                </button>
                             </div>
                         </div>
 
@@ -188,6 +243,23 @@ export const openCraftingModal = () => {
                     <button id="dt-craft-submit-btn" onclick="window.appActions.executeCrafting()" class="px-5 py-2 bg-blue-800 text-amber-50 rounded-sm hover:bg-blue-700 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs flex items-center shadow-md"><i class="fa-solid fa-hammer mr-2"></i> Log Crafting</button>
                 </div>
             </div>
+            
+            <!-- RECIPE BROWSER OVERLAY -->
+            <div id="dt-craft-recipe-modal" class="hidden absolute inset-0 bg-stone-950/95 flex items-center justify-center p-4 z-[19000] backdrop-blur-sm animate-in">
+                <div class="bg-[#f4ebd8] rounded-sm w-full max-w-lg border border-[#d4c5a9] shadow-2xl relative flex flex-col max-h-[90vh]">
+                    <div class="bg-stone-900 p-3 sm:p-4 border-b-2 border-amber-600 shadow-md shrink-0 flex justify-between items-center text-amber-50">
+                        <h3 class="text-base font-serif font-bold flex items-center"><i class="fa-solid fa-search mr-2 text-amber-500"></i> Recipe Browser</h3>
+                        <button onclick="window.appActions.closeRecipeBrowser()" class="text-stone-400 hover:text-white transition"><i class="fa-solid fa-xmark text-lg"></i></button>
+                    </div>
+                    <div class="p-4 sm:p-5 flex-grow flex flex-col min-h-0 bg-[#fdfbf7]">
+                        <input type="text" id="dt-craft-recipe-search" placeholder="Search Xanathar's Magic Items..." class="w-full p-2.5 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 bg-white shadow-inner mb-4" oninput="window.appActions.filterRecipes()">
+                        <div id="dt-craft-recipe-list" class="flex-grow overflow-y-auto custom-scrollbar space-y-1 border border-[#d4c5a9] rounded-sm p-1 bg-white shadow-inner">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     `;
 
@@ -195,6 +267,85 @@ export const openCraftingModal = () => {
     setTimeout(() => {
         window.appActions.updateCraftingMath('init');
     }, 50);
+};
+
+export const openRecipeBrowser = () => {
+    buildRecipeCache();
+    const modal = document.getElementById('dt-craft-recipe-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        const searchInput = document.getElementById('dt-craft-recipe-search');
+        if (searchInput) {
+            searchInput.value = '';
+            setTimeout(() => searchInput.focus(), 100);
+        }
+        window.appActions.filterRecipes(); 
+    }
+};
+
+export const closeRecipeBrowser = () => {
+    const modal = document.getElementById('dt-craft-recipe-modal');
+    if (modal) modal.classList.add('hidden');
+};
+
+export const filterRecipes = () => {
+    const searchInput = document.getElementById('dt-craft-recipe-search');
+    const listEl = document.getElementById('dt-craft-recipe-list');
+    if (!searchInput || !listEl) return;
+    
+    const query = searchInput.value.toLowerCase().trim();
+    const filtered = RECIPE_CACHE.filter(r => r.name.toLowerCase().includes(query));
+    
+    if (filtered.length === 0) {
+        listEl.innerHTML = `<p class="text-xs text-stone-500 italic p-4 text-center">No recipes found matching "${query}".</p>`;
+        return;
+    }
+
+    let html = '';
+    filtered.forEach(r => {
+        const rarityColor = r.rarity === 'legendary' ? 'text-orange-600' : (r.rarity === 'very-rare' ? 'text-purple-600' : (r.rarity === 'rare' ? 'text-blue-600' : (r.rarity === 'uncommon' ? 'text-emerald-600' : 'text-stone-600')));
+        
+        // Escape apostrophes to prevent breaking the onclick handler
+        const safeName = r.name.replace(/'/g, "\\'");
+        
+        html += `
+            <div class="flex justify-between items-center p-2 hover:bg-stone-50 border-b border-stone-100 last:border-0 transition-colors cursor-pointer group" onclick="window.appActions.selectRecipe('${safeName}', '${r.rarity}', '${r.type}', ${r.consumable})">
+                <div class="min-w-0 pr-2">
+                    <span class="font-bold text-stone-800 text-sm block truncate group-hover:text-amber-700 transition-colors">${r.name}</span>
+                    <span class="text-[9px] uppercase font-bold tracking-widest ${rarityColor}">${r.rarity.replace('-', ' ')} ${r.consumable ? '<span class="text-stone-400 italic normal-case tracking-normal ml-1">(Consumable)</span>' : ''}</span>
+                </div>
+                <button class="shrink-0 px-3 py-1.5 bg-stone-200 text-stone-700 rounded-sm text-[9px] font-bold uppercase tracking-wider group-hover:bg-stone-800 group-hover:text-amber-50 transition shadow-sm border border-[#d4c5a9] group-hover:border-stone-700">Select</button>
+            </div>
+        `;
+    });
+    listEl.innerHTML = html;
+};
+
+export const selectRecipe = (name, rarity, type, isConsumable) => {
+    window.appActions.closeRecipeBrowser();
+    
+    // Switch the primary Project Type dropdown
+    const typeEl = document.getElementById('dt-craft-type');
+    if (typeEl) typeEl.value = type;
+    
+    // Force the DOM to reveal the correct fields (e.g. rarity options) based on the new type
+    window.appActions.updateCraftingMath('type'); 
+
+    const nameEl = document.getElementById('dt-craft-item-name');
+    if (nameEl) nameEl.value = name;
+    
+    if (type === 'magic' || type === 'other_potion') {
+        const rarityEl = document.getElementById('dt-craft-rarity');
+        if (rarityEl) rarityEl.value = rarity;
+        
+        if (type === 'magic') {
+            const consEl = document.getElementById('dt-craft-consumable');
+            if (consEl) consEl.checked = isConsumable;
+        }
+    }
+    
+    // Trigger final recalculation of days and gold
+    window.appActions.updateCraftingMath('input');
 };
 
 export const updateCraftingMath = (triggerSource = 'input') => {
@@ -613,3 +764,22 @@ export const executeCrafting = async () => {
     notify(`Crafting progress logged for all participants.`, "success");
     reRender();
 };
+
+// ============================================================================
+// --- GLOBAL EXPORTS BINDING ---
+// ============================================================================
+
+if (typeof window !== 'undefined') {
+    window.appActions = window.appActions || {};
+    
+    window.appActions.openCraftingModal = openCraftingModal;
+    window.appActions.updateCraftingMath = updateCraftingMath;
+    window.appActions.executeCrafting = executeCrafting;
+    window.appActions.abandonCraftingProject = abandonCraftingProject;
+    
+    // Bind Recipe Browser Functions
+    window.appActions.openRecipeBrowser = openRecipeBrowser;
+    window.appActions.closeRecipeBrowser = closeRecipeBrowser;
+    window.appActions.filterRecipes = filterRecipes;
+    window.appActions.selectRecipe = selectRecipe;
+}
