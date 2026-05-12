@@ -174,7 +174,6 @@ export const openCarouseContacts = () => {
 
     const modal = document.getElementById('dt-carouse-contacts-modal');
     if (modal) {
-        // Ensure form is hidden upon opening
         document.getElementById('dt-carouse-contact-form').classList.add('hidden');
         modal.classList.remove('hidden');
         window.appActions.renderCarouseContactsList(pcId);
@@ -199,7 +198,6 @@ export const prepDefineContact = (id, type, socialClass) => {
     typeSelect.value = type;
     classSelect.value = socialClass;
     
-    // Lock inputs to force compliance with the Banked Contact attributes (Unlock if DM override)
     if (id) {
         typeSelect.disabled = true;
         classSelect.disabled = true;
@@ -257,9 +255,20 @@ export const renderCarouseContactsList = (pcId) => {
         html = '<p class="text-stone-500 italic text-xs py-2 border border-dashed border-[#d4c5a9] rounded-sm bg-stone-50 text-center">No active contacts recorded yet.</p>';
     } else {
         contacts.forEach(c => {
-            const statusColor = c.active ? 'text-emerald-700' : 'text-stone-400';
-            const statusBg = c.active ? 'bg-emerald-50 border-emerald-200' : 'bg-stone-100 border-stone-300';
-            const statusText = c.active ? '<i class="fa-solid fa-check mr-1"></i> Active' : '<i class="fa-solid fa-times mr-1"></i> Inactive';
+            const statusBadge = c.active 
+                ? `<span class="text-[9px] uppercase tracking-widest font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded whitespace-nowrap"><i class="fa-solid fa-check mr-1"></i> Active</span>` 
+                : `<span class="text-[9px] uppercase tracking-widest font-bold text-stone-500 bg-stone-100 border border-stone-300 px-2 py-1 rounded whitespace-nowrap"><i class="fa-solid fa-times mr-1"></i> Inactive</span>`;
+            
+            // Re-Carouse Action Button Logic (Ally vs Hostile distinct terminology)
+            let tooltipUsed = c.type === 'ally' ? "Click when you cash in a favor from this contact" : "Click when this enemy hinders you in the narrative";
+            let tooltipReactivate = c.type === 'ally' ? "Spend 1 Banked Ally to Reactivate" : "Spend 1 Banked Hostile to Reactivate";
+            let iconUsed = c.type === 'ally' ? "fa-hand-holding-hand" : "fa-handcuffs";
+            let iconReactivate = "fa-bolt";
+
+            const actionButton = c.active 
+                ? `<button onclick="window.appActions.markCarouseContactUsed('${pcId}', '${c.id}')" class="text-[9px] uppercase tracking-widest font-bold text-stone-600 bg-stone-200 px-2 py-1 rounded shadow-sm hover:bg-stone-300 transition whitespace-nowrap w-24 text-center" title="${tooltipUsed}"><i class="fa-solid ${iconUsed} mr-1"></i> Mark Used</button>`
+                : `<button onclick="window.appActions.reactivateCarouseContact('${pcId}', '${c.id}')" class="text-[9px] uppercase tracking-widest font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 px-2 py-1 rounded shadow-sm hover:bg-emerald-200 transition whitespace-nowrap w-24 text-center" title="${tooltipReactivate}"><i class="fa-solid ${iconReactivate} mr-1"></i> Reactivate</button>`;
+
             const typeIcon = c.type === 'ally' ? '<i class="fa-solid fa-handshake text-emerald-600" title="Ally"></i>' : '<i class="fa-solid fa-skull-crossbones text-red-600" title="Hostile"></i>';
             
             html += `
@@ -273,7 +282,9 @@ export const renderCarouseContactsList = (pcId) => {
                         </div>
                     </div>
                     <div class="flex gap-2 items-center shrink-0">
-                        <button onclick="window.appActions.toggleCarouseContact('${pcId}', '${c.id}')" class="text-[9px] uppercase tracking-widest font-bold ${statusColor} ${statusBg} px-2 py-1 rounded shadow-sm hover:brightness-95 transition whitespace-nowrap w-20 text-center">${statusText}</button>
+                        ${statusBadge}
+                        <div class="w-px h-4 bg-stone-300 mx-1"></div>
+                        ${actionButton}
                         <button onclick="window.appActions.deleteCarouseContact('${pcId}', '${c.id}')" class="text-stone-400 hover:text-red-700 transition ml-1" title="Delete Contact"><i class="fa-solid fa-trash text-sm p-1"></i></button>
                     </div>
                 </div>
@@ -330,29 +341,91 @@ export const saveNewCarouseContact = async () => {
         return p;
     });
 
-    const updatedCamp = { ...camp, playerCharacters: updatedPCs };
-    await saveCampaign(updatedCamp);
-    
-    // Hide form and re-render
+    // Local Optimistic Update
+    window.appData.activeCampaign.playerCharacters = updatedPCs;
     document.getElementById('dt-carouse-contact-form').classList.add('hidden');
     window.appActions.renderCarouseContactsList(pcId);
+    
+    await saveCampaign({ ...camp, playerCharacters: updatedPCs });
     notify("Contact bound successfully.", "success");
 };
 
-export const toggleCarouseContact = async (pcId, contactId) => {
+export const markCarouseContactUsed = async (pcId, contactId) => {
     const camp = window.appData.activeCampaign;
+    const pc = camp.playerCharacters.find(p => p.id === pcId);
+    const contact = pc.carousingContacts.find(c => c.id === contactId);
+    
+    let logAddition = "";
+    if (contact.type === 'ally') {
+        if (!confirm(`Mark ${contact.name}'s favor as used? They will become inactive.`)) return;
+        logAddition = `\n\n---\n\n**Logged on ${new Date().toLocaleDateString()}**\n**Downtime: Favor Used**\n*Hero:* ${pc.name}\n\nCalled in a favor from **${contact.name}**. They are now considered Inactive.`;
+    } else {
+        if (!confirm(`Mark ${contact.name}'s hindrance as resolved? They will become inactive.`)) return;
+        logAddition = `\n\n---\n\n**Logged on ${new Date().toLocaleDateString()}**\n**Downtime: Hindrance Suffered**\n*Hero:* ${pc.name}\n\nSuffered a setback caused by **${contact.name}**. They are now considered Inactive.`;
+    }
+
     const updatedPCs = camp.playerCharacters.map(p => {
         if (p.id === pcId) {
             const updatedContacts = (p.carousingContacts || []).map(c => 
-                c.id === contactId ? { ...c, active: !c.active } : c
+                c.id === contactId ? { ...c, active: false } : c
             );
-            return { ...p, carousingContacts: updatedContacts };
+            return { ...p, carousingContacts: updatedContacts, downtimeLog: (p.downtimeLog || '') + logAddition };
         }
         return p;
     });
     
-    await saveCampaign({ ...camp, playerCharacters: updatedPCs });
+    // Local Optimistic Update
+    window.appData.activeCampaign.playerCharacters = updatedPCs;
     window.appActions.renderCarouseContactsList(pcId);
+
+    await saveCampaign({ ...camp, playerCharacters: updatedPCs });
+    notify(`${contact.name} marked as Used.`, "success");
+};
+
+export const reactivateCarouseContact = async (pcId, contactId) => {
+    const camp = window.appData.activeCampaign;
+    const pc = camp.playerCharacters.find(p => p.id === pcId);
+    const contact = pc.carousingContacts.find(c => c.id === contactId);
+    
+    const reqType = contact.type; // 'ally' or 'hostile'
+
+    // Find a banked contact of the exact same type and social class
+    const bankedIndex = (pc.bankedContacts || []).findIndex(b => b.type === reqType && b.socialClass === contact.socialClass);
+
+    if (bankedIndex === -1) {
+        notify(`You need a Banked ${reqType === 'ally' ? 'Ally' : 'Hostile'} (${contact.socialClass} class) to reactivate this contact. Run the Carousing activity to gain more!`, 'error');
+        return;
+    }
+
+    if (!confirm(`Spend 1 Banked ${reqType === 'ally' ? 'Ally' : 'Hostile'} (${contact.socialClass} class) to reactivate ${contact.name}?`)) return;
+
+    // Remove the banked entity
+    const updatedBanked = [...pc.bankedContacts];
+    updatedBanked.splice(bankedIndex, 1);
+
+    let logAddition = "";
+    if (reqType === 'ally') {
+        logAddition = `\n\n---\n\n**Logged on ${new Date().toLocaleDateString()}**\n**Downtime: Favor Reactivated**\n*Hero:* ${pc.name}\n\nSpent 1 Banked Ally (${contact.socialClass} class) to get back into the good graces of **${contact.name}**. They are active again!`;
+    } else {
+        logAddition = `\n\n---\n\n**Logged on ${new Date().toLocaleDateString()}**\n**Downtime: Enemy Reactivated**\n*Hero:* ${pc.name}\n\nSpent 1 Banked Hostile (${contact.socialClass} class) to draw the ire of **${contact.name}** once more. They are active again!`;
+    }
+
+    const updatedPCs = camp.playerCharacters.map(p => {
+        if (p.id === pcId) {
+            const updatedContacts = (p.carousingContacts || []).map(c => 
+                c.id === contactId ? { ...c, active: true } : c
+            );
+            return { ...p, carousingContacts: updatedContacts, bankedContacts: updatedBanked, downtimeLog: (p.downtimeLog || '') + logAddition };
+        }
+        return p;
+    });
+
+    // Local Optimistic Update
+    window.appData.activeCampaign.playerCharacters = updatedPCs;
+    window.appActions.renderCarouseContactsList(pcId);
+
+    await saveCampaign({ ...camp, playerCharacters: updatedPCs });
+    notify(`${contact.name} reactivated!`, 'success');
 };
 
 export const deleteCarouseContact = async (pcId, contactId) => {
@@ -367,8 +440,12 @@ export const deleteCarouseContact = async (pcId, contactId) => {
         return p;
     });
     
-    await saveCampaign({ ...camp, playerCharacters: updatedPCs });
+    // Local Optimistic Update
+    window.appData.activeCampaign.playerCharacters = updatedPCs;
     window.appActions.renderCarouseContactsList(pcId);
+
+    await saveCampaign({ ...camp, playerCharacters: updatedPCs });
+    notify("Contact deleted.", "success");
 };
 
 // --- CORE CAROUSING MATH ---
@@ -559,6 +636,9 @@ if (typeof window !== 'undefined') {
     window.appActions.prepDefineContact = prepDefineContact;
     window.appActions.renderCarouseContactsList = renderCarouseContactsList;
     window.appActions.saveNewCarouseContact = saveNewCarouseContact;
-    window.appActions.toggleCarouseContact = toggleCarouseContact;
+    
+    // Updated specific exports for the local UI behavior:
+    window.appActions.markCarouseContactUsed = markCarouseContactUsed;
+    window.appActions.reactivateCarouseContact = reactivateCarouseContact;
     window.appActions.deleteCarouseContact = deleteCarouseContact;
 }
