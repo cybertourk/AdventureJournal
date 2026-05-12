@@ -224,8 +224,9 @@ export const openCraftingModal = () => {
                         </div>
                         <div class="flex items-center justify-between gap-4">
                             <div class="flex-1">
-                                <label class="block text-[10px] uppercase text-stone-400 font-bold mb-1 tracking-widest">Work Days to Spend <span class="normal-case font-normal">(Per Hero)</span></label>
+                                <label class="block text-[10px] uppercase text-stone-400 font-bold mb-1 tracking-widest">Downtime to Spend <span class="normal-case font-normal">(Per Hero)</span></label>
                                 <input type="number" id="dt-craft-days-spent" value="1" min="1" oninput="window.appActions.updateCraftingMath('input')" class="w-full p-2 border border-stone-600 rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-500 text-center bg-stone-200">
+                                <p id="dt-craft-progress-rate" class="text-[9px] text-emerald-400 italic mt-1 font-bold text-center hidden"></p>
                             </div>
                             <div class="flex-1 text-right flex flex-col justify-end">
                                 <span class="block text-[10px] uppercase tracking-widest text-stone-400 font-bold mb-0.5">Total Days Deducted</span>
@@ -518,18 +519,35 @@ export const updateCraftingMath = (triggerSource = 'input') => {
     const workRemaining = totalTime - currentProgress;
     const effectiveDaysToComplete = Math.max(1, Math.ceil(workRemaining / numWorkers));
 
-    // Update Totals UI
-    document.getElementById('dt-craft-total-days').textContent = `${totalTime} Days`;
+    // Update Totals UI (Dynamically update the label if collaborators are selected to make the math transparent!)
+    if (numWorkers > 1) {
+        const perHero = Math.ceil(totalTime / numWorkers);
+        document.getElementById('dt-craft-total-days').innerHTML = `${totalTime} Work-Days <span class="text-[10px] text-stone-400 normal-case">(${perHero} Days Each)</span>`;
+    } else {
+        document.getElementById('dt-craft-total-days').textContent = `${totalTime} Days`;
+    }
     document.getElementById('dt-craft-total-gold').textContent = `${totalCost} gp`;
     document.getElementById('dt-craft-progress-text').textContent = `${currentProgress} / ${totalTime} Days Complete`;
 
     // Process "Days Spent" Input
     const daysSpentEl = document.getElementById('dt-craft-days-spent');
+    const rateEl = document.getElementById('dt-craft-progress-rate');
+    
     let daysSpent = parseInt(daysSpentEl.value) || 1;
     
     if (daysSpent > effectiveDaysToComplete) {
         daysSpent = effectiveDaysToComplete;
         daysSpentEl.value = effectiveDaysToComplete;
+    }
+
+    // Reveal the rate multiplier if there are helpers so the player understands the speed boost
+    if (numWorkers > 1) {
+        if (rateEl) {
+            rateEl.textContent = `Generates ${numWorkers} days of progress per day spent!`;
+            rateEl.classList.remove('hidden');
+        }
+    } else {
+        if (rateEl) rateEl.classList.add('hidden');
     }
 
     const travelDays = document.getElementById('dt-craft-harper').checked && !isResuming ? (parseInt(document.getElementById('dt-craft-harper-travel').value) || 0) : 0;
