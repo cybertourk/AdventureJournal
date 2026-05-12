@@ -50,7 +50,7 @@ export const openCarousingModal = () => {
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Persuasion Modifier</label>
                             <div class="flex items-center">
                                 <span class="bg-stone-200 border border-r-0 border-[#d4c5a9] px-3 py-2 text-sm font-bold text-stone-600 rounded-l-sm">+</span>
-                                <input type="number" id="dt-carouse-mod" value="0" class="w-full p-2 border border-[#d4c5a9] rounded-r-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-white shadow-inner text-center">
+                                <input type="number" id="dt-carouse-mod" value="0" class="w-full p-2 border border-[#d4c5a9] rounded-r-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-white shadow-inner text-center" title="Your Persuasion modifier determines your maximum contact limit">
                             </div>
                         </div>
                     </div>
@@ -109,27 +109,36 @@ export const openCarousingModal = () => {
                         <button onclick="window.appActions.closeCarouseContacts()" class="text-stone-400 hover:text-white transition"><i class="fa-solid fa-xmark text-lg"></i></button>
                     </div>
                     
-                    <div class="p-4 sm:p-5 overflow-y-auto custom-scrollbar flex-grow bg-[#fdfbf7] space-y-5">
+                    <div class="p-4 sm:p-5 overflow-y-auto custom-scrollbar flex-grow bg-[#fdfbf7]">
                         <input type="hidden" id="dt-carouse-contact-pc-id">
                         
-                        <!-- Add New Contact Form -->
-                        <div class="bg-stone-100 p-3 sm:p-4 border border-[#d4c5a9] rounded-sm shadow-inner">
-                            <h4 class="text-[10px] uppercase font-bold text-stone-500 tracking-widest mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-feather-pointed mr-1 text-stone-400"></i> Scribe New Contact</h4>
+                        <!-- Banked Contacts Container -->
+                        <div id="dt-carouse-banked-list" class="mb-5"></div>
+                        
+                        ${isDM ? `<button onclick="window.appActions.prepDefineContact('', 'ally', 'lower')" class="text-[9px] font-bold uppercase tracking-widest text-blue-600 mb-5 flex items-center hover:text-blue-800 transition"><i class="fa-solid fa-plus mr-1"></i> DM Override: Force Add Contact</button>` : ''}
+
+                        <!-- Add New Contact Form (Hidden by default until a Banked Contact is Defined) -->
+                        <div id="dt-carouse-contact-form" class="hidden bg-stone-100 p-3 sm:p-4 border border-[#d4c5a9] rounded-sm shadow-inner mb-6 relative">
+                            <input type="hidden" id="dt-carouse-define-id">
+                            <div class="flex justify-between items-center mb-3 border-b border-[#d4c5a9] pb-2">
+                                <h4 class="text-[10px] uppercase font-bold text-stone-500 tracking-widest"><i class="fa-solid fa-feather-pointed mr-1 text-stone-400"></i> Define Contact</h4>
+                                <button onclick="document.getElementById('dt-carouse-contact-form').classList.add('hidden')" class="text-stone-400 hover:text-red-900 transition"><i class="fa-solid fa-xmark text-sm"></i></button>
+                            </div>
                             <div class="grid grid-cols-2 gap-3 mb-3">
                                 <input type="text" id="dt-carouse-contact-name" placeholder="Contact Name" class="col-span-2 p-2 text-xs border border-[#d4c5a9] rounded-sm outline-none focus:border-amber-600 shadow-sm bg-white font-bold text-stone-900">
-                                <select id="dt-carouse-contact-type" class="p-2 text-xs border border-[#d4c5a9] rounded-sm outline-none focus:border-amber-600 shadow-sm bg-white font-bold text-stone-900">
+                                <select id="dt-carouse-contact-type" class="p-2 text-xs border border-[#d4c5a9] rounded-sm outline-none focus:border-amber-600 shadow-sm bg-white font-bold text-stone-900 disabled:bg-stone-200 disabled:text-stone-500">
                                     <option value="ally">Ally</option>
                                     <option value="hostile">Hostile</option>
                                 </select>
-                                <select id="dt-carouse-contact-class" class="p-2 text-xs border border-[#d4c5a9] rounded-sm outline-none focus:border-amber-600 shadow-sm bg-white font-bold text-stone-900">
-                                    <option value="Lower Class">Lower Class</option>
-                                    <option value="Middle Class">Middle Class</option>
-                                    <option value="Upper Class">Upper Class</option>
+                                <select id="dt-carouse-contact-class" class="p-2 text-xs border border-[#d4c5a9] rounded-sm outline-none focus:border-amber-600 shadow-sm bg-white font-bold text-stone-900 disabled:bg-stone-200 disabled:text-stone-500">
+                                    <option value="lower">Lower Class</option>
+                                    <option value="middle">Middle Class</option>
+                                    <option value="upper">Upper Class</option>
                                 </select>
                                 <textarea id="dt-carouse-contact-desc" placeholder="Description & Notes..." class="col-span-2 p-2 text-xs border border-[#d4c5a9] rounded-sm outline-none focus:border-amber-600 shadow-sm bg-white font-serif resize-none h-20 custom-scrollbar"></textarea>
                             </div>
                             <div class="flex justify-end">
-                                <button onclick="window.appActions.saveNewCarouseContact()" class="px-4 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] shadow-md flex items-center"><i class="fa-solid fa-plus mr-1.5"></i> Add Contact</button>
+                                <button onclick="window.appActions.saveNewCarouseContact()" class="px-4 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] shadow-md flex items-center"><i class="fa-solid fa-floppy-disk mr-1.5"></i> Save & Bind Contact</button>
                             </div>
                         </div>
 
@@ -158,6 +167,8 @@ export const openCarouseContacts = () => {
 
     const modal = document.getElementById('dt-carouse-contacts-modal');
     if (modal) {
+        // Ensure form is hidden upon opening
+        document.getElementById('dt-carouse-contact-form').classList.add('hidden');
         modal.classList.remove('hidden');
         window.appActions.renderCarouseContactsList(pcId);
     }
@@ -168,17 +179,75 @@ export const closeCarouseContacts = () => {
     if (modal) modal.classList.add('hidden');
 };
 
+export const prepDefineContact = (id, type, socialClass) => {
+    const form = document.getElementById('dt-carouse-contact-form');
+    if (!form) return;
+
+    form.classList.remove('hidden');
+    document.getElementById('dt-carouse-define-id').value = id || '';
+    
+    const typeSelect = document.getElementById('dt-carouse-contact-type');
+    const classSelect = document.getElementById('dt-carouse-contact-class');
+    
+    typeSelect.value = type;
+    classSelect.value = socialClass;
+    
+    // Lock inputs to force compliance with the Banked Contact attributes (Unlock if DM override)
+    if (id) {
+        typeSelect.disabled = true;
+        classSelect.disabled = true;
+    } else {
+        typeSelect.disabled = false;
+        classSelect.disabled = false;
+    }
+
+    document.getElementById('dt-carouse-contact-name').value = '';
+    document.getElementById('dt-carouse-contact-desc').value = '';
+
+    setTimeout(() => {
+        form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        document.getElementById('dt-carouse-contact-name').focus();
+    }, 100);
+};
+
 export const renderCarouseContactsList = (pcId) => {
     const camp = window.appData.activeCampaign;
     const pc = camp.playerCharacters?.find(p => p.id === pcId);
     const listContainer = document.getElementById('dt-carouse-contacts-list');
-    if (!pc || !listContainer) return;
+    const bankedContainer = document.getElementById('dt-carouse-banked-list');
+    if (!pc || !listContainer || !bankedContainer) return;
 
+    // 1. Render Banked Contacts
+    const banked = pc.bankedContacts || [];
+    if (banked.length > 0) {
+        let bankedHtml = `<h4 class="text-[10px] uppercase font-bold text-amber-700 tracking-widest mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-user-clock mr-1 text-amber-600"></i> Banked Contacts (Awaiting Definition)</h4><div class="space-y-2">`;
+        banked.forEach(b => {
+            const typeIcon = b.type === 'ally' ? '<i class="fa-solid fa-handshake text-emerald-600" title="Ally"></i>' : '<i class="fa-solid fa-skull-crossbones text-red-600" title="Hostile"></i>';
+            bankedHtml += `
+                <div class="bg-white p-2.5 border border-[#d4c5a9] rounded-sm shadow-sm flex justify-between items-center gap-2 hover:border-amber-400 transition-colors">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <div class="w-5 flex justify-center shrink-0">${typeIcon}</div>
+                        <span class="text-[10px] sm:text-xs font-bold text-stone-800 uppercase tracking-widest truncate">Unidentified ${b.type}</span>
+                        <span class="text-[8px] uppercase tracking-widest text-stone-500 bg-stone-100 px-1.5 py-0.5 border border-stone-200 rounded-sm shrink-0 whitespace-nowrap">${b.socialClass}</span>
+                    </div>
+                    <button onclick="window.appActions.prepDefineContact('${b.id}', '${b.type}', '${b.socialClass}')" class="px-3 py-1 bg-stone-800 text-amber-50 rounded-sm text-[9px] font-bold uppercase tracking-wider hover:bg-stone-700 transition shadow-sm shrink-0">Define</button>
+                </div>
+            `;
+        });
+        bankedHtml += `</div>`;
+        bankedContainer.innerHTML = bankedHtml;
+        bankedContainer.classList.remove('hidden');
+    } else {
+        bankedContainer.innerHTML = '';
+        bankedContainer.classList.add('hidden');
+    }
+
+    // 2. Render Known Contacts
     const contacts = pc.carousingContacts || [];
     let html = '';
 
     if (contacts.length === 0) {
-        html = '<p class="text-stone-500 italic text-xs py-2">No contacts recorded yet.</p>';
+        html = '<p class="text-stone-500 italic text-xs py-2 border border-dashed border-[#d4c5a9] rounded-sm bg-stone-50 text-center">No active contacts recorded yet.</p>';
     } else {
         contacts.forEach(c => {
             const statusColor = c.active ? 'text-emerald-700' : 'text-stone-400';
@@ -189,15 +258,16 @@ export const renderCarouseContactsList = (pcId) => {
             html += `
             <div class="bg-white p-3 sm:p-4 border border-[#d4c5a9] rounded-sm shadow-sm flex flex-col gap-2 relative group hover:border-amber-300 transition-colors">
                 <div class="flex justify-between items-start border-b border-[#d4c5a9] pb-2">
-                    <div class="min-w-0 pr-2">
-                        <span class="font-bold text-stone-900 text-sm truncate block">${c.name}</span>
-                        <span class="text-[9px] uppercase tracking-widest text-stone-500 font-bold">${c.socialClass}</span>
+                    <div class="min-w-0 pr-2 flex items-center gap-2">
+                        <div class="w-5 flex justify-center shrink-0">${typeIcon}</div>
+                        <div>
+                            <span class="font-bold text-stone-900 text-sm truncate block leading-tight">${c.name}</span>
+                            <span class="text-[8px] uppercase tracking-widest text-stone-500 font-bold block mt-0.5">${c.socialClass} Class</span>
+                        </div>
                     </div>
                     <div class="flex gap-2 items-center shrink-0">
-                        ${typeIcon}
-                        <div class="w-px h-4 bg-stone-300 mx-1"></div>
                         <button onclick="window.appActions.toggleCarouseContact('${pcId}', '${c.id}')" class="text-[9px] uppercase tracking-widest font-bold ${statusColor} ${statusBg} px-2 py-1 rounded shadow-sm hover:brightness-95 transition whitespace-nowrap w-20 text-center">${statusText}</button>
-                        <button onclick="window.appActions.deleteCarouseContact('${pcId}', '${c.id}')" class="text-stone-400 hover:text-red-700 transition ml-1" title="Delete Contact"><i class="fa-solid fa-trash text-sm"></i></button>
+                        <button onclick="window.appActions.deleteCarouseContact('${pcId}', '${c.id}')" class="text-stone-400 hover:text-red-700 transition ml-1" title="Delete Contact"><i class="fa-solid fa-trash text-sm p-1"></i></button>
                     </div>
                 </div>
                 <p class="text-xs text-stone-700 font-serif leading-relaxed mt-1">${(c.description || '').replace(/"/g, '&quot;').replace(/\n/g, '<br>')}</p>
@@ -212,6 +282,8 @@ export const renderCarouseContactsList = (pcId) => {
 
 export const saveNewCarouseContact = async () => {
     const pcId = document.getElementById('dt-carouse-contact-pc-id').value;
+    const defineId = document.getElementById('dt-carouse-define-id').value;
+    
     const name = document.getElementById('dt-carouse-contact-name').value.trim();
     const type = document.getElementById('dt-carouse-contact-type').value;
     const socialClass = document.getElementById('dt-carouse-contact-class').value;
@@ -226,6 +298,11 @@ export const saveNewCarouseContact = async () => {
     const pc = camp.playerCharacters?.find(p => p.id === pcId);
     if (!pc) return;
 
+    if (!defineId && !camp._isDM) {
+        notify("You must select 'Define' on a Banked Contact to add them to your sheet.", "error");
+        return;
+    }
+
     const newContact = {
         id: generateId(),
         name,
@@ -237,7 +314,11 @@ export const saveNewCarouseContact = async () => {
 
     const updatedPCs = camp.playerCharacters.map(p => {
         if (p.id === pcId) {
-            return { ...p, carousingContacts: [...(p.carousingContacts || []), newContact] };
+            let banked = p.bankedContacts || [];
+            if (defineId) {
+                banked = banked.filter(b => b.id !== defineId);
+            }
+            return { ...p, carousingContacts: [...(p.carousingContacts || []), newContact], bankedContacts: banked };
         }
         return p;
     });
@@ -245,12 +326,10 @@ export const saveNewCarouseContact = async () => {
     const updatedCamp = { ...camp, playerCharacters: updatedPCs };
     await saveCampaign(updatedCamp);
     
-    // Reset form
-    document.getElementById('dt-carouse-contact-name').value = '';
-    document.getElementById('dt-carouse-contact-desc').value = '';
-    
+    // Hide form and re-render
+    document.getElementById('dt-carouse-contact-form').classList.add('hidden');
     window.appActions.renderCarouseContactsList(pcId);
-    notify("Contact scribed successfully.", "success");
+    notify("Contact bound successfully.", "success");
 };
 
 export const toggleCarouseContact = async (pcId, contactId) => {
@@ -341,13 +420,34 @@ export const executeCarousing = async () => {
     const d20 = Math.floor(Math.random() * 20) + 1;
     const checkTotal = d20 + pMod;
     
-    let alliedGained = 0;
+    let baseAlliedGained = 0;
     let hostileGained = 0;
     
     if (checkTotal <= 5) hostileGained = 1;
-    else if (checkTotal <= 15) alliedGained = 1;
-    else if (checkTotal <= 20) alliedGained = 2;
-    else alliedGained = 3;
+    else if (checkTotal <= 15) baseAlliedGained = 1;
+    else if (checkTotal <= 20) baseAlliedGained = 2;
+    else baseAlliedGained = 3;
+
+    // --- ENFORCE MAX ALLIED CONTACTS LIMIT ---
+    let bankedContacts = pc.bankedContacts || [];
+    let currentBankedAllies = bankedContacts.filter(c => c.type === 'ally').length;
+    const maxAllies = Math.max(1, 1 + pMod); // Charisma/Persuasion cap
+
+    let actualAlliedGained = 0;
+    let lostAllies = 0;
+
+    for (let i = 0; i < baseAlliedGained; i++) {
+        if (currentBankedAllies + actualAlliedGained < maxAllies) {
+            bankedContacts.push({ id: generateId(), type: 'ally', socialClass: socialClass, timestamp: Date.now() });
+            actualAlliedGained++;
+        } else {
+            lostAllies++;
+        }
+    }
+
+    for (let i = 0; i < hostileGained; i++) {
+        bankedContacts.push({ id: generateId(), type: 'hostile', socialClass: socialClass, timestamp: Date.now() });
+    }
 
     const d100 = Math.floor(Math.random() * 100) + 1;
     const hasComplication = d100 <= 10;
@@ -391,11 +491,12 @@ export const executeCarousing = async () => {
     }
 
     let resultBody = ``;
-    if (hostileGained > 0) resultBody += `❌ You made a poor impression and gained **${hostileGained} Hostile Contact(s)** in the ${socialClass} class.`;
-    else if (alliedGained > 0) resultBody += `✅ You socialized successfully and gained **${alliedGained} Allied Contact(s)** in the ${socialClass} class!`;
-    else resultBody += `You made no notable new contacts during this time.`;
+    if (hostileGained > 0) resultBody += `❌ You made a poor impression and gained **${hostileGained} Hostile Contact(s)** in the ${socialClass} class.\n`;
+    if (actualAlliedGained > 0) resultBody += `✅ You socialized successfully and gained **${actualAlliedGained} Allied Contact(s)** in the ${socialClass} class!\n`;
+    if (lostAllies > 0) resultBody += `⚠️ **Limit Reached:** You met ${lostAllies} more potential allies, but your social network is full! Banked Allies are capped by your Persuasion modifier (Max: ${maxAllies}).\n`;
+    if (hostileGained === 0 && actualAlliedGained === 0 && lostAllies === 0) resultBody += `You made no notable new contacts during this time.\n`;
 
-    const noteText = `**Downtime: Carousing (${socialClass.charAt(0).toUpperCase() + socialClass.slice(1)} Class)**\n*Hero:* ${pc.name}\n\n**Time Spent:** 5 Days\n**Gold Spent (Expenses):** ${goldCost} gp\n**Check Result:** ${checkTotal} (Rolled ${d20} ${pMod >= 0 ? `+ ${pMod}` : `- ${Math.abs(pMod)}`})\n\n${resultBody}\n*(Be sure to record your new contacts using the **Manage Contacts** button!)*${complicationText}`;
+    const noteText = `**Downtime: Carousing (${socialClass.charAt(0).toUpperCase() + socialClass.slice(1)} Class)**\n*Hero:* ${pc.name}\n\n**Time Spent:** 5 Days\n**Gold Spent (Expenses):** ${goldCost} gp\n**Check Result:** ${checkTotal} (Rolled ${d20} ${pMod >= 0 ? `+ ${pMod}` : `- ${Math.abs(pMod)}`})\n\n${resultBody}\n*(Be sure to check your Banked Contacts using the **Manage Contacts** button!)*${complicationText}`;
 
     const timestampStr = new Date().toLocaleDateString();
     const logAddition = `${pc.downtimeLog ? '\n\n---\n\n' : ''}**Logged on ${timestampStr}**\n${noteText}`;
@@ -404,7 +505,8 @@ export const executeCarousing = async () => {
         p.id === pc.id ? { 
             ...p, 
             availableDowntime: Math.max(0, (parseInt(p.availableDowntime) || 0) - 5),
-            downtimeLog: (p.downtimeLog || '') + logAddition
+            downtimeLog: (p.downtimeLog || '') + logAddition,
+            bankedContacts: bankedContacts
         } : p
     );
 
@@ -413,8 +515,21 @@ export const executeCarousing = async () => {
 
     await saveCampaign(updatedCamp);
     document.getElementById('global-popup-container').innerHTML = '';
-    notify(`Carousing complete! 5 days deducted. Log saved to Hero Journal.`, "success");
-    reRender();
+    
+    // Auto-open the contacts manager if they gained anyone!
+    if (actualAlliedGained > 0 || hostileGained > 0) {
+        setTimeout(() => {
+            window.appActions.openCarousingModal();
+            setTimeout(() => {
+                document.getElementById('dt-carouse-pc').value = pc.id;
+                window.appActions.openCarouseContacts();
+            }, 100);
+        }, 500);
+        notify(`Carousing complete! ${actualAlliedGained + hostileGained} contacts banked.`, "success");
+    } else {
+        notify(`Carousing complete! 5 days deducted. Log saved to Hero Journal.`, "success");
+        reRender();
+    }
 };
 
 // ============================================================================
@@ -432,6 +547,7 @@ if (typeof window !== 'undefined') {
     // Contact Management System
     window.appActions.openCarouseContacts = openCarouseContacts;
     window.appActions.closeCarouseContacts = closeCarouseContacts;
+    window.appActions.prepDefineContact = prepDefineContact;
     window.appActions.renderCarouseContactsList = renderCarouseContactsList;
     window.appActions.saveNewCarouseContact = saveNewCarouseContact;
     window.appActions.toggleCarouseContact = toggleCarouseContact;
