@@ -36,6 +36,17 @@ export const openCarousingModal = () => {
 
                 <div class="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-grow bg-[#fdfbf7]">
                     
+                    <!-- Workflow Instructions -->
+                    <div class="bg-amber-50 border border-amber-200 p-4 rounded-sm shadow-sm mb-5">
+                        <h3 class="text-xs font-bold text-amber-900 uppercase tracking-widest mb-2"><i class="fa-solid fa-clipboard-list mr-1.5 text-amber-600"></i> Carousing Workflow</h3>
+                        <ul class="text-[10px] sm:text-xs text-amber-800 space-y-1.5 leading-snug font-serif">
+                            <li><b>Step 1:</b> Enter your <b>Persuasion</b> bonus (used for the roll) and your base <b>Charisma</b> modifier (used to cap your unassigned contacts).</li>
+                            <li><b>Step 2:</b> Select the <b>Social Class</b> you wish to mingle with. Higher classes require more gold and yield more influential allies.</li>
+                            <li><b>Step 3:</b> Execute the activity to roll! Any new contacts will be safely <b>Banked</b> on your character sheet.</li>
+                            <li><b>Step 4:</b> Use the <b class="text-stone-900 font-sans"><i class="fa-solid fa-address-book mx-1 text-amber-600"></i>Manage Contacts</b> button to permanently name your banked contacts, or to cash in favors from existing ones!</li>
+                        </ul>
+                    </div>
+
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Select Hero</label>
@@ -57,7 +68,7 @@ export const openCarousingModal = () => {
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Charisma Modifier</label>
                             <div class="flex items-center">
                                 <span class="bg-stone-200 border border-r-0 border-[#d4c5a9] px-3 py-2 text-sm font-bold text-stone-600 rounded-l-sm">+</span>
-                                <input type="number" id="dt-carouse-cha" value="0" class="w-full p-2 border border-[#d4c5a9] rounded-r-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-white shadow-inner text-center" title="Your raw Charisma modifier determines your maximum banked contacts limit.">
+                                <input type="number" id="dt-carouse-cha" value="0" class="w-full p-2 border border-[#d4c5a9] rounded-r-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-white shadow-inner text-center" title="Your Charisma modifier determines your maximum banked contacts limit.">
                             </div>
                         </div>
                     </div>
@@ -518,10 +529,13 @@ export const executeCarousing = async () => {
     else if (checkTotal <= 20) baseAlliedGained = 2;
     else baseAlliedGained = 3;
 
-    // --- ENFORCE MAX ALLIED CONTACTS LIMIT (Using Charisma Mod) ---
-    let bankedContacts = pc.bankedContacts || [];
+    // --- ENFORCE MAX ALLIED CONTACTS LIMIT (Official: Banked <= 1 + Cha Mod) ---
+    // Use the spread operator to ensure we clone the array and don't accidentally mutate the underlying state object early
+    let bankedContacts = [...(pc.bankedContacts || [])];
+    
     let currentBankedAllies = bankedContacts.filter(c => c.type === 'ally').length;
-    const maxAllies = Math.max(1, 1 + chaMod); // Charisma cap
+    const maxAllies = Math.max(1, 1 + chaMod); // Official Rule: 1 + Cha Mod, minimum 1
+    // Note: Active (named) contacts do not count towards this limit.
 
     let actualAlliedGained = 0;
     let lostAllies = 0;
