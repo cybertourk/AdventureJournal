@@ -36,7 +36,7 @@ export const openCarousingModal = () => {
 
                 <div class="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-grow bg-[#fdfbf7]">
                     
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Select Hero</label>
                             <select id="dt-carouse-pc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-white shadow-inner">
@@ -50,7 +50,14 @@ export const openCarousingModal = () => {
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Persuasion Modifier</label>
                             <div class="flex items-center">
                                 <span class="bg-stone-200 border border-r-0 border-[#d4c5a9] px-3 py-2 text-sm font-bold text-stone-600 rounded-l-sm">+</span>
-                                <input type="number" id="dt-carouse-mod" value="0" class="w-full p-2 border border-[#d4c5a9] rounded-r-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-white shadow-inner text-center" title="Your Persuasion modifier determines your maximum contact limit">
+                                <input type="number" id="dt-carouse-mod" value="0" class="w-full p-2 border border-[#d4c5a9] rounded-r-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-white shadow-inner text-center" title="Your Persuasion modifier is used for the check itself.">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Charisma Modifier</label>
+                            <div class="flex items-center">
+                                <span class="bg-stone-200 border border-r-0 border-[#d4c5a9] px-3 py-2 text-sm font-bold text-stone-600 rounded-l-sm">+</span>
+                                <input type="number" id="dt-carouse-cha" value="0" class="w-full p-2 border border-[#d4c5a9] rounded-r-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-white shadow-inner text-center" title="Your raw Charisma modifier determines your maximum banked contacts limit.">
                             </div>
                         </div>
                     </div>
@@ -76,9 +83,9 @@ export const openCarousingModal = () => {
                         </div>
                         
                         <div class="mt-4 pt-3 border-t border-[#d4c5a9]">
-                            <p id="dt-carouse-desc-lower" class="text-xs text-stone-700 leading-snug"><b>Lower-class contacts</b> include criminals, laborers, mercenaries, the town guard, and anyone else who frequents the grimiest taverns in town.</p>
-                            <p id="dt-carouse-desc-middle" class="hidden text-xs text-stone-700 leading-snug"><b>Middle-class contacts</b> include guild members, spellcasters, town officials, and merchants.</p>
-                            <p id="dt-carouse-desc-upper" class="hidden text-xs text-stone-700 leading-snug"><b>Upper-class contacts</b> are nobles and their personal servants. Carousing with them requires access to the local nobility.</p>
+                            <p id="dt-carouse-desc-lower" class="text-xs text-stone-700 leading-snug"><b>Lower-class contacts</b> include criminals, laborers, mercenaries, the town guard, and any other folk who normally frequent the cheapest taverns in town.</p>
+                            <p id="dt-carouse-desc-middle" class="hidden text-xs text-stone-700 leading-snug"><b>Middle-class contacts</b> include guild members, spellcasters, town officials, and other folk who frequent well-kept establishments.</p>
+                            <p id="dt-carouse-desc-upper" class="hidden text-xs text-stone-700 leading-snug"><b>Upper-class contacts</b> are nobles and their personal servants. Carousing with such folk covers formal banquets, state dinners, and the like.</p>
                         </div>
                     </div>
 
@@ -411,6 +418,7 @@ export const executeCarousing = async () => {
     }
 
     const pMod = parseInt(document.getElementById('dt-carouse-mod').value) || 0;
+    const chaMod = parseInt(document.getElementById('dt-carouse-cha').value) || 0;
     const socialClass = document.getElementById('dt-carouse-class').value;
     
     let goldCost = 10;
@@ -424,14 +432,15 @@ export const executeCarousing = async () => {
     let hostileGained = 0;
     
     if (checkTotal <= 5) hostileGained = 1;
+    else if (checkTotal <= 10) baseAlliedGained = 0;
     else if (checkTotal <= 15) baseAlliedGained = 1;
     else if (checkTotal <= 20) baseAlliedGained = 2;
     else baseAlliedGained = 3;
 
-    // --- ENFORCE MAX ALLIED CONTACTS LIMIT ---
+    // --- ENFORCE MAX ALLIED CONTACTS LIMIT (Using Charisma Mod) ---
     let bankedContacts = pc.bankedContacts || [];
     let currentBankedAllies = bankedContacts.filter(c => c.type === 'ally').length;
-    const maxAllies = Math.max(1, 1 + pMod); // Charisma/Persuasion cap
+    const maxAllies = Math.max(1, 1 + chaMod); // Charisma cap
 
     let actualAlliedGained = 0;
     let lostAllies = 0;
@@ -457,43 +466,43 @@ export const executeCarousing = async () => {
         const d8 = Math.floor(Math.random() * 8) + 1;
         const compTables = {
             lower: [
-                "A pickpocket lifts 1d10 × 5 gp from you.", 
-                "A bar brawl leaves you with a scar.", 
-                "You have fuzzy memories of doing something illegal...", 
-                "You are banned from a tavern.", 
-                "You swore to pursue a dangerous quest.", 
+                "A pickpocket lifts 1d10 × 5 gp from you.*", 
+                "A bar brawl leaves you with a scar.*", 
+                "You have fuzzy memories of doing something very, very illegal, but can’t remember exactly what.", 
+                "You are banned from a tavern after some obnoxious behavior.*", 
+                "After a few drinks, you swore in the town square to pursue a dangerous quest.", 
                 "Surprise! You’re married.", 
-                "Streaking naked seemed like a great idea...", 
-                "Everyone is calling you an embarrassing nickname."
+                "Streaking naked through the streets seemed like a great idea at the time.", 
+                "Everyone is calling you by some weird, embarrassing nickname, like Puddle Drinker or Bench Slayer, and no one will say why.*"
             ],
             middle: [
-                "You accidentally insulted a guild master.", 
-                "You swore a quest for a temple or a guild.", 
-                "A social gaffe has made you the talk of the town.", 
-                "An obnoxious person has taken a romantic interest in you.", 
-                "You have made a foe of a local spellcaster.", 
-                "You've been recruited to help run a local event.", 
+                "You accidentally insulted a guild master, and only a public apology will let you do business with the guild again.*", 
+                "You swore to complete some quest on behalf of a temple or a guild.", 
+                "A social gaffe has made you the talk of the town.*", 
+                "A particularly obnoxious person has taken an intense romantic interest in you.*", 
+                "You have made a foe out of a local spellcaster.*", 
+                "You have been recruited to help run a local festival, play, or similar event.", 
                 "You made a drunken toast that scandalized the locals.", 
                 "You spent an additional 100 gp trying to impress people."
             ],
             upper: [
-                "A pushy noble family wants to marry off one of their scions to you.", 
-                "You tripped during a dance, and people can’t stop talking about it.", 
+                "A pushy noble family wants to marry off one of their scions to you.*", 
+                "You tripped and fell during a dance, and people can’t stop talking about it.", 
                 "You have agreed to take on a noble’s debts.", 
-                "You have been challenged to a joust by a knight.", 
-                "You have made a foe of a local noble.", 
-                "A boring noble insists you visit each day.", 
-                "You are the target of embarrassing rumors.", 
+                "You have been challenged to a joust by a knight.*", 
+                "You have made a foe out of a local noble.*", 
+                "A boring noble insists you visit each day and listen to long, tedious theories of magic.", 
+                "You have become the target of a variety of embarrassing rumors.*", 
                 "You spent an additional 500 gp trying to impress people."
             ]
         };
-        complicationText = `\n\n**⚠️ Complication Rolled!** (${d100}/100)\n> *Result (d8=${d8}):* ${compTables[socialClass][d8 - 1]}\n\n*(Any specific gold losses, scars, or relationships must be applied to your hero's sheet manually).*`;
+        complicationText = `\n\n**⚠️ Complication Rolled!** (${d100}/100)\n> *Result (d8=${d8}):* ${compTables[socialClass][d8 - 1]}\n\n*(Note: Complications marked with an asterisk [*] might involve a rival! Any specific gold losses, scars, or relationships must be applied to your hero's sheet manually).*`;
     }
 
     let resultBody = ``;
     if (hostileGained > 0) resultBody += `❌ You made a poor impression and gained **${hostileGained} Hostile Contact(s)** in the ${socialClass} class.\n`;
     if (actualAlliedGained > 0) resultBody += `✅ You socialized successfully and gained **${actualAlliedGained} Allied Contact(s)** in the ${socialClass} class!\n`;
-    if (lostAllies > 0) resultBody += `⚠️ **Limit Reached:** You met ${lostAllies} more potential allies, but your social network is full! Banked Allies are capped by your Persuasion modifier (Max: ${maxAllies}).\n`;
+    if (lostAllies > 0) resultBody += `⚠️ **Limit Reached:** You met ${lostAllies} more potential allies, but your social network is full! Banked Allies are capped by your Charisma modifier (Max: ${maxAllies}).\n`;
     if (hostileGained === 0 && actualAlliedGained === 0 && lostAllies === 0) resultBody += `You made no notable new contacts during this time.\n`;
 
     const noteText = `**Downtime: Carousing (${socialClass.charAt(0).toUpperCase() + socialClass.slice(1)} Class)**\n*Hero:* ${pc.name}\n\n**Time Spent:** 5 Days\n**Gold Spent (Expenses):** ${goldCost} gp\n**Check Result:** ${checkTotal} (Rolled ${d20} ${pMod >= 0 ? `+ ${pMod}` : `- ${Math.abs(pMod)}`})\n\n${resultBody}\n*(Be sure to check your Banked Contacts using the **Manage Contacts** button!)*${complicationText}`;
