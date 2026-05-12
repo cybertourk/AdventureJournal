@@ -320,6 +320,93 @@ export function getPCEditHTML(state) {
 
     const downtimeDays = parseInt(pc.availableDowntime) || 0;
 
+    // --- DYNAMIC DOWNTIME LOG PARSER (Accordion View) ---
+    const logText = pc.downtimeLog || '';
+    const safeDTLog = logText.replace(/"/g, '&quot;').replace(/\n/g, '&#10;');
+    
+    let categorizedLogs = {};
+    const entries = logText.split(/\n*---\n*/).map(e => e.trim()).filter(e => e);
+    
+    entries.forEach(entry => {
+        let category = "Other / Legacy";
+        // Attempt to extract the category from our standard log formats
+        const match = entry.match(/\*\*(?:Downtime|DM Assignment|Downtime Activity):\s*([^*]+)\*\*/i) || entry.match(/\*\*Downtime:\s*(.*?)\*\*/i);
+        
+        if (match) {
+            category = match[1].trim();
+            // Clean up appended specific info (like "Carousing (Lower Class)" -> "Carousing")
+            if (category.toLowerCase().startsWith('carousing')) category = 'Carousing';
+            if (category.toLowerCase().startsWith('crime')) category = 'Crime';
+            if (category.toLowerCase().startsWith('work')) category = 'Work';
+        }
+        
+        // Catch our favor logic
+        if (entry.includes('**Downtime: Favor Used**') || 
+            entry.includes('**Downtime: Hindrance Suffered**') || 
+            entry.includes('**Downtime: Favor Reactivated**') || 
+            entry.includes('**Downtime: Enemy Reactivated**')) {
+            category = 'Favors & Hindrances';
+        }
+        
+        if (!categorizedLogs[category]) categorizedLogs[category] = [];
+        categorizedLogs[category].push(entry);
+    });
+
+    const sortedCategories = Object.keys(categorizedLogs).sort();
+
+    let dtAccordionHtml = '';
+    if (entries.length === 0) {
+        dtAccordionHtml = `<p class="text-stone-400 italic text-sm p-4 text-center">No downtime activities recorded yet.</p>`;
+    } else {
+        sortedCategories.forEach(cat => {
+            // Reverse so newest entries within the category appear at the top
+            const catEntries = categorizedLogs[cat].reverse(); 
+            const badgeCount = `<span class="bg-blue-200 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full ml-2">${catEntries.length}</span>`;
+            
+            let entriesHtml = catEntries.map(e => {
+                const parsed = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(e) : e.replace(/\n/g, '<br>');
+                return `<div class="p-3 sm:p-4 border border-blue-200 bg-white rounded-sm shadow-sm text-sm font-serif text-stone-800 leading-relaxed mb-3 last:mb-0">${parsed}</div>`;
+            }).join('');
+
+            dtAccordionHtml += `
+            <div class="mb-3 bg-blue-50/50 border border-blue-200 rounded-sm overflow-hidden shadow-sm">
+                <button type="button" class="w-full flex items-center justify-between p-3 sm:p-4 bg-blue-100/50 hover:bg-blue-100 transition-colors text-blue-900 border-b border-transparent focus:outline-none" onclick="const content = this.nextElementSibling; content.classList.toggle('hidden'); this.querySelector('.fa-chevron-down').classList.toggle('rotate-180'); this.classList.toggle('border-blue-200');">
+                    <div class="flex items-center font-bold text-xs sm:text-sm uppercase tracking-widest">
+                        <i class="fa-solid fa-folder-open mr-2 text-blue-600"></i> ${cat} ${badgeCount}
+                    </div>
+                    <i class="fa-solid fa-chevron-down text-blue-600 transition-transform duration-200"></i>
+                </button>
+                <div class="hidden p-3 sm:p-4 bg-blue-50/30">
+                    ${entriesHtml}
+                </div>
+            </div>`;
+        });
+    }
+
+    const dmEditBtn = isDM ? `
+        <button type="button" class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-600 hover:text-amber-500 transition flex items-center bg-amber-50 px-3 py-1.5 rounded border border-amber-200 shadow-sm shrink-0" onclick="event.stopPropagation(); window.appActions.openUniversalEditor('input-pc-edit-downtimelog', 'Downtime Activity Log')">
+            <i class="fa-solid fa-pen mr-1.5"></i> <span class="hidden sm:inline">Edit Raw Log (DM)</span><span class="sm:hidden">Edit</span>
+        </button>
+    ` : '';
+
+    const dtSectionHtml = `
+    <div class="mt-6 bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner rounded-sm p-4 sm:p-6 flex flex-col">
+        <div class="flex justify-between items-center border-b border-[#d4c5a9] pb-3 mb-5 gap-2">
+            <div>
+                <h3 class="text-sm sm:text-base font-bold text-stone-800 font-serif flex items-center"><i class="fa-solid fa-clock-rotate-left text-blue-600 mr-2"></i> Downtime Activity Log</h3>
+                <p class="text-[9px] sm:text-[10px] text-stone-500 uppercase tracking-widest font-bold mt-1">Activities are sorted by type and ordered newest to oldest.</p>
+            </div>
+            ${dmEditBtn}
+        </div>
+        
+        <input type="hidden" id="input-pc-edit-downtimelog" value="${safeDTLog}">
+        
+        <div class="w-full text-stone-800">
+            ${dtAccordionHtml}
+        </div>
+    </div>
+    `;
+
     return `
     <div class="animate-in slide-in-from-bottom-4 duration-300 bg-[#f4ebd8] rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col max-w-4xl mx-auto mb-8">
         
@@ -437,7 +524,7 @@ export function getPCEditHTML(state) {
                     ${renderSmartField('pc-edit-enemies', `<i class="fa-solid fa-skull-crossbones text-stone-500 mr-2"></i> Enemies`, pc.enemies || '', "Rivals, villains...", 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner h-full flex-grow', false)}
                 </div>
                 
-                ${renderSmartField('pc-edit-downtimelog', `<i class="fa-solid fa-clock-rotate-left text-blue-600 mr-2"></i> Downtime Activity Log`, pc.downtimeLog || '', "A record of this hero's downtime activities will populate here automatically...", 8, 'bg-blue-50/30 border border-blue-300 shadow-inner mt-4', false)}
+                ${dtSectionHtml}
 
                 ${isDM ? `
                 <div class="mt-6 bg-stone-100 p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-inner">
