@@ -1,10 +1,32 @@
 import { generateId, updateDerivedState, reRender } from './state.js';
 import { saveCampaign, notify } from './firebase-manager.js';
 import { logPlayerActivity } from './actions-campaign.js';
+import { SCROLL_TABLES } from './data-roll-tables.js';
 
 // ============================================================================
 // --- 10. SCRIBING A SPELL SCROLL ---
 // ============================================================================
+
+// --- SPELL BROWSER ENGINE ---
+let SPELL_CACHE = [];
+
+const buildSpellCache = () => {
+    if (SPELL_CACHE.length > 0) return;
+    
+    const levelMap = { 'cantrip': 0, '1st': 1, '2nd': 2, '3rd': 3, '4th': 4, '5th': 5, '6th': 6, '7th': 7, '8th': 8, '9th': 9 };
+    const labelMap = { 'cantrip': 'Cantrip', '1st': '1st Level', '2nd': '2nd Level', '3rd': '3rd Level', '4th': '4th Level', '5th': '5th Level', '6th': '6th Level', '7th': '7th Level', '8th': '8th Level', '9th': '9th Level' };
+
+    for (const [key, spells] of Object.entries(SCROLL_TABLES)) {
+        const level = levelMap[key];
+        const label = labelMap[key];
+        spells.forEach(spell => {
+            SPELL_CACHE.push({ name: spell, level, label });
+        });
+    }
+    
+    // Sort alphabetically for the UI
+    SPELL_CACHE.sort((a, b) => a.name.localeCompare(b.name));
+};
 
 export const openScribingModal = () => {
     updateDerivedState();
@@ -67,6 +89,14 @@ export const openScribingModal = () => {
 
                     <!-- New Project Fields (Hidden if resuming) -->
                     <div id="dt-scribe-new-config" class="mb-5 bg-white p-4 border border-[#d4c5a9] rounded-sm shadow-sm transition-all duration-300">
+                        
+                        <!-- SPELL BROWSER BUTTON -->
+                        <div class="mb-4">
+                            <button type="button" onclick="window.appActions.openSpellBrowser()" class="w-full py-2 bg-stone-100 text-stone-600 hover:bg-fuchsia-50 hover:text-fuchsia-700 hover:border-fuchsia-400 transition text-[10px] font-bold uppercase tracking-wider rounded-sm shadow-sm border border-[#d4c5a9] flex items-center justify-center">
+                                <i class="fa-solid fa-search mr-2"></i> Browse Spell List
+                            </button>
+                        </div>
+
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                             <div>
                                 <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Spell Level</label>
@@ -135,6 +165,38 @@ export const openScribingModal = () => {
                     <button id="dt-scribe-submit-btn" onclick="window.appActions.executeScribing()" class="px-5 py-2 bg-blue-800 text-amber-50 rounded-sm hover:bg-blue-700 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs flex items-center shadow-md"><i class="fa-solid fa-scroll mr-2"></i> Log Scribing</button>
                 </div>
             </div>
+            
+            <!-- SPELL BROWSER OVERLAY -->
+            <div id="dt-scribe-spell-modal" class="hidden absolute inset-0 bg-stone-950/95 flex items-center justify-center p-4 z-[19000] backdrop-blur-sm animate-in">
+                <div class="bg-[#f4ebd8] rounded-sm w-full max-w-lg border border-[#d4c5a9] shadow-2xl relative flex flex-col max-h-[90vh]">
+                    <div class="bg-stone-900 p-3 sm:p-4 border-b-2 border-fuchsia-600 shadow-md shrink-0 flex justify-between items-center text-amber-50">
+                        <h3 class="text-base font-serif font-bold flex items-center"><i class="fa-solid fa-search mr-2 text-fuchsia-500"></i> Spell Browser</h3>
+                        <button onclick="window.appActions.closeSpellBrowser()" class="text-stone-400 hover:text-white transition"><i class="fa-solid fa-xmark text-lg"></i></button>
+                    </div>
+                    <div class="p-4 sm:p-5 flex-grow flex flex-col min-h-0 bg-[#fdfbf7]">
+                        <div class="flex gap-2 mb-4">
+                            <input type="text" id="dt-scribe-spell-search" placeholder="Search Spells..." class="flex-grow p-2.5 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-fuchsia-600 bg-white shadow-inner" oninput="window.appActions.filterSpells()">
+                            <select id="dt-scribe-spell-level-filter" class="w-1/3 p-2.5 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-fuchsia-600 bg-white shadow-inner" onchange="window.appActions.filterSpells()">
+                                <option value="all">All Levels</option>
+                                <option value="0">Cantrip</option>
+                                <option value="1">1st Level</option>
+                                <option value="2">2nd Level</option>
+                                <option value="3">3rd Level</option>
+                                <option value="4">4th Level</option>
+                                <option value="5">5th Level</option>
+                                <option value="6">6th Level</option>
+                                <option value="7">7th Level</option>
+                                <option value="8">8th Level</option>
+                                <option value="9">9th Level</option>
+                            </select>
+                        </div>
+                        <div id="dt-scribe-spell-list" class="flex-grow overflow-y-auto custom-scrollbar space-y-1 border border-[#d4c5a9] rounded-sm p-1 bg-white shadow-inner">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     `;
 
@@ -142,6 +204,85 @@ export const openScribingModal = () => {
     setTimeout(() => {
         window.appActions.updateScribingMath('init');
     }, 50);
+};
+
+export const openSpellBrowser = () => {
+    buildSpellCache();
+    const modal = document.getElementById('dt-scribe-spell-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        const searchInput = document.getElementById('dt-scribe-spell-search');
+        if (searchInput) {
+            searchInput.value = '';
+            setTimeout(() => searchInput.focus(), 100);
+        }
+        window.appActions.filterSpells(); 
+    }
+};
+
+export const closeSpellBrowser = () => {
+    const modal = document.getElementById('dt-scribe-spell-modal');
+    if (modal) modal.classList.add('hidden');
+};
+
+export const filterSpells = () => {
+    const searchInput = document.getElementById('dt-scribe-spell-search');
+    const listEl = document.getElementById('dt-scribe-spell-list');
+    const levelFilter = document.getElementById('dt-scribe-spell-level-filter')?.value || 'all';
+
+    if (!searchInput || !listEl) return;
+    
+    const query = searchInput.value.toLowerCase().trim();
+    
+    const filtered = SPELL_CACHE.filter(s => {
+        const matchName = s.name.toLowerCase().includes(query);
+        const matchLevel = levelFilter === 'all' || s.level.toString() === levelFilter;
+        return matchName && matchLevel;
+    });
+    
+    if (filtered.length === 0) {
+        listEl.innerHTML = `<p class="text-xs text-stone-500 italic p-4 text-center">No spells found matching the criteria.</p>`;
+        return;
+    }
+
+    let html = '';
+    filtered.forEach(s => {
+        // Escape apostrophes to prevent breaking the onclick handler
+        const safeName = s.name.replace(/'/g, "\\'");
+        
+        html += `
+            <div class="flex justify-between items-center p-2 hover:bg-stone-50 border-b border-stone-100 last:border-0 transition-colors cursor-pointer group" onclick="window.appActions.selectSpell('${safeName}', ${s.level})">
+                <div class="min-w-0 pr-2">
+                    <span class="font-bold text-stone-800 text-sm block truncate group-hover:text-fuchsia-700 transition-colors">${s.name}</span>
+                    <span class="text-[9px] uppercase font-bold tracking-widest text-stone-500">${s.label}</span>
+                </div>
+                <button class="shrink-0 px-3 py-1.5 bg-stone-200 text-stone-700 rounded-sm text-[9px] font-bold uppercase tracking-wider group-hover:bg-stone-800 group-hover:text-amber-50 transition shadow-sm border border-[#d4c5a9] group-hover:border-stone-700">Select</button>
+            </div>
+        `;
+    });
+    listEl.innerHTML = html;
+};
+
+export const selectSpell = (name, level) => {
+    window.appActions.closeSpellBrowser();
+    
+    const levelEl = document.getElementById('dt-scribe-level');
+    if (levelEl) {
+        levelEl.value = level;
+        levelEl.disabled = true;
+        levelEl.classList.add('bg-stone-200', 'text-stone-500');
+        levelEl.classList.remove('bg-stone-50', 'text-stone-900');
+    }
+    
+    const nameEl = document.getElementById('dt-scribe-spell-name');
+    if (nameEl) {
+        nameEl.value = name;
+        nameEl.disabled = true;
+        nameEl.classList.add('bg-stone-200', 'text-stone-500');
+        nameEl.classList.remove('bg-stone-50', 'text-stone-900');
+    }
+    
+    window.appActions.updateScribingMath('input');
 };
 
 export const updateScribingMath = (triggerSource = 'input') => {
@@ -156,6 +297,23 @@ export const updateScribingMath = (triggerSource = 'input') => {
     const projectSelect = document.getElementById('dt-scribe-project');
     const newConfigDiv = document.getElementById('dt-scribe-new-config');
     const abandonBtn = document.getElementById('dt-scribe-abandon-btn');
+
+    // UNLOCK RECIPE FIELDS IF SWITCHING HEROES OR MANUALLY STARTING A NEW PROJECT
+    if (triggerSource === 'init' || triggerSource === 'project' || triggerSource === 'pc') {
+        const nameEl = document.getElementById('dt-scribe-spell-name');
+        const levelEl = document.getElementById('dt-scribe-level');
+        
+        if (nameEl) {
+            nameEl.disabled = false;
+            nameEl.classList.remove('bg-stone-200', 'text-stone-500');
+            nameEl.classList.add('bg-stone-50', 'text-stone-900');
+        }
+        if (levelEl) {
+            levelEl.disabled = false;
+            levelEl.classList.remove('bg-stone-200', 'text-stone-500');
+            levelEl.classList.add('bg-stone-50', 'text-stone-900');
+        }
+    }
 
     // Rebuild Projects List if PC changed
     const projects = pc.scribingProjects || {};
@@ -404,8 +562,15 @@ export const executeScribing = async () => {
 
 if (typeof window !== 'undefined') {
     window.appActions = window.appActions || {};
+    
     window.appActions.openScribingModal = openScribingModal;
     window.appActions.updateScribingMath = updateScribingMath;
     window.appActions.executeScribing = executeScribing;
     window.appActions.abandonScribingProject = abandonScribingProject;
+    
+    // Bind Spell Browser Functions
+    window.appActions.openSpellBrowser = openSpellBrowser;
+    window.appActions.closeSpellBrowser = closeSpellBrowser;
+    window.appActions.filterSpells = filterSpells;
+    window.appActions.selectSpell = selectSpell;
 }
