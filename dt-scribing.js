@@ -290,7 +290,7 @@ export const updateScribingMath = (triggerSource = 'input') => {
     const camp = window.appData.activeCampaign;
     if (!camp) return;
 
-    const pcId = document.getElementById('dt-scribe-pc').value;
+    const pcId = document.getElementById('dt-scribe-pc')?.value;
     const pc = camp.playerCharacters?.find(p => p.id === pcId);
     if (!pc) return;
 
@@ -322,21 +322,23 @@ export const updateScribingMath = (triggerSource = 'input') => {
         Object.entries(projects).forEach(([pid, proj]) => {
             projHtml += `<option value="${pid}">${proj.name} (Level ${proj.level}) - ${proj.progress}/${proj.totalTime} days</option>`;
         });
-        projectSelect.innerHTML = projHtml;
+        if (projectSelect) projectSelect.innerHTML = projHtml;
     }
 
-    const projectId = projectSelect.value;
+    const projectId = projectSelect?.value || 'new';
     const isResuming = projectId !== 'new';
 
     // Toggle New vs Resume modes
     if (isResuming) {
-        newConfigDiv.classList.add('hidden');
-        abandonBtn.classList.remove('hidden');
-        document.getElementById('dt-scribe-cost-warning').textContent = "Note: Materials cost was paid when this project began.";
+        if (newConfigDiv) newConfigDiv.classList.add('hidden');
+        if (abandonBtn) abandonBtn.classList.remove('hidden');
+        const warning = document.getElementById('dt-scribe-cost-warning');
+        if (warning) warning.textContent = "Note: Materials cost was paid when this project began.";
     } else {
-        newConfigDiv.classList.remove('hidden');
-        abandonBtn.classList.add('hidden');
-        document.getElementById('dt-scribe-cost-warning').textContent = "Note: Material cost must be paid up front when starting.";
+        if (newConfigDiv) newConfigDiv.classList.remove('hidden');
+        if (abandonBtn) abandonBtn.classList.add('hidden');
+        const warning = document.getElementById('dt-scribe-cost-warning');
+        if (warning) warning.textContent = "Note: Material cost must be paid up front when starting.";
     }
 
     // --- MATH CALCULATION ---
@@ -359,7 +361,7 @@ export const updateScribingMath = (triggerSource = 'input') => {
         currentProgress = proj.progress;
         spellLevel = proj.level;
     } else {
-        spellLevel = parseInt(document.getElementById('dt-scribe-level').value) || 0;
+        spellLevel = parseInt(document.getElementById('dt-scribe-level')?.value) || 0;
         totalTime = scrollCosts[spellLevel].t;
         totalCost = scrollCosts[spellLevel].c;
     }
@@ -367,12 +369,18 @@ export const updateScribingMath = (triggerSource = 'input') => {
     const workRemaining = totalTime - currentProgress;
 
     // Update Totals UI
-    document.getElementById('dt-scribe-total-days').textContent = `${totalTime} Day${totalTime !== 1 ? 's' : ''}`;
-    document.getElementById('dt-scribe-total-gold').textContent = `${totalCost.toLocaleString()} gp`;
-    document.getElementById('dt-scribe-progress-text').textContent = `${currentProgress} / ${totalTime} Days Complete`;
+    const totalDaysOut = document.getElementById('dt-scribe-total-days');
+    const totalGoldOut = document.getElementById('dt-scribe-total-gold');
+    const progressOut = document.getElementById('dt-scribe-progress-text');
+    
+    if (totalDaysOut) totalDaysOut.textContent = `${totalTime} Day${totalTime !== 1 ? 's' : ''}`;
+    if (totalGoldOut) totalGoldOut.textContent = `${totalCost.toLocaleString()} gp`;
+    if (progressOut) progressOut.textContent = `${currentProgress} / ${totalTime} Days Complete`;
 
     // Process "Days Spent" Input
     const daysSpentEl = document.getElementById('dt-scribe-days-spent');
+    if (!daysSpentEl) return;
+    
     let daysSpent = parseInt(daysSpentEl.value) || 1;
     
     if (daysSpent > workRemaining) {
@@ -403,8 +411,8 @@ export const updateScribingMath = (triggerSource = 'input') => {
 };
 
 export const abandonScribingProject = async () => {
-    const projectId = document.getElementById('dt-scribe-project').value;
-    if (projectId === 'new') return;
+    const projectId = document.getElementById('dt-scribe-project')?.value;
+    if (projectId === 'new' || !projectId) return;
 
     if (!confirm("Are you sure you want to permanently abandon this incomplete scroll? The materials and gold spent will be lost.")) return;
 
@@ -498,14 +506,37 @@ export const executeScribing = async () => {
     const workweeks = Math.max(1, Math.ceil(daysSpent / 5));
     const risk = Math.min(100, workweeks * 10);
     
+    let finalItemName = projectData.name;
+    
     const d100 = Math.floor(Math.random() * 100) + 1;
     if (d100 <= risk) {
         const d6 = Math.floor(Math.random() * 6) + 1;
+        
+        // --- DYNAMIC COMPLICATION 4 (RANDOM SPELL GENERATOR) ---
+        let comp4Text = "Due to a strange error in creating the scroll, it is instead a random spell of the same level.";
+        if (d6 === 4) {
+            const getLevelKey = (lvl) => {
+                if (lvl === 0) return 'cantrip';
+                if (lvl === 1) return '1st';
+                if (lvl === 2) return '2nd';
+                if (lvl === 3) return '3rd';
+                return lvl + 'th';
+            };
+            const levelKey = getLevelKey(projectData.level);
+            
+            if (SCROLL_TABLES[levelKey]) {
+                const randomSpell = SCROLL_TABLES[levelKey][Math.floor(Math.random() * SCROLL_TABLES[levelKey].length)];
+                comp4Text = `Due to a strange error in creating the scroll, it is instead a random spell of the same level (**${randomSpell}**).`;
+                // If it finished during this block, dynamically mutate the final output scroll!
+                if (isComplete) finalItemName = randomSpell;
+            }
+        }
+        
         const compTable = [
             "You bought up the last of the rare ink used to craft scrolls, angering a wizard in town.", 
             `The priest of a temple of good accuses you of trafficking in dark magic.${projectData.rivalInvolved ? " (Orchestrated by your rival)." : ""}`,
             "A wizard eager to collect one of your spells in a book presses you to sell the scroll.", 
-            "Due to a strange error in creating the scroll, it is instead a random spell of the same level.",
+            comp4Text,
             "The rare parchment you bought for your scroll has a barely visible map on it.", 
             `A thief attempts to break into your workroom.${projectData.rivalInvolved ? " (Hired by your rival)." : ""}`
         ];
@@ -516,9 +547,21 @@ export const executeScribing = async () => {
 
     // Build the log text
     let resultHeader = `**Objective:** Spell Scroll (${projectData.name})`;
-    let resultBody = isComplete 
-        ? `✅ **Project Completed!** You have successfully scribed a **Spell Scroll of ${projectData.name}**.` 
-        : `⏳ **Progress Logged:** You spent ${daysSpent} days working on the **Spell Scroll of ${projectData.name}**.\n**Progress:** ${projectData.progress} / ${projectData.totalTime} days.`;
+    let resultBody = "";
+    
+    if (isComplete) {
+        if (finalItemName !== projectData.name) {
+             resultBody = `✅ **Project Completed (With Errors)!** You finished the scroll, but due to a magical mishap, you have successfully scribed a **Spell Scroll of ${finalItemName}** instead!`;
+        } else {
+             resultBody = `✅ **Project Completed!** You have successfully scribed a **Spell Scroll of ${finalItemName}**.`;
+        }
+        
+        if (projectData.level === 0) {
+             resultBody += `\n*(Note: The version of this cantrip on the scroll works as if the caster were 1st level).*`;
+        }
+    } else {
+        resultBody = `⏳ **Progress Logged:** You spent ${daysSpent} days working on the **Spell Scroll of ${projectData.name}**. *(Remaining: ${projectData.totalTime - projectData.progress} Days)*`;
+    }
 
     let costNote = `**Total Project Material Cost:** ${projectData.cost.toLocaleString()} gp`;
     if (!isResuming) costNote += ` *(Materials must be purchased up front when starting a project).*`;
