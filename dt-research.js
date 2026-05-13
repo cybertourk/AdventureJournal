@@ -31,6 +31,17 @@ export const openResearchModal = () => {
 
                 <div class="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-grow bg-[#fdfbf7]">
                     
+                    <!-- Workflow Instructions -->
+                    <div class="bg-teal-900/5 border border-teal-900/20 p-4 rounded-sm shadow-sm mb-5">
+                        <h3 class="text-xs font-bold text-teal-900 uppercase tracking-widest mb-2"><i class="fa-solid fa-clipboard-list mr-1.5 text-teal-700"></i> Research Workflow</h3>
+                        <ul class="text-[10px] sm:text-xs text-teal-950 space-y-1.5 leading-snug font-serif">
+                            <li><b>Step 1:</b> Select your <b>Hero</b> and enter their <b>Intelligence Modifier</b>.</li>
+                            <li><b>Step 2:</b> Define your <b>Research Topic</b>. You may spend up to 300 additional gold to gain a maximum +6 bonus to your check.</li>
+                            <li><b>Step 3:</b> Select any <b>Advantages & Network Support</b>. Superior Resources (Advantage) and Harper Support (-50% cost) require traveling to a specific Location.</li>
+                            <li><b>Step 4:</b> Execute Research! Success yields pieces of lore. You can edit your journal entry later once the DM provides the specific lore details.</li>
+                        </ul>
+                    </div>
+
                     <!-- Basic Setup -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
                         <div>
@@ -95,7 +106,13 @@ export const openResearchModal = () => {
                     <div id="dt-research-loc-details" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5 bg-white p-3 border border-[#d4c5a9] shadow-sm rounded-sm">
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Location of Research</label>
-                            <input type="text" id="dt-research-loc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-teal-700 shadow-inner bg-stone-50" placeholder="e.g. Candlekeep">
+                            <div class="flex items-center gap-3">
+                                <input type="text" id="dt-research-loc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-teal-700 shadow-inner bg-stone-50" placeholder="e.g. Candlekeep">
+                                <label class="flex items-center gap-2 cursor-pointer group shrink-0" title="Check this if a rival is present. It may affect complications.">
+                                    <input type="checkbox" id="dt-research-rival" class="w-4 h-4 text-teal-700 rounded-sm cursor-pointer shadow-sm border-stone-400">
+                                    <span class="text-[10px] font-bold uppercase tracking-widest text-stone-700 group-hover:text-teal-900 transition">Rival?</span>
+                                </label>
+                            </div>
                         </div>
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Travel Days Required</label>
@@ -184,6 +201,7 @@ export const executeResearch = async () => {
     const hasHarperSupport = document.getElementById('dt-research-harper').checked;
     const useLocation = hasAdvantage || hasHarperSupport;
     const loc = useLocation ? document.getElementById('dt-research-loc').value.trim() : '';
+    const isRival = useLocation ? document.getElementById('dt-research-rival').checked : false;
 
     if (useLocation && !loc) {
         notify("Please enter the Location of Research when using Superior Resources or Harpers Support.", "error");
@@ -232,10 +250,10 @@ export const executeResearch = async () => {
         const d6 = Math.floor(Math.random() * 6) + 1;
         const compTable = [
             "You accidentally damage a rare book.", 
-            "You offend a sage, who demands an extravagant gift.",
+            `You offend a sage, who demands an extravagant gift.${isRival ? " (Your rival intentionally provoked the sage)." : ""}`,
             "If you had known that book was cursed, you never would have opened it.", 
-            "A sage becomes obsessed with convincing you of a number of strange theories about reality.",
-            "Your actions cause you to be banned from a library until you make reparations.", 
+            `A sage becomes obsessed with convincing you of a number of strange theories about reality.${isRival ? " (The sage is secretly an associate of your rival)." : ""}`,
+            `Your actions cause you to be banned from a library until you make reparations.${isRival ? " (Your rival framed you for the infraction)." : ""}`, 
             "You uncovered useful lore, but only by promising to complete a dangerous task in return."
         ];
         complicationText = `\n\n**⚠️ Complication Occurred!**\n> *Result (d6=${d6}):* ${compTable[d6 - 1]}`;
@@ -245,7 +263,7 @@ export const executeResearch = async () => {
 
     let resultBody = ``;
     if (lorePieces > 0) {
-        resultBody = `✅ **Research Successful!**\nYou uncovered **${lorePieces} piece${lorePieces > 1 ? 's' : ''} of lore** regarding the topic.\n*(A piece of lore is the equivalent of one true statement about a person, place, or thing. You may edit this chronicle entry later once the DM shares the lore with you!)*`;
+        resultBody = `✅ **Research Successful!**\nYou uncovered **${lorePieces} piece${lorePieces > 1 ? 's' : ''} of lore** regarding the topic.\n*(A piece of lore is the equivalent of one true statement about a person, place, or thing. You may edit this chronicle entry later to record the specific knowledge once the DM shares the lore with you!)*`;
     } else {
         resultBody = `❌ **Research Failed**\nYour time in the archives yielded no useful information.`;
     }
