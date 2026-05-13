@@ -31,6 +31,17 @@ export const openRelaxationModal = () => {
 
                 <div class="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-grow bg-[#fdfbf7]">
                     
+                    <!-- Workflow Instructions -->
+                    <div class="bg-sky-900/5 border border-sky-900/20 p-4 rounded-sm shadow-sm mb-5">
+                        <h3 class="text-xs font-bold text-sky-900 uppercase tracking-widest mb-2"><i class="fa-solid fa-clipboard-list mr-1.5 text-sky-700"></i> Relaxation Workflow</h3>
+                        <ul class="text-[10px] sm:text-xs text-sky-950 space-y-1.5 leading-snug font-serif">
+                            <li><b>Step 1:</b> Select your <b>Hero</b> and enter the <b>Location</b> where they are resting.</li>
+                            <li><b>Step 2:</b> Choose the <b>Lifestyle</b> you are paying for this week. You must maintain at least a Modest lifestyle to gain the benefits of relaxation.</li>
+                            <li><b>Step 3:</b> If eligible, specify the ailment, drained ability score, or effect you are recovering from.</li>
+                            <li><b>Step 4:</b> Relax! You will spend 5 days, pay your lifestyle expenses, and gain advantage on saves against long-acting diseases and poisons for the week.</li>
+                        </ul>
+                    </div>
+
                     <!-- Basic Setup -->
                     <div class="grid grid-cols-1 gap-4 mb-5">
                         <div>
