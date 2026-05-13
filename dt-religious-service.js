@@ -212,10 +212,24 @@ export const updateReligiousServiceMath = (triggerSource = 'input') => {
     // 1. Rebuild Deity Options based on Alignment (if PC changed or Init)
     if (triggerSource === 'pc' || triggerSource === 'init') {
         const charAlignment = pc.alignment || "Not Set";
-        const alignmentAbbr = { 'lawful good': 'LG', 'neutral good': 'NG', 'chaotic good': 'CG', 'lawful neutral': 'LN', 'neutral': 'N', 'true neutral': 'N', 'chaotic neutral': 'CN', 'lawful evil': 'LE', 'neutral evil': 'NE', 'chaotic evil': 'CE' };
+        
+        // Aggressively clean the alignment string: remove spaces, punctuation, and lowercase it
+        const cleanAlign = charAlignment.toLowerCase().replace(/[^a-z]/g, '');
+
+        const alignmentAbbr = { 
+            'lawfulgood': 'LG', 'lg': 'LG',
+            'neutralgood': 'NG', 'ng': 'NG',
+            'chaoticgood': 'CG', 'cg': 'CG',
+            'lawfulneutral': 'LN', 'ln': 'LN',
+            'neutral': 'N', 'trueneutral': 'N', 'n': 'N',
+            'chaoticneutral': 'CN', 'cn': 'CN',
+            'lawfulevil': 'LE', 'le': 'LE',
+            'neutralevil': 'NE', 'ne': 'NE',
+            'chaoticevil': 'CE', 'ce': 'CE'
+        };
         const alignmentSteps = { 'LG': ['LG', 'NG', 'LN'], 'NG': ['LG', 'NG', 'CG', 'N'], 'CG': ['NG', 'CG', 'CN'], 'LN': ['LG', 'LN', 'LE', 'N'], 'N': ['LG', 'NG', 'CG', 'LN', 'N', 'CN', 'LE', 'NE', 'CE'], 'CN': ['CG', 'N', 'CN', 'CE'], 'LE': ['LN', 'LE', 'NE'], 'NE': ['LE', 'NE', 'CE', 'N'], 'CE': ['NE', 'CE', 'CN'] };
         
-        const abbr = alignmentAbbr[charAlignment.toLowerCase().trim()];
+        const abbr = alignmentAbbr[cleanAlign];
         let pantheonsToShow = DEITY_PANTHEONS;
         let hintText = "Filtered by Alignment";
 
@@ -243,10 +257,12 @@ export const updateReligiousServiceMath = (triggerSource = 'input') => {
         
         const deitySelect = document.getElementById('dt-relig-deity');
         if (deitySelect) {
-            // Try to preserve current selection if it still exists in the filtered list
+            // Try to preserve current selection if it still exists in the filtered list safely
             const currentVal = deitySelect.value;
             deitySelect.innerHTML = deityOptionsHtml;
-            if (currentVal && deitySelect.querySelector(`option[value="${currentVal}"]`)) {
+            
+            const optionExists = Array.from(deitySelect.options).some(opt => opt.value === currentVal);
+            if (currentVal && optionExists) {
                 deitySelect.value = currentVal;
             }
             triggerSource = 'deity'; // Force a repopulate of temple/desc based on new first item
