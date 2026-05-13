@@ -31,8 +31,19 @@ export const openPitFightingModal = () => {
 
                 <div class="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-grow bg-[#fdfbf7]">
                     
+                    <!-- Workflow Instructions -->
+                    <div class="bg-red-900/5 border border-red-900/20 p-4 rounded-sm shadow-sm mb-5">
+                        <h3 class="text-xs font-bold text-red-900 uppercase tracking-widest mb-2"><i class="fa-solid fa-clipboard-list mr-1.5 text-red-700"></i> Pit Fighting Workflow</h3>
+                        <ul class="text-[10px] sm:text-xs text-red-950 space-y-1.5 leading-snug font-serif">
+                            <li><b>Step 1:</b> Select your <b>Hero</b> and enter the <b>Location</b> of the fighting pits.</li>
+                            <li><b>Step 2:</b> Input your modifiers for <b>Athletics</b>, <b>Acrobatics</b>, and <b>Constitution</b>. Ensure your <b>Largest Hit Die</b> is correctly selected (it is rolled and added to your Constitution check).</li>
+                            <li><b>Step 3:</b> <i>(Optional)</i> You may choose to replace ONE of the standard checks with an <b>Attack Roll</b> using one of your weapons.</li>
+                            <li><b>Step 4:</b> Fight! You will make three checks against randomly generated DCs (5 + 2d10) to determine your winnings.</li>
+                        </ul>
+                    </div>
+
                     <!-- Basic Setup -->
-                    <div class="grid grid-cols-1 gap-4 mb-5">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Select Hero</label>
                             <select id="dt-pit-pc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-red-900 bg-white shadow-inner">
@@ -42,19 +53,20 @@ export const openPitFightingModal = () => {
                                 }).join('')}
                             </select>
                         </div>
-                    </div>
-
-                    <!-- Details -->
-                    <div class="bg-white p-4 border border-[#d4c5a9] rounded-sm shadow-sm mb-5 space-y-4">
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Location</label>
-                            <input type="text" id="dt-pit-loc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-red-900 bg-stone-50 shadow-inner" placeholder="e.g. The Gory Colosseum">
+                            <div class="flex items-center gap-3">
+                                <input type="text" id="dt-pit-loc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-red-900 bg-white shadow-inner" placeholder="e.g. The Gory Colosseum">
+                                <label class="flex items-center gap-2 cursor-pointer group shrink-0" title="Check this if a rival is present. It may affect complications.">
+                                    <input type="checkbox" id="dt-pit-rival" class="w-4 h-4 text-red-900 rounded-sm cursor-pointer shadow-sm border-stone-400">
+                                    <span class="text-[10px] font-bold uppercase tracking-widest text-stone-700 group-hover:text-red-900 transition">Rival?</span>
+                                </label>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Modifiers -->
                     <h3 class="text-xs sm:text-sm font-bold text-stone-800 font-serif mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-dice mr-2 text-stone-500"></i> Ability Check Modifiers</h3>
-                    <p class="text-[10px] text-stone-500 italic mb-4">You will make three checks against randomly generated DCs (5 + 2d10).</p>
                     
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 bg-stone-50 p-4 border border-[#d4c5a9] rounded-sm shadow-inner">
                         <div>
@@ -82,7 +94,7 @@ export const openPitFightingModal = () => {
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Largest Hit Die</label>
                             <div class="flex items-center">
                                 <span class="bg-stone-200 border border-r-0 border-[#d4c5a9] px-2 py-2 text-sm font-bold text-stone-600 rounded-l-sm">d</span>
-                                <select id="dt-pit-hd" class="w-full p-2 border border-[#d4c5a9] rounded-r-sm text-sm font-bold text-stone-900 outline-none focus:border-red-900 bg-white shadow-inner text-center">
+                                <select id="dt-pit-hd" class="w-full p-2 border border-[#d4c5a9] rounded-r-sm text-sm font-bold text-stone-900 outline-none focus:border-red-900 bg-white shadow-inner text-center cursor-pointer">
                                     <option value="6">6</option>
                                     <option value="8">8</option>
                                     <option value="10">10</option>
@@ -94,10 +106,10 @@ export const openPitFightingModal = () => {
                     </div>
 
                     <!-- Weapon Attack Override -->
-                    <div class="bg-red-900/5 border border-red-900/20 p-4 rounded-sm shadow-sm mb-5 flex flex-col sm:flex-row gap-4 justify-between items-center">
+                    <div class="bg-red-50 border border-red-200 p-4 rounded-sm shadow-sm mb-5 flex flex-col sm:flex-row gap-4 justify-between items-center">
                         <div class="flex-grow w-full">
                             <label class="flex items-center gap-2 cursor-pointer group mb-2">
-                                <input type="checkbox" id="dt-pit-replace-toggle" onchange="window.appActions.updatePitFightingMath()" class="w-4 h-4 text-red-700 rounded-sm cursor-pointer shadow-sm border-red-300">
+                                <input type="checkbox" id="dt-pit-replace-toggle" onchange="window.appActions.updatePitFightingMath()" class="w-4 h-4 text-red-700 rounded-sm cursor-pointer shadow-sm border-red-400">
                                 <span class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-red-900 group-hover:text-red-700 transition">Use Weapon Attack</span>
                             </label>
                             <p class="text-[9px] text-red-800 italic">Replace ONE of the standard checks above with your Attack modifier.</p>
@@ -119,7 +131,7 @@ export const openPitFightingModal = () => {
                     <!-- Live Math Output -->
                     <div class="mt-6 bg-[#1c1917] text-amber-50 p-4 rounded-sm shadow-inner flex flex-wrap justify-between items-center gap-4">
                         <div>
-                            <span class="block text-[10px] uppercase tracking-widest text-stone-400 font-bold mb-0.5">Maximum Payout</span>
+                            <span class="block text-[10px] uppercase tracking-widest text-stone-400 font-bold mb-0.5">Maximum Payout (3 Successes)</span>
                             <span class="text-2xl font-black text-amber-500">200 gp</span>
                         </div>
                         <div class="text-right border-l-2 border-stone-800 pl-4">
@@ -175,6 +187,8 @@ export const executePitFighting = async () => {
         return;
     }
 
+    const isRival = document.getElementById('dt-pit-rival').checked;
+
     const modAth = parseInt(document.getElementById('dt-pit-ath').value) || 0;
     const modAcr = parseInt(document.getElementById('dt-pit-acr').value) || 0;
     const modCon = parseInt(document.getElementById('dt-pit-con').value) || 0;
@@ -206,17 +220,21 @@ export const executePitFighting = async () => {
     let textAcr = `**Acrobatics (DC ${dc2}):** ${totAcr} (Rolled ${rollAcr})`;
     let textCon = `**Constitution (DC ${dc3}):** ${totCon} (Rolled ${rollCon} + ${rollHd} on d${hdSize})`;
 
+    let replacedText = "";
     if (useAtk) {
         const atkStr = `**Weapon Attack (DC ${replaceTarget === 'ath' ? dc1 : replaceTarget === 'acr' ? dc2 : dc3}):** ${rollAtk + modAtk} (Rolled ${rollAtk})`;
         if (replaceTarget === 'ath') {
             totAth = rollAtk + modAtk;
             textAth = atkStr;
+            replacedText = " (Weapon Attack replaced Athletics)";
         } else if (replaceTarget === 'acr') {
             totAcr = rollAtk + modAtk;
             textAcr = atkStr;
+            replacedText = " (Weapon Attack replaced Acrobatics)";
         } else if (replaceTarget === 'con') {
             totCon = rollAtk + modAtk;
             textCon = atkStr;
+            replacedText = " (Weapon Attack replaced Constitution)";
         }
     }
 
@@ -240,27 +258,27 @@ export const executePitFighting = async () => {
         resultBody = `✅ **3 Successes**\n\nYou are victorious, winning **200 gp**!`;
     }
 
-    // Complication Roll (10% flat chance)
+    // Complication Roll (10% flat chance per workweek - 5 days)
     let complicationText = ``;
     const d100 = Math.floor(Math.random() * 100) + 1;
     if (d100 <= 10) {
         const d6 = Math.floor(Math.random() * 6) + 1;
         const compTable = [
-            "An opponent swears to take revenge on you.",
+            `An opponent swears to take revenge on you.${isRival ? " (It turns out to be your rival or one of their associates)." : ""}`,
             "A crime boss approaches you and offers to pay you to intentionally lose a few matches.",
-            "You defeat a popular local champion, drawing the crowd’s ire.",
+            `You defeat a popular local champion, drawing the crowd’s ire.${isRival ? " (The champion was sponsored by your rival)." : ""}`,
             "You defeat a noble’s servant, drawing the wrath of the noble’s house.",
-            "You are accused of cheating. Whether the allegation is true or not, your reputation is tarnished.",
+            `You are accused of cheating. Whether the allegation is true or not, your reputation is tarnished.${isRival ? " (Your rival orchestrated the accusation)." : ""}`,
             "You accidentally deliver a near-fatal wound to a foe."
         ];
-        complicationText = `\n\n**⚠️ Complication Occurred!**\n> *Result (d6=${d6}):* ${compTable[d6 - 1]}`;
+        complicationText = `\n\n**⚠️ Complication Occurred!** (${d100}/100)\n> *Result (d6=${d6}):* ${compTable[d6 - 1]}`;
     } else {
-        complicationText = `\n\n*You emerge from the pits without further incident.*`;
+        complicationText = `\n\n*You emerge from the pits without further incident (${d100}/100).*`;
     }
 
-    let checksText = `${textAth}\n${textAcr}\n${textCon}`;
+    let checksText = `*Target DCs:* ${dc1}, ${dc2}, ${dc3}\n${textAth}\n${textAcr}\n${textCon}`;
 
-    const noteText = `**Downtime: Pit Fighting**\n*Hero:* ${pc.name}\n\n**Objective:** Fighting at ${loc}\n**Time Spent:** 5 Days\n\n${checksText}\n\n${resultBody}${complicationText}`;
+    const noteText = `**Downtime: Pit Fighting**\n*Hero:* ${pc.name}\n\n**Objective:** Fighting at ${loc}\n**Time Spent:** 5 Days\n\n${checksText}${replacedText}\n\n${resultBody}${complicationText}`;
 
     const timestampStr = new Date().toLocaleDateString();
     const logAddition = `${pc.downtimeLog ? '\n\n---\n\n' : ''}**Logged on ${timestampStr}**\n${noteText}`;
@@ -274,8 +292,7 @@ export const executePitFighting = async () => {
     );
 
     let updatedCamp = { ...camp, playerCharacters: updatedPCs };
-
-    updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime pit fighting with <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-hand-fist');
+    updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime pit fighting in ${loc} with <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-hand-fist');
 
     await saveCampaign(updatedCamp);
     
