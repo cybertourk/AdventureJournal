@@ -44,14 +44,6 @@ export const openReligiousServiceModal = () => {
     const container = document.getElementById('global-popup-container');
     if (!container) return;
 
-    let deityOptionsHtml = '';
-    for (const pantheonName in DEITY_PANTHEONS) {
-        deityOptionsHtml += `<optgroup label="--- ${pantheonName} ---">`;
-        deityOptionsHtml += DEITY_PANTHEONS[pantheonName].map(d => `<option value="${d.name}">${d.name}, ${d.title} (${d.alignment} - ${d.domains})</option>`).join('');
-        deityOptionsHtml += `</optgroup>`;
-    }
-    deityOptionsHtml += `<option value="other">-- Custom / Unlisted Patron --</option>`;
-
     container.innerHTML = `
         <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[18000] backdrop-blur-sm animate-in">
             <div class="bg-[#f4ebd8] rounded-sm w-full max-w-2xl border border-[#d4c5a9] shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
@@ -63,123 +55,289 @@ export const openReligiousServiceModal = () => {
 
                 <div class="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-grow bg-[#fdfbf7]">
                     
-                    <!-- Basic Setup -->
-                    <div class="grid grid-cols-1 gap-4 mb-5">
+                    <!-- Workflow Instructions -->
+                    <div class="bg-yellow-900/5 border border-yellow-900/20 p-4 rounded-sm shadow-sm mb-5">
+                        <h3 class="text-xs font-bold text-yellow-900 uppercase tracking-widest mb-2"><i class="fa-solid fa-clipboard-list mr-1.5 text-yellow-700"></i> Religious Service Workflow</h3>
+                        <ul class="text-[10px] sm:text-xs text-yellow-950 space-y-1.5 leading-snug font-serif">
+                            <li><b>Step 1:</b> Select your <b>Hero</b>. The Deity list will automatically filter to patrons aligned with your character's morality.</li>
+                            <li><b>Step 2:</b> You may either perform a new service to earn favors, or <b>Expend</b> a previously earned favor from your active bank.</li>
+                            <li><b>Step 3:</b> Provide your <b>Charisma Modifier</b> to determine the maximum number of unspent favors you can hold at one time.</li>
+                            <li><b>Step 4:</b> If performing a new service, roll <b>Religion</b> or <b>Persuasion</b>. Success grants banked favors for future use!</li>
+                        </ul>
+                    </div>
+
+                    <!-- Basic Setup & Favor Selection -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Select Hero</label>
-                            <select id="dt-relig-pc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-yellow-600 bg-white shadow-inner">
+                            <select id="dt-relig-pc" onchange="window.appActions.updateReligiousServiceMath('pc')" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-yellow-600 bg-white shadow-inner">
                                 ${validPCs.map(pc => {
                                     const currentDays = parseInt(pc.availableDowntime) || 0;
                                     return `<option value="${pc.id}">${pc.name} (${currentDays} Days)</option>`;
                                 }).join('')}
                             </select>
                         </div>
+                        <div>
+                            <label class="block text-[10px] uppercase text-yellow-800 font-bold mb-1 tracking-widest"><i class="fa-solid fa-hand-holding-heart mr-1 text-yellow-700"></i> Banked Favors</label>
+                            <div class="flex gap-2">
+                                <select id="dt-relig-favor-select" onchange="window.appActions.updateReligiousServiceMath('favor')" class="flex-grow p-2 border border-yellow-300 rounded-sm text-sm font-bold text-yellow-900 outline-none focus:border-yellow-600 bg-yellow-50 shadow-inner">
+                                    <option value="new">-- Perform New Service --</option>
+                                    <!-- Populated dynamically via JS -->
+                                </select>
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- Details -->
-                    <div class="bg-white p-4 border border-[#d4c5a9] rounded-sm shadow-sm mb-5 space-y-4">
-                        <div>
-                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Patron Deity</label>
-                            <select id="dt-relig-deity" onchange="window.appActions.updateReligiousServiceMath()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-yellow-600 bg-stone-50 shadow-inner">
-                                ${deityOptionsHtml}
-                            </select>
-                        </div>
-                        <div id="dt-relig-custom-group" class="hidden">
-                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Custom Patron Name</label>
-                            <input type="text" id="dt-relig-custom-deity" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-yellow-600 bg-stone-50 shadow-inner" placeholder="e.g. My Custom God">
-                        </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- ========================================== -->
+                    <!-- NEW SERVICE CONFIGURATION                  -->
+                    <!-- ========================================== -->
+                    <div id="dt-relig-new-config" class="transition-all duration-300">
+                        <!-- Details -->
+                        <div class="bg-white p-4 border border-[#d4c5a9] rounded-sm shadow-sm mb-5 space-y-4">
                             <div>
-                                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Temple Name</label>
-                                <input type="text" id="dt-relig-temple" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-yellow-600 bg-stone-50 shadow-inner" placeholder="e.g. The Morninglow Tower">
+                                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest flex justify-between">
+                                    <span>Patron Deity</span>
+                                    <span id="dt-relig-align-hint" class="text-[9px] text-stone-400 italic font-normal">Filtered by Alignment</span>
+                                </label>
+                                <select id="dt-relig-deity" onchange="window.appActions.updateReligiousServiceMath('deity')" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-yellow-600 bg-stone-50 shadow-inner">
+                                    <!-- Populated dynamically via JS -->
+                                </select>
+                            </div>
+                            <div id="dt-relig-custom-group" class="hidden">
+                                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Custom Patron Name</label>
+                                <input type="text" id="dt-relig-custom-deity" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-yellow-600 bg-stone-50 shadow-inner" placeholder="e.g. My Custom God">
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Temple Name</label>
+                                    <input type="text" id="dt-relig-temple" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-yellow-600 bg-stone-50 shadow-inner" placeholder="e.g. The Morninglow Tower">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Location</label>
+                                    <input type="text" id="dt-relig-loc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-yellow-600 bg-stone-50 shadow-inner" placeholder="e.g. Waterdeep">
+                                </div>
                             </div>
                             <div>
-                                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Location</label>
-                                <input type="text" id="dt-relig-loc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-yellow-600 bg-stone-50 shadow-inner" placeholder="e.g. Waterdeep">
+                                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Service Performed</label>
+                                <input type="text" id="dt-relig-desc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-yellow-600 bg-stone-50 shadow-inner" placeholder="What are you doing for the temple?">
                             </div>
                         </div>
-                        <div>
-                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Service Performed</label>
-                            <input type="text" id="dt-relig-desc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-yellow-600 bg-stone-50 shadow-inner" placeholder="What are you doing for the temple?">
+
+                        <!-- Modifiers -->
+                        <h3 class="text-xs sm:text-sm font-bold text-stone-800 font-serif mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-dice mr-2 text-stone-500"></i> Ability Check Modifiers</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4 bg-stone-50 p-4 border border-[#d4c5a9] rounded-sm shadow-inner">
+                            <div>
+                                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest" title="Determines Maximum Banked Favors">Charisma Modifier</label>
+                                <div class="flex items-center">
+                                    <span class="bg-stone-200 border border-r-0 border-[#d4c5a9] px-2 py-2 text-sm font-bold text-stone-600 rounded-l-sm">+</span>
+                                    <input type="number" id="dt-relig-cha-mod" value="0" oninput="window.appActions.updateReligiousServiceMath('input')" class="w-full p-2 border border-[#d4c5a9] rounded-r-sm text-sm font-bold text-stone-900 outline-none focus:border-yellow-600 bg-white shadow-inner text-center">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Skill to Use</label>
+                                <select id="dt-relig-skill" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-yellow-600 bg-white shadow-sm">
+                                    <option value="rel">Intelligence (Religion)</option>
+                                    <option value="per">Charisma (Persuasion)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest" title="Used for the actual roll">Skill Modifier</label>
+                                <div class="flex items-center">
+                                    <span class="bg-stone-200 border border-r-0 border-[#d4c5a9] px-2 py-2 text-sm font-bold text-stone-600 rounded-l-sm">+</span>
+                                    <input type="number" id="dt-relig-mod" value="0" class="w-full p-2 border border-[#d4c5a9] rounded-r-sm text-sm font-bold text-stone-900 outline-none focus:border-yellow-600 bg-white shadow-inner text-center">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Live Math Output -->
+                        <div class="mt-6 bg-[#1c1917] text-amber-50 p-4 rounded-sm shadow-inner flex flex-wrap justify-between items-center gap-4">
+                            <div>
+                                <span class="block text-[10px] uppercase tracking-widest text-stone-400 font-bold mb-0.5">Potential Favors</span>
+                                <span id="dt-relig-potential-out" class="text-xl font-bold text-yellow-500">Up to 2 <span class="text-[10px] text-stone-400 font-normal ml-1">(Cap: 1)</span></span>
+                            </div>
+                            <div class="text-right border-l-2 border-stone-800 pl-4">
+                                <span class="block text-[10px] uppercase tracking-widest text-stone-400 font-bold mb-0.5">Downtime Requirements</span>
+                                <span class="text-sm font-bold text-stone-300">5 Days</span>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Modifiers -->
-                    <h3 class="text-xs sm:text-sm font-bold text-stone-800 font-serif mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-dice mr-2 text-stone-500"></i> Ability Check Modifier</h3>
-                    <div class="bg-stone-50 p-4 border border-[#d4c5a9] rounded-sm shadow-inner mb-4 flex flex-col sm:flex-row gap-4">
-                        <div class="w-full sm:w-2/3">
-                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Skill to Use</label>
-                            <select id="dt-relig-skill" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-yellow-600 bg-white shadow-sm">
-                                <option value="rel">Intelligence (Religion)</option>
-                                <option value="per">Charisma (Persuasion)</option>
-                            </select>
-                        </div>
-                        <div class="w-full sm:w-1/3">
-                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Modifier</label>
-                            <div class="flex items-center">
-                                <span class="bg-stone-200 border border-r-0 border-[#d4c5a9] px-2 py-2 text-sm font-bold text-stone-600 rounded-l-sm">+</span>
-                                <input type="number" id="dt-relig-mod" value="0" class="w-full p-2 border border-[#d4c5a9] rounded-r-sm text-sm font-bold text-stone-900 outline-none focus:border-yellow-600 bg-white shadow-inner text-center">
+                    <!-- ========================================== -->
+                    <!-- EXPEND FAVOR CONFIGURATION                 -->
+                    <!-- ========================================== -->
+                    <div id="dt-relig-expend-config" class="hidden transition-all duration-300">
+                        <div class="bg-white border border-[#d4c5a9] rounded-sm p-4 shadow-sm mb-5">
+                            <h3 class="font-serif font-bold text-yellow-900 text-lg mb-2 flex items-center border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-hand-sparkles mr-2 text-yellow-700"></i> Call in a Favor</h3>
+                            <p class="text-stone-700 text-sm font-bold mb-1">Patron: <span id="dt-relig-expend-patron" class="font-serif font-normal text-stone-600 italic">Unknown</span></p>
+                            <p class="text-stone-700 text-sm font-bold mb-4">Date Earned: <span id="dt-relig-expend-date" class="font-serif font-normal text-stone-600 italic">Unknown</span></p>
+                            
+                            <div class="bg-yellow-50 border border-yellow-200 p-3 rounded-sm shadow-inner">
+                                <label class="block text-[10px] uppercase font-bold text-yellow-800 tracking-widest mb-1.5"><i class="fa-solid fa-feather mr-1"></i> Describe the Request</label>
+                                <textarea id="dt-relig-expend-desc" class="w-full p-2 border border-yellow-300 rounded-sm text-sm font-serif outline-none focus:border-yellow-600 bg-white h-24 custom-scrollbar resize-none placeholder:italic" placeholder="e.g. Requesting a minor healing spell, political backing, or sanctuary..."></textarea>
+                                <p class="text-[9px] text-yellow-700 italic mt-1.5 leading-snug">Expending a favor is an instant narrative action and does not cost downtime days.</p>
                             </div>
                         </div>
                     </div>
-
-                    <!-- Live Math Output -->
-                    <div class="mt-6 bg-[#1c1917] text-amber-50 p-4 rounded-sm shadow-inner flex flex-wrap justify-between items-center gap-4">
-                        <div>
-                            <span class="block text-[10px] uppercase tracking-widest text-stone-400 font-bold mb-0.5">Potential Favors</span>
-                            <span class="text-xl font-bold text-yellow-500">Up to 2</span>
-                        </div>
-                        <div class="text-right border-l-2 border-stone-800 pl-4">
-                            <span class="block text-[10px] uppercase tracking-widest text-stone-400 font-bold mb-0.5">Downtime Requirements</span>
-                            <span class="text-sm font-bold text-stone-300">5 Days</span>
-                        </div>
-                    </div>
-                    <p class="text-[9px] text-stone-500 text-center mt-2 italic font-bold uppercase tracking-widest">Note: Keep track of any earned favors in your Private Journal.</p>
+                    <!-- ========================================== -->
 
                 </div>
 
                 <div class="bg-[#e8dec7] p-4 border-t border-[#d4c5a9] flex justify-end gap-2 shrink-0 z-10 shadow-[0_-4px_10px_rgba(0,0,0,0.1)]">
                     <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="px-4 py-2 text-stone-600 border border-stone-400 rounded-sm hover:bg-stone-300 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs">Cancel</button>
-                    <button onclick="window.appActions.executeReligiousService()" class="px-5 py-2 bg-blue-900 text-amber-50 rounded-sm hover:bg-blue-800 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs flex items-center shadow-md"><i class="fa-solid fa-hands-praying mr-2"></i> Perform Service</button>
+                    <button id="dt-relig-submit-btn" onclick="window.appActions.executeReligiousService('new')" class="px-5 py-2 bg-blue-900 text-amber-50 rounded-sm hover:bg-blue-800 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs flex items-center shadow-md"><i class="fa-solid fa-hands-praying mr-2"></i> Perform Service</button>
                 </div>
             </div>
         </div>
     `;
 
-    setTimeout(window.appActions.updateReligiousServiceMath, 50);
+    setTimeout(() => {
+        window.appActions.updateReligiousServiceMath('init');
+    }, 50);
 };
 
-export const updateReligiousServiceMath = () => {
+export const updateReligiousServiceMath = (triggerSource = 'input') => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    if (!camp) return;
+
+    const pcId = document.getElementById('dt-relig-pc')?.value;
+    const pc = camp.playerCharacters?.find(p => p.id === pcId);
+    if (!pc) return;
+
+    const favorSelect = document.getElementById('dt-relig-favor-select');
+    const newConfigDiv = document.getElementById('dt-relig-new-config');
+    const expendConfigDiv = document.getElementById('dt-relig-expend-config');
+    const submitBtn = document.getElementById('dt-relig-submit-btn');
+
+    // 1. Rebuild Deity Options based on Alignment (if PC changed or Init)
+    if (triggerSource === 'pc' || triggerSource === 'init') {
+        const charAlignment = pc.alignment || "Not Set";
+        const alignmentAbbr = { 'lawful good': 'LG', 'neutral good': 'NG', 'chaotic good': 'CG', 'lawful neutral': 'LN', 'neutral': 'N', 'true neutral': 'N', 'chaotic neutral': 'CN', 'lawful evil': 'LE', 'neutral evil': 'NE', 'chaotic evil': 'CE' };
+        const alignmentSteps = { 'LG': ['LG', 'NG', 'LN'], 'NG': ['LG', 'NG', 'CG', 'N'], 'CG': ['NG', 'CG', 'CN'], 'LN': ['LG', 'LN', 'LE', 'N'], 'N': ['LG', 'NG', 'CG', 'LN', 'N', 'CN', 'LE', 'NE', 'CE'], 'CN': ['CG', 'N', 'CN', 'CE'], 'LE': ['LN', 'LE', 'NE'], 'NE': ['LE', 'NE', 'CE', 'N'], 'CE': ['NE', 'CE', 'CN'] };
+        
+        const abbr = alignmentAbbr[charAlignment.toLowerCase().trim()];
+        let pantheonsToShow = DEITY_PANTHEONS;
+        let hintText = "Filtered by Alignment";
+
+        if (abbr && alignmentSteps[abbr]) {
+            const allowed = alignmentSteps[abbr];
+            pantheonsToShow = {};
+            for (const pName in DEITY_PANTHEONS) {
+                const filtered = DEITY_PANTHEONS[pName].filter(d => allowed.includes(d.alignment));
+                if (filtered.length > 0) pantheonsToShow[pName] = filtered;
+            }
+        } else {
+            hintText = "Showing All (Unknown Alignment)";
+        }
+
+        const hintEl = document.getElementById('dt-relig-align-hint');
+        if (hintEl) hintEl.textContent = hintText;
+
+        let deityOptionsHtml = '';
+        for (const pantheonName in pantheonsToShow) {
+            deityOptionsHtml += `<optgroup label="--- ${pantheonName} ---">`;
+            deityOptionsHtml += pantheonsToShow[pantheonName].map(d => `<option value="${d.name}">${d.name}, ${d.title} (${d.alignment} - ${d.domains})</option>`).join('');
+            deityOptionsHtml += `</optgroup>`;
+        }
+        deityOptionsHtml += `<option value="other">-- Custom / Unlisted Patron --</option>`;
+        
+        const deitySelect = document.getElementById('dt-relig-deity');
+        if (deitySelect) {
+            // Try to preserve current selection if it still exists in the filtered list
+            const currentVal = deitySelect.value;
+            deitySelect.innerHTML = deityOptionsHtml;
+            if (currentVal && deitySelect.querySelector(`option[value="${currentVal}"]`)) {
+                deitySelect.value = currentVal;
+            }
+            triggerSource = 'deity'; // Force a repopulate of temple/desc based on new first item
+        }
+    }
+
+    // 2. Auto-fill Temple & Service Description
     const deitySelect = document.getElementById('dt-relig-deity');
     const customGroup = document.getElementById('dt-relig-custom-group');
     const templeInput = document.getElementById('dt-relig-temple');
     const descInput = document.getElementById('dt-relig-desc');
 
-    if (!deitySelect || !customGroup || !templeInput || !descInput) return;
+    if (deitySelect && customGroup && templeInput && descInput) {
+        const deityName = deitySelect.value;
+        if (deityName === 'other') {
+            customGroup.classList.remove('hidden');
+            if (triggerSource === 'deity') {
+                templeInput.value = "";
+                descInput.value = "";
+            }
+            templeInput.placeholder = "Enter temple name...";
+            descInput.placeholder = "Describe the custom service...";
+        } else {
+            customGroup.classList.add('hidden');
+            const allDeities = Object.values(DEITY_PANTHEONS).flat();
+            const deity = allDeities.find(d => d.name === deityName);
+            
+            if (deity && triggerSource === 'deity') {
+                templeInput.value = deity.temple;
+                descInput.value = deity.service;
+            }
+        }
+    }
 
-    const deityName = deitySelect.value;
-    
-    if (deityName === 'other') {
-        customGroup.classList.remove('hidden');
-        if (document.activeElement !== templeInput) templeInput.value = "";
-        if (document.activeElement !== descInput) descInput.value = "";
-        templeInput.placeholder = "Enter temple name...";
-        descInput.placeholder = "Describe the custom service...";
+    // 3. Rebuild Banked Favors Dropdown
+    const favors = pc.religiousFavors || [];
+    if (triggerSource === 'pc' || triggerSource === 'init') {
+        let fHtml = `<option value="new">-- Perform New Service --</option>`;
+        favors.forEach(f => {
+            const dateStr = new Date(f.timestamp).toLocaleDateString();
+            fHtml += `<option value="${f.id}">Favor: ${f.patron} (${dateStr})</option>`;
+        });
+        if (favorSelect) favorSelect.innerHTML = fHtml;
+    }
+
+    // 4. Toggle Modes (New vs Expend)
+    const favorId = favorSelect?.value;
+    const isExpending = favorId !== 'new';
+
+    if (isExpending) {
+        newConfigDiv.classList.add('hidden');
+        expendConfigDiv.classList.remove('hidden');
+        
+        const fTarget = favors.find(f => f.id === favorId);
+        if (fTarget) {
+            document.getElementById('dt-relig-expend-patron').textContent = fTarget.patron;
+            document.getElementById('dt-relig-expend-date').textContent = new Date(fTarget.timestamp).toLocaleDateString();
+        }
+
+        if (submitBtn) {
+            submitBtn.innerHTML = `<i class="fa-solid fa-hand-sparkles mr-2"></i> Expend Favor`;
+            submitBtn.className = submitBtn.className.replace('bg-blue-900', 'bg-yellow-700').replace('hover:bg-blue-800', 'hover:bg-yellow-600');
+            submitBtn.onclick = () => window.appActions.executeReligiousService('expend');
+        }
     } else {
-        customGroup.classList.add('hidden');
+        newConfigDiv.classList.remove('hidden');
+        expendConfigDiv.classList.add('hidden');
+
+        if (submitBtn) {
+            submitBtn.innerHTML = `<i class="fa-solid fa-hands-praying mr-2"></i> Perform Service`;
+            submitBtn.className = submitBtn.className.replace('bg-yellow-700', 'bg-blue-900').replace('hover:bg-yellow-600', 'hover:bg-blue-800');
+            submitBtn.onclick = () => window.appActions.executeReligiousService('new');
+        }
+
+        // Live Math (Charisma Cap)
+        const chaMod = parseInt(document.getElementById('dt-relig-cha-mod')?.value) || 0;
+        const maxFavors = Math.max(1, 1 + chaMod);
+        const currentCount = favors.length;
         
-        // Find the matching deity to auto-fill the inputs
-        const allDeities = Object.values(DEITY_PANTHEONS).flat();
-        const deity = allDeities.find(d => d.name === deityName);
-        
-        if (deity && document.activeElement !== templeInput && document.activeElement !== descInput) {
-            templeInput.value = deity.temple;
-            descInput.value = deity.service;
+        const potOut = document.getElementById('dt-relig-potential-out');
+        if (potOut) {
+            let capWarn = '';
+            if (currentCount >= maxFavors) capWarn = `<span class="text-red-500 font-normal ml-1 text-[10px] uppercase">(Bank Full)</span>`;
+            else capWarn = `<span class="text-stone-400 font-normal ml-1 text-[10px] uppercase">(Bank: ${currentCount}/${maxFavors})</span>`;
+            
+            potOut.innerHTML = `Up to 2 ${capWarn}`;
         }
     }
 };
 
-export const executeReligiousService = async () => {
+export const executeReligiousService = async (actionType = 'new') => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
     const myUid = window.appData.currentUserUid;
@@ -189,83 +347,150 @@ export const executeReligiousService = async () => {
     const pc = camp.playerCharacters?.find(p => p.id === pcId);
     if (!pc) return;
 
-    // DOWNTIME DAYS CHECK
-    if ((parseInt(pc.availableDowntime) || 0) < 5) {
-        notify(`Not enough downtime days. ${pc.name} only has ${parseInt(pc.availableDowntime) || 0} days available.`, "error");
-        return;
-    }
-
-    let deityName = document.getElementById('dt-relig-deity').value;
-    if (deityName === 'other') deityName = document.getElementById('dt-relig-custom-deity').value.trim();
+    const favorId = document.getElementById('dt-relig-favor-select').value;
+    const isExpending = favorId !== 'new';
     
-    const temple = document.getElementById('dt-relig-temple').value.trim();
-    const loc = document.getElementById('dt-relig-loc').value.trim();
-    const desc = document.getElementById('dt-relig-desc').value.trim();
+    let logAddition = "";
+    let daysToDeduct = 0;
+    let favorsArray = [...(pc.religiousFavors || [])];
 
-    if (!deityName || !temple || !loc || !desc) {
-        notify("Please fill out the Deity, Temple, Location, and Service Description.", "error");
-        return;
-    }
+    if (isExpending) {
+        // --- PROCESS FAVOR EXPENDITURE ---
+        const fTargetIndex = favorsArray.findIndex(f => f.id === favorId);
+        if (fTargetIndex === -1) return;
+        const fTarget = favorsArray[fTargetIndex];
 
-    const patron = `${deityName} (${temple}, ${loc})`;
-    
-    const skillVal = document.getElementById('dt-relig-skill').value;
-    const skillName = skillVal === 'rel' ? "Religion" : "Persuasion";
-    const modifier = parseInt(document.getElementById('dt-relig-mod').value) || 0;
+        const requestDesc = document.getElementById('dt-relig-expend-desc').value.trim();
+        if (!requestDesc) {
+            notify("Please describe the favor you are requesting.", "error");
+            return;
+        }
 
-    // --- MATH EXECUTION ---
-    const d20 = Math.floor(Math.random() * 20) + 1;
-    const checkTotal = d20 + modifier;
-    
-    let favorsGained = 0;
-    if (checkTotal >= 21) favorsGained = 2;
-    else if (checkTotal >= 11) favorsGained = 1;
+        if (!confirm(`Are you sure you want to permanently expend your favor from ${fTarget.patron}?`)) return;
 
-    // Complication Roll (10% flat chance)
-    let complicationText = ``;
-    const d100 = Math.floor(Math.random() * 100) + 1;
-    if (d100 <= 10) {
-        const d6 = Math.floor(Math.random() * 6) + 1;
-        const compTable = [
-            "You have offended a priest through your words or actions.", 
-            "Blasphemy is still blasphemy, even if you did it by accident.", 
-            "A secret sect in the temple offers you membership.", 
-            "Another temple tries to recruit you as a spy.", 
-            "The temple elders implore you to take up a holy quest.", 
-            "You accidentally discover that an important person in the temple is a fiend worshiper."
-        ];
-        complicationText = `\n\n**⚠️ Complication Occurred!**\n> *Result (d6=${d6}):* ${compTable[d6 - 1]}`;
+        // Remove favor
+        favorsArray.splice(fTargetIndex, 1);
+        daysToDeduct = 0; // Narrative action
+
+        const resText = `**Downtime: Favor Expended**\n*Hero:* ${pc.name}\n\n**Patron:** ${fTarget.patron}\n**Request:** *${requestDesc}*\n\n✅ **Favor Called In!**\nYou successfully cashed in your influence with the temple. You now have ${favorsArray.length} banked favor(s) remaining.`;
+
+        const timestampStr = new Date().toLocaleDateString();
+        logAddition = `${pc.downtimeLog ? '\n\n---\n\n' : ''}**Logged on ${timestampStr}**\n${resText}`;
+
     } else {
-        complicationText = `\n\n*Your service proceeds without incident.*`;
+        // --- PROCESS NEW SERVICE ---
+        daysToDeduct = 5;
+
+        if ((parseInt(pc.availableDowntime) || 0) < daysToDeduct) {
+            notify(`Not enough downtime days. ${pc.name} only has ${parseInt(pc.availableDowntime) || 0} days available.`, "error");
+            return;
+        }
+
+        let deityName = document.getElementById('dt-relig-deity').value;
+        if (deityName === 'other') deityName = document.getElementById('dt-relig-custom-deity').value.trim();
+        
+        const temple = document.getElementById('dt-relig-temple').value.trim();
+        const loc = document.getElementById('dt-relig-loc').value.trim();
+        const desc = document.getElementById('dt-relig-desc').value.trim();
+
+        if (!deityName || !temple || !loc || !desc) {
+            notify("Please fill out the Deity, Temple, Location, and Service Description.", "error");
+            return;
+        }
+
+        const patron = `${deityName} (${temple}, ${loc})`;
+        
+        const chaMod = parseInt(document.getElementById('dt-relig-cha-mod').value) || 0;
+        const maxFavors = Math.max(1, 1 + chaMod);
+
+        const skillVal = document.getElementById('dt-relig-skill').value;
+        const skillName = skillVal === 'rel' ? "Religion" : "Persuasion";
+        const modifier = parseInt(document.getElementById('dt-relig-mod').value) || 0;
+
+        // --- MATH EXECUTION ---
+        const d20 = Math.floor(Math.random() * 20) + 1;
+        const checkTotal = d20 + modifier;
+        
+        let favorsRolled = 0;
+        if (checkTotal >= 21) favorsRolled = 2;
+        else if (checkTotal >= 11) favorsRolled = 1;
+
+        let actualGained = 0;
+        let wasted = 0;
+        let currentBanked = favorsArray.length;
+
+        for (let i = 0; i < favorsRolled; i++) {
+            if (currentBanked + actualGained < maxFavors) {
+                favorsArray.push({
+                    id: generateId(),
+                    patron: patron,
+                    timestamp: Date.now()
+                });
+                actualGained++;
+            } else {
+                wasted++;
+            }
+        }
+
+        // Complication Roll (10% flat chance)
+        let complicationText = ``;
+        const d100 = Math.floor(Math.random() * 100) + 1;
+        if (d100 <= 10) {
+            const d6 = Math.floor(Math.random() * 6) + 1;
+            const compTable = [
+                "You have offended a priest through your words or actions.", 
+                "Blasphemy is still blasphemy, even if you did it by accident.", 
+                "A secret sect in the temple offers you membership.", 
+                "Another temple tries to recruit you as a spy.", 
+                "The temple elders implore you to take up a holy quest.", 
+                "You accidentally discover that an important person in the temple is a fiend worshiper."
+            ];
+            complicationText = `\n\n**⚠️ Complication Occurred!** (${d100}/100)\n> *Result (d6=${d6}):* ${compTable[d6 - 1]}`;
+        } else {
+            complicationText = `\n\n*Your service proceeds without incident (${d100}/100).*`;
+        }
+
+        let resultBody = ``;
+        if (actualGained > 0) {
+            resultBody += `✅ **Favor Gained!**\nYou earned **${actualGained} Banked Favor(s)** from ${patron}.\n`;
+        }
+        if (wasted > 0) {
+            resultBody += `⚠️ **Limit Reached:** You earned ${wasted} more potential favor(s), but your influence at the temple is already at its peak! (Cap: ${maxFavors}).\n`;
+        }
+        if (favorsRolled === 0) {
+            resultBody += `❌ **No Favor Gained**\nYour efforts failed to make a lasting impression on the temple leadership, and you gain no new favors.\n`;
+        }
+
+        const noteText = `**Downtime: Religious Service**\n*Hero:* ${pc.name}\n\n**Patron:** ${patron}\n**Service:** *${desc}*\n**Time Spent:** 5 Days\n\n**${skillName} Check:** ${checkTotal} (Rolled ${d20} ${modifier >= 0 ? `+ ${modifier}` : `- ${Math.abs(modifier)}`})\n\n${resultBody}${complicationText}`;
+
+        const timestampStr = new Date().toLocaleDateString();
+        logAddition = `${pc.downtimeLog ? '\n\n---\n\n' : ''}**Logged on ${timestampStr}**\n${noteText}`;
     }
-
-    let resultBody = ``;
-    if (favorsGained > 0) {
-        resultBody = `✅ **Favor Gained!**\nYou earned **${favorsGained} Favor(s)** from ${patron}.\n\n*(Be sure to record these favors in your hero's Private Journal so you don't forget to call them in!)*`;
-    } else {
-        resultBody = `❌ **No Favor Gained**\nYour efforts failed to make a lasting impression on the temple leadership, and you gain no new favors.`;
-    }
-
-    const noteText = `**Downtime: Religious Service**\n*Hero:* ${pc.name}\n\n**Patron:** ${patron}\n**Service:** *${desc}*\n**Time Spent:** 5 Days\n\n**${skillName} Check:** ${checkTotal} (Rolled ${d20} ${modifier >= 0 ? `+ ${modifier}` : `- ${Math.abs(modifier)}`})\n\n${resultBody}${complicationText}`;
-
-    const timestampStr = new Date().toLocaleDateString();
-    const logAddition = `${pc.downtimeLog ? '\n\n---\n\n' : ''}**Logged on ${timestampStr}**\n${noteText}`;
 
     const updatedPCs = camp.playerCharacters.map(p => 
         p.id === pc.id ? { 
             ...p, 
-            availableDowntime: Math.max(0, (parseInt(p.availableDowntime) || 0) - 5),
+            religiousFavors: favorsArray,
+            availableDowntime: Math.max(0, (parseInt(p.availableDowntime) || 0) - daysToDeduct),
             downtimeLog: (p.downtimeLog || '') + logAddition
         } : p
     );
 
     let updatedCamp = { ...camp, playerCharacters: updatedPCs };
-    updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime performing religious service with <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-hands-praying');
+    
+    if (isExpending) {
+        updatedCamp = logPlayerActivity(updatedCamp, myUid, `called in a religious favor for <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-hand-sparkles');
+    } else {
+        updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime performing religious service with <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-hands-praying');
+    }
 
     await saveCampaign(updatedCamp);
     
     document.getElementById('global-popup-container').innerHTML = '';
-    notify(`Religious Service resolved. 5 days deducted from ${pc.name}. Log saved to Hero Journal.`, "success");
+    
+    if (isExpending) notify(`Favor expended successfully. Log saved.`, "success");
+    else notify(`Service resolved. 5 days deducted. Log saved.`, "success");
+    
     reRender();
 };
 
