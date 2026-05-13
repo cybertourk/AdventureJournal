@@ -31,7 +31,16 @@ export const openGamblingModal = () => {
 
                 <div class="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-grow bg-[#fdfbf7]">
                     
-                    <p class="text-xs text-stone-600 italic mb-5 leading-snug">Spend <b>1 workweek (5 days)</b> to risk your coin in games of chance. You must make three checks (Insight, Deception, Intimidation) against randomly generated DCs (5 + 2d10).</p>
+                    <!-- Workflow Instructions -->
+                    <div class="bg-amber-50 border border-amber-200 p-4 rounded-sm shadow-sm mb-5">
+                        <h3 class="text-xs font-bold text-amber-900 uppercase tracking-widest mb-2"><i class="fa-solid fa-clipboard-list mr-1.5 text-amber-600"></i> Gambling Workflow</h3>
+                        <ul class="text-[10px] sm:text-xs text-amber-800 space-y-1.5 leading-snug font-serif">
+                            <li><b>Step 1:</b> Select your <b>Hero</b> and enter the <b>Location</b> where the games are being held.</li>
+                            <li><b>Step 2:</b> Set your <b>Stake</b> (10 to 1,000 gp). This determines your potential losses and maximum payout.</li>
+                            <li><b>Step 3:</b> Input your modifiers for <b>Insight</b>, <b>Deception</b>, and <b>Intimidation</b>. You may substitute one of these with a <b>Gaming Set</b> proficiency if applicable.</li>
+                            <li><b>Step 4:</b> Roll the dice! You will make three checks against randomly generated DCs. Successes determine your payout, but beware a 10% chance of complications!</li>
+                        </ul>
+                    </div>
 
                     <!-- Basic Setup -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
@@ -135,7 +144,7 @@ export const openGamblingModal = () => {
     }, 50);
 };
 
-export const updateGamblingMath = (triggerSource) => {
+export const updateGamblingMath = (val, source) => {
     const slider = document.getElementById('dt-gamble-slider');
     const input = document.getElementById('dt-gamble-stake');
     const payoutOut = document.getElementById('dt-gamble-payout-out');
@@ -143,7 +152,7 @@ export const updateGamblingMath = (triggerSource) => {
     if (!slider || !input || !payoutOut) return;
 
     let stake = 10;
-    if (triggerSource === 'slider') {
+    if (source === 'slider') {
         stake = parseInt(slider.value) || 10;
         input.value = stake;
     } else {
@@ -191,9 +200,10 @@ export const executeGambling = async () => {
     const modTool = parseInt(document.getElementById('dt-gamble-tool').value) || 0;
 
     let toolUsed = null;
-    if (replaceTarget === 'ins') { modIns = modTool; toolUsed = 'Insight'; }
-    if (replaceTarget === 'dec') { modDec = modTool; toolUsed = 'Deception'; }
-    if (replaceTarget === 'itm') { modItm = modTool; toolUsed = 'Intimidation'; }
+    let skillReplacedText = "";
+    if (replaceTarget === 'ins') { modIns = modTool; toolUsed = 'Insight'; skillReplacedText = " (Insight replaced by Gaming Set)"; }
+    if (replaceTarget === 'dec') { modDec = modTool; toolUsed = 'Deception'; skillReplacedText = " (Deception replaced by Gaming Set)"; }
+    if (replaceTarget === 'itm') { modItm = modTool; toolUsed = 'Intimidation'; skillReplacedText = " (Intimidation replaced by Gaming Set)"; }
 
     // Roll DCs (5 + 2d10)
     const dc1 = 5 + Math.floor(Math.random() * 10) + 1 + Math.floor(Math.random() * 10) + 1;
@@ -251,7 +261,7 @@ export const executeGambling = async () => {
 
     let checksText = `*Target DCs:* ${dc1}, ${dc2}, ${dc3}\n${insLabel} ${totalIns} (vs DC ${dc1})\n${decLabel} ${totalDec} (vs DC ${dc2})\n${itmLabel} ${totalItm} (vs DC ${dc3})`;
 
-    const noteText = `**Downtime: Gambling**\n*Hero:* ${pc.name}\n\n${resultHeader}\n\n**Time Spent:** 5 Days\n**Stake:** ${stake} gp\n\n${checksText}\n\n${resultBody}${complicationText}`;
+    const noteText = `**Downtime: Gambling**\n*Hero:* ${pc.name}\n\n${resultHeader}\n\n**Time Spent:** 5 Days\n**Stake:** ${stake} gp\n\n${checksText}${skillReplacedText}\n\n${resultBody}${complicationText}`;
     const timestampStr = new Date().toLocaleDateString();
     const logAddition = `${pc.downtimeLog ? '\n\n---\n\n' : ''}**Logged on ${timestampStr}**\n${noteText}`;
 
