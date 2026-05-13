@@ -93,6 +93,7 @@ export const openRelaxationModal = () => {
                                     <option value="ability">Restore reduced ability score</option>
                                     <option value="other">Other (Describe manually)</option>
                                 </select>
+                                <p class="text-[9px] text-red-800 italic mt-1.5 leading-snug">Cannot be used if the harmful effect was caused by a spell or ongoing magic.</p>
                             </div>
                             <div>
                                 <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Effect Description</label>
