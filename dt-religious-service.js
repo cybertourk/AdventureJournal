@@ -265,7 +265,6 @@ export const updateReligiousServiceMath = (triggerSource = 'input') => {
             if (currentVal && optionExists) {
                 deitySelect.value = currentVal;
             }
-            triggerSource = 'deity'; // Force a repopulate of temple/desc based on new first item
         }
     }
 
@@ -277,9 +276,11 @@ export const updateReligiousServiceMath = (triggerSource = 'input') => {
 
     if (deitySelect && customGroup && templeInput && descInput) {
         const deityName = deitySelect.value;
+        const shouldAutoFill = ['deity', 'pc', 'init'].includes(triggerSource);
+        
         if (deityName === 'other') {
             customGroup.classList.remove('hidden');
-            if (triggerSource === 'deity') {
+            if (shouldAutoFill) {
                 templeInput.value = "";
                 descInput.value = "";
             }
@@ -290,7 +291,7 @@ export const updateReligiousServiceMath = (triggerSource = 'input') => {
             const allDeities = Object.values(DEITY_PANTHEONS).flat();
             const deity = allDeities.find(d => d.name === deityName);
             
-            if (deity && triggerSource === 'deity') {
+            if (deity && shouldAutoFill) {
                 templeInput.value = deity.temple;
                 descInput.value = deity.service;
             }
