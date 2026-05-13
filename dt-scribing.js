@@ -31,25 +31,46 @@ export const openScribingModal = () => {
 
                 <div class="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-grow bg-[#fdfbf7]">
                     
-                    <!-- Basic Setup -->
-                    <div class="grid grid-cols-1 gap-4 mb-5">
+                    <!-- Workflow Instructions -->
+                    <div class="bg-fuchsia-900/5 border border-fuchsia-900/20 p-4 rounded-sm shadow-sm mb-5">
+                        <h3 class="text-xs font-bold text-fuchsia-900 uppercase tracking-widest mb-2"><i class="fa-solid fa-clipboard-list mr-1.5 text-fuchsia-700"></i> Scribing Workflow</h3>
+                        <ul class="text-[10px] sm:text-xs text-fuchsia-950 space-y-1.5 leading-snug font-serif">
+                            <li><b>Step 1:</b> Select your <b>Hero</b>. You must be proficient in the Arcana skill to scribe a scroll.</li>
+                            <li><b>Step 2:</b> You may either start a <b>New Project</b> or resume an <b>Active Project</b> from the dropdown.</li>
+                            <li><b>Step 3:</b> Define the spell level and name. The gold cost covers ink and parchment, but you must provide any extra material components yourself.</li>
+                            <li><b>Step 4:</b> Log your days! High-level scrolls take months to complete, so your progress will be safely banked until finished.</li>
+                        </ul>
+                    </div>
+
+                    <!-- Basic Setup & Project Selection -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Select Hero</label>
-                            <select id="dt-scribe-pc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-fuchsia-700 bg-white shadow-inner">
+                            <select id="dt-scribe-pc" onchange="window.appActions.updateScribingMath('pc')" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-fuchsia-700 bg-white shadow-inner">
                                 ${validPCs.map(pc => {
                                     const currentDays = parseInt(pc.availableDowntime) || 0;
                                     return `<option value="${pc.id}">${pc.name} (${currentDays} Days)</option>`;
                                 }).join('')}
                             </select>
                         </div>
+                        <div>
+                            <label class="block text-[10px] uppercase text-fuchsia-800 font-bold mb-1 tracking-widest"><i class="fa-solid fa-book-open mr-1"></i> Active Projects</label>
+                            <div class="flex gap-2">
+                                <select id="dt-scribe-project" onchange="window.appActions.updateScribingMath('project')" class="flex-grow p-2 border border-fuchsia-300 rounded-sm text-sm font-bold text-fuchsia-900 outline-none focus:border-fuchsia-600 bg-fuchsia-50 shadow-inner">
+                                    <option value="new">-- Start New Project --</option>
+                                    <!-- Populated dynamically via JS -->
+                                </select>
+                                <button type="button" id="dt-scribe-abandon-btn" onclick="window.appActions.abandonScribingProject()" class="hidden px-3 py-2 bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 rounded-sm transition" title="Abandon Project"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- Details -->
-                    <div class="bg-white p-4 border border-[#d4c5a9] rounded-sm shadow-sm mb-5 space-y-4">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- New Project Fields (Hidden if resuming) -->
+                    <div id="dt-scribe-new-config" class="mb-5 bg-white p-4 border border-[#d4c5a9] rounded-sm shadow-sm transition-all duration-300">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                             <div>
                                 <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Spell Level</label>
-                                <select id="dt-scribe-level" onchange="window.appActions.updateScribingMath()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-fuchsia-700 bg-stone-50 shadow-inner">
+                                <select id="dt-scribe-level" onchange="window.appActions.updateScribingMath('input')" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-fuchsia-700 bg-stone-50 shadow-inner">
                                     <option value="0">Cantrip (Level 0)</option>
                                     <option value="1" selected>1st Level</option>
                                     <option value="2">2nd Level</option>
@@ -62,13 +83,19 @@ export const openScribingModal = () => {
                                     <option value="9">9th Level</option>
                                 </select>
                             </div>
-                            <div>
-                                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Spell Name</label>
-                                <input type="text" id="dt-scribe-spell-name" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-fuchsia-700 bg-stone-50 shadow-inner" placeholder="e.g. Fireball">
+                            <div class="flex items-end pb-2">
+                                <label class="flex items-center gap-2 cursor-pointer group" title="Check this if a rival is present. It may affect complications.">
+                                    <input type="checkbox" id="dt-scribe-rival" class="w-4 h-4 text-fuchsia-700 rounded-sm cursor-pointer shadow-sm border-stone-400">
+                                    <span class="text-[10px] font-bold uppercase tracking-widest text-stone-700 group-hover:text-fuchsia-900 transition">Rival Present?</span>
+                                </label>
                             </div>
                         </div>
+                        <div class="mb-4">
+                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Spell Name</label>
+                            <input type="text" id="dt-scribe-spell-name" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-fuchsia-700 bg-stone-50 shadow-inner" placeholder="e.g. Fireball">
+                        </div>
 
-                        <div class="flex items-center gap-2 pt-2">
+                        <div class="flex items-center gap-2 pt-2 border-t border-[#d4c5a9]">
                             <input type="checkbox" id="dt-scribe-materials" class="w-4 h-4 text-fuchsia-600 rounded-sm cursor-pointer shadow-sm border-stone-400">
                             <label class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-stone-700 cursor-pointer" for="dt-scribe-materials">Material Components Provided?</label>
                         </div>
@@ -78,7 +105,10 @@ export const openScribingModal = () => {
                     <!-- Progress Input -->
                     <div class="bg-stone-900 text-amber-50 p-4 rounded-sm shadow-inner mb-2">
                         <div class="flex justify-between items-center mb-3 pb-2 border-b border-stone-700">
-                            <span class="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Total Project Requirements</span>
+                            <div>
+                                <span class="block text-[10px] uppercase tracking-widest text-stone-400 font-bold">Total Project Scope</span>
+                                <span id="dt-scribe-progress-text" class="text-xs font-bold text-amber-200">0 / 0 Days Complete</span>
+                            </div>
                             <div class="text-right">
                                 <span id="dt-scribe-total-days" class="text-sm font-bold text-emerald-400 mr-3">1 Day</span>
                                 <span id="dt-scribe-total-gold" class="text-sm font-bold text-amber-400">25 gp</span>
@@ -86,17 +116,17 @@ export const openScribingModal = () => {
                         </div>
                         <div class="flex items-center justify-between gap-4">
                             <div class="flex-1">
-                                <label class="block text-[10px] uppercase text-stone-400 font-bold mb-1 tracking-widest">Work Days Spent <span class="normal-case font-normal">(Progress)</span></label>
-                                <input type="number" id="dt-scribe-days-spent" value="1" min="1" oninput="window.appActions.updateScribingMath()" class="w-full p-2 border border-stone-600 rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-500 text-center bg-stone-200">
+                                <label class="block text-[10px] uppercase text-stone-400 font-bold mb-1 tracking-widest">Downtime to Spend <span class="normal-case font-normal">(Progress)</span></label>
+                                <input type="number" id="dt-scribe-days-spent" value="1" min="1" oninput="window.appActions.updateScribingMath('input')" class="w-full p-2 border border-stone-600 rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-500 text-center bg-stone-200">
                             </div>
                             <div class="flex-1 text-right flex flex-col justify-end">
                                 <span class="block text-[10px] uppercase tracking-widest text-stone-400 font-bold mb-0.5">Complication Risk</span>
-                                <span id="dt-scribe-risk" class="text-xl font-bold text-red-500">10%</span>
+                                <span id="dt-scribe-risk" class="text-xl font-bold text-red-500" title="10% risk per 5 work-days spent">10%</span>
                                 <p class="text-[8px] text-stone-500 italic mt-0.5">Checked automatically</p>
                             </div>
                         </div>
                     </div>
-                    <p class="text-[9px] text-stone-500 text-center mt-2 italic font-bold uppercase tracking-widest">Note: Gold and material components must be deducted manually.</p>
+                    <p id="dt-scribe-cost-warning" class="text-[9px] text-stone-500 text-center mt-2 italic font-bold uppercase tracking-widest">Note: Gold must be deducted from your inventory manually.</p>
 
                 </div>
 
@@ -108,53 +138,103 @@ export const openScribingModal = () => {
         </div>
     `;
 
-    setTimeout(window.appActions.updateScribingMath, 50);
+    // Initialize dynamic UI elements
+    setTimeout(() => {
+        window.appActions.updateScribingMath('init');
+    }, 50);
 };
 
-export const updateScribingMath = () => {
-    const levelEl = document.getElementById('dt-scribe-level');
-    const daysSpentEl = document.getElementById('dt-scribe-days-spent');
-    
-    if (!levelEl || !daysSpentEl) return;
+export const updateScribingMath = (triggerSource = 'input') => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    if (!camp) return;
 
-    const level = parseInt(levelEl.value) || 0;
-    
+    const pcId = document.getElementById('dt-scribe-pc').value;
+    const pc = camp.playerCharacters?.find(p => p.id === pcId);
+    if (!pc) return;
+
+    const projectSelect = document.getElementById('dt-scribe-project');
+    const newConfigDiv = document.getElementById('dt-scribe-new-config');
+    const abandonBtn = document.getElementById('dt-scribe-abandon-btn');
+
+    // Rebuild Projects List if PC changed
+    const projects = pc.scribingProjects || {};
+    if (triggerSource === 'pc' || triggerSource === 'init') {
+        let projHtml = `<option value="new">-- Start New Project --</option>`;
+        Object.entries(projects).forEach(([pid, proj]) => {
+            projHtml += `<option value="${pid}">${proj.name} (Level ${proj.level}) - ${proj.progress}/${proj.totalTime} days</option>`;
+        });
+        projectSelect.innerHTML = projHtml;
+    }
+
+    const projectId = projectSelect.value;
+    const isResuming = projectId !== 'new';
+
+    // Toggle New vs Resume modes
+    if (isResuming) {
+        newConfigDiv.classList.add('hidden');
+        abandonBtn.classList.remove('hidden');
+        document.getElementById('dt-scribe-cost-warning').textContent = "Note: Materials cost was paid when this project began.";
+    } else {
+        newConfigDiv.classList.remove('hidden');
+        abandonBtn.classList.add('hidden');
+        document.getElementById('dt-scribe-cost-warning').textContent = "Note: Material cost must be paid up front when starting.";
+    }
+
+    // --- MATH CALCULATION ---
+    let totalTime = 0;
+    let totalCost = 0;
+    let currentProgress = 0;
+    let spellLevel = 0;
+
     const scrollCosts = {
-        0: { t: 1, c: 15 }, 
-        1: { t: 1, c: 25 }, 
-        2: { t: 3, c: 250 },
-        3: { t: 5, c: 500 }, 
-        4: { t: 10, c: 2500 }, 
-        5: { t: 20, c: 5000 },
-        6: { t: 40, c: 15000 }, 
-        7: { t: 80, c: 25000 }, 
-        8: { t: 160, c: 50000 },
+        0: { t: 1, c: 15 }, 1: { t: 1, c: 25 }, 2: { t: 3, c: 250 },
+        3: { t: 5, c: 500 }, 4: { t: 10, c: 2500 }, 5: { t: 20, c: 5000 },
+        6: { t: 40, c: 15000 }, 7: { t: 80, c: 25000 }, 8: { t: 160, c: 50000 },
         9: { t: 240, c: 250000 }
     };
 
-    const effectiveTime = scrollCosts[level].t;
-    const effectiveCost = scrollCosts[level].c;
-
-    // Update Requirements UI
-    document.getElementById('dt-scribe-total-days').textContent = `${effectiveTime} Day${effectiveTime !== 1 ? 's' : ''}`;
-    document.getElementById('dt-scribe-total-gold').textContent = `${effectiveCost.toLocaleString()} gp`;
-
-    // Cap progress to max required time
-    let daysSpent = parseInt(daysSpentEl.value) || 1;
-    if (daysSpent > effectiveTime) {
-        daysSpent = effectiveTime;
-        daysSpentEl.value = effectiveTime;
+    if (isResuming) {
+        const proj = projects[projectId];
+        totalTime = proj.totalTime;
+        totalCost = proj.cost;
+        currentProgress = proj.progress;
+        spellLevel = proj.level;
+    } else {
+        spellLevel = parseInt(document.getElementById('dt-scribe-level').value) || 0;
+        totalTime = scrollCosts[spellLevel].t;
+        totalCost = scrollCosts[spellLevel].c;
     }
 
-    // 10% complication risk per workweek (5 days) spent DURING THIS LOG
-    const workweeks = Math.max(1, Math.ceil(daysSpent / 5));
-    const risk = Math.min(100, workweeks * 10);
-    document.getElementById('dt-scribe-risk').textContent = `${risk}%`;
+    const workRemaining = totalTime - currentProgress;
 
-    // Button Toggle
+    // Update Totals UI
+    document.getElementById('dt-scribe-total-days').textContent = `${totalTime} Day${totalTime !== 1 ? 's' : ''}`;
+    document.getElementById('dt-scribe-total-gold').textContent = `${totalCost.toLocaleString()} gp`;
+    document.getElementById('dt-scribe-progress-text').textContent = `${currentProgress} / ${totalTime} Days Complete`;
+
+    // Process "Days Spent" Input
+    const daysSpentEl = document.getElementById('dt-scribe-days-spent');
+    let daysSpent = parseInt(daysSpentEl.value) || 1;
+    
+    if (daysSpent > workRemaining) {
+        daysSpent = workRemaining;
+        daysSpentEl.value = workRemaining;
+    }
+
+    // Complication Risk UI Update (10% per workweek logged)
+    const riskEl = document.getElementById('dt-scribe-risk');
+    if (riskEl) {
+        const workweeks = Math.max(1, Math.ceil(daysSpent / 5));
+        const risk = Math.min(100, workweeks * 10);
+        riskEl.textContent = `${risk}%`;
+    }
+
+    const willComplete = (currentProgress + daysSpent) >= totalTime;
+
     const submitBtn = document.getElementById('dt-scribe-submit-btn');
     if (submitBtn) {
-        if (daysSpent >= effectiveTime) {
+        if (willComplete) {
             submitBtn.innerHTML = `<i class="fa-solid fa-scroll mr-2"></i> Complete Project`;
             submitBtn.className = submitBtn.className.replace('bg-blue-800', 'bg-emerald-700').replace('hover:bg-blue-700', 'hover:bg-emerald-600');
         } else {
@@ -162,6 +242,32 @@ export const updateScribingMath = () => {
             submitBtn.className = submitBtn.className.replace('bg-emerald-700', 'bg-blue-800').replace('hover:bg-emerald-600', 'hover:bg-blue-700');
         }
     }
+};
+
+export const abandonScribingProject = async () => {
+    const projectId = document.getElementById('dt-scribe-project').value;
+    if (projectId === 'new') return;
+
+    if (!confirm("Are you sure you want to permanently abandon this incomplete scroll? The materials and gold spent will be lost.")) return;
+
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    const pcId = document.getElementById('dt-scribe-pc').value;
+    
+    const updatedPCs = camp.playerCharacters.map(p => {
+        if (p.id === pcId && p.scribingProjects) {
+            const newProjects = { ...p.scribingProjects };
+            delete newProjects[projectId];
+            return { ...p, scribingProjects: newProjects };
+        }
+        return p;
+    });
+
+    const updatedCamp = { ...camp, playerCharacters: updatedPCs };
+    await saveCampaign(updatedCamp);
+    notify("Project abandoned.", "success");
+    
+    window.appActions.updateScribingMath('init');
 };
 
 export const executeScribing = async () => {
@@ -174,33 +280,50 @@ export const executeScribing = async () => {
     const pc = camp.playerCharacters?.find(p => p.id === pcId);
     if (!pc) return;
 
-    const spellName = document.getElementById('dt-scribe-spell-name').value.trim();
-    if (!spellName) {
-        notify("Please enter the name of the spell you are scribing.", "error");
-        return;
-    }
-
-    // Ensure material checkbox is ticked
-    const materialsChecked = document.getElementById('dt-scribe-materials').checked;
-    if (!materialsChecked) {
-        notify("You must confirm you have provided the required material components.", "error");
-        return;
-    }
-
-    const level = parseInt(document.getElementById('dt-scribe-level').value) || 0;
+    const projectId = document.getElementById('dt-scribe-project').value;
+    const isResuming = projectId !== 'new';
     
-    const scrollCosts = {
-        0: { t: 1, c: 15 }, 1: { t: 1, c: 25 }, 2: { t: 3, c: 250 },
-        3: { t: 5, c: 500 }, 4: { t: 10, c: 2500 }, 5: { t: 20, c: 5000 },
-        6: { t: 40, c: 15000 }, 7: { t: 80, c: 25000 }, 8: { t: 160, c: 50000 },
-        9: { t: 240, c: 250000 }
-    };
+    let projectData = {};
+    const isRival = document.getElementById('dt-scribe-rival')?.checked;
 
-    const effectiveTime = scrollCosts[level].t;
-    const effectiveCost = scrollCosts[level].c;
+    if (isResuming) {
+        projectData = JSON.parse(JSON.stringify(pc.scribingProjects[projectId]));
+    } else {
+        // --- GATHER NEW PROJECT DATA ---
+        const spellName = document.getElementById('dt-scribe-spell-name').value.trim();
+        if (!spellName) {
+            notify("Please enter the name of the spell you are scribing.", "error");
+            return;
+        }
+
+        const materialsChecked = document.getElementById('dt-scribe-materials').checked;
+        if (!materialsChecked) {
+            notify("You must confirm you have provided the required material components.", "error");
+            return;
+        }
+
+        const level = parseInt(document.getElementById('dt-scribe-level').value) || 0;
+        
+        const scrollCosts = {
+            0: { t: 1, c: 15 }, 1: { t: 1, c: 25 }, 2: { t: 3, c: 250 },
+            3: { t: 5, c: 500 }, 4: { t: 10, c: 2500 }, 5: { t: 20, c: 5000 },
+            6: { t: 40, c: 15000 }, 7: { t: 80, c: 25000 }, 8: { t: 160, c: 50000 },
+            9: { t: 240, c: 250000 }
+        };
+
+        projectData = {
+            id: generateId(),
+            name: spellName,
+            level: level,
+            totalTime: scrollCosts[level].t,
+            cost: scrollCosts[level].c,
+            progress: 0,
+            rivalInvolved: isRival
+        };
+    }
 
     const daysSpent = parseInt(document.getElementById('dt-scribe-days-spent').value) || 1;
-    const isComplete = daysSpent >= effectiveTime;
+    const isComplete = (projectData.progress + daysSpent) >= projectData.totalTime;
 
     // DOWNTIME DAYS CHECK
     if ((parseInt(pc.availableDowntime) || 0) < daysSpent) {
@@ -208,9 +331,11 @@ export const executeScribing = async () => {
         return;
     }
 
-    // --- MATH EXECUTION ---
+    // --- APPLY MATH & COMPLICATIONS ---
+    
+    projectData.progress += isComplete ? (projectData.totalTime - projectData.progress) : daysSpent;
 
-    // Complication Roll (10% chance per workweek)
+    // Complication Roll (10% chance per workweek spent logging this session)
     let complicationText = ``;
     const workweeks = Math.max(1, Math.ceil(daysSpent / 5));
     const risk = Math.min(100, workweeks * 10);
@@ -220,11 +345,11 @@ export const executeScribing = async () => {
         const d6 = Math.floor(Math.random() * 6) + 1;
         const compTable = [
             "You bought up the last of the rare ink used to craft scrolls, angering a wizard in town.", 
-            "The priest of a temple of good accuses you of trafficking in dark magic.",
+            `The priest of a temple of good accuses you of trafficking in dark magic.${projectData.rivalInvolved ? " (Orchestrated by your rival)." : ""}`,
             "A wizard eager to collect one of your spells in a book presses you to sell the scroll.", 
             "Due to a strange error in creating the scroll, it is instead a random spell of the same level.",
             "The rare parchment you bought for your scroll has a barely visible map on it.", 
-            "A thief attempts to break into your workroom."
+            `A thief attempts to break into your workroom.${projectData.rivalInvolved ? " (Hired by your rival)." : ""}`
         ];
         complicationText = `\n\n**⚠️ Complication Occurred!** (${d100}/100 vs ${risk}% Risk)\n> *Result (d6=${d6}):* ${compTable[d6 - 1]}`;
     } else {
@@ -232,26 +357,36 @@ export const executeScribing = async () => {
     }
 
     // Build the log text
-    let resultHeader = `**Objective:** Spell Scroll (${spellName})`;
+    let resultHeader = `**Objective:** Spell Scroll (${projectData.name})`;
     let resultBody = isComplete 
-        ? `✅ **Project Completed!** You have successfully scribed a **Spell Scroll of ${spellName}**.` 
-        : `⏳ **Progress Logged:** You spent ${daysSpent} days working on the **Spell Scroll of ${spellName}**. *(Remaining: ${effectiveTime - daysSpent} Days)*`;
+        ? `✅ **Project Completed!** You have successfully scribed a **Spell Scroll of ${projectData.name}**.` 
+        : `⏳ **Progress Logged:** You spent ${daysSpent} days working on the **Spell Scroll of ${projectData.name}**.\n**Progress:** ${projectData.progress} / ${projectData.totalTime} days.`;
 
-    let costNote = `**Total Project Material Cost:** ${effectiveCost.toLocaleString()} gp`;
-    if (!isComplete) costNote += ` *(Costs must be paid up front when starting a project).*`;
+    let costNote = `**Total Project Material Cost:** ${projectData.cost.toLocaleString()} gp`;
+    if (!isResuming) costNote += ` *(Materials must be purchased up front when starting a project).*`;
 
     const noteText = `**Downtime: Scribing a Spell Scroll**\n*Hero:* ${pc.name}\n\n${resultHeader}\n\n**Work Days Logged:** ${daysSpent} Days\n${costNote}\n\n${resultBody}${complicationText}`;
 
     const timestampStr = new Date().toLocaleDateString();
-    const logAddition = `${pc.downtimeLog ? '\n\n---\n\n' : ''}**Logged on ${timestampStr}**\n${noteText}`;
-
-    const updatedPCs = camp.playerCharacters.map(p => 
-        p.id === pc.id ? { 
-            ...p, 
-            availableDowntime: Math.max(0, (parseInt(p.availableDowntime) || 0) - daysSpent),
-            downtimeLog: (p.downtimeLog || '') + logAddition
-        } : p
-    );
+    
+    // --- UPDATE CHARACTERS ---
+    const updatedPCs = camp.playerCharacters.map(p => {
+        if (p.id === pcId) {
+            let projectsDict = { ...(p.scribingProjects || {}) };
+            if (isComplete) {
+                delete projectsDict[projectData.id];
+            } else {
+                projectsDict[projectData.id] = projectData;
+            }
+            return { 
+                ...p, 
+                scribingProjects: projectsDict,
+                availableDowntime: Math.max(0, (parseInt(p.availableDowntime) || 0) - daysSpent),
+                downtimeLog: (p.downtimeLog || '') + `${p.downtimeLog ? '\n\n---\n\n' : ''}**Logged on ${timestampStr}**\n${noteText}`
+            };
+        }
+        return p;
+    });
 
     let updatedCamp = { ...camp, playerCharacters: updatedPCs };
     updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime scribing a spell scroll with <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-scroll');
@@ -259,7 +394,7 @@ export const executeScribing = async () => {
     await saveCampaign(updatedCamp);
     
     document.getElementById('global-popup-container').innerHTML = '';
-    notify(`Scribing progress logged. ${daysSpent} days deducted. Log saved to Hero Journal.`, "success");
+    notify(`Scribing progress logged. ${daysSpent} days deducted.`, "success");
     reRender();
 };
 
@@ -272,4 +407,5 @@ if (typeof window !== 'undefined') {
     window.appActions.openScribingModal = openScribingModal;
     window.appActions.updateScribingMath = updateScribingMath;
     window.appActions.executeScribing = executeScribing;
+    window.appActions.abandonScribingProject = abandonScribingProject;
 }
