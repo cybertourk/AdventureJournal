@@ -44,6 +44,14 @@ export const openReligiousServiceModal = () => {
     const container = document.getElementById('global-popup-container');
     if (!container) return;
 
+    let deityOptionsHtml = '';
+    for (const pantheonName in DEITY_PANTHEONS) {
+        deityOptionsHtml += `<optgroup label="--- ${pantheonName} ---">`;
+        deityOptionsHtml += DEITY_PANTHEONS[pantheonName].map(d => `<option value="${d.name}">${d.name}, ${d.title} (${d.alignment} - ${d.domains})</option>`).join('');
+        deityOptionsHtml += `</optgroup>`;
+    }
+    deityOptionsHtml += `<option value="other">-- Custom / Unlisted Patron --</option>`;
+
     container.innerHTML = `
         <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[18000] backdrop-blur-sm animate-in">
             <div class="bg-[#f4ebd8] rounded-sm w-full max-w-2xl border border-[#d4c5a9] shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
@@ -265,6 +273,7 @@ export const updateReligiousServiceMath = (triggerSource = 'input') => {
             if (currentVal && optionExists) {
                 deitySelect.value = currentVal;
             }
+            triggerSource = 'deity'; // Force a repopulate of temple/desc based on new first item
         }
     }
 
@@ -389,7 +398,7 @@ export const executeReligiousService = async (actionType = 'new') => {
         favorsArray.splice(fTargetIndex, 1);
         daysToDeduct = 0; // Narrative action
 
-        const resText = `**Downtime: Favor Expended**\n*Hero:* ${pc.name}\n\n**Patron:** ${fTarget.patron}\n**Request:** *${requestDesc}*\n\n✅ **Favor Called In!**\nYou successfully cashed in your influence with the temple. You now have ${favorsArray.length} banked favor(s) remaining.`;
+        const resText = `**Downtime: Religious Service**\n*Hero:* ${pc.name}\n\n**Action:** Favor Expended\n**Patron:** ${fTarget.patron}\n**Request:** *${requestDesc}*\n\n✅ **Favor Called In!**\nYou successfully cashed in your influence with the temple. You now have ${favorsArray.length} banked favor(s) remaining.`;
 
         const timestampStr = new Date().toLocaleDateString();
         logAddition = `${pc.downtimeLog ? '\n\n---\n\n' : ''}**Logged on ${timestampStr}**\n${resText}`;
