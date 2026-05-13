@@ -56,7 +56,10 @@ export const openPitFightingModal = () => {
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Location</label>
                             <div class="flex items-center gap-3">
-                                <input type="text" id="dt-pit-loc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-red-900 bg-white shadow-inner" placeholder="e.g. The Gory Colosseum">
+                                <div class="relative flex-grow">
+                                    <input type="text" id="dt-pit-loc" oninput="window.appActions.searchPitLocation(this.value)" onblur="setTimeout(() => document.getElementById('dt-pit-loc-results')?.classList.add('hidden'), 200)" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-red-900 bg-white shadow-inner" placeholder="e.g. The Gory Colosseum" autocomplete="off">
+                                    <div id="dt-pit-loc-results" class="absolute z-50 w-full bg-white border border-[#d4c5a9] rounded-b-sm shadow-xl max-h-40 overflow-y-auto hidden top-[38px] custom-scrollbar text-xs"></div>
+                                </div>
                                 <label class="flex items-center gap-2 cursor-pointer group shrink-0" title="Check this if a rival is present. It may affect complications.">
                                     <input type="checkbox" id="dt-pit-rival" class="w-4 h-4 text-red-900 rounded-sm cursor-pointer shadow-sm border-stone-400">
                                     <span class="text-[10px] font-bold uppercase tracking-widest text-stone-700 group-hover:text-red-900 transition">Rival?</span>
@@ -150,6 +153,59 @@ export const openPitFightingModal = () => {
             </div>
         </div>
     `;
+};
+
+// --- LOCATION CODEX AUTOCOMPLETE LOGIC ---
+export const searchPitLocation = (query) => {
+    const resultsContainer = document.getElementById('dt-pit-loc-results');
+    if (!resultsContainer) return;
+    
+    if (!query || query.trim() === '') {
+        resultsContainer.classList.add('hidden');
+        return;
+    }
+
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    const codex = camp?.codex || [];
+    
+    // Suggest locations and factions for flexibility
+    const matches = codex.filter(c => 
+        (c.type === 'Location' || c.type === 'Faction') && 
+        c.name.toLowerCase().includes(query.toLowerCase())
+    );
+
+    if (matches.length === 0) {
+        resultsContainer.classList.add('hidden');
+        return;
+    }
+
+    let html = '';
+    matches.forEach(m => {
+        // Escape apostrophes to prevent breaking the onclick handler
+        const safeName = m.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        html += `
+            <div class="p-2 border-b border-[#d4c5a9] hover:bg-red-50 cursor-pointer transition-colors" onmousedown="event.preventDefault(); window.appActions.selectPitLocation('${safeName}')">
+                <span class="font-bold text-stone-900">${m.name}</span> 
+                <span class="text-[9px] uppercase font-bold text-stone-500 ml-2 bg-stone-200 px-1.5 py-0.5 rounded-sm shadow-sm">${m.type}</span>
+            </div>
+        `;
+    });
+
+    resultsContainer.innerHTML = html;
+    resultsContainer.classList.remove('hidden');
+};
+
+export const selectPitLocation = (name) => {
+    const input = document.getElementById('dt-pit-loc');
+    const resultsContainer = document.getElementById('dt-pit-loc-results');
+    
+    if (input) {
+        input.value = name;
+    }
+    if (resultsContainer) {
+        resultsContainer.classList.add('hidden');
+    }
 };
 
 export const updatePitFightingMath = () => {
@@ -310,4 +366,8 @@ if (typeof window !== 'undefined') {
     window.appActions.openPitFightingModal = openPitFightingModal;
     window.appActions.updatePitFightingMath = updatePitFightingMath;
     window.appActions.executePitFighting = executePitFighting;
+    
+    // Binding the Location Autocomplete Logic
+    window.appActions.searchPitLocation = searchPitLocation;
+    window.appActions.selectPitLocation = selectPitLocation;
 }
