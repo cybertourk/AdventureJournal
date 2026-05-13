@@ -37,7 +37,7 @@ export const openGamblingModal = () => {
                         <ul class="text-[10px] sm:text-xs text-amber-800 space-y-1.5 leading-snug font-serif">
                             <li><b>Step 1:</b> Select your <b>Hero</b> and enter the <b>Location</b> where the games are being held.</li>
                             <li><b>Step 2:</b> Set your <b>Stake</b> (10 to 1,000 gp). This determines your potential losses and maximum payout.</li>
-                            <li><b>Step 3:</b> Input your modifiers for <b>Insight</b>, <b>Deception</b>, and <b>Intimidation</b>. You may substitute one of these with a <b>Gaming Set</b> proficiency if applicable.</li>
+                            <li><b>Step 3:</b> Input your modifiers for <b>Insight</b>, <b>Deception</b>, and <b>Intimidation</b>. You may substitute <i>any</i> of these with a <b>Gaming Set</b> proficiency.</li>
                             <li><b>Step 4:</b> Roll the dice! You will make three checks against randomly generated DCs. Successes determine your payout, but beware a 10% chance of complications!</li>
                         </ul>
                     </div>
@@ -55,7 +55,13 @@ export const openGamblingModal = () => {
                         </div>
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Location</label>
-                            <input type="text" id="dt-gamble-loc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 bg-white shadow-inner" placeholder="e.g. The Yawning Portal">
+                            <div class="flex items-center gap-3">
+                                <input type="text" id="dt-gamble-loc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 bg-white shadow-inner" placeholder="e.g. The Yawning Portal">
+                                <label class="flex items-center gap-2 cursor-pointer group shrink-0" title="Check this if a rival is present. It may affect complications.">
+                                    <input type="checkbox" id="dt-gamble-rival" class="w-4 h-4 text-amber-600 rounded-sm cursor-pointer shadow-sm border-stone-400">
+                                    <span class="text-[10px] font-bold uppercase tracking-widest text-stone-700 group-hover:text-amber-900 transition">Rival?</span>
+                                </label>
+                            </div>
                         </div>
                     </div>
 
@@ -97,30 +103,32 @@ export const openGamblingModal = () => {
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5 bg-amber-50 p-4 border border-amber-200 rounded-sm shadow-sm">
+                    <div class="mb-5 bg-amber-50 p-4 border border-amber-200 rounded-sm shadow-sm flex flex-col gap-4">
                         <div>
-                            <label class="block text-[10px] uppercase text-amber-800 font-bold mb-1 tracking-widest">Gaming Set Modifier</label>
-                            <div class="flex items-center">
-                                <span class="bg-amber-100 border border-r-0 border-amber-300 px-2 py-2 text-sm font-bold text-amber-800 rounded-l-sm">+</span>
-                                <input type="number" id="dt-gamble-tool" value="0" class="w-full p-2 border border-amber-300 rounded-r-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 bg-white shadow-inner text-center">
-                            </div>
+                            <label class="flex items-center gap-2 cursor-pointer group mb-1">
+                                <input type="checkbox" id="dt-gamble-tool-toggle" onchange="const g = document.getElementById('dt-gamble-tool-group'); g.classList.toggle('opacity-50'); g.classList.toggle('pointer-events-none');" class="w-4 h-4 text-amber-600 rounded-sm cursor-pointer shadow-sm border-amber-400">
+                                <span class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-amber-900 group-hover:text-amber-700 transition">Use Gaming Set Proficiency</span>
+                            </label>
+                            <p class="text-[9px] text-amber-800 italic leading-snug">Replace any of the standard skill checks with your Gaming Set modifier.</p>
                         </div>
-                        <div>
-                            <label class="block text-[10px] uppercase text-amber-800 font-bold mb-1 tracking-widest">Replace Skill Check</label>
-                            <select id="dt-gamble-replace" class="w-full p-2 border border-amber-300 rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 bg-white shadow-inner">
-                                <option value="none">-- Do Not Replace --</option>
-                                <option value="ins">Replace Insight</option>
-                                <option value="dec">Replace Deception</option>
-                                <option value="itm">Replace Intimidation</option>
-                            </select>
-                            <p class="text-[9px] text-amber-700 mt-1 italic">Swap one check for a Gaming Set check.</p>
+                        
+                        <div id="dt-gamble-tool-group" class="flex flex-col sm:flex-row items-start sm:items-center gap-4 opacity-50 pointer-events-none transition-opacity bg-white p-3 rounded-sm border border-amber-300 shadow-inner">
+                            <div class="flex items-center shrink-0">
+                                <span class="bg-amber-100 border border-r-0 border-amber-300 px-2 py-2 text-sm font-bold text-amber-800 rounded-l-sm">+</span>
+                                <input type="number" id="dt-gamble-tool-mod" value="0" class="w-20 p-2 border border-amber-300 rounded-r-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 bg-white shadow-inner text-center" title="Gaming Set Modifier">
+                            </div>
+                            <div class="flex flex-wrap gap-4 border-l-0 sm:border-l border-amber-300 sm:pl-4">
+                                <label class="flex items-center gap-1.5 cursor-pointer group"><input type="checkbox" id="dt-gamble-rep-ins" class="w-3.5 h-3.5 text-amber-600 rounded-sm"><span class="text-[10px] font-bold uppercase tracking-widest text-stone-600 group-hover:text-amber-800">Replace Insight</span></label>
+                                <label class="flex items-center gap-1.5 cursor-pointer group"><input type="checkbox" id="dt-gamble-rep-dec" class="w-3.5 h-3.5 text-amber-600 rounded-sm"><span class="text-[10px] font-bold uppercase tracking-widest text-stone-600 group-hover:text-amber-800">Replace Deception</span></label>
+                                <label class="flex items-center gap-1.5 cursor-pointer group"><input type="checkbox" id="dt-gamble-rep-itm" class="w-3.5 h-3.5 text-amber-600 rounded-sm"><span class="text-[10px] font-bold uppercase tracking-widest text-stone-600 group-hover:text-amber-800">Replace Intimidation</span></label>
+                            </div>
                         </div>
                     </div>
 
                     <div class="mt-6 bg-[#1c1917] text-amber-50 p-4 rounded-sm shadow-inner flex flex-wrap justify-between items-center gap-4">
                         <div>
-                            <span class="block text-[10px] uppercase tracking-widest text-stone-400 font-bold mb-0.5">Maximum Payout (3 Successes)</span>
-                            <span id="dt-gamble-payout-out" class="text-2xl font-black text-amber-500">20 gp</span>
+                            <span class="block text-[10px] uppercase tracking-widest text-stone-400 font-bold mb-0.5">Maximum Net Profit (3 Successes)</span>
+                            <span id="dt-gamble-payout-out" class="text-2xl font-black text-amber-500">+20 gp</span>
                         </div>
                         <div class="text-right border-l-2 border-stone-800 pl-4">
                             <span class="block text-[10px] uppercase tracking-widest text-stone-400 font-bold mb-0.5">Downtime Requirements</span>
@@ -162,9 +170,9 @@ export const updateGamblingMath = (val, source) => {
         slider.value = stake;
     }
 
-    // 3 successes = gain amount equal to bet (total payout = 2x stake)
-    const maxWin = stake * 2;
-    payoutOut.textContent = `${maxWin.toLocaleString()} gp`;
+    // 3 successes = gain double the amount you bet (Net Profit = 2x Stake)
+    const maxProfit = stake * 2;
+    payoutOut.textContent = `+${maxProfit.toLocaleString()} gp`;
 };
 
 export const executeGambling = async () => {
@@ -188,6 +196,7 @@ export const executeGambling = async () => {
         return;
     }
 
+    const isRival = document.getElementById('dt-gamble-rival').checked;
     const stake = parseInt(document.getElementById('dt-gamble-stake').value) || 10;
     
     if (!confirm(`Spend 5 downtime days and risk ${stake} gp gambling in ${loc}?`)) return;
@@ -196,14 +205,18 @@ export const executeGambling = async () => {
     let modDec = parseInt(document.getElementById('dt-gamble-dec').value) || 0;
     let modItm = parseInt(document.getElementById('dt-gamble-itm').value) || 0;
     
-    const replaceTarget = document.getElementById('dt-gamble-replace').value;
-    const modTool = parseInt(document.getElementById('dt-gamble-tool').value) || 0;
+    const useTool = document.getElementById('dt-gamble-tool-toggle').checked;
+    const modTool = parseInt(document.getElementById('dt-gamble-tool-mod').value) || 0;
 
-    let toolUsed = null;
-    let skillReplacedText = "";
-    if (replaceTarget === 'ins') { modIns = modTool; toolUsed = 'Insight'; skillReplacedText = " (Insight replaced by Gaming Set)"; }
-    if (replaceTarget === 'dec') { modDec = modTool; toolUsed = 'Deception'; skillReplacedText = " (Deception replaced by Gaming Set)"; }
-    if (replaceTarget === 'itm') { modItm = modTool; toolUsed = 'Intimidation'; skillReplacedText = " (Intimidation replaced by Gaming Set)"; }
+    let usedToolIns = false;
+    let usedToolDec = false;
+    let usedToolItm = false;
+
+    if (useTool) {
+        if (document.getElementById('dt-gamble-rep-ins').checked) { modIns = modTool; usedToolIns = true; }
+        if (document.getElementById('dt-gamble-rep-dec').checked) { modDec = modTool; usedToolDec = true; }
+        if (document.getElementById('dt-gamble-rep-itm').checked) { modItm = modTool; usedToolItm = true; }
+    }
 
     // Roll DCs (5 + 2d10)
     const dc1 = 5 + Math.floor(Math.random() * 10) + 1 + Math.floor(Math.random() * 10) + 1;
@@ -228,13 +241,15 @@ export const executeGambling = async () => {
     let resultBody = ``;
 
     if (successes === 0) {
-        resultBody = `💀 **0 Successes:** You lose your entire stake of **${stake} gp** and accrue a debt of equal value!\n*(You now owe an additional ${stake} gp to someone!)*`;
+        resultBody = `💀 **0 Successes**\n\nYou lose your entire stake and accrue a debt of equal value!\n*(Net Loss: -${(stake * 2).toLocaleString()} gp)*`;
     } else if (successes === 1) {
-        resultBody = `📉 **1 Success:** You lose half your stake: **${Math.ceil(stake / 2)} gp**.`;
+        resultBody = `📉 **1 Success**\n\nYou lose half the money you bet.\n*(Net Loss: -${Math.ceil(stake / 2).toLocaleString()} gp)*`;
     } else if (successes === 2) {
-        resultBody = `📈 **2 Successes:** You win! You gain half your stake back in profit for a total payout of **${Math.ceil(stake * 1.5)} gp**.`;
+        const profit = Math.ceil(stake * 1.5);
+        resultBody = `📈 **2 Successes**\n\nYou gain the amount you bet plus half again more!\n*(Net Profit: +${profit.toLocaleString()} gp)*`;
     } else if (successes === 3) {
-        resultBody = `🏆 **3 Successes:** You win big! You double your money for a total payout of **${stake * 2} gp**!`;
+        const profit = stake * 2;
+        resultBody = `🏆 **3 Successes**\n\nYou gain double the amount you bet!\n*(Net Profit: +${profit.toLocaleString()} gp)*`;
     }
 
     // Complication (10% chance)
@@ -243,25 +258,25 @@ export const executeGambling = async () => {
     if (d100 <= 10) {
         const d6 = Math.floor(Math.random() * 6) + 1;
         const compTable = [
-            "You are accused of cheating. You decide whether you actually did cheat or were framed.",
-            "The town guards raid the gambling hall and throw you in jail.",
-            "A noble in town loses badly to you and loudly vows to get revenge.",
+            `You are accused of cheating. You decide whether you actually did cheat or were framed.${isRival ? " (Your rival orchestrated the accusation)." : ""}`,
+            `The town guards raid the gambling hall and throw you in jail.${isRival ? " (Your rival tipped them off)." : ""}`,
+            `A noble in town loses badly to you and loudly vows to get revenge.${isRival ? " (The noble is an associate of your rival)." : ""}`,
             "You won a sum from a low-ranking member of a thieves’ guild, and the guild wants its money back.",
             "A local crime boss insists you start frequenting the boss’s gambling parlor and no others.",
             "A high-stakes gambler comes to town and insists that you take part in a game."
         ];
-        complicationText = `\n\n**⚠️ Complication Occurred!** (${d100}/100)\n> *Result:* ${compTable[d6 - 1]}`;
+        complicationText = `\n\n**⚠️ Complication Occurred!** (${d100}/100)\n> *Result (d6=${d6}):* ${compTable[d6 - 1]}`;
     } else {
         complicationText = `\n\n*No complications arose (${d100}/100).*`;
     }
 
-    let insLabel = toolUsed === 'Insight' ? `**Gaming Set (replaces Insight):**` : `**Insight Check:**`;
-    let decLabel = toolUsed === 'Deception' ? `**Gaming Set (replaces Deception):**` : `**Deception Check:**`;
-    let itmLabel = toolUsed === 'Intimidation' ? `**Gaming Set (replaces Intimidation):**` : `**Intimidation Check:**`;
+    let insLabel = usedToolIns ? `**Gaming Set (replaces Insight):**` : `**Insight Check:**`;
+    let decLabel = usedToolDec ? `**Gaming Set (replaces Deception):**` : `**Deception Check:**`;
+    let itmLabel = usedToolItm ? `**Gaming Set (replaces Intimidation):**` : `**Intimidation Check:**`;
 
     let checksText = `*Target DCs:* ${dc1}, ${dc2}, ${dc3}\n${insLabel} ${totalIns} (vs DC ${dc1})\n${decLabel} ${totalDec} (vs DC ${dc2})\n${itmLabel} ${totalItm} (vs DC ${dc3})`;
 
-    const noteText = `**Downtime: Gambling**\n*Hero:* ${pc.name}\n\n${resultHeader}\n\n**Time Spent:** 5 Days\n**Stake:** ${stake} gp\n\n${checksText}${skillReplacedText}\n\n${resultBody}${complicationText}`;
+    const noteText = `**Downtime: Gambling**\n*Hero:* ${pc.name}\n\n${resultHeader}\n\n**Time Spent:** 5 Days\n**Stake:** ${stake.toLocaleString()} gp\n\n${checksText}\n\n${resultBody}${complicationText}`;
     const timestampStr = new Date().toLocaleDateString();
     const logAddition = `${pc.downtimeLog ? '\n\n---\n\n' : ''}**Logged on ${timestampStr}**\n${noteText}`;
 
