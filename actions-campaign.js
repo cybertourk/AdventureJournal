@@ -1,6 +1,7 @@
 import { generateId, updateDerivedState, reRender } from './state.js';
 import { saveCampaign, deleteCampaign as dbDeleteCampaign, notify, joinCampaign as dbJoinCampaign } from './firebase-manager.js';
 
+// --- ACTIVITY LOG ENGINE ---
 export const logPlayerActivity = (camp, myUid, message, icon = 'fa-clock-rotate-left') => {
     if (!camp || camp.dmId === myUid) return camp;
     
@@ -37,6 +38,7 @@ export const clearActivityLog = async () => {
     reRender(true);
 };
 
+// --- Navigation ---
 export const setView = (viewName) => {
   window.appData.currentView = viewName;
   if (viewName === 'home') {
@@ -71,7 +73,7 @@ export const setView = (viewName) => {
     window.appData.activeCalendarDate = null;
     window.appData.showCalendarSettings = false;
   }
-  reRender(true);
+  reRender(true); 
 };
 
 export const openCampaign = (id) => {
@@ -84,6 +86,7 @@ export const openAdventure = (id) => {
   window.appActions.setView('adventure');
 };
 
+// --- Campaigns ---
 export const toggleNewCampaignForm = () => {
   const btn = document.getElementById('new-camp-btn');
   const form = document.getElementById('new-camp-form');
@@ -120,6 +123,7 @@ export const deleteCampaignAction = async (id) => {
   }
 };
 
+// --- Player Actions ---
 export const copyCampaignId = (id, btn) => {
   const originalHtml = btn.innerHTML;
   const originalClass = btn.className;
@@ -194,6 +198,7 @@ export const joinCampaignAction = async () => {
   }
 };
 
+// --- Adventures ---
 export const toggleNewAdventureForm = () => {
   const btn = document.getElementById('new-adv-btn');
   const form = document.getElementById('new-adv-form');
@@ -506,6 +511,10 @@ export const saveAdvRoster = async () => {
   notify("Arc roster inscribed.", "success");
 };
 
+// ============================================================================
+// --- PC MANAGEMENT AND CHECKLIST / SHEET UPDATES (RESTORED BLOCK) ---
+// ============================================================================
+
 export const openChecklistMenu = () => {
   const modal = document.getElementById('checklist-modal');
   if (modal) {
@@ -544,6 +553,7 @@ export const addSheetUpdate = async () => {
   };
   input.value = '';
   await saveCampaign(updatedCamp);
+  reRender(true);
 };
 
 export const toggleSheetUpdateResolved = async (id) => {
@@ -567,6 +577,7 @@ export const toggleSheetUpdateResolved = async (id) => {
   
   const updatedCamp = { ...camp, sheetUpdates: updatedUpdates };
   await saveCampaign(updatedCamp);
+  reRender(true);
 };
 
 export const deleteSheetUpdate = async (id) => {
@@ -581,9 +592,10 @@ export const deleteSheetUpdate = async (id) => {
     sheetUpdates: (camp.sheetUpdates || []).filter(u => u.id !== id)
   };
   await saveCampaign(updatedCamp);
+  reRender(true);
 };
 
-export const toggleSheetUpdateVis = () => {};
+export const toggleSheetUpdateVis = () => {}; // Handled natively in session visibility
 
 export const openPCEdit = (pcId = null) => {
   window.appData.activePcId = pcId;
@@ -609,12 +621,9 @@ export const calculateBirthdaysLive = () => {
         if (!isNaN(joinDate.getTime())) {
             const today = new Date();
             let count = 0;
-            
             for (let y = joinDate.getFullYear(); y <= today.getFullYear(); y++) {
                 const bDateThisYear = new Date(y, effMonth - 1, effDay);
-                if (bDateThisYear >= joinDate && bDateThisYear <= today) {
-                    count++;
-                }
+                if (bDateThisYear >= joinDate && bDateThisYear <= today) count++;
             }
             calculatedBirthdays = count;
         }
@@ -626,173 +635,168 @@ export const calculateBirthdaysLive = () => {
         const slot = document.getElementById(`extra-boon-slot-${i}`);
         if (slot) {
             const select = document.getElementById(`pc-edit-boon-${i}`);
-            if (i <= calculatedBirthdays || (select && select.value !== '')) {
-                slot.classList.remove('hidden');
-            } else {
-                slot.classList.add('hidden');
-            }
+            if (i <= calculatedBirthdays || (select && select.value !== '')) slot.classList.remove('hidden');
+            else slot.classList.add('hidden');
         }
     }
 };
 
 export const savePCEdit = async () => {
-    updateDerivedState();
-    const camp = window.appData.activeCampaign;
-    if (!camp) return;
+  updateDerivedState();
+  const camp = window.appData.activeCampaign;
+  if (!camp) return;
 
-    const isDM = camp._isDM;
-    const myUid = window.appData.currentUserUid;
-    const pcId = window.appData.activePcId || generateId();
+  const isDM = camp._isDM;
+  const myUid = window.appData.currentUserUid;
+  const pcId = window.appData.activePcId || generateId();
 
-    const existingPC = camp.playerCharacters?.find(p => p.id === pcId) || {
-        inspiration: 0,
-        automaticSuccess: false,
-        playerId: '',
-        birthMonth: null,
-        birthDay: null,
-        extraBdayBoons: [],
-        availableDowntime: 0,
-        downtimeLog: '',
-        str: '', dex: '', con: '', int: '', wis: '', cha: '',
-        saves: '', skills: '', proficiencies: '',
-        wealth: '', equipped: '', backpack: ''
-    };
+  const existingPC = camp.playerCharacters?.find(p => p.id === pcId) || {
+      inspiration: 0,
+      automaticSuccess: false,
+      playerId: '',
+      birthMonth: null,
+      birthDay: null,
+      extraBdayBoons: [],
+      availableDowntime: 0,
+      downtimeLog: '',
+      str: '', dex: '', con: '', int: '', wis: '', cha: '',
+      saves: '', skills: '', proficiencies: '',
+      wealth: '', equipped: '', backpack: '', ddbId: ''
+  };
 
-    const isOwner = existingPC.playerId === myUid;
+  const isOwner = existingPC.playerId === myUid;
 
-    if (!isDM && !isOwner) {
-        notify("You do not have permission to modify this hero.", "error");
-        return;
-    }
+  if (!isDM && !isOwner) {
+      notify("You do not have permission to modify this hero.", "error");
+      return;
+  }
 
-    const nameInput = document.getElementById('pc-edit-name')?.value.trim();
-    if (!nameInput) {
-        notify("Hero must have a name.", "error");
-        return;
-    }
+  const nameInput = document.getElementById('pc-edit-name')?.value.trim();
+  if (!nameInput) {
+      notify("Hero must have a name.", "error");
+      return;
+  }
 
-    const bMonthEl = document.getElementById('pc-edit-birth-month');
-    const bDayEl = document.getElementById('pc-edit-birth-day');
+  const bMonthEl = document.getElementById('pc-edit-birth-month');
+  const bDayEl = document.getElementById('pc-edit-birth-day');
 
-    const localBMonth = isDM ? ((bMonthEl && !bMonthEl.disabled) ? (parseInt(bMonthEl.value) || null) : existingPC.birthMonth) : existingPC.birthMonth;
-    const localBDay = isDM ? ((bDayEl && !bDayEl.disabled) ? (parseInt(bDayEl.value) || null) : existingPC.birthDay) : existingPC.birthDay;
+  const localBMonth = isDM ? ((bMonthEl && !bMonthEl.disabled) ? (parseInt(bMonthEl.value) || null) : existingPC.birthMonth) : existingPC.birthMonth;
+  const localBDay = isDM ? ((bDayEl && !bDayEl.disabled) ? (parseInt(bDayEl.value) || null) : existingPC.birthDay) : existingPC.birthDay;
 
-    const extraBdayBoons = [];
-    if (isDM) {
-        for (let i = 3; i <= 12; i++) {
-            const select = document.getElementById(`pc-edit-boon-${i}`);
-            if (select) {
-                extraBdayBoons.push(select.value);
-            }
-        }
-        while (extraBdayBoons.length > 0 && extraBdayBoons[extraBdayBoons.length - 1] === '') {
-            extraBdayBoons.pop();
-        }
-    }
+  const extraBdayBoons = [];
+  if (isDM) {
+      for (let i = 3; i <= 12; i++) {
+          const select = document.getElementById(`pc-edit-boon-${i}`);
+          if (select) extraBdayBoons.push(select.value);
+      }
+      while (extraBdayBoons.length > 0 && extraBdayBoons[extraBdayBoons.length - 1] === '') {
+          extraBdayBoons.pop();
+      }
+  }
 
-    const getVal = (id, fallback) => {
-        const el = document.getElementById(id);
-        if (el) return el.value; 
-        return fallback || '';
-    };
+  const getVal = (id, fallback) => {
+      const el = document.getElementById(id);
+      if (el) return el.value; 
+      return fallback || '';
+  };
 
-    const updatedPC = {
-        ...existingPC,
-        id: pcId,
-        name: nameInput,
-        race: getVal('pc-edit-race', existingPC.race),
-        classLevel: getVal('pc-edit-class', existingPC.classLevel),
-        background: getVal('pc-edit-background', existingPC.background),
-        image: getVal('pc-edit-image', existingPC.image),
-        alignment: getVal('pc-edit-alignment', existingPC.alignment),
-        faith: getVal('pc-edit-faith', existingPC.faith),
-        gender: getVal('pc-edit-gender', existingPC.gender),
-        age: getVal('pc-edit-age', existingPC.age),
-        size: getVal('pc-edit-size', existingPC.size),
-        height: getVal('pc-edit-height', existingPC.height),
-        weight: getVal('pc-edit-weight', existingPC.weight),
-        eyes: getVal('pc-edit-eyes', existingPC.eyes),
-        hair: getVal('pc-edit-hair', existingPC.hair),
-        skin: getVal('pc-edit-skin', existingPC.skin),
-        str: getVal('pc-edit-str', existingPC.str),
-        dex: getVal('pc-edit-dex', existingPC.dex),
-        con: getVal('pc-edit-con', existingPC.con),
-        int: getVal('pc-edit-int', existingPC.int),
-        wis: getVal('pc-edit-wis', existingPC.wis),
-        cha: getVal('pc-edit-cha', existingPC.cha),
-        saves: getVal('pc-edit-saves', existingPC.saves),
-        skills: getVal('pc-edit-skills', existingPC.skills),
-        proficiencies: getVal('pc-edit-proficiencies', existingPC.proficiencies),
-        traits: getVal('input-pc-edit-traits', existingPC.traits),
-        ideals: getVal('input-pc-edit-ideals', existingPC.ideals),
-        bonds: getVal('input-pc-edit-bonds', existingPC.bonds),
-        flaws: getVal('input-pc-edit-flaws', existingPC.flaws),
-        appearance: getVal('input-pc-edit-appearance', existingPC.appearance),
-        backstory: getVal('input-pc-edit-backstory', existingPC.backstory),
-        organizations: getVal('input-pc-edit-organizations', existingPC.organizations),
-        allies: getVal('input-pc-edit-allies', existingPC.allies),
-        enemies: getVal('input-pc-edit-enemies', existingPC.enemies),
-        wealth: getVal('pc-edit-wealth', existingPC.wealth),
-        equipped: getVal('input-pc-edit-equipped', existingPC.equipped),
-        backpack: getVal('input-pc-edit-backpack', existingPC.backpack),
-        downtimeLog: getVal('input-pc-edit-downtimelog', existingPC.downtimeLog),
-        playerId: isDM ? getVal('pc-edit-player-id', existingPC.playerId) : (existingPC.playerId || ''),
-        dmNotes: isDM ? getVal('input-pc-edit-dmnotes', existingPC.dmNotes) : (existingPC.dmNotes || ''),
-        joinDate: isDM ? getVal('pc-edit-join-date', existingPC.joinDate) : (existingPC.joinDate || ''), 
-        birthMonth: localBMonth,
-        birthDay: localBDay,
-        boonBackstory: isDM ? (document.getElementById('pc-edit-boon-backstory')?.checked || false) : (existingPC.boonBackstory || false),
-        unlockAutoSuccess: isDM ? (document.getElementById('pc-edit-unlock-auto-success')?.checked || false) : (existingPC.unlockAutoSuccess || false),
-        boon1stBday: isDM ? getVal('pc-edit-boon-1st', existingPC.boon1stBday) : (existingPC.boon1stBday || ''),
-        boon2ndBday: isDM ? getVal('pc-edit-boon-2nd', existingPC.boon2ndBday) : (existingPC.boon2ndBday || ''),
-        extraBdayBoons: isDM ? extraBdayBoons : (existingPC.extraBdayBoons || []),
-        availableDowntime: isDM ? (parseInt(document.getElementById('pc-edit-downtime')?.value) || 0) : (parseInt(existingPC.availableDowntime) || 0)
-    };
+  const updatedPC = {
+      ...existingPC,
+      id: pcId,
+      name: nameInput,
+      race: getVal('pc-edit-race', existingPC.race),
+      classLevel: getVal('pc-edit-class', existingPC.classLevel),
+      background: getVal('pc-edit-background', existingPC.background),
+      image: getVal('pc-edit-image', existingPC.image),
+      ddbId: getVal('pc-edit-ddb-id', existingPC.ddbId),
+      alignment: getVal('pc-edit-alignment', existingPC.alignment),
+      faith: getVal('pc-edit-faith', existingPC.faith),
+      gender: getVal('pc-edit-gender', existingPC.gender),
+      age: getVal('pc-edit-age', existingPC.age),
+      size: getVal('pc-edit-size', existingPC.size),
+      height: getVal('pc-edit-height', existingPC.height),
+      weight: getVal('pc-edit-weight', existingPC.weight),
+      eyes: getVal('pc-edit-eyes', existingPC.eyes),
+      hair: getVal('pc-edit-hair', existingPC.hair),
+      skin: getVal('pc-edit-skin', existingPC.skin),
+      str: getVal('pc-edit-str', existingPC.str),
+      dex: getVal('pc-edit-dex', existingPC.dex),
+      con: getVal('pc-edit-con', existingPC.con),
+      int: getVal('pc-edit-int', existingPC.int),
+      wis: getVal('pc-edit-wis', existingPC.wis),
+      cha: getVal('pc-edit-cha', existingPC.cha),
+      saves: getVal('pc-edit-saves', existingPC.saves),
+      skills: getVal('pc-edit-skills', existingPC.skills),
+      proficiencies: getVal('pc-edit-proficiencies', existingPC.proficiencies),
+      traits: getVal('input-pc-edit-traits', existingPC.traits),
+      ideals: getVal('input-pc-edit-ideals', existingPC.ideals),
+      bonds: getVal('input-pc-edit-bonds', existingPC.bonds),
+      flaws: getVal('input-pc-edit-flaws', existingPC.flaws),
+      appearance: getVal('input-pc-edit-appearance', existingPC.appearance),
+      backstory: getVal('input-pc-edit-backstory', existingPC.backstory),
+      organizations: getVal('input-pc-edit-organizations', existingPC.organizations),
+      allies: getVal('input-pc-edit-allies', existingPC.allies),
+      enemies: getVal('input-pc-edit-enemies', existingPC.enemies),
+      wealth: getVal('pc-edit-wealth', existingPC.wealth),
+      equipped: getVal('input-pc-edit-equipped', existingPC.equipped),
+      backpack: getVal('input-pc-edit-backpack', existingPC.backpack),
+      downtimeLog: getVal('input-pc-edit-downtimelog', existingPC.downtimeLog),
+      playerId: isDM ? getVal('pc-edit-player-id', existingPC.playerId) : (existingPC.playerId || ''),
+      dmNotes: isDM ? getVal('input-pc-edit-dmnotes', existingPC.dmNotes) : (existingPC.dmNotes || ''),
+      joinDate: isDM ? getVal('pc-edit-join-date', existingPC.joinDate) : (existingPC.joinDate || ''), 
+      birthMonth: localBMonth,
+      birthDay: localBDay,
+      boonBackstory: isDM ? (document.getElementById('pc-edit-boon-backstory')?.checked || false) : (existingPC.boonBackstory || false),
+      unlockAutoSuccess: isDM ? (document.getElementById('pc-edit-unlock-auto-success')?.checked || false) : (existingPC.unlockAutoSuccess || false),
+      boon1stBday: isDM ? getVal('pc-edit-boon-1st', existingPC.boon1stBday) : (existingPC.boon1stBday || ''),
+      boon2ndBday: isDM ? getVal('pc-edit-boon-2nd', existingPC.boon2ndBday) : (existingPC.boon2ndBday || ''),
+      extraBdayBoons: isDM ? extraBdayBoons : (existingPC.extraBdayBoons || []),
+      availableDowntime: isDM ? (parseInt(document.getElementById('pc-edit-downtime')?.value) || 0) : (parseInt(existingPC.availableDowntime) || 0)
+  };
 
-    const isNew = !camp.playerCharacters?.some(p => p.id === pcId);
-    const newPCs = isNew ? [...(camp.playerCharacters || []), updatedPC] : camp.playerCharacters.map(p => p.id === pcId ? updatedPC : p);
+  const isNew = !camp.playerCharacters?.some(p => p.id === pcId);
+  const newPCs = isNew ? [...(camp.playerCharacters || []), updatedPC] : camp.playerCharacters.map(p => p.id === pcId ? updatedPC : p);
 
-    let updatedCodexArray = [...(camp.codex || [])];
-    const existingCodexEntry = updatedCodexArray.find(c => c.id === pcId);
+  let updatedCodexArray = [...(camp.codex || [])];
+  const existingCodexEntry = updatedCodexArray.find(c => c.id === pcId);
 
-    if (!existingCodexEntry) {
-        updatedCodexArray.push({
-            id: pcId,
-            name: updatedPC.name,
-            type: 'PC',
-            tags: ['Hero', updatedPC.race, updatedPC.classLevel].filter(Boolean),
-            desc: 'Rumors and public knowledge surrounding this hero are yet to be penned.',
-            visibility: { mode: 'public' },
-            image: updatedPC.image
-        });
-    } else {
-        updatedCodexArray = updatedCodexArray.map(c => {
-            if (c.id === pcId) {
-                return {
-                    ...c,
-                    name: updatedPC.name,
-                    type: 'PC',
-                    tags: ['Hero', updatedPC.race, updatedPC.classLevel].filter(Boolean),
-                    image: updatedPC.image
-                };
-            }
-            return c;
-        });
-    }
+  if (!existingCodexEntry) {
+      updatedCodexArray.push({
+          id: pcId,
+          name: updatedPC.name,
+          type: 'PC',
+          tags: ['Hero', updatedPC.race, updatedPC.classLevel].filter(Boolean),
+          desc: 'Rumors and public knowledge surrounding this hero are yet to be penned.',
+          visibility: { mode: 'public' },
+          image: updatedPC.image
+      });
+  } else {
+      updatedCodexArray = updatedCodexArray.map(c => {
+          if (c.id === pcId) {
+              return {
+                  ...c,
+                  name: updatedPC.name,
+                  type: 'PC',
+                  tags: ['Hero', updatedPC.race, updatedPC.classLevel].filter(Boolean),
+                  image: updatedPC.image
+              };
+          }
+          return c;
+      });
+  }
 
-    let updatedCamp = { ...camp, playerCharacters: newPCs, codex: updatedCodexArray };
+  let updatedCamp = { ...camp, playerCharacters: newPCs, codex: updatedCodexArray };
 
-    if (!isDM) {
-        updatedCamp = logPlayerActivity(updatedCamp, myUid, `updated the private journal for <span class="font-bold text-amber-700">${updatedPC.name}</span>.`, 'fa-user-pen');
-    }
+  if (!isDM) {
+      updatedCamp = logPlayerActivity(updatedCamp, myUid, `updated the private journal for <span class="font-bold text-amber-700">${updatedPC.name}</span>.`, 'fa-user-pen');
+  }
 
-    window.appData.activeCampaign = updatedCamp;
-    reRender();
+  window.appData.activeCampaign = updatedCamp;
+  await saveCampaign(updatedCamp);
 
-    await saveCampaign(updatedCamp);
-
-    window.appActions.setView('pc-manager');
-    notify("Hero profile inscribed.", "success");
+  window.appActions.setView('pc-manager');
+  notify("Hero profile inscribed.", "success");
+  reRender(true);
 };
 
 export const deletePC = async (pcId) => {
@@ -813,6 +817,12 @@ export const deletePC = async (pcId) => {
   
   await saveCampaign(updatedCamp);
   notify("Hero removed.", "success");
+  
+  if (window.appData.activePcId === pcId) {
+      window.appActions.setView('pc-manager');
+  } else {
+      reRender(true);
+  }
 };
 
 export const kickPlayer = async (uid) => {
@@ -845,7 +855,12 @@ export const kickPlayer = async (uid) => {
   
   await saveCampaign(updatedCamp);
   notify("Player exiled from the campaign.", "success");
+  reRender(true);
 };
+
+// ============================================================================
+// --- D&D BEYOND IMPORT ENGINE ---
+// ============================================================================
 
 export const openDndBeyondImportModal = () => {
     const container = document.getElementById('global-popup-container');
@@ -901,6 +916,7 @@ export const fetchAndAnalyzeDndBeyond = async () => {
         const apiUrl = `https://character-service.dndbeyond.com/character/v5/character/${characterId}`;
         let ddbData = null;
 
+        // Proxy Waterfall
         try {
             const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(apiUrl)}`);
             if (!response.ok) throw new Error(`Proxy 1 failed with status ${response.status}`);
@@ -933,7 +949,6 @@ export const fetchAndAnalyzeDndBeyond = async () => {
         const formatName = (str) => str.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
         const stripHtml = (html) => html ? html.replace(/<[^>]*>?/gm, '').trim() : '';
 
-        // --- ALIGNMENT & SIZE DICTIONARIES ---
         const alignmentMap = {
             1: 'Lawful Good', 2: 'Neutral Good', 3: 'Chaotic Good',
             4: 'Lawful Neutral', 5: 'True Neutral', 6: 'Chaotic Neutral',
@@ -967,14 +982,11 @@ export const fetchAndAnalyzeDndBeyond = async () => {
                     if (type === 'bonus' && statModMap[subType]) {
                         stats[statModMap[subType]].bonus += mod.value;
                     }
-                    
                     if (type === 'half-proficiency' && subType === 'ability-checks') {
                         halfProficiency = true;
                     }
-
                     if (type === 'proficiency' || type === 'expertise') {
                         const profVal = type === 'expertise' ? 2 : 1;
-
                         if (subType.includes('saving-throws')) {
                             const statId = statModMap[subType.replace('-saving-throws', '-score')];
                             if (statId) proficiencies.saves[statId] = profVal;
@@ -1046,13 +1058,13 @@ export const fetchAndAnalyzeDndBeyond = async () => {
             if (profMultiplier > 0) skillsArr.push(formatName(skillKey));
         });
 
-        // Determine Size
         const sizeId = charData.race?.sizeId || charData.sizeId;
         const finalSize = sizeMap[sizeId] || charData.size || '';
 
         const newPC = {
             id: generateId(),
             name: charData.name || 'Unknown',
+            ddbId: characterId,
             race: charData.race?.fullName || charData.race?.baseName || '',
             classLevel: charData.classes?.map(c => `${c.definition?.name} ${c.level}`).join(' / ') || '',
             background: charData.background?.definition?.name || (charData.background?.customBackground ? charData.background.customBackground.name : ''),
@@ -1166,8 +1178,153 @@ export const executeDndBeyondImport = async () => {
     notify(`${newPC.name} successfully imported!`, "success");
 };
 
-// Bind new function manually to avoid touching data.js
-if (typeof window !== 'undefined') {
-    window.appActions = window.appActions || {};
-    window.appActions.executeDndBeyondImport = executeDndBeyondImport;
-}
+export const quickSyncDDB = async (pcId) => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    if (!camp) return;
+
+    const pc = camp.playerCharacters?.find(p => p.id === pcId);
+    if (!pc || !pc.ddbId) {
+        notify("No D&D Beyond ID found for this hero.", "error");
+        return;
+    }
+
+    const match = pc.ddbId.match(/\/characters?\/(\d+)/i) || pc.ddbId.match(/^(\d+)$/);
+    if (!match) {
+        notify("Invalid D&D Beyond ID format.", "error");
+        return;
+    }
+    const characterId = match[1];
+
+    notify("Fetching updates from D&D Beyond...", "info");
+
+    try {
+        const apiUrl = `https://character-service.dndbeyond.com/character/v5/character/${characterId}`;
+        let ddbData = null;
+
+        try {
+            const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(apiUrl)}`);
+            if (!response.ok) throw new Error(`Proxy 1 failed with status ${response.status}`);
+            ddbData = await response.json();
+        } catch (proxy1Err) {
+            const response2 = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(apiUrl)}`);
+            if (!response2.ok) throw new Error(`Proxy 2 failed with status ${response2.status}`);
+            ddbData = await response2.json();
+        }
+
+        if (!ddbData || !ddbData.success || !ddbData.data) {
+            throw new Error("Invalid data returned.");
+        }
+
+        const charData = ddbData.data;
+
+        const statModMap = { 'strength-score': 1, 'dexterity-score': 2, 'constitution-score': 3, 'intelligence-score': 4, 'wisdom-score': 5, 'charisma-score': 6 };
+        const skillAbilities = { 'athletics': 1, 'acrobatics': 2, 'sleight-of-hand': 2, 'stealth': 2, 'arcana': 4, 'history': 4, 'investigation': 4, 'nature': 4, 'religion': 4, 'animal-handling': 5, 'insight': 5, 'medicine': 5, 'perception': 5, 'survival': 5, 'deception': 6, 'intimidation': 6, 'performance': 6, 'persuasion': 6 };
+        const formatName = (str) => str.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        const stripHtml = (html) => html ? html.replace(/<[^>]*>?/gm, '').trim() : '';
+
+        const stats = { 1: {name: 'STR', base: 10, bonus: 0, override: 0}, 2: {name: 'DEX', base: 10, bonus: 0, override: 0}, 3: {name: 'CON', base: 10, bonus: 0, override: 0}, 4: {name: 'INT', base: 10, bonus: 0, override: 0}, 5: {name: 'WIS', base: 10, bonus: 0, override: 0}, 6: {name: 'CHA', base: 10, bonus: 0, override: 0} };
+        charData.stats?.forEach(s => { if(stats[s.id]) stats[s.id].base = s.value; });
+        charData.overrideStats?.forEach(s => { if(stats[s.id] && s.value) stats[s.id].override = s.value; });
+        
+        let proficiencies = { saves: {}, skills: {}, weapons: [], armor: [], tools: [], languages: [] };
+        let halfProficiency = false;
+
+        Object.values(charData.modifiers || {}).forEach(modArr => {
+            if (Array.isArray(modArr)) {
+                modArr.forEach(mod => {
+                    const subType = mod.subType || '';
+                    const type = mod.type || '';
+                    const friendlyName = mod.friendlySubtypeName || formatName(subType);
+                    if (type === 'bonus' && statModMap[subType]) stats[statModMap[subType]].bonus += mod.value;
+                    if (type === 'half-proficiency' && subType === 'ability-checks') halfProficiency = true;
+                    if (type === 'proficiency' || type === 'expertise') {
+                        const profVal = type === 'expertise' ? 2 : 1;
+                        if (subType.includes('saving-throws')) {
+                            const statId = statModMap[subType.replace('-saving-throws', '-score')];
+                            if (statId) proficiencies.saves[statId] = profVal;
+                        } else if (skillAbilities[subType]) {
+                            proficiencies.skills[subType] = Math.max(proficiencies.skills[subType] || 0, profVal);
+                        } else if (type === 'language') {
+                             proficiencies.languages.push(friendlyName);
+                        } else if (subType.includes('armor') || subType === 'shields') {
+                            proficiencies.armor.push(friendlyName);
+                        } else if (subType.includes('weapons') || subType.includes('sword') || subType.includes('bow') || subType.includes('axe') || subType.includes('hammer') || subType.includes('mace') || subType.includes('crossbow')) {
+                             proficiencies.weapons.push(friendlyName);
+                        } else if (subType.includes('tools') || subType.includes('kit') || subType.includes('supplies') || subType.includes('instrument') || subType.includes('vehicles') || subType.includes('utensils')) {
+                             proficiencies.tools.push(friendlyName);
+                        } else {
+                            if (friendlyName.includes('Armor') || friendlyName.includes('Shield')) proficiencies.armor.push(friendlyName);
+                            else if (friendlyName.includes('Weapons') || friendlyName.includes('Sword') || friendlyName.includes('Bow')) proficiencies.weapons.push(friendlyName);
+                        }
+                    } else if (type === 'language') {
+                         proficiencies.languages.push(friendlyName);
+                    }
+                });
+            }
+        });
+
+        for(let i=1; i<=6; i++) {
+            let total = stats[i].override || (stats[i].base + stats[i].bonus);
+            stats[i].total = total;
+        }
+
+        const equippedItems = [];
+        const backpackItems = [];
+        let wealth = charData.currencies || { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 };
+
+        if (charData.inventory && Array.isArray(charData.inventory)) {
+            charData.inventory.forEach(item => {
+                const name = item.definition?.name || 'Unknown Item';
+                const qty = item.quantity > 1 ? ` (x${item.quantity})` : '';
+                const itemString = `${name}${qty}`;
+                if (item.equipped) equippedItems.push(itemString);
+                else backpackItems.push(itemString);
+            });
+        }
+
+        const wealthStr = `${wealth.cp}cp, ${wealth.sp}sp, ${wealth.ep}ep, ${wealth.gp}gp, ${wealth.pp}pp`;
+        
+        const savesArr = [];
+        for (let i = 1; i <= 6; i++) {
+            if (proficiencies.saves[i]) savesArr.push(stats[i].name);
+        }
+
+        const skillsArr = [];
+        Object.keys(skillAbilities).forEach(skillKey => {
+            const profMultiplier = proficiencies.skills[skillKey] || (halfProficiency ? 0.5 : 0);
+            if (profMultiplier > 0) skillsArr.push(formatName(skillKey));
+        });
+
+        const updatedPC = {
+            ...pc,
+            name: charData.name || pc.name,
+            classLevel: charData.classes?.map(c => `${c.definition?.name} ${c.level}`).join(' / ') || pc.classLevel,
+            image: charData.avatarUrl || charData.decorations?.avatarUrl || pc.image,
+            str: stats[1].total, dex: stats[2].total, con: stats[3].total, 
+            int: stats[4].total, wis: stats[5].total, cha: stats[6].total,
+            saves: savesArr.join(', '),
+            skills: skillsArr.join(', '),
+            proficiencies: [...new Set([...proficiencies.weapons, ...proficiencies.armor, ...proficiencies.tools, ...proficiencies.languages])].join(', '),
+            wealth: wealthStr,
+            equipped: equippedItems.join('\n'),
+            backpack: backpackItems.join('\n'),
+            appearance: stripHtml(charData.traits?.appearance) || pc.appearance,
+            backstory: stripHtml(charData.notes?.backstory) || pc.backstory
+        };
+
+        const updatedPCs = camp.playerCharacters.map(p => p.id === pcId ? updatedPC : p);
+        const updatedCamp = { ...camp, playerCharacters: updatedPCs };
+
+        await saveCampaign(updatedCamp);
+        notify(`${pc.name} successfully synced with D&D Beyond.`, "success");
+        
+        if (window.appData.currentView === 'pc-edit' && window.appData.activePcId === pcId) {
+            reRender(true);
+        }
+
+    } catch (e) {
+        console.error(e);
+        notify("Sync failed: " + e.message, "error");
+    }
+};
