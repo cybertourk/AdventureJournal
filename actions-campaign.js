@@ -990,6 +990,55 @@ export const fetchAndAnalyzeDndBeyond = async () => {
             analysis += `Background: ${bgName}\n`;
         }
 
+        // --- 1.5. Ability Scores & Mechanics ---
+        analysis += "\n--- ABILITY SCORES ---\n";
+        const statNames = { 1: "STR", 2: "DEX", 3: "CON", 4: "INT", 5: "WIS", 6: "CHA" };
+        for (let i = 1; i <= 6; i++) {
+            let base = charData.stats?.find(s => s.id === i)?.value || 10;
+            let bonus = charData.bonusStats?.find(s => s.id === i)?.value || 0;
+            let override = charData.overrideStats?.find(s => s.id === i)?.value || 0;
+            
+            let total = override > 0 ? override : base + bonus;
+            let mod = Math.floor((total - 10) / 2);
+            
+            analysis += `${statNames[i]}: ${total} (Modifier: ${mod >= 0 ? '+' : ''}${mod})\n`;
+        }
+
+        analysis += "\n--- PROFICIENCIES ---\n";
+        let profs = [];
+        let languages = [];
+        let tools = [];
+        let saves = [];
+        
+        // Loop through all nested modifier categories (race, class, feat, item, background, condition)
+        if (charData.modifiers) {
+            Object.values(charData.modifiers).forEach(modArray => {
+                if (Array.isArray(modArray)) {
+                    modArray.forEach(mod => {
+                        if (mod.type === 'proficiency' || mod.type === 'expertise') {
+                            const name = mod.friendlySubtypeName || mod.subType || 'Unknown';
+                            const formattedName = mod.type === 'expertise' ? `${name} (Expertise)` : name;
+
+                            if (name.includes('saving throws')) {
+                                saves.push(name.replace(' saving throws', ''));
+                            } else if (['Common', 'Elvish', 'Dwarvish', 'Draconic', 'Giant', 'Goblin', 'Orc', 'Abyssal', 'Celestial', 'Infernal', 'Primordial', 'Sylvan', 'Undercommon', 'Halfling', 'Gnomish'].some(lang => name.includes(lang)) || name.includes('language')) {
+                                languages.push(formattedName);
+                            } else if (name.includes('tools') || name.includes('kit') || name.includes('supplies') || name.includes('instrument') || name.includes('vehicles')) {
+                                tools.push(formattedName);
+                            } else {
+                                profs.push(formattedName);
+                            }
+                        }
+                    });
+                }
+            });
+        }
+        
+        analysis += `Saving Throws: ${[...new Set(saves)].join(', ') || 'None'}\n`;
+        analysis += `Skills: ${[...new Set(profs)].join(', ') || 'None'}\n`;
+        analysis += `Tools/Kits: ${[...new Set(tools)].join(', ') || 'None'}\n`;
+        analysis += `Languages: ${[...new Set(languages)].join(', ') || 'None'}\n`;
+
         // --- 2. Narrative/Lore Fields ---
         analysis += "\n--- TRAITS & LORE ---\n";
         analysis += `Personality Traits: ${charData.traits?.personalityTraits ? 'Present' : 'Empty'}\n`;
