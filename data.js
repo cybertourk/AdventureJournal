@@ -40,7 +40,7 @@ import { openResearchModal, updateResearchMath, executeResearch } from './dt-res
 import { openScribingModal, updateScribingMath, executeScribing, abandonScribingProject, openSpellBrowser, closeSpellBrowser, filterSpells, selectSpell } from './dt-scribing.js';
 import { openSellingModal, updateSellingMath, seekBuyer, finalizeSale, openSellItemBrowser, closeSellItemBrowser, filterSellItems, selectSellItem } from './dt-selling.js';
 import { openTrainingModal, updateTrainingMath, executeTraining } from './dt-training.js';
-import { openWorkModal, executeWork } from './dt-work.js';
+import { openWorkModal, updateWorkMath, executeWork } from './dt-work.js';
 import { openAssignDowntimeModal, executeAssignDowntime } from './dt-assign.js';
 
 // --- APP ACTIONS HUB --- 
@@ -292,6 +292,7 @@ if (typeof window !== 'undefined') {
       executeTraining,
 
       openWorkModal,
+      updateWorkMath,
       executeWork,
 
       openAssignDowntimeModal,
