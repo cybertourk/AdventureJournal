@@ -512,7 +512,7 @@ export const saveAdvRoster = async () => {
 };
 
 // ============================================================================
-// --- PC MANAGEMENT AND CHECKLIST / SHEET UPDATES (RESTORED BLOCK) ---
+// --- PC MANAGEMENT AND CHECKLIST / SHEET UPDATES ---
 // ============================================================================
 
 export const openChecklistMenu = () => {
@@ -595,7 +595,7 @@ export const deleteSheetUpdate = async (id) => {
   reRender(true);
 };
 
-export const toggleSheetUpdateVis = () => {}; // Handled natively in session visibility
+export const toggleSheetUpdateVis = () => {}; 
 
 export const openPCEdit = (pcId = null) => {
   window.appData.activePcId = pcId;
@@ -1319,6 +1319,7 @@ export const quickSyncDDB = async (pcId) => {
         await saveCampaign(updatedCamp);
         notify(`${pc.name} successfully synced with D&D Beyond.`, "success");
         
+        // If the user happens to have the edit screen open, force it to refresh
         if (window.appData.currentView === 'pc-edit' && window.appData.activePcId === pcId) {
             reRender(true);
         }
