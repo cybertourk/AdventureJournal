@@ -952,10 +952,94 @@ export const fetchAndAnalyzeDndBeyond = async () => {
 
         const charData = ddbData.data;
 
+        // --- HELPER DICTIONARIES ---
+        const statModMap = { 
+            'strength-score': 1, 'dexterity-score': 2, 'constitution-score': 3, 
+            'intelligence-score': 4, 'wisdom-score': 5, 'charisma-score': 6 
+        };
+        const skillAbilities = {
+            'athletics': 1, 'acrobatics': 2, 'sleight-of-hand': 2, 'stealth': 2,
+            'arcana': 4, 'history': 4, 'investigation': 4, 'nature': 4, 'religion': 4,
+            'animal-handling': 5, 'insight': 5, 'medicine': 5, 'perception': 5, 'survival': 5,
+            'deception': 6, 'intimidation': 6, 'performance': 6, 'persuasion': 6
+        };
+
+        const formatName = (str) => str.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
+        // --- CALCULATE BASE STATS & MODIFIERS ---
+        const stats = { 
+            1: {name: 'STR', base: 10, bonus: 0, override: 0}, 2: {name: 'DEX', base: 10, bonus: 0, override: 0}, 
+            3: {name: 'CON', base: 10, bonus: 0, override: 0}, 4: {name: 'INT', base: 10, bonus: 0, override: 0}, 
+            5: {name: 'WIS', base: 10, bonus: 0, override: 0}, 6: {name: 'CHA', base: 10, bonus: 0, override: 0} 
+        };
+        
+        charData.stats?.forEach(s => { if(stats[s.id]) stats[s.id].base = s.value; });
+        charData.overrideStats?.forEach(s => { if(stats[s.id] && s.value) stats[s.id].override = s.value; });
+        
+        // --- PARSE MODIFIERS ARRAYS ---
+        let proficiencies = { saves: {}, skills: {}, weapons: [], armor: [], tools: [], languages: [] };
+        let halfProficiency = false; // Jack of All Trades
+
+        Object.values(charData.modifiers || {}).forEach(modArr => {
+            if (Array.isArray(modArr)) {
+                modArr.forEach(mod => {
+                    const subType = mod.subType || '';
+                    const type = mod.type || '';
+                    const friendlyName = mod.friendlySubtypeName || formatName(subType);
+
+                    // Ability Score Bonuses (Racial, Feat, etc)
+                    if (type === 'bonus' && statModMap[subType]) {
+                        stats[statModMap[subType]].bonus += mod.value;
+                    }
+                    
+                    // Half Proficiency (Jack of All Trades)
+                    if (type === 'half-proficiency' && subType === 'ability-checks') {
+                        halfProficiency = true;
+                    }
+
+                    // Proficiencies
+                    if (type === 'proficiency' || type === 'expertise') {
+                        const profVal = type === 'expertise' ? 2 : 1;
+
+                        if (subType.includes('saving-throws')) {
+                            const statId = statModMap[subType.replace('-saving-throws', '-score')];
+                            if (statId) proficiencies.saves[statId] = profVal;
+                        } else if (skillAbilities[subType]) {
+                            proficiencies.skills[subType] = Math.max(proficiencies.skills[subType] || 0, profVal);
+                        } else if (type === 'language') {
+                             proficiencies.languages.push(friendlyName);
+                        } else if (subType.includes('armor') || subType === 'shields') {
+                            proficiencies.armor.push(friendlyName);
+                        } else if (subType.includes('weapons') || subType.includes('sword') || subType.includes('bow')) {
+                             proficiencies.weapons.push(friendlyName);
+                        } else if (subType.includes('tools') || subType.includes('kit') || subType.includes('supplies') || subType.includes('instrument') || subType.includes('vehicles')) {
+                             proficiencies.tools.push(friendlyName);
+                        }
+                    } else if (type === 'language') {
+                         proficiencies.languages.push(friendlyName);
+                    }
+                });
+            }
+        });
+
+        // Compute Final Stats
+        for(let i=1; i<=6; i++) {
+            let total = stats[i].override || (stats[i].base + stats[i].bonus);
+            stats[i].total = total;
+            stats[i].mod = Math.floor((total - 10) / 2);
+        }
+
+        // --- CALCULATE LEVEL & PB ---
+        let totalLevel = 0;
+        if (charData.classes) {
+            charData.classes.forEach(c => totalLevel += c.level);
+        }
+        const pb = Math.ceil(totalLevel / 4) + 1;
+
+        // --- BUILD ANALYSIS OUTPUT ---
         let analysis = `✅ Character Successfully Fetched via API.\n`;
         analysis += `Character ID: ${characterId}\n\n`;
         
-        // --- 1. Basic High-Level Info ---
         analysis += "--- HIGH LEVEL OVERVIEW ---\n";
         analysis += `Name: ${charData.name || 'Unknown'}\n`;
         analysis += `Gender: ${charData.gender || 'Unknown'}\n`;
@@ -968,73 +1052,60 @@ export const fetchAndAnalyzeDndBeyond = async () => {
         analysis += `Weight: ${charData.weight || 'Unknown'}\n`;
         analysis += `Avatar URL: ${charData.avatarUrl || 'None'}\n`;
         
-        // Classes
         if (charData.classes && Array.isArray(charData.classes)) {
             const classStrings = charData.classes.map(c => `${c.definition?.name} ${c.level}`);
             analysis += `Classes: ${classStrings.join(' / ')}\n`;
         }
-
-        // Race
         if (charData.race) {
             analysis += `Race: ${charData.race.fullName || charData.race.baseName || 'Unknown'}\n`;
         }
-
-        // Background
         if (charData.background) {
             const bgName = charData.background.definition?.name || (charData.background.customBackground ? charData.background.customBackground.name : 'Unknown');
             analysis += `Background: ${bgName}\n`;
         }
 
-        // --- 1.5. Ability Scores & Mechanics ---
-        analysis += "\n--- ABILITY SCORES ---\n";
-        const statNames = { 1: "STR", 2: "DEX", 3: "CON", 4: "INT", 5: "WIS", 6: "CHA" };
+        // Output Mechanics
+        analysis += "\n--- COMBAT STATS ---\n";
+        analysis += `Level: ${totalLevel}\n`;
+        analysis += `Proficiency Bonus: +${pb}\n`;
+
+        analysis += "\n--- ABILITY SCORES & SAVING THROWS ---\n";
         for (let i = 1; i <= 6; i++) {
-            let base = charData.stats?.find(s => s.id === i)?.value || 10;
-            let bonus = charData.bonusStats?.find(s => s.id === i)?.value || 0;
-            let override = charData.overrideStats?.find(s => s.id === i)?.value || 0;
-            
-            let total = override > 0 ? override : base + bonus;
-            let mod = Math.floor((total - 10) / 2);
-            
-            analysis += `${statNames[i]}: ${total} (Modifier: ${mod >= 0 ? '+' : ''}${mod})\n`;
+            const s = stats[i];
+            const modStr = s.mod >= 0 ? `+${s.mod}` : `${s.mod}`;
+            let saveVal = s.mod;
+            let saveTag = "";
+            if (proficiencies.saves[i]) {
+                saveVal += pb;
+                saveTag = " (Proficient)";
+            }
+            const saveStr = saveVal >= 0 ? `+${saveVal}` : `${saveVal}`;
+            analysis += `${s.name}: ${s.total} (Mod: ${modStr}) | Save: ${saveStr}${saveTag}\n`;
         }
 
-        analysis += "\n--- PROFICIENCIES ---\n";
-        let profs = [];
-        let languages = [];
-        let tools = [];
-        let saves = [];
-        
-        // Loop through all nested modifier categories (race, class, feat, item, background, condition)
-        if (charData.modifiers) {
-            Object.values(charData.modifiers).forEach(modArray => {
-                if (Array.isArray(modArray)) {
-                    modArray.forEach(mod => {
-                        if (mod.type === 'proficiency' || mod.type === 'expertise') {
-                            const name = mod.friendlySubtypeName || mod.subType || 'Unknown';
-                            const formattedName = mod.type === 'expertise' ? `${name} (Expertise)` : name;
+        analysis += "\n--- SKILLS ---\n";
+        Object.keys(skillAbilities).forEach(skillKey => {
+            const statId = skillAbilities[skillKey];
+            const baseMod = stats[statId].mod;
+            const profMultiplier = proficiencies.skills[skillKey] || (halfProficiency ? 0.5 : 0);
+            
+            const totalSkill = Math.floor(baseMod + (pb * profMultiplier));
+            const skillStr = totalSkill >= 0 ? `+${totalSkill}` : `${totalSkill}`;
+            
+            let tag = "";
+            if (profMultiplier === 1) tag = " (Proficient)";
+            if (profMultiplier === 2) tag = " (Expertise)";
+            if (profMultiplier === 0.5) tag = " (Half-Prof)";
 
-                            if (name.includes('saving throws')) {
-                                saves.push(name.replace(' saving throws', ''));
-                            } else if (['Common', 'Elvish', 'Dwarvish', 'Draconic', 'Giant', 'Goblin', 'Orc', 'Abyssal', 'Celestial', 'Infernal', 'Primordial', 'Sylvan', 'Undercommon', 'Halfling', 'Gnomish'].some(lang => name.includes(lang)) || name.includes('language')) {
-                                languages.push(formattedName);
-                            } else if (name.includes('tools') || name.includes('kit') || name.includes('supplies') || name.includes('instrument') || name.includes('vehicles')) {
-                                tools.push(formattedName);
-                            } else {
-                                profs.push(formattedName);
-                            }
-                        }
-                    });
-                }
-            });
-        }
-        
-        analysis += `Saving Throws: ${[...new Set(saves)].join(', ') || 'None'}\n`;
-        analysis += `Skills: ${[...new Set(profs)].join(', ') || 'None'}\n`;
-        analysis += `Tools/Kits: ${[...new Set(tools)].join(', ') || 'None'}\n`;
-        analysis += `Languages: ${[...new Set(languages)].join(', ') || 'None'}\n`;
+            analysis += `${formatName(skillKey)} (${stats[statId].name}): ${skillStr}${tag}\n`;
+        });
 
-        // --- 2. Narrative/Lore Fields ---
+        analysis += "\n--- OTHER PROFICIENCIES ---\n";
+        analysis += `Weapons: ${[...new Set(proficiencies.weapons)].join(', ') || 'None'}\n`;
+        analysis += `Armor/Shields: ${[...new Set(proficiencies.armor)].join(', ') || 'None'}\n`;
+        analysis += `Tools/Kits: ${[...new Set(proficiencies.tools)].join(', ') || 'None'}\n`;
+        analysis += `Languages: ${[...new Set(proficiencies.languages)].join(', ') || 'None'}\n`;
+
         analysis += "\n--- TRAITS & LORE ---\n";
         analysis += `Personality Traits: ${charData.traits?.personalityTraits ? 'Present' : 'Empty'}\n`;
         analysis += `Ideals: ${charData.traits?.ideals ? 'Present' : 'Empty'}\n`;
@@ -1046,7 +1117,6 @@ export const fetchAndAnalyzeDndBeyond = async () => {
         analysis += `Enemies: ${charData.notes?.enemies ? 'Present' : 'Empty'}\n`;
         analysis += `Organizations: ${charData.notes?.organizations ? 'Present' : 'Empty'}\n`;
 
-        // --- 3. Raw Dump of Narrative Data (to see how DDB formats HTML/Strings) ---
         analysis += "\n--- RAW NARRATIVE DATA PREVIEW ---\n";
         analysis += `[Backstory]\n${charData.notes?.backstory || 'N/A'}\n\n`;
         analysis += `[Personality]\n${charData.traits?.personalityTraits || 'N/A'}\n`;
