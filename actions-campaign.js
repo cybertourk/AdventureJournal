@@ -885,41 +885,80 @@ export const openDndBeyondImportModal = () => {
         <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[18000] backdrop-blur-sm animate-in">
             <div class="bg-[#f4ebd8] rounded-sm w-full max-w-4xl border border-[#d4c5a9] shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
                 <div class="bg-stone-900 p-4 border-b-4 border-red-900 shadow-md shrink-0 flex justify-between items-center text-amber-50">
-                    <h2 class="text-lg font-serif font-bold flex items-center"><i class="fa-solid fa-file-import mr-2 text-red-500"></i> D&D Beyond Data Analysis</h2>
+                    <h2 class="text-lg font-serif font-bold flex items-center"><i class="fa-solid fa-file-import mr-2 text-red-500"></i> D&D Beyond Importer</h2>
                     <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="text-stone-400 hover:text-white transition"><i class="fa-solid fa-times text-xl"></i></button>
                 </div>
                 <div class="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-grow bg-[#fdfbf7] flex flex-col gap-4">
-                    <div class="bg-amber-50 border border-amber-200 p-3 rounded-sm shadow-sm text-amber-900 text-xs leading-snug">
-                        <i class="fa-solid fa-circle-info mr-1 text-amber-600"></i> To get your character's JSON, go to your D&D Beyond character sheet URL and append <strong>/json</strong> to the end of it. (e.g., <em>dndbeyond.com/character/12345678/json</em>). Copy the entire block of text and paste it below.
+                    <div class="bg-amber-50 border border-amber-200 p-4 rounded-sm shadow-sm text-amber-900 text-sm leading-snug">
+                        <i class="fa-solid fa-circle-info mr-1 text-amber-600"></i> Paste the full URL to your public D&D Beyond character sheet. The app will fetch the data and extract your hero's attributes, classes, and lore automatically.
                     </div>
-                    <textarea id="ddb-json-input" class="w-full h-40 p-3 border border-[#d4c5a9] rounded-sm text-xs font-mono bg-white shadow-inner focus:border-red-900 outline-none custom-scrollbar" placeholder="Paste raw JSON here..."></textarea>
                     
-                    <div class="flex justify-center">
-                        <button onclick="window.appActions.analyzeDndBeyondJson()" class="px-6 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md"><i class="fa-solid fa-microscope mr-2"></i> Analyze Structure</button>
+                    <div class="flex gap-2 w-full max-w-2xl mx-auto mt-2">
+                        <input type="text" id="ddb-url-input" class="flex-grow p-3 border border-[#d4c5a9] rounded-sm text-sm font-bold bg-white shadow-inner focus:border-red-900 outline-none" placeholder="e.g. https://www.dndbeyond.com/characters/12345678">
+                        <button id="ddb-fetch-btn" onclick="window.appActions.fetchAndAnalyzeDndBeyond()" class="px-6 py-3 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-xs shadow-md shrink-0 whitespace-nowrap"><i class="fa-solid fa-cloud-arrow-down mr-2"></i> Fetch & Analyze</button>
                     </div>
 
-                    <div id="ddb-analysis-output" class="hidden flex-grow bg-stone-900 text-green-400 p-4 rounded-sm font-mono text-[10px] sm:text-xs overflow-auto custom-scrollbar min-h-[300px] border border-stone-700 shadow-inner whitespace-pre-wrap"></div>
+                    <div id="ddb-analysis-output" class="hidden flex-grow bg-stone-900 text-green-400 p-4 rounded-sm font-mono text-[10px] sm:text-xs overflow-auto custom-scrollbar min-h-[300px] border border-stone-700 shadow-inner whitespace-pre-wrap mt-4"></div>
                 </div>
             </div>
         </div>
     `;
 };
 
-export const analyzeDndBeyondJson = () => {
-    const input = document.getElementById('ddb-json-input').value;
+export const fetchAndAnalyzeDndBeyond = async () => {
+    const input = document.getElementById('ddb-url-input').value.trim();
     const output = document.getElementById('ddb-analysis-output');
+    const btn = document.getElementById('ddb-fetch-btn');
     
-    if (!input.trim()) {
-        notify("Please paste some JSON first.", "error");
+    if (!input) {
+        notify("Please enter a valid D&D Beyond character URL.", "error");
         return;
     }
 
-    try {
-        const data = JSON.parse(input);
-        // DDB JSON usually wraps everything in a "character" object, but just in case:
-        const charData = data.character || data;
+    // Extract ID (Handles full URLs or just the raw ID)
+    const match = input.match(/\/characters?\/(\d+)/i) || input.match(/^(\d+)$/);
+    if (!match) {
+        notify("Could not find a character ID. Please ensure it looks like dndbeyond.com/characters/12345678", "error");
+        return;
+    }
+    const characterId = match[1];
 
-        let analysis = "✅ JSON Successfully Parsed.\n\n";
+    // UI Loading State
+    const originalBtnHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Fetching...';
+    btn.disabled = true;
+    output.classList.add('hidden');
+
+    try {
+        // DDB Unofficial V5 Character API
+        const apiUrl = `https://character-service.dndbeyond.com/character/v5/character/${characterId}`;
+        
+        // Use AllOrigins as a reliable CORS proxy to prevent browser blocks
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`;
+
+        const response = await fetch(proxyUrl);
+        
+        if (!response.ok) {
+            throw new Error(`Proxy fetch failed. (Status: ${response.status})`);
+        }
+
+        const proxyData = await response.json();
+        
+        // AllOrigins returns the raw text in the 'contents' property
+        if (!proxyData.contents) {
+            throw new Error("No data returned from the proxy.");
+        }
+
+        const ddbData = JSON.parse(proxyData.contents);
+        
+        if (!ddbData.success || !ddbData.data) {
+            throw new Error("D&D Beyond returned an unexpected data structure. Ensure the character is set to Public.");
+        }
+
+        const charData = ddbData.data;
+
+        let analysis = `✅ Character Successfully Fetched via API.\n`;
+        analysis += `Character ID: ${characterId}\n\n`;
         
         // --- 1. Basic High-Level Info ---
         analysis += "--- HIGH LEVEL OVERVIEW ---\n";
@@ -945,9 +984,6 @@ export const analyzeDndBeyondJson = () => {
             analysis += `Race: ${charData.race.fullName || charData.race.baseName || 'Unknown'}\n`;
         }
 
-        // Alignment (Requires ID mapping usually)
-        analysis += `Alignment ID: ${charData.alignmentId || 'Unknown'}\n`;
-
         // Background
         if (charData.background) {
             const bgName = charData.background.definition?.name || (charData.background.customBackground ? charData.background.customBackground.name : 'Unknown');
@@ -966,17 +1002,7 @@ export const analyzeDndBeyondJson = () => {
         analysis += `Enemies: ${charData.notes?.enemies ? 'Present' : 'Empty'}\n`;
         analysis += `Organizations: ${charData.notes?.organizations ? 'Present' : 'Empty'}\n`;
 
-        // --- 3. Full Structure Keys ---
-        analysis += "\n--- TOP LEVEL KEYS DETECTED ---\n";
-        Object.keys(charData).forEach(key => {
-            const val = charData[key];
-            let type = typeof val;
-            if (Array.isArray(val)) type = `Array[${val.length}]`;
-            else if (val === null) type = 'null';
-            analysis += `- ${key} : ${type}\n`;
-        });
-
-        // --- 4. Raw Dump of Narrative Data (to see how DDB formats HTML/Strings) ---
+        // --- 3. Raw Dump of Narrative Data (to see how DDB formats HTML/Strings) ---
         analysis += "\n--- RAW NARRATIVE DATA PREVIEW ---\n";
         analysis += `[Backstory]\n${charData.notes?.backstory || 'N/A'}\n\n`;
         analysis += `[Personality]\n${charData.traits?.personalityTraits || 'N/A'}\n`;
@@ -987,9 +1013,12 @@ export const analyzeDndBeyondJson = () => {
         output.classList.add('text-green-400');
         
     } catch (e) {
-        output.textContent = "Error parsing JSON: \n" + e.message;
+        output.textContent = "Error parsing D&D Beyond data: \n" + e.message;
         output.classList.remove('hidden');
         output.classList.remove('text-green-400');
         output.classList.add('text-red-500');
+    } finally {
+        btn.innerHTML = originalBtnHtml;
+        btn.disabled = false;
     }
 };
