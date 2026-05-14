@@ -611,7 +611,6 @@ export const deleteSheetUpdate = async (id) => {
 // (Visibility is handled natively in actions-session.js now!)
 export const toggleSheetUpdateVis = () => {};
 
-
 // --- PC Manager (Hero Profiles) Core ---
 export const openPCEdit = (pcId = null) => {
   window.appData.activePcId = pcId;
@@ -875,4 +874,122 @@ export const kickPlayer = async (uid) => {
   
   await saveCampaign(updatedCamp);
   notify("Player exiled from the campaign.", "success");
+};
+
+// --- D&D Beyond Import Analysis ---
+export const openDndBeyondImportModal = () => {
+    const container = document.getElementById('global-popup-container');
+    if (!container) return;
+
+    container.innerHTML = `
+        <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[18000] backdrop-blur-sm animate-in">
+            <div class="bg-[#f4ebd8] rounded-sm w-full max-w-4xl border border-[#d4c5a9] shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
+                <div class="bg-stone-900 p-4 border-b-4 border-red-900 shadow-md shrink-0 flex justify-between items-center text-amber-50">
+                    <h2 class="text-lg font-serif font-bold flex items-center"><i class="fa-solid fa-file-import mr-2 text-red-500"></i> D&D Beyond Data Analysis</h2>
+                    <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="text-stone-400 hover:text-white transition"><i class="fa-solid fa-times text-xl"></i></button>
+                </div>
+                <div class="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-grow bg-[#fdfbf7] flex flex-col gap-4">
+                    <div class="bg-amber-50 border border-amber-200 p-3 rounded-sm shadow-sm text-amber-900 text-xs leading-snug">
+                        <i class="fa-solid fa-circle-info mr-1 text-amber-600"></i> To get your character's JSON, go to your D&D Beyond character sheet URL and append <strong>/json</strong> to the end of it. (e.g., <em>dndbeyond.com/character/12345678/json</em>). Copy the entire block of text and paste it below.
+                    </div>
+                    <textarea id="ddb-json-input" class="w-full h-40 p-3 border border-[#d4c5a9] rounded-sm text-xs font-mono bg-white shadow-inner focus:border-red-900 outline-none custom-scrollbar" placeholder="Paste raw JSON here..."></textarea>
+                    
+                    <div class="flex justify-center">
+                        <button onclick="window.appActions.analyzeDndBeyondJson()" class="px-6 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md"><i class="fa-solid fa-microscope mr-2"></i> Analyze Structure</button>
+                    </div>
+
+                    <div id="ddb-analysis-output" class="hidden flex-grow bg-stone-900 text-green-400 p-4 rounded-sm font-mono text-[10px] sm:text-xs overflow-auto custom-scrollbar min-h-[300px] border border-stone-700 shadow-inner whitespace-pre-wrap"></div>
+                </div>
+            </div>
+        </div>
+    `;
+};
+
+export const analyzeDndBeyondJson = () => {
+    const input = document.getElementById('ddb-json-input').value;
+    const output = document.getElementById('ddb-analysis-output');
+    
+    if (!input.trim()) {
+        notify("Please paste some JSON first.", "error");
+        return;
+    }
+
+    try {
+        const data = JSON.parse(input);
+        // DDB JSON usually wraps everything in a "character" object, but just in case:
+        const charData = data.character || data;
+
+        let analysis = "✅ JSON Successfully Parsed.\n\n";
+        
+        // --- 1. Basic High-Level Info ---
+        analysis += "--- HIGH LEVEL OVERVIEW ---\n";
+        analysis += `Name: ${charData.name || 'Unknown'}\n`;
+        analysis += `Gender: ${charData.gender || 'Unknown'}\n`;
+        analysis += `Faith: ${charData.faith || 'Unknown'}\n`;
+        analysis += `Age: ${charData.age || 'Unknown'}\n`;
+        analysis += `Hair: ${charData.hair || 'Unknown'}\n`;
+        analysis += `Eyes: ${charData.eyes || 'Unknown'}\n`;
+        analysis += `Skin: ${charData.skin || 'Unknown'}\n`;
+        analysis += `Height: ${charData.height || 'Unknown'}\n`;
+        analysis += `Weight: ${charData.weight || 'Unknown'}\n`;
+        analysis += `Avatar URL: ${charData.avatarUrl || 'None'}\n`;
+        
+        // Classes
+        if (charData.classes && Array.isArray(charData.classes)) {
+            const classStrings = charData.classes.map(c => `${c.definition?.name} ${c.level}`);
+            analysis += `Classes: ${classStrings.join(' / ')}\n`;
+        }
+
+        // Race
+        if (charData.race) {
+            analysis += `Race: ${charData.race.fullName || charData.race.baseName || 'Unknown'}\n`;
+        }
+
+        // Alignment (Requires ID mapping usually)
+        analysis += `Alignment ID: ${charData.alignmentId || 'Unknown'}\n`;
+
+        // Background
+        if (charData.background) {
+            const bgName = charData.background.definition?.name || (charData.background.customBackground ? charData.background.customBackground.name : 'Unknown');
+            analysis += `Background: ${bgName}\n`;
+        }
+
+        // --- 2. Narrative/Lore Fields ---
+        analysis += "\n--- TRAITS & LORE ---\n";
+        analysis += `Personality Traits: ${charData.traits?.personalityTraits ? 'Present' : 'Empty'}\n`;
+        analysis += `Ideals: ${charData.traits?.ideals ? 'Present' : 'Empty'}\n`;
+        analysis += `Bonds: ${charData.traits?.bonds ? 'Present' : 'Empty'}\n`;
+        analysis += `Flaws: ${charData.traits?.flaws ? 'Present' : 'Empty'}\n`;
+        analysis += `Appearance: ${charData.traits?.appearance ? 'Present' : 'Empty'}\n`;
+        analysis += `Backstory: ${charData.notes?.backstory ? 'Present' : 'Empty'}\n`;
+        analysis += `Allies: ${charData.notes?.allies ? 'Present' : 'Empty'}\n`;
+        analysis += `Enemies: ${charData.notes?.enemies ? 'Present' : 'Empty'}\n`;
+        analysis += `Organizations: ${charData.notes?.organizations ? 'Present' : 'Empty'}\n`;
+
+        // --- 3. Full Structure Keys ---
+        analysis += "\n--- TOP LEVEL KEYS DETECTED ---\n";
+        Object.keys(charData).forEach(key => {
+            const val = charData[key];
+            let type = typeof val;
+            if (Array.isArray(val)) type = `Array[${val.length}]`;
+            else if (val === null) type = 'null';
+            analysis += `- ${key} : ${type}\n`;
+        });
+
+        // --- 4. Raw Dump of Narrative Data (to see how DDB formats HTML/Strings) ---
+        analysis += "\n--- RAW NARRATIVE DATA PREVIEW ---\n";
+        analysis += `[Backstory]\n${charData.notes?.backstory || 'N/A'}\n\n`;
+        analysis += `[Personality]\n${charData.traits?.personalityTraits || 'N/A'}\n`;
+
+        output.textContent = analysis;
+        output.classList.remove('hidden');
+        output.classList.remove('text-red-500');
+        output.classList.add('text-green-400');
+        
+    } catch (e) {
+        output.textContent = "Error parsing JSON: \n" + e.message;
+        output.classList.remove('hidden');
+        output.classList.remove('text-green-400');
+        output.classList.add('text-red-500');
+    }
 };
