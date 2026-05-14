@@ -141,6 +141,11 @@ export function getPCManagerHTML(state) {
                         <button onclick="window.appActions.openPCEdit('${pc.id}')" class="text-stone-700 hover:text-red-900 text-[10px] sm:text-xs font-bold uppercase tracking-wider flex items-center transition relative">
                             <i class="fa-solid fa-book-open mr-1.5"></i> Private Journal
                         </button>
+                        ${pc.ddbId ? `
+                        <button onclick="window.appActions.quickSyncDDB('${pc.id}')" class="text-stone-700 hover:text-emerald-700 text-[10px] sm:text-xs font-bold uppercase tracking-wider flex items-center transition relative" title="Sync with D&D Beyond">
+                            <i class="fa-solid fa-cloud-arrow-down mr-1.5"></i> Sync
+                        </button>
+                        ` : ''}
                         ` : ''}
                         <button onclick="window.appActions.viewCodex('${pc.id}')" class="text-stone-700 hover:text-amber-600 text-[10px] sm:text-xs font-bold uppercase tracking-wider flex items-center transition">
                             <i class="fa-solid fa-address-card mr-1.5"></i> Public Profile
@@ -201,10 +206,10 @@ export function getPCEditHTML(state) {
     const camp = state.activeCampaign;
     const isNew = !state.activePcId;
     
-    // Updated default structure to hold stats and equipment
+    // Updated default structure to hold stats, equipment, and ddbId
     const pc = !isNew && camp?.playerCharacters 
         ? camp.playerCharacters.find(p => p.id === state.activePcId) 
-        : { name: '', race: '', classLevel: '', background: '', alignment: '', faith: '', gender: '', age: '', size: '', height: '', weight: '', eyes: '', hair: '', skin: '', traits: '', ideals: '', bonds: '', flaws: '', appearance: '', backstory: '', organizations: '', allies: '', enemies: '', dmNotes: '', playerId: '', image: '', boonBackstory: false, boon1stBday: '', boon2ndBday: '', extraBdayBoons: [], unlockAutoSuccess: false, availableDowntime: 0, downtimeLog: '', str: '', dex: '', con: '', int: '', wis: '', cha: '', saves: '', skills: '', proficiencies: '', wealth: '', equipped: '', backpack: '' };
+        : { name: '', race: '', classLevel: '', background: '', alignment: '', faith: '', gender: '', age: '', size: '', height: '', weight: '', eyes: '', hair: '', skin: '', traits: '', ideals: '', bonds: '', flaws: '', appearance: '', backstory: '', organizations: '', allies: '', enemies: '', dmNotes: '', playerId: '', image: '', boonBackstory: false, boon1stBday: '', boon2ndBday: '', extraBdayBoons: [], unlockAutoSuccess: false, availableDowntime: 0, downtimeLog: '', str: '', dex: '', con: '', int: '', wis: '', cha: '', saves: '', skills: '', proficiencies: '', wealth: '', equipped: '', backpack: '', ddbId: '' };
 
     if (!pc && !isNew) return `<div class="text-center text-red-500 p-8 font-serif font-bold text-xl">Hero not found in the archives.</div>`;
 
@@ -471,6 +476,15 @@ export function getPCEditHTML(state) {
                     <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Portrait Image URL</label>
                     <input type="text" id="pc-edit-image" value="${pc.image || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="https://example.com/portrait.jpg">
                 </div>
+                <div class="col-span-1 sm:col-span-2 lg:col-span-3 mt-2 flex gap-2 items-end">
+                    <div class="flex-grow">
+                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">D&D Beyond Character ID / URL</label>
+                        <input type="text" id="pc-edit-ddb-id" value="${pc.ddbId || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. 12345678 or full URL">
+                    </div>
+                    <button type="button" id="btn-sync-stats" onclick="window.appActions.quickSyncDDB('${pc.id}')" class="px-4 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] shadow-sm whitespace-nowrap h-[38px] flex items-center">
+                        <i class="fa-solid fa-cloud-arrow-down sm:mr-2"></i> <span class="hidden sm:inline">Sync Stats</span>
+                    </button>
+                </div>
             </div>
 
             <!-- CHARACTERISTICS -->
@@ -658,7 +672,7 @@ export const savePCEdit = async () => {
       downtimeLog: '',
       str: '', dex: '', con: '', int: '', wis: '', cha: '',
       saves: '', skills: '', proficiencies: '',
-      wealth: '', equipped: '', backpack: ''
+      wealth: '', equipped: '', backpack: '', ddbId: ''
   };
 
   const isOwner = existingPC.playerId === myUid;
@@ -712,6 +726,7 @@ export const savePCEdit = async () => {
       classLevel: getVal('pc-edit-class', existingPC.classLevel),
       background: getVal('pc-edit-background', existingPC.background),
       image: getVal('pc-edit-image', existingPC.image),
+      ddbId: getVal('pc-edit-ddb-id', existingPC.ddbId),
       // Characteristics
       alignment: getVal('pc-edit-alignment', existingPC.alignment),
       faith: getVal('pc-edit-faith', existingPC.faith),
