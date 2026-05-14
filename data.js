@@ -4,7 +4,7 @@ import { setCampaignsData, updateDerivedState, reRender } from './state.js';
 import { navigateBack, toggleActionMenu } from './ui-core.js';
 
 // Import Campaign & Hero Management 
-import { setView, openCampaign, openAdventure, toggleNewCampaignForm, createCampaign, deleteCampaignAction, copyCampaignId, toggleJoinCampaignForm, joinCampaignAction, toggleNewAdventureForm, createAdventure, deleteAdventure, openEditAdventureModal, saveEditAdventure, refreshPartyBoons, openAdvRoster, toggleAdvRosterPc, saveAdvRoster, openActivityLog, clearActivityLog, openPCEdit, calculateBirthdaysLive, savePCEdit, deletePC, kickPlayer, openChecklistMenu, closeChecklistMenu, addSheetUpdate, toggleSheetUpdateResolved, toggleSheetUpdateVis, deleteSheetUpdate } from './actions-campaign.js'; 
+import { setView, openCampaign, openAdventure, toggleNewCampaignForm, createCampaign, deleteCampaignAction, copyCampaignId, toggleJoinCampaignForm, joinCampaignAction, toggleNewAdventureForm, createAdventure, deleteAdventure, openEditAdventureModal, saveEditAdventure, refreshPartyBoons, openAdvRoster, toggleAdvRosterPc, saveAdvRoster, openActivityLog, clearActivityLog, openPCEdit, calculateBirthdaysLive, savePCEdit, deletePC, kickPlayer, openChecklistMenu, closeChecklistMenu, addSheetUpdate, toggleSheetUpdateResolved, toggleSheetUpdateVis, deleteSheetUpdate, openDndBeyondImportModal, analyzeDndBeyondJson } from './actions-campaign.js'; 
 
 // Import Session, Narrative, & Visibility Controls 
 import { openSessionEdit, switchSessionTab, updateSessionBudget, _readDynamicList, _gatherSessionDraft, updateSessionPreview, saveSession, deleteSession, addLogScene, addLogClue, submitSessionClue, deleteSessionClue, openVisibilityMenu, toggleVisSpecificList, saveVisibility, _saveCampaignHelper, openUniversalEditor, closeUniversalEditor, saveUniversalEditor, formatText, addChronicleEntry, editChronicleEntry, cancelChronicleEdit, deleteChronicleEntry, syncSessionDates } from './actions-session.js'; 
@@ -91,6 +91,10 @@ if (typeof window !== 'undefined') {
       toggleSheetUpdateVis, 
       deleteSheetUpdate, 
       
+      // D&D Beyond Import
+      openDndBeyondImportModal,
+      analyzeDndBeyondJson,
+
       // Session Editing & Collaborative Chronicle
       openSessionEdit, 
       switchSessionTab, 
