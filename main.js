@@ -1,7 +1,7 @@
 import { auth, db, appId, onAuthStateChanged } from './firebase-config.js';
 import { subscribeToCampaigns, subscribeToPlayerCampaigns, subscribeToPersonalData, logoutUser, deleteUserAccount } from './firebase-manager.js';
 import { initAuthUI } from './ui-auth.js';
-import { setCampaignsData } from './state.js';
+import { setCampaignsData } from './data.js';
 
 // Ensure the global state is available
 if (!window.appData) {
