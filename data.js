@@ -27,19 +27,22 @@ import { createNewWeb, deleteCurrentWeb, switchWeb, toggleWebGroup, openWebEditM
 // Import Downtime Menu Hub
 import { openDowntimeMenu } from './actions-downtime.js';
 
+// Import DDB Integration
+import { openDDBModal, closeDDBModal, fetchDDBCharacter } from './ui-characters.js';
+
 // --- MODULAR DOWNTIME IMPORTS ---
 import { openBuyMagicItemModal, updateBuyMagicItemMath, executeBuyMagicItem } from './dt-buy-magic-item.js';
 import { openCarousingModal, updateCarousingMath, executeCarousing, openCarouseContacts, closeCarouseContacts, prepDefineContact, renderCarouseContactsList, saveNewCarouseContact, markCarouseContactUsed, reactivateCarouseContact, deleteCarouseContact, deleteBankedContact } from './dt-carousing.js';
 import { openCraftingModal, updateCraftingMath, executeCrafting, abandonCraftingProject, openRecipeBrowser, closeRecipeBrowser, filterRecipes, selectRecipe } from './dt-crafting.js';
 import { openCrimeModal, updateCrimeMath, executeCrime, clearCrimeRecord } from './dt-crime.js';
 import { openGamblingModal, updateGamblingMath, executeGambling } from './dt-gambling.js';
-import { openPitFightingModal, updatePitFightingMath, executePitFighting } from './dt-pit-fighting.js';
+import { openPitFightingModal, updatePitFightingMath, executePitFighting, searchPitLocation, selectPitLocation } from './dt-pit-fighting.js';
 import { openRelaxationModal, updateRelaxationMath, executeRelaxation } from './dt-relaxation.js';
 import { openReligiousServiceModal, updateReligiousServiceMath, executeReligiousService } from './dt-religious-service.js';
 import { openResearchModal, updateResearchMath, executeResearch } from './dt-research.js';
 import { openScribingModal, updateScribingMath, executeScribing, abandonScribingProject, openSpellBrowser, closeSpellBrowser, filterSpells, selectSpell } from './dt-scribing.js';
 import { openSellingModal, updateSellingMath, seekBuyer, finalizeSale, openSellItemBrowser, closeSellItemBrowser, filterSellItems, selectSellItem } from './dt-selling.js';
-import { openTrainingModal, updateTrainingMath, executeTraining } from './dt-training.js';
+import { openTrainingModal, updateTrainingMath, executeTraining, abandonTrainingProject } from './dt-training.js';
 import { openWorkModal, updateWorkMath, executeWork } from './dt-work.js';
 import { openAssignDowntimeModal, executeAssignDowntime } from './dt-assign.js';
 
@@ -218,6 +221,10 @@ if (typeof window !== 'undefined') {
       // Modular Downtime Activities
       openDowntimeMenu,
       
+      openDDBModal,
+      closeDDBModal,
+      fetchDDBCharacter,
+      
       openBuyMagicItemModal,
       updateBuyMagicItemMath,
       executeBuyMagicItem,
@@ -256,6 +263,8 @@ if (typeof window !== 'undefined') {
       openPitFightingModal,
       updatePitFightingMath,
       executePitFighting,
+      searchPitLocation,
+      selectPitLocation,
 
       openRelaxationModal,
       updateRelaxationMath,
@@ -290,6 +299,7 @@ if (typeof window !== 'undefined') {
       openTrainingModal,
       updateTrainingMath,
       executeTraining,
+      abandonTrainingProject,
 
       openWorkModal,
       updateWorkMath,
@@ -355,12 +365,16 @@ if (typeof window !== 'undefined' && typeof history !== 'undefined') {
         const univEditor = document.getElementById('universal-editor-modal');
         const settingsModal = document.getElementById('account-settings-modal');
         const visibilityModal = document.getElementById('visibility-modal');
+        const ddbModal = document.getElementById('ddb-import-modal');
         
         let modalClosed = false;
         
         // Check if Atlas is in Full Screen Mode
         if (window.appData && window.appData.isAtlasFullScreen) {
             window.appActions.toggleAtlasFullScreen();
+            modalClosed = true;
+        } else if (ddbModal && !ddbModal.classList.contains('hidden')) {
+            ddbModal.classList.add('hidden');
             modalClosed = true;
         } else if (visibilityModal && !visibilityModal.classList.contains('hidden')) {
             visibilityModal.classList.add('hidden');
