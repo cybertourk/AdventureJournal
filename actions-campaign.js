@@ -933,6 +933,17 @@ export const fetchAndAnalyzeDndBeyond = async () => {
         const formatName = (str) => str.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
         const stripHtml = (html) => html ? html.replace(/<[^>]*>?/gm, '').trim() : '';
 
+        // --- ALIGNMENT & SIZE DICTIONARIES ---
+        const alignmentMap = {
+            1: 'Lawful Good', 2: 'Neutral Good', 3: 'Chaotic Good',
+            4: 'Lawful Neutral', 5: 'True Neutral', 6: 'Chaotic Neutral',
+            7: 'Lawful Evil', 8: 'Neutral Evil', 9: 'Chaotic Evil'
+        };
+        
+        const sizeMap = {
+            2: 'Tiny', 3: 'Small', 4: 'Medium', 5: 'Large', 6: 'Huge', 7: 'Gargantuan'
+        };
+
         // --- CALCULATE BASE STATS & MODIFIERS ---
         const stats = { 
             1: {name: 'STR', base: 10, bonus: 0, override: 0}, 2: {name: 'DEX', base: 10, bonus: 0, override: 0}, 
@@ -1035,17 +1046,21 @@ export const fetchAndAnalyzeDndBeyond = async () => {
             if (profMultiplier > 0) skillsArr.push(formatName(skillKey));
         });
 
+        // Determine Size
+        const sizeId = charData.race?.sizeId || charData.sizeId;
+        const finalSize = sizeMap[sizeId] || charData.size || '';
+
         const newPC = {
             id: generateId(),
             name: charData.name || 'Unknown',
             race: charData.race?.fullName || charData.race?.baseName || '',
             classLevel: charData.classes?.map(c => `${c.definition?.name} ${c.level}`).join(' / ') || '',
             background: charData.background?.definition?.name || (charData.background?.customBackground ? charData.background.customBackground.name : ''),
-            alignment: '', 
+            alignment: alignmentMap[charData.alignmentId] || '', 
             faith: charData.faith || '',
             gender: charData.gender || '',
             age: charData.age || '',
-            size: charData.size || '',
+            size: finalSize,
             height: charData.height || '',
             weight: charData.weight || '',
             eyes: charData.eyes || '',
