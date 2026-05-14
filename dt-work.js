@@ -266,28 +266,26 @@ export const executeWork = async () => {
     const d20 = Math.floor(Math.random() * 20) + 1;
     const checkTotal = d20 + modifier;
 
-    let lifestyleText = "";
-    let cashValue = 0;
-
-    if (checkTotal <= 9) {
-        lifestyleText = "a **Poor lifestyle** for the week";
-        cashValue = 1; 
-    } else if (checkTotal <= 14) {
-        lifestyleText = "a **Modest lifestyle** for the week";
-        cashValue = 5; 
-    } else if (checkTotal <= 20) {
-        lifestyleText = "a **Comfortable lifestyle** for the week";
-        cashValue = 10; 
-    } else {
-        lifestyleText = "a **Comfortable lifestyle** for the week, plus an extra 25 gp";
-        cashValue = 35; 
-    }
+    let wageTier = 0;
+    if (checkTotal <= 9) wageTier = 1; // Poor
+    else if (checkTotal <= 14) wageTier = 2; // Modest
+    else if (checkTotal <= 20) wageTier = 3; // Comfortable
+    else wageTier = 4; // Comfortable + 25gp
 
     // Complication Roll (10% flat chance)
     let complicationText = ``;
     const d100 = Math.floor(Math.random() * 100) + 1;
+    
     if (d100 <= 10) {
         const d6 = Math.floor(Math.random() * 6) + 1;
+        
+        // INTERCEPT WAGES BASED ON COMPLICATIONS
+        if (d6 === 1) {
+            wageTier = Math.max(0, wageTier - 1);
+        } else if (d6 === 2) {
+            wageTier = 0; // Unpaid
+        }
+
         const compTable = [
             `A difficult customer or a fight with a coworker reduces the wages you earn by one category.${isRival ? " (The customer/coworker was provoked by your rival)." : ""}`,
             `Your employer’s financial difficulties result in your not being paid.${isRival ? " (Your rival sabotaged their business)." : ""}`,
@@ -301,9 +299,35 @@ export const executeWork = async () => {
         complicationText = `\n\n*Your work week passes uneventfully.*`;
     }
 
+    // Assign final wages based on intercepted tier
+    let lifestyleText = "";
+    let cashValue = 0;
+    
+    if (wageTier === 0) {
+        lifestyleText = "nothing (wages were lost)";
+        cashValue = 0;
+    } else if (wageTier === 1) {
+        lifestyleText = "a **Poor lifestyle** for the week";
+        cashValue = 1; 
+    } else if (wageTier === 2) {
+        lifestyleText = "a **Modest lifestyle** for the week";
+        cashValue = 5; 
+    } else if (wageTier === 3) {
+        lifestyleText = "a **Comfortable lifestyle** for the week";
+        cashValue = 10; 
+    } else if (wageTier === 4) {
+        lifestyleText = "a **Comfortable lifestyle** for the week, plus an extra 25 gp";
+        cashValue = 35; 
+    }
+
     const resultHeader = `**Objective:** Working as a ${workType}`;
     
-    let resultBody = `**Wages Earned:**\nYour work was sufficient to cover ${lifestyleText}.\n\n*Alternatively, you can collect your pay as **${cashValue} gp**.*\n*(Remember to handle lifestyle costs or add the gold to your sheet manually.)*`;
+    let resultBody = ``;
+    if (wageTier === 0) {
+        resultBody = `**Wages Earned:**\nYour work yielded no wages this week due to complications.`;
+    } else {
+        resultBody = `**Wages Earned:**\nYour work was sufficient to cover ${lifestyleText}.\n\n*Alternatively, you can collect your pay as **${cashValue} gp**.*\n*(Remember to handle lifestyle costs or add the gold to your sheet manually.)*`;
+    }
     
     if (notes) {
         resultBody = `*Notes: ${notes}*\n\n` + resultBody;
