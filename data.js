@@ -31,7 +31,7 @@ import { openDowntimeMenu } from './actions-downtime.js';
 import { openBuyMagicItemModal, updateBuyMagicItemMath, executeBuyMagicItem } from './dt-buy-magic-item.js';
 import { openCarousingModal, updateCarousingMath, executeCarousing, openCarouseContacts, closeCarouseContacts, prepDefineContact, renderCarouseContactsList, saveNewCarouseContact, markCarouseContactUsed, reactivateCarouseContact, deleteCarouseContact, deleteBankedContact } from './dt-carousing.js';
 import { openCraftingModal, updateCraftingMath, executeCrafting, abandonCraftingProject, openRecipeBrowser, closeRecipeBrowser, filterRecipes, selectRecipe } from './dt-crafting.js';
-import { openCrimeModal, updateCrimeMath, executeCrime } from './dt-crime.js';
+import { openCrimeModal, updateCrimeMath, executeCrime, clearCrimeRecord } from './dt-crime.js';
 import { openGamblingModal, updateGamblingMath, executeGambling } from './dt-gambling.js';
 import { openPitFightingModal, updatePitFightingMath, executePitFighting } from './dt-pit-fighting.js';
 import { openRelaxationModal, updateRelaxationMath, executeRelaxation } from './dt-relaxation.js';
@@ -247,6 +247,7 @@ if (typeof window !== 'undefined') {
       openCrimeModal,
       updateCrimeMath,
       executeCrime,
+      clearCrimeRecord,
       
       openGamblingModal,
       updateGamblingMath,
@@ -294,7 +295,10 @@ if (typeof window !== 'undefined') {
       executeWork,
 
       openAssignDowntimeModal,
-      executeAssignDowntime,
+      executeAssignDowntime
+    };
+}
+
 // --- HISTORY API INTERCEPTOR (Native Phone Back Button Support) ---
 // ============================================================================
 
