@@ -6,6 +6,49 @@ import { logPlayerActivity } from './actions-campaign.js';
 // --- 13. WORK ---
 // ============================================================================
 
+const WORK_EXAMPLES = {
+    "Strength (Athletics)": "e.g., Bouncer, Laborer, Guard, Porter",
+    "Dexterity (Acrobatics)": "e.g., Acrobat, Tumbler, Daredevil",
+    "Charisma (Performance)": "e.g., Storyteller, Orator, Actor",
+    "Alchemist's Supplies": "e.g., Apothecary's Assistant, Potion Brewer",
+    "Brewer's Supplies": "e.g., Tavern Brewer, Distillery Worker",
+    "Calligrapher's Supplies": "e.g., Scribe, Forger of Documents",
+    "Carpenter's Tools": "e.g., Shipwright, General Construction",
+    "Cartographer's Tools": "e.g., Map Maker, Surveyor's Assistant",
+    "Cobbler's Tools": "e.g., Shoemaker, Leather Repair",
+    "Cook's Utensils": "e.g., Tavern Chef, Baker",
+    "Glassblower's Tools": "e.g., Bottle Maker, Artisan Glazier",
+    "Jeweler's Tools": "e.g., Gem Cutter, Fine Jeweler",
+    "Leatherworker's Tools": "e.g., Tanner, Armor Repair",
+    "Mason's Tools": "e.g., Stoneworker, Sculptor's Apprentice",
+    "Painter's Supplies": "e.g., Portrait Artist, House Painter",
+    "Potter's Tools": "e.g., Clay Worker, Kiln Operator",
+    "Smith's Tools": "e.g., Blacksmith, Farrier, Armorer",
+    "Tinker's Tools": "e.g., General Repairs, Gadget Maker",
+    "Weaver's Tools": "e.g., Tailor, Sailmaker",
+    "Woodcarver's Tools": "e.g., Furniture Maker, Whittler",
+    "Disguise Kit": "e.g., Master of Disguise for a noble, Spy work",
+    "Forgery Kit": "e.g., Document Copier, Forger for hire",
+    "Herbalism Kit": "e.g., Herbalist, Forager, Poultice Maker",
+    "Navigator's Tools": "e.g., Ship Navigator, Cartographer's Aide",
+    "Poisoner's Kit": "e.g., Rat Catcher, Alchemical Assistant",
+    "Thieves' Tools": "e.g., Locksmith, Trap Specialist",
+    "Land Vehicles": "e.g., Caravan Guard, Teamster",
+    "Water Vehicles": "e.g., Sailor, Ferryman",
+    "Air Vehicles": "e.g., Airship Crew, Gryphon Tamer",
+    "Space Vehicles": "e.g., Spelljammer Crew",
+    "Bagpipes": "e.g., Town Piper, Ceremonial Musician",
+    "Drum": "e.g., Marching Band, Tavern Performer",
+    "Dulcimer": "e.g., Court Musician, Minstrel",
+    "Flute": "e.g., Private Tutor, Solo Performer",
+    "Lute": "e.g., Tavern Bard, Noble's Entertainment",
+    "Lyre": "e.g., Temple Musician, Poet's Accompanist",
+    "Horn": "e.g., Town Crier's Herald, Hunting Horn Blower",
+    "Pan Flute": "e.g., Street Performer, Feywild Entertainer",
+    "Shawm": "e.g., Festival Musician, Outdoor Performer",
+    "Viol": "e.g., Chamber Musician, Somber Balladeer"
+};
+
 export const openWorkModal = () => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
@@ -19,6 +62,11 @@ export const openWorkModal = () => {
 
     const container = document.getElementById('global-popup-container');
     if (!container) return;
+
+    const cal = camp.calendar;
+    const igY = cal?.currentYear || 1492;
+    const igM = cal?.currentMonth || 0;
+    const igD = cal?.currentDay || 1;
 
     container.innerHTML = `
         <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[18000] backdrop-blur-sm animate-in">
@@ -46,17 +94,88 @@ export const openWorkModal = () => {
                         </div>
                     </div>
 
+                    <!-- Date Selection -->
+                    <div class="mb-5 bg-stone-100 p-3 rounded-sm border border-[#d4c5a9] shadow-inner">
+                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-2 tracking-widest"><i class="fa-regular fa-calendar mr-1"></i> Start Date on Calendar</label>
+                        <div class="flex items-center gap-2">
+                            <input type="number" id="dt-work-y" value="${igY}" class="w-20 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-orange-700 text-center bg-white shadow-sm" title="Year">
+                            <select id="dt-work-m" onchange="window.updateDayOptions(this.value, 'dt-work-d')" class="flex-grow p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-orange-700 bg-white shadow-sm" title="Month">
+                                ${(cal?.months || []).map((m, idx) => {
+                                    let mName = m.name;
+                                    if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
+                                    return `<option value="${idx}" ${idx === igM ? 'selected' : ''}>${mName}</option>`;
+                                }).join('')}
+                            </select>
+                            <select id="dt-work-d" class="w-16 p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-orange-700 text-center bg-white shadow-sm" title="Day">
+                                ${Array.from({ length: Math.max(1, parseInt(cal?.months[igM]?.days || 1, 10)) }).map((_, i) => `<option value="${i+1}" ${i+1 === igD ? 'selected' : ''}>${i+1}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+
                     <!-- Job Details -->
                     <div class="bg-white p-4 border border-[#d4c5a9] rounded-sm shadow-sm mb-5 space-y-4">
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Type of Work</label>
-                                <input type="text" id="dt-work-type" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-orange-700 bg-stone-50 shadow-inner" placeholder="e.g. Bouncer, Blacksmith, Performer">
+                                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Skill / Tool Used</label>
+                                <select id="dt-work-skill-name" onchange="window.appActions.updateWorkMath()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-orange-700 bg-stone-50 shadow-inner">
+                                    <optgroup label="Core Skills">
+                                        <option value="Strength (Athletics)">Strength (Athletics)</option>
+                                        <option value="Dexterity (Acrobatics)">Dexterity (Acrobatics)</option>
+                                        <option value="Charisma (Performance)">Charisma (Performance)</option>
+                                    </optgroup>
+                                    <optgroup label="Artisan's Tools">
+                                        <option value="Alchemist's Supplies">Alchemist's Supplies</option>
+                                        <option value="Brewer's Supplies">Brewer's Supplies</option>
+                                        <option value="Calligrapher's Supplies">Calligrapher's Supplies</option>
+                                        <option value="Carpenter's Tools">Carpenter's Tools</option>
+                                        <option value="Cartographer's Tools">Cartographer's Tools</option>
+                                        <option value="Cobbler's Tools">Cobbler's Tools</option>
+                                        <option value="Cook's Utensils">Cook's Utensils</option>
+                                        <option value="Glassblower's Tools">Glassblower's Tools</option>
+                                        <option value="Jeweler's Tools">Jeweler's Tools</option>
+                                        <option value="Leatherworker's Tools">Leatherworker's Tools</option>
+                                        <option value="Mason's Tools">Mason's Tools</option>
+                                        <option value="Painter's Supplies">Painter's Supplies</option>
+                                        <option value="Potter's Tools">Potter's Tools</option>
+                                        <option value="Smith's Tools">Smith's Tools</option>
+                                        <option value="Tinker's Tools">Tinker's Tools</option>
+                                        <option value="Weaver's Tools">Weaver's Tools</option>
+                                        <option value="Woodcarver's Tools">Woodcarver's Tools</option>
+                                    </optgroup>
+                                    <optgroup label="Other Tools & Kits">
+                                        <option value="Disguise Kit">Disguise Kit</option>
+                                        <option value="Forgery Kit">Forgery Kit</option>
+                                        <option value="Herbalism Kit">Herbalism Kit</option>
+                                        <option value="Navigator's Tools">Navigator's Tools</option>
+                                        <option value="Poisoner's Kit">Poisoner's Kit</option>
+                                        <option value="Thieves' Tools">Thieves' Tools</option>
+                                    </optgroup>
+                                    <optgroup label="Vehicles">
+                                        <option value="Land Vehicles">Land Vehicles</option>
+                                        <option value="Water Vehicles">Water Vehicles</option>
+                                        <option value="Air Vehicles">Air Vehicles</option>
+                                        <option value="Space Vehicles">Space Vehicles</option>
+                                    </optgroup>
+                                    <optgroup label="Musical Instruments">
+                                        <option value="Bagpipes">Bagpipes</option>
+                                        <option value="Drum">Drum</option>
+                                        <option value="Dulcimer">Dulcimer</option>
+                                        <option value="Flute">Flute</option>
+                                        <option value="Lute">Lute</option>
+                                        <option value="Lyre">Lyre</option>
+                                        <option value="Horn">Horn</option>
+                                        <option value="Pan Flute">Pan Flute</option>
+                                        <option value="Shawm">Shawm</option>
+                                        <option value="Viol">Viol</option>
+                                    </optgroup>
+                                </select>
                             </div>
                             <div>
-                                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Skill / Tool Used</label>
-                                <input type="text" id="dt-work-skill-name" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-orange-700 bg-stone-50 shadow-inner" placeholder="e.g. Athletics, Smith's Tools, Lute">
+                                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Type of Work</label>
+                                <input type="text" id="dt-work-type" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-orange-700 bg-stone-50 shadow-inner" placeholder="e.g., Bouncer, Laborer, Guard, Porter">
                             </div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div>
                                 <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Workplace</label>
                                 <input type="text" id="dt-work-workplace" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-orange-700 bg-stone-50 shadow-inner" placeholder="e.g. The Yawning Portal">
@@ -64,6 +183,12 @@ export const openWorkModal = () => {
                             <div>
                                 <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Location (City/Town)</label>
                                 <input type="text" id="dt-work-loc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-orange-700 bg-stone-50 shadow-inner" placeholder="e.g. Waterdeep">
+                            </div>
+                            <div class="flex items-end pb-2">
+                                <label class="flex items-center gap-2 cursor-pointer group" title="Check this if a rival is present. It may affect complications.">
+                                    <input type="checkbox" id="dt-work-rival" class="w-4 h-4 text-orange-600 rounded-sm cursor-pointer shadow-sm border-stone-400">
+                                    <span class="text-[10px] font-bold uppercase tracking-widest text-stone-700 group-hover:text-orange-900 transition">Rival Present?</span>
+                                </label>
                             </div>
                         </div>
                         <div>
@@ -114,6 +239,20 @@ export const openWorkModal = () => {
             </div>
         </div>
     `;
+
+    // Initialize math and placeholders
+    setTimeout(() => {
+        window.appActions.updateWorkMath();
+    }, 50);
+};
+
+export const updateWorkMath = () => {
+    const skillName = document.getElementById('dt-work-skill-name')?.value;
+    const workTypeEl = document.getElementById('dt-work-type');
+    
+    if (skillName && workTypeEl && WORK_EXAMPLES[skillName]) {
+        workTypeEl.placeholder = WORK_EXAMPLES[skillName];
+    }
 };
 
 export const executeWork = async () => {
@@ -133,10 +272,11 @@ export const executeWork = async () => {
     }
 
     const workType = document.getElementById('dt-work-type').value.trim();
-    const skillName = document.getElementById('dt-work-skill-name').value.trim();
+    const skillName = document.getElementById('dt-work-skill-name').value;
     const workplace = document.getElementById('dt-work-workplace').value.trim();
     const loc = document.getElementById('dt-work-loc').value.trim();
     const notes = document.getElementById('dt-work-notes').value.trim();
+    const isRival = document.getElementById('dt-work-rival').checked;
 
     if (!workType || !workplace || !loc || !skillName) {
         notify("Please enter the Type of Work, Skill Used, Workplace, and Location.", "error");
@@ -144,6 +284,10 @@ export const executeWork = async () => {
     }
 
     const modifier = parseInt(document.getElementById('dt-work-mod').value) || 0;
+
+    const igY = parseInt(document.getElementById('dt-work-y').value, 10) || camp.calendar.currentYear || 1492;
+    const igM = parseInt(document.getElementById('dt-work-m').value, 10) || camp.calendar.currentMonth || 0;
+    const igD = parseInt(document.getElementById('dt-work-d').value, 10) || camp.calendar.currentDay || 1;
 
     // --- MATH EXECUTION ---
     const d20 = Math.floor(Math.random() * 20) + 1;
@@ -172,12 +316,12 @@ export const executeWork = async () => {
     if (d100 <= 10) {
         const d6 = Math.floor(Math.random() * 6) + 1;
         const compTable = [
-            "A difficult customer or a fight with a coworker reduces the wages you earn by one category.",
-            "Your employer’s financial difficulties result in your not being paid.",
-            "A coworker with ties to an important family in town takes a dislike to you.",
+            `A difficult customer or a fight with a coworker reduces the wages you earn by one category.${isRival ? " (The customer/coworker was provoked by your rival)." : ""}`,
+            `Your employer’s financial difficulties result in your not being paid.${isRival ? " (Your rival sabotaged their business)." : ""}`,
+            `A coworker with ties to an important family in town takes a dislike to you.${isRival ? " (They are an associate of your rival)." : ""}`,
             "Your employer is involved with a dark cult or a criminal enterprise.",
-            "A crime ring targets your business for extortion.",
-            "You gain a reputation for laziness (unjustified or not, as you choose), giving you disadvantage on checks made for this downtime activity for the next six workweeks you devote to it."
+            `A crime ring targets your business for extortion.${isRival ? " (Hired by your rival)." : ""}`,
+            `You gain a reputation for laziness (unjustified or not, as you choose), giving you disadvantage on checks made for this downtime activity for the next six workweeks you devote to it.${isRival ? " (Your rival started these rumors)." : ""}`
         ];
         complicationText = `\n\n**⚠️ Complication Occurred!**\n> *Result (d6=${d6}):* ${compTable[d6 - 1]}`;
     } else {
@@ -194,25 +338,32 @@ export const executeWork = async () => {
 
     const noteText = `**Downtime: Work**\n*Hero:* ${pc.name}\n\n${resultHeader}\n**Location:** ${workplace} in ${loc}\n**Time Spent:** 5 Days\n\n**${skillName} Check:** ${checkTotal} (Rolled ${d20} ${modifier >= 0 ? `+ ${modifier}` : `- ${Math.abs(modifier)}`})\n\n${resultBody}${complicationText}`;
 
-    const timestampStr = new Date().toLocaleDateString();
-    const logAddition = `${pc.downtimeLog ? '\n\n---\n\n' : ''}**Logged on ${timestampStr}**\n${noteText}`;
+    // --- SAVE TO CALENDAR ---
+    const dateKey = `${igY}-${igM}-${igD}`;
+    const newNote = {
+        id: generateId(), text: noteText, authorId: myUid, visibility: { mode: 'public', visibleTo: [] },
+        timestamp: Date.now(), duration: 5, repeatsYearly: false, category: 'Downtime'
+    };
 
-    const updatedPCs = camp.playerCharacters.map(p => 
-        p.id === pc.id ? { 
-            ...p, 
-            availableDowntime: Math.max(0, (parseInt(p.availableDowntime) || 0) - 5),
-            downtimeLog: (p.downtimeLog || '') + logAddition
-        } : p
-    );
+    let updatedCamp = { ...camp };
+    if (!updatedCamp.calendar) updatedCamp.calendar = {};
+    if (!updatedCamp.calendar.notes) updatedCamp.calendar.notes = {};
+    
+    let dayNotes = updatedCamp.calendar.notes[dateKey];
+    if (dayNotes && !Array.isArray(dayNotes)) {
+        dayNotes = [{ id: generateId(), text: dayNotes.text, visibility: dayNotes.visibility, authorId: updatedCamp.dmId, category: 'Misc' }];
+    }
+    if (!dayNotes) dayNotes = [];
 
-    let updatedCamp = { ...camp, playerCharacters: updatedPCs };
+    dayNotes.push(newNote);
+    updatedCamp.calendar.notes[dateKey] = dayNotes;
 
     updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime working in ${loc} with <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-briefcase');
 
     await saveCampaign(updatedCamp);
     
     document.getElementById('global-popup-container').innerHTML = '';
-    notify(`Work resolved. 5 days deducted from ${pc.name}. Log saved to Hero Journal.`, "success");
+    notify("Work resolved and logged to the calendar.", "success");
     reRender();
 };
 
@@ -224,5 +375,6 @@ if (typeof window !== 'undefined') {
     window.appActions = window.appActions || {};
     
     window.appActions.openWorkModal = openWorkModal;
+    window.appActions.updateWorkMath = updateWorkMath;
     window.appActions.executeWork = executeWork;
 }
