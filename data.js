@@ -38,7 +38,7 @@ import { openRelaxationModal, updateRelaxationMath, executeRelaxation } from './
 import { openReligiousServiceModal, updateReligiousServiceMath, executeReligiousService } from './dt-religious-service.js';
 import { openResearchModal, updateResearchMath, executeResearch } from './dt-research.js';
 import { openScribingModal, updateScribingMath, executeScribing, abandonScribingProject, openSpellBrowser, closeSpellBrowser, filterSpells, selectSpell } from './dt-scribing.js';
-import { openSellingModal, updateSellingMath, executeSelling } from './dt-selling.js';
+import { openSellingModal, updateSellingMath, seekBuyer, finalizeSale } from './dt-selling.js';
 import { openTrainingModal, updateTrainingMath, executeTraining } from './dt-training.js';
 import { openWorkModal, executeWork } from './dt-work.js';
 import { openAssignDowntimeModal, executeAssignDowntime } from './dt-assign.js';
@@ -279,7 +279,8 @@ if (typeof window !== 'undefined') {
 
       openSellingModal,
       updateSellingMath,
-      executeSelling,
+      seekBuyer,
+      finalizeSale,
 
       openTrainingModal,
       updateTrainingMath,
