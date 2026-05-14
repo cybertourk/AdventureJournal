@@ -930,28 +930,23 @@ export const fetchAndAnalyzeDndBeyond = async () => {
     output.classList.add('hidden');
 
     try {
-        // DDB Unofficial V5 Character API
         const apiUrl = `https://character-service.dndbeyond.com/character/v5/character/${characterId}`;
-        
-        // Use AllOrigins as a reliable CORS proxy to prevent browser blocks
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`;
+        let ddbData = null;
 
-        const response = await fetch(proxyUrl);
-        
-        if (!response.ok) {
-            throw new Error(`Proxy fetch failed. (Status: ${response.status})`);
+        try {
+            // Primary Proxy: corsproxy.io
+            const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(apiUrl)}`);
+            if (!response.ok) throw new Error(`Proxy 1 failed with status ${response.status}`);
+            ddbData = await response.json();
+        } catch (proxy1Err) {
+            console.warn("First proxy failed, trying fallback...", proxy1Err);
+            // Fallback Proxy: codetabs
+            const response2 = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(apiUrl)}`);
+            if (!response2.ok) throw new Error(`Proxy 2 failed with status ${response2.status}`);
+            ddbData = await response2.json();
         }
-
-        const proxyData = await response.json();
         
-        // AllOrigins returns the raw text in the 'contents' property
-        if (!proxyData.contents) {
-            throw new Error("No data returned from the proxy.");
-        }
-
-        const ddbData = JSON.parse(proxyData.contents);
-        
-        if (!ddbData.success || !ddbData.data) {
+        if (!ddbData || !ddbData.success || !ddbData.data) {
             throw new Error("D&D Beyond returned an unexpected data structure. Ensure the character is set to Public.");
         }
 
@@ -1062,7 +1057,7 @@ export const fetchAndAnalyzeDndBeyond = async () => {
         output.classList.add('text-green-400');
         
     } catch (e) {
-        output.textContent = "Error parsing D&D Beyond data: \n" + e.message;
+        output.textContent = "Error fetching from proxies. The character may be private, or D&D Beyond is blocking the proxy servers. \n\nTechnical details:\n" + e.message;
         output.classList.remove('hidden');
         output.classList.remove('text-green-400');
         output.classList.add('text-red-500');
