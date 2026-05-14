@@ -1,6 +1,7 @@
 import { generateId, updateDerivedState, reRender } from './state.js';
 import { saveCampaign, notify } from './firebase-manager.js';
 import { logPlayerActivity } from './actions-campaign.js';
+import { MAGIC_ITEM_TABLES } from './data-roll-tables.js';
 
 // ============================================================================
 // --- 11. SELLING A MAGIC ITEM ---
@@ -12,6 +13,49 @@ const BASE_PRICES_BY_RARITY = {
     "rare": 4000,
     "veryRare": 40000,
     "legendary": 200000
+};
+
+// --- ITEM BROWSER ENGINE ---
+let ITEM_CACHE = [];
+
+const buildItemCache = () => {
+    if (ITEM_CACHE.length > 0) return;
+    const itemMap = new Map();
+    
+    const getTableRarity = (tableLetter) => {
+        switch(tableLetter) {
+            case 'A': return 'common';
+            case 'B': case 'F': return 'uncommon';
+            case 'C': case 'G': return 'rare';
+            case 'D': case 'H': return 'veryRare'; // Maps to our dropdown values
+            case 'E': case 'I': return 'legendary';
+            default: return 'uncommon';
+        }
+    };
+
+    const isConsumable = (itemName) => {
+        const n = itemName.toLowerCase();
+        return n.includes("potion") || n.includes("scroll") || n.includes("ammunition") || 
+               n.includes("arrow") || n.includes("bolt") || n.includes("dart") || 
+               n.includes("bullet") || n.includes("needle") || n.includes("elixir") || 
+               n.includes("oil") || n.includes("dust") || n.includes("solvent") || 
+               n.includes("glue") || n.includes("ointment") || n.includes("feather token") || 
+               n.includes("bean") || n.includes("bead");
+    };
+
+    // Scrape every item from the massive Xanathar's roll tables
+    for (const [tableLetter, items] of Object.entries(MAGIC_ITEM_TABLES)) {
+        const rarity = getTableRarity(tableLetter);
+        items.forEach(row => {
+            const itemName = row[2];
+            if (!itemMap.has(itemName)) {
+                itemMap.set(itemName, { name: itemName, rarity, consumable: isConsumable(itemName) });
+            }
+        });
+    }
+    
+    // Sort alphabetically for the UI
+    ITEM_CACHE = Array.from(itemMap.values()).sort((a, b) => a.name.localeCompare(b.name));
 };
 
 export const openSellingModal = () => {
@@ -39,15 +83,14 @@ export const openSellingModal = () => {
 
                 <div class="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-grow bg-[#fdfbf7]">
                     
-                    <!-- NEW CONFIGURATION STEP -->
                     <div id="dt-sell-new-config" class="transition-all duration-300">
-                        <p class="text-xs text-stone-600 italic mb-5 leading-snug">Spend <b>1 workweek (5 days)</b> and <b>25 gp</b> to find a buyer for a magic item. Your Persuasion check determines the final offer you receive.</p>
+                        <p class="text-xs text-stone-600 italic mb-5 leading-snug">Spend <b>1 workweek (5 days)</b> and <b>25 gp</b> to find a buyer for a magic item. Your Persuasion check determines the final offer.</p>
 
                         <!-- Basic Setup -->
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
                             <div>
                                 <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Select Hero</label>
-                                <select id="dt-sell-pc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner">
+                                <select id="dt-sell-pc" onchange="window.appActions.updateSellingMath('pc')" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner">
                                     ${validPCs.map(pc => {
                                         const currentDays = parseInt(pc.availableDowntime) || 0;
                                         return `<option value="${pc.id}">${pc.name} (${currentDays} Days)</option>`;
@@ -65,6 +108,14 @@ export const openSellingModal = () => {
 
                         <!-- Details -->
                         <div class="bg-white p-4 border border-[#d4c5a9] rounded-sm shadow-sm mb-5 space-y-4">
+                            
+                            <!-- ITEM BROWSER BUTTON -->
+                            <div class="mb-4">
+                                <button type="button" onclick="window.appActions.openSellItemBrowser()" class="w-full py-2 bg-stone-100 text-stone-600 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-400 transition text-[10px] font-bold uppercase tracking-wider rounded-sm shadow-sm border border-[#d4c5a9] flex items-center justify-center">
+                                    <i class="fa-solid fa-search mr-2"></i> Browse Magic Items
+                                </button>
+                            </div>
+
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Item Name</label>
@@ -114,7 +165,7 @@ export const openSellingModal = () => {
                         </div>
                     </div>
 
-                    <!-- RESOLVE OFFER STEP (Hidden by default) -->
+                    <!-- RESOLVE OFFER STEP -->
                     <div id="dt-sell-resolve-config" class="hidden transition-all duration-300">
                         <div class="bg-white border border-[#d4c5a9] rounded-sm p-5 shadow-sm mb-5">
                             <div class="text-center mb-6">
@@ -159,13 +210,155 @@ export const openSellingModal = () => {
                     <button id="dt-sell-accept-btn" onclick="window.appActions.finalizeSale(true)" class="hidden px-5 py-2 bg-emerald-700 text-amber-50 rounded-sm hover:bg-emerald-600 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs items-center shadow-md"><i class="fa-solid fa-handshake mr-2"></i> Accept Sale</button>
                 </div>
             </div>
+
+            <!-- ITEM BROWSER OVERLAY -->
+            <div id="dt-sell-item-modal" class="hidden absolute inset-0 bg-stone-950/95 flex items-center justify-center p-4 z-[19000] backdrop-blur-sm animate-in">
+                <div class="bg-[#f4ebd8] rounded-sm w-full max-w-lg border border-[#d4c5a9] shadow-2xl relative flex flex-col max-h-[90vh]">
+                    <div class="bg-stone-900 p-3 sm:p-4 border-b-2 border-emerald-600 shadow-md shrink-0 flex justify-between items-center text-amber-50">
+                        <h3 class="text-base font-serif font-bold flex items-center"><i class="fa-solid fa-search mr-2 text-emerald-500"></i> Item Browser</h3>
+                        <button onclick="window.appActions.closeSellItemBrowser()" class="text-stone-400 hover:text-white transition"><i class="fa-solid fa-xmark text-lg"></i></button>
+                    </div>
+                    <div class="p-4 sm:p-5 flex-grow flex flex-col min-h-0 bg-[#fdfbf7]">
+                        <div class="flex gap-2 mb-4">
+                            <input type="text" id="dt-sell-item-search" placeholder="Search Xanathar's Magic Items..." class="flex-grow p-2.5 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner" oninput="window.appActions.filterSellItems()">
+                            <select id="dt-sell-item-rarity-filter" class="w-1/3 p-2.5 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner" onchange="window.appActions.filterSellItems()">
+                                <option value="all">All Rarities</option>
+                                <option value="common">Common</option>
+                                <option value="uncommon">Uncommon</option>
+                                <option value="rare">Rare</option>
+                                <option value="veryRare">Very Rare</option>
+                                <option value="legendary">Legendary</option>
+                            </select>
+                        </div>
+                        <div id="dt-sell-item-list" class="flex-grow overflow-y-auto custom-scrollbar space-y-1 border border-[#d4c5a9] rounded-sm p-1 bg-white shadow-inner">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     `;
 
-    setTimeout(window.appActions.updateSellingMath, 50);
+    setTimeout(() => {
+        window.appActions.updateSellingMath('init');
+    }, 50);
 };
 
-export const updateSellingMath = () => {
+export const openSellItemBrowser = () => {
+    buildItemCache();
+    const modal = document.getElementById('dt-sell-item-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        const searchInput = document.getElementById('dt-sell-item-search');
+        if (searchInput) {
+            searchInput.value = '';
+            setTimeout(() => searchInput.focus(), 100);
+        }
+        window.appActions.filterSellItems(); 
+    }
+};
+
+export const closeSellItemBrowser = () => {
+    const modal = document.getElementById('dt-sell-item-modal');
+    if (modal) modal.classList.add('hidden');
+};
+
+export const filterSellItems = () => {
+    const searchInput = document.getElementById('dt-sell-item-search');
+    const listEl = document.getElementById('dt-sell-item-list');
+    const rarityFilter = document.getElementById('dt-sell-item-rarity-filter')?.value || 'all';
+
+    if (!searchInput || !listEl) return;
+    
+    const query = searchInput.value.toLowerCase().trim();
+    
+    const filtered = ITEM_CACHE.filter(r => {
+        const matchName = r.name.toLowerCase().includes(query);
+        const matchRarity = rarityFilter === 'all' || r.rarity === rarityFilter;
+        return matchName && matchRarity;
+    });
+    
+    if (filtered.length === 0) {
+        listEl.innerHTML = `<p class="text-xs text-stone-500 italic p-4 text-center">No items found matching the criteria.</p>`;
+        return;
+    }
+
+    let html = '';
+    filtered.forEach(r => {
+        const rarityColor = r.rarity === 'legendary' ? 'text-orange-600' : (r.rarity === 'veryRare' ? 'text-purple-600' : (r.rarity === 'rare' ? 'text-blue-600' : (r.rarity === 'uncommon' ? 'text-emerald-600' : 'text-stone-600')));
+        
+        // Escape apostrophes
+        const safeName = r.name.replace(/'/g, "\\'");
+        let displayRarity = r.rarity;
+        if (displayRarity === 'veryRare') displayRarity = 'Very Rare';
+        
+        html += `
+            <div class="flex justify-between items-center p-2 hover:bg-stone-50 border-b border-stone-100 last:border-0 transition-colors cursor-pointer group" onclick="window.appActions.selectSellItem('${safeName}', '${r.rarity}', ${r.consumable})">
+                <div class="min-w-0 pr-2">
+                    <span class="font-bold text-stone-800 text-sm block truncate group-hover:text-emerald-700 transition-colors">${r.name}</span>
+                    <span class="text-[9px] uppercase font-bold tracking-widest ${rarityColor}">${displayRarity} ${r.consumable ? '<span class="text-stone-400 italic normal-case tracking-normal ml-1">(Consumable)</span>' : ''}</span>
+                </div>
+                <button class="shrink-0 px-3 py-1.5 bg-stone-200 text-stone-700 rounded-sm text-[9px] font-bold uppercase tracking-wider group-hover:bg-stone-800 group-hover:text-amber-50 transition shadow-sm border border-[#d4c5a9] group-hover:border-stone-700">Select</button>
+            </div>
+        `;
+    });
+    listEl.innerHTML = html;
+};
+
+export const selectSellItem = (name, rarity, isConsumable) => {
+    window.appActions.closeSellItemBrowser();
+    
+    const nameEl = document.getElementById('dt-sell-item-name');
+    if (nameEl) {
+        nameEl.value = name;
+        nameEl.disabled = true;
+        nameEl.classList.add('bg-stone-200', 'text-stone-500');
+        nameEl.classList.remove('bg-stone-50', 'text-stone-900');
+    }
+    
+    const rarityEl = document.getElementById('dt-sell-rarity');
+    if (rarityEl) {
+        rarityEl.value = rarity;
+        rarityEl.disabled = true;
+        rarityEl.classList.add('bg-stone-200', 'text-stone-500');
+        rarityEl.classList.remove('bg-stone-50', 'text-stone-900');
+    }
+    
+    const consEl = document.getElementById('dt-sell-consumable');
+    if (consEl) {
+        consEl.checked = isConsumable;
+        consEl.disabled = true;
+    }
+
+    const priceEl = document.getElementById('dt-sell-custom-price');
+    if (priceEl) priceEl.value = ''; // Reset custom price
+
+    window.appActions.updateSellingMath('input');
+};
+
+export const updateSellingMath = (triggerSource = 'input') => {
+    // UNLOCK RECIPE FIELDS IF SWITCHING HEROES OR MANUALLY STARTING OVER
+    if (triggerSource === 'init' || triggerSource === 'pc') {
+        const nameEl = document.getElementById('dt-sell-item-name');
+        const rarityEl = document.getElementById('dt-sell-rarity');
+        const consEl = document.getElementById('dt-sell-consumable');
+        
+        if (nameEl) {
+            nameEl.disabled = false;
+            nameEl.classList.remove('bg-stone-200', 'text-stone-500');
+            nameEl.classList.add('bg-stone-50', 'text-stone-900');
+        }
+        if (rarityEl) {
+            rarityEl.disabled = false;
+            rarityEl.classList.remove('bg-stone-200', 'text-stone-500');
+            rarityEl.classList.add('bg-stone-50', 'text-stone-900');
+        }
+        if (consEl) {
+            consEl.disabled = false;
+        }
+    }
+
     const rarityEl = document.getElementById('dt-sell-rarity');
     const customPriceEl = document.getElementById('dt-sell-custom-price');
     const consumableEl = document.getElementById('dt-sell-consumable');
@@ -354,4 +547,10 @@ if (typeof window !== 'undefined') {
     window.appActions.updateSellingMath = updateSellingMath;
     window.appActions.seekBuyer = seekBuyer;
     window.appActions.finalizeSale = finalizeSale;
+    
+    // Bind Browser Functions
+    window.appActions.openSellItemBrowser = openSellItemBrowser;
+    window.appActions.closeSellItemBrowser = closeSellItemBrowser;
+    window.appActions.filterSellItems = filterSellItems;
+    window.appActions.selectSellItem = selectSellItem;
 }
