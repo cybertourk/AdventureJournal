@@ -682,7 +682,10 @@ export const savePCEdit = async () => {
         birthDay: null,
         extraBdayBoons: [],
         availableDowntime: 0,
-        downtimeLog: ''
+        downtimeLog: '',
+        str: '', dex: '', con: '', int: '', wis: '', cha: '',
+        saves: '', skills: '', proficiencies: '',
+        wealth: '', equipped: '', backpack: ''
     };
 
     const isOwner = existingPC.playerId === myUid;
@@ -747,6 +750,16 @@ export const savePCEdit = async () => {
         eyes: getVal('pc-edit-eyes', existingPC.eyes),
         hair: getVal('pc-edit-hair', existingPC.hair),
         skin: getVal('pc-edit-skin', existingPC.skin),
+        // Core Stats
+        str: getVal('pc-edit-str', existingPC.str),
+        dex: getVal('pc-edit-dex', existingPC.dex),
+        con: getVal('pc-edit-con', existingPC.con),
+        int: getVal('pc-edit-int', existingPC.int),
+        wis: getVal('pc-edit-wis', existingPC.wis),
+        cha: getVal('pc-edit-cha', existingPC.cha),
+        saves: getVal('pc-edit-saves', existingPC.saves),
+        skills: getVal('pc-edit-skills', existingPC.skills),
+        proficiencies: getVal('pc-edit-proficiencies', existingPC.proficiencies),
         // Personality & Roleplay
         traits: getVal('input-pc-edit-traits', existingPC.traits),
         ideals: getVal('input-pc-edit-ideals', existingPC.ideals),
@@ -757,6 +770,10 @@ export const savePCEdit = async () => {
         organizations: getVal('input-pc-edit-organizations', existingPC.organizations),
         allies: getVal('input-pc-edit-allies', existingPC.allies),
         enemies: getVal('input-pc-edit-enemies', existingPC.enemies),
+        // Equipment & Wealth
+        wealth: getVal('pc-edit-wealth', existingPC.wealth),
+        equipped: getVal('input-pc-edit-equipped', existingPC.equipped),
+        backpack: getVal('input-pc-edit-backpack', existingPC.backpack),
 
         // Downtime Log (Explicitly allowing it to be cleared out)
         downtimeLog: getVal('input-pc-edit-downtimelog', existingPC.downtimeLog),
@@ -965,7 +982,7 @@ export const fetchAndAnalyzeDndBeyond = async () => {
         };
 
         const formatName = (str) => str.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-        const stripHtml = (html) => html ? html.replace(/<[^>]*>?/gm, '').trim() : 'Empty';
+        const stripHtml = (html) => html ? html.replace(/<[^>]*>?/gm, '').trim() : '';
 
         // --- CALCULATE BASE STATS & MODIFIERS ---
         const stats = { 
@@ -1064,99 +1081,93 @@ export const fetchAndAnalyzeDndBeyond = async () => {
             });
         }
 
-        // --- BUILD ANALYSIS OUTPUT ---
-        let analysis = `✅ Character Successfully Fetched via API.\n`;
-        analysis += `Character ID: ${characterId}\n\n`;
+        // --- PREPARE DATA PAYLOAD FOR IMPORT ---
+        const wealthStr = `${wealth.cp}cp, ${wealth.sp}sp, ${wealth.ep}ep, ${wealth.gp}gp, ${wealth.pp}pp`;
         
-        analysis += "--- HIGH LEVEL OVERVIEW ---\n";
-        analysis += `Name: ${charData.name || 'Unknown'}\n`;
-        analysis += `Gender: ${charData.gender || 'Unknown'}\n`;
-        analysis += `Faith: ${charData.faith || 'Unknown'}\n`;
-        analysis += `Age: ${charData.age || 'Unknown'}\n`;
-        analysis += `Hair: ${charData.hair || 'Unknown'}\n`;
-        analysis += `Eyes: ${charData.eyes || 'Unknown'}\n`;
-        analysis += `Skin: ${charData.skin || 'Unknown'}\n`;
-        analysis += `Height: ${charData.height || 'Unknown'}\n`;
-        analysis += `Weight: ${charData.weight || 'Unknown'}\n`;
-        analysis += `Avatar URL: ${charData.avatarUrl || 'None'}\n`;
-        
-        if (charData.classes && Array.isArray(charData.classes)) {
-            const classStrings = charData.classes.map(c => `${c.definition?.name} ${c.level}`);
-            analysis += `Classes: ${classStrings.join(' / ')}\n`;
-        }
-        if (charData.race) {
-            analysis += `Race: ${charData.race.fullName || charData.race.baseName || 'Unknown'}\n`;
-        }
-        if (charData.background) {
-            const bgName = charData.background.definition?.name || (charData.background.customBackground ? charData.background.customBackground.name : 'Unknown');
-            analysis += `Background: ${bgName}\n`;
-        }
-
-        // Output Mechanics
-        analysis += "\n--- COMBAT STATS ---\n";
-        analysis += `Level: ${totalLevel}\n`;
-        analysis += `Proficiency Bonus: +${pb}\n`;
-
-        analysis += "\n--- ABILITY SCORES & SAVING THROWS ---\n";
+        const savesArr = [];
         for (let i = 1; i <= 6; i++) {
-            const s = stats[i];
-            const modStr = s.mod >= 0 ? `+${s.mod}` : `${s.mod}`;
-            let saveVal = s.mod;
-            let saveTag = "";
-            if (proficiencies.saves[i]) {
-                saveVal += pb;
-                saveTag = " (Proficient)";
-            }
-            const saveStr = saveVal >= 0 ? `+${saveVal}` : `${saveVal}`;
-            analysis += `${s.name}: ${s.total} (Mod: ${modStr}) | Save: ${saveStr}${saveTag}\n`;
+            if (proficiencies.saves[i]) savesArr.push(stats[i].name);
         }
 
-        analysis += "\n--- SKILLS ---\n";
+        const skillsArr = [];
         Object.keys(skillAbilities).forEach(skillKey => {
-            const statId = skillAbilities[skillKey];
-            const baseMod = stats[statId].mod;
             const profMultiplier = proficiencies.skills[skillKey] || (halfProficiency ? 0.5 : 0);
-            
-            const totalSkill = Math.floor(baseMod + (pb * profMultiplier));
-            const skillStr = totalSkill >= 0 ? `+${totalSkill}` : `${totalSkill}`;
-            
-            let tag = "";
-            if (profMultiplier === 1) tag = " (Proficient)";
-            if (profMultiplier === 2) tag = " (Expertise)";
-            if (profMultiplier === 0.5) tag = " (Half-Prof)";
-
-            analysis += `${formatName(skillKey)} (${stats[statId].name}): ${skillStr}${tag}\n`;
+            if (profMultiplier > 0) skillsArr.push(formatName(skillKey));
         });
 
-        analysis += "\n--- OTHER PROFICIENCIES ---\n";
-        analysis += `Weapons: ${[...new Set(proficiencies.weapons)].join(', ') || 'None'}\n`;
-        analysis += `Armor/Shields: ${[...new Set(proficiencies.armor)].join(', ') || 'None'}\n`;
-        analysis += `Tools/Kits: ${[...new Set(proficiencies.tools)].join(', ') || 'None'}\n`;
-        analysis += `Languages: ${[...new Set(proficiencies.languages)].join(', ') || 'None'}\n`;
+        const newPC = {
+            id: generateId(),
+            name: charData.name || 'Unknown',
+            race: charData.race?.fullName || charData.race?.baseName || '',
+            classLevel: charData.classes?.map(c => `${c.definition?.name} ${c.level}`).join(' / ') || '',
+            background: charData.background?.definition?.name || (charData.background?.customBackground ? charData.background.customBackground.name : ''),
+            alignment: '', // Left blank for manual selection
+            faith: charData.faith || '',
+            gender: charData.gender || '',
+            age: charData.age || '',
+            size: charData.size || '',
+            height: charData.height || '',
+            weight: charData.weight || '',
+            eyes: charData.eyes || '',
+            hair: charData.hair || '',
+            skin: charData.skin || '',
+            image: charData.avatarUrl || charData.decorations?.avatarUrl || '',
+            
+            str: stats[1].total, dex: stats[2].total, con: stats[3].total, 
+            int: stats[4].total, wis: stats[5].total, cha: stats[6].total,
+            
+            saves: savesArr.join(', '),
+            skills: skillsArr.join(', '),
+            proficiencies: [...new Set([...proficiencies.weapons, ...proficiencies.armor, ...proficiencies.tools, ...proficiencies.languages])].join(', '),
+            
+            wealth: wealthStr,
+            equipped: equippedItems.join('\n'),
+            backpack: backpackItems.join('\n'),
+            
+            traits: stripHtml(charData.traits?.personalityTraits),
+            ideals: stripHtml(charData.traits?.ideals),
+            bonds: stripHtml(charData.traits?.bonds),
+            flaws: stripHtml(charData.traits?.flaws),
+            appearance: stripHtml(charData.traits?.appearance),
+            backstory: stripHtml(charData.notes?.backstory),
+            organizations: stripHtml(charData.notes?.organizations),
+            allies: stripHtml(charData.notes?.allies),
+            enemies: stripHtml(charData.notes?.enemies),
+            
+            playerId: '', inspiration: 0, automaticSuccess: false, availableDowntime: 0, downtimeLog: ''
+        };
 
-        analysis += "\n--- EQUIPMENT & CURRENCY ---\n";
-        analysis += `Wealth: ${wealth.cp}cp, ${wealth.sp}sp, ${wealth.ep}ep, ${wealth.gp}gp, ${wealth.pp}pp\n`;
-        analysis += `Equipped Items: ${equippedItems.join(', ') || 'None'}\n`;
-        analysis += `Backpack Inventory: ${backpackItems.join(', ') || 'Empty'}\n`;
+        window.appData.tempDdbImport = newPC;
 
-        analysis += "\n--- TRAITS & LORE ---\n";
-        analysis += `Personality Traits:\n${stripHtml(charData.traits?.personalityTraits)}\n\n`;
-        analysis += `Ideals:\n${stripHtml(charData.traits?.ideals)}\n\n`;
-        analysis += `Bonds:\n${stripHtml(charData.traits?.bonds)}\n\n`;
-        analysis += `Flaws:\n${stripHtml(charData.traits?.flaws)}\n\n`;
-        analysis += `Appearance:\n${stripHtml(charData.traits?.appearance)}\n\n`;
-        analysis += `Backstory:\n${stripHtml(charData.notes?.backstory)}\n\n`;
-        analysis += `Allies:\n${stripHtml(charData.notes?.allies)}\n\n`;
-        analysis += `Enemies:\n${stripHtml(charData.notes?.enemies)}\n\n`;
-        analysis += `Organizations:\n${stripHtml(charData.notes?.organizations)}\n`;
+        // --- BUILD ANALYSIS OUTPUT FOR THE USER TO REVIEW ---
+        let analysis = `✅ Character Successfully Fetched via API.\n\n`;
+        analysis += `Name: ${newPC.name}\n`;
+        analysis += `Race: ${newPC.race}\n`;
+        analysis += `Class: ${newPC.classLevel}\n\n`;
+        
+        analysis += `STR: ${newPC.str} | DEX: ${newPC.dex} | CON: ${newPC.con}\n`;
+        analysis += `INT: ${newPC.int} | WIS: ${newPC.wis} | CHA: ${newPC.cha}\n\n`;
+        
+        analysis += `Saving Throws: ${newPC.saves || 'None'}\n`;
+        analysis += `Skills: ${newPC.skills || 'None'}\n`;
+        analysis += `Proficiencies: ${newPC.proficiencies || 'None'}\n\n`;
+        
+        analysis += `Wealth: ${newPC.wealth}\n`;
+        analysis += `Equipment: ${equippedItems.length} items equipped, ${backpackItems.length} in backpack.\n`;
 
-        output.textContent = analysis;
+        output.innerHTML = `
+            <div class="text-green-400 whitespace-pre-wrap mb-4">${analysis}</div>
+            <button onclick="window.appActions.executeDndBeyondImport()" class="w-full py-3 bg-emerald-700 text-white rounded-sm hover:bg-emerald-600 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md">
+                <i class="fa-solid fa-user-check mr-2"></i> Import ${newPC.name} into Campaign
+            </button>
+        `;
+        
         output.classList.remove('hidden');
         output.classList.remove('text-red-500');
         output.classList.add('text-green-400');
         
     } catch (e) {
-        output.textContent = "Error fetching from proxies. The character may be private, or D&D Beyond is blocking the proxy servers. \n\nTechnical details:\n" + e.message;
+        output.textContent = "Error parsing D&D Beyond data: \n" + e.message;
         output.classList.remove('hidden');
         output.classList.remove('text-green-400');
         output.classList.add('text-red-500');
@@ -1165,3 +1176,44 @@ export const fetchAndAnalyzeDndBeyond = async () => {
         btn.disabled = false;
     }
 };
+
+export const executeDndBeyondImport = async () => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    if (!camp) return;
+
+    const newPC = window.appData.tempDdbImport;
+    if (!newPC) {
+        notify("No character data found to import.", "error");
+        return;
+    }
+
+    const newPCs = [...(camp.playerCharacters || []), newPC];
+
+    let updatedCodexArray = [...(camp.codex || [])];
+    updatedCodexArray.push({
+        id: newPC.id,
+        name: newPC.name,
+        type: 'PC',
+        tags: ['Hero', newPC.race, newPC.classLevel].filter(Boolean),
+        desc: 'Rumors and public knowledge surrounding this hero are yet to be penned.',
+        visibility: { mode: 'public' },
+        image: newPC.image
+    });
+
+    let updatedCamp = { ...camp, playerCharacters: newPCs, codex: updatedCodexArray };
+    updatedCamp = logPlayerActivity(updatedCamp, window.appData.currentUserUid, `imported a new hero: <span class="font-bold text-amber-700">${newPC.name}</span>.`, 'fa-file-import');
+
+    await saveCampaign(updatedCamp);
+
+    document.getElementById('global-popup-container').innerHTML = '';
+    window.appData.tempDdbImport = null;
+    window.appActions.setView('pc-manager');
+    notify(`${newPC.name} successfully imported!`, "success");
+};
+
+// Bind new function manually to avoid touching data.js
+if (typeof window !== 'undefined') {
+    window.appActions = window.appActions || {};
+    window.appActions.executeDndBeyondImport = executeDndBeyondImport;
+}
