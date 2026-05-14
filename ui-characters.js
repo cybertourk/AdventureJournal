@@ -201,9 +201,10 @@ export function getPCEditHTML(state) {
     const camp = state.activeCampaign;
     const isNew = !state.activePcId;
     
+    // Updated default structure to hold stats and equipment
     const pc = !isNew && camp?.playerCharacters 
         ? camp.playerCharacters.find(p => p.id === state.activePcId) 
-        : { name: '', race: '', classLevel: '', background: '', alignment: '', faith: '', gender: '', age: '', size: '', height: '', weight: '', eyes: '', hair: '', skin: '', traits: '', ideals: '', bonds: '', flaws: '', appearance: '', backstory: '', organizations: '', allies: '', enemies: '', dmNotes: '', playerId: '', image: '', boonBackstory: false, boon1stBday: '', boon2ndBday: '', extraBdayBoons: [], unlockAutoSuccess: false, availableDowntime: 0, downtimeLog: '' };
+        : { name: '', race: '', classLevel: '', background: '', alignment: '', faith: '', gender: '', age: '', size: '', height: '', weight: '', eyes: '', hair: '', skin: '', traits: '', ideals: '', bonds: '', flaws: '', appearance: '', backstory: '', organizations: '', allies: '', enemies: '', dmNotes: '', playerId: '', image: '', boonBackstory: false, boon1stBday: '', boon2ndBday: '', extraBdayBoons: [], unlockAutoSuccess: false, availableDowntime: 0, downtimeLog: '', str: '', dex: '', con: '', int: '', wis: '', cha: '', saves: '', skills: '', proficiencies: '', wealth: '', equipped: '', backpack: '' };
 
     if (!pc && !isNew) return `<div class="text-center text-red-500 p-8 font-serif font-bold text-xl">Hero not found in the archives.</div>`;
 
@@ -223,7 +224,6 @@ export function getPCEditHTML(state) {
     }
 
     const coreClass = 'bg-white focus:border-red-900';
-
     const title = isNew ? "Enroll New Hero" : `Private Journal: ${pc.name}`;
 
     // DM assigns the hero to a player UID, fetching Display Names from the campaign map
@@ -440,6 +440,7 @@ export function getPCEditHTML(state) {
                 </div>
             </div>
 
+            <!-- CORE IDENTIFIERS -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 bg-[#fdfbf7] p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-inner">
                 ${playerAssignHTML}
                 <div class="col-span-1 sm:col-span-2 lg:col-span-1">
@@ -472,6 +473,7 @@ export function getPCEditHTML(state) {
                 </div>
             </div>
 
+            <!-- CHARACTERISTICS -->
             <div class="bg-[#fdfbf7] p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-inner">
                 <h3 class="text-xs sm:text-sm font-bold text-stone-800 font-serif mb-3 border-b border-[#d4c5a9] pb-1">Characteristics</h3>
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -510,6 +512,25 @@ export function getPCEditHTML(state) {
                 </div>
             </div>
 
+            <!-- CORE ATTRIBUTES SECTION -->
+            <div class="bg-[#fdfbf7] p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-inner mt-4 sm:mt-6">
+                <h3 class="text-xs sm:text-sm font-bold text-stone-800 font-serif mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-dumbbell mr-2 text-stone-500"></i> Core Attributes & Proficiencies</h3>
+                <div class="grid grid-cols-3 sm:grid-cols-6 gap-4 mb-4">
+                    <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1 text-center">STR</label><input type="number" id="pc-edit-str" value="${pc.str || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none text-center ${coreClass}"></div>
+                    <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1 text-center">DEX</label><input type="number" id="pc-edit-dex" value="${pc.dex || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none text-center ${coreClass}"></div>
+                    <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1 text-center">CON</label><input type="number" id="pc-edit-con" value="${pc.con || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none text-center ${coreClass}"></div>
+                    <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1 text-center">INT</label><input type="number" id="pc-edit-int" value="${pc.int || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none text-center ${coreClass}"></div>
+                    <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1 text-center">WIS</label><input type="number" id="pc-edit-wis" value="${pc.wis || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none text-center ${coreClass}"></div>
+                    <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1 text-center">CHA</label><input type="number" id="pc-edit-cha" value="${pc.cha || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none text-center ${coreClass}"></div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-[#d4c5a9] pt-4">
+                    <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Saving Throws</label><input type="text" id="pc-edit-saves" value="${pc.saves || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. STR, CON"></div>
+                    <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Skills</label><input type="text" id="pc-edit-skills" value="${pc.skills || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. Athletics, Perception"></div>
+                    <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Other Proficiencies</label><input type="text" id="pc-edit-proficiencies" value="${pc.proficiencies || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="Languages, Tools, Weapons"></div>
+                </div>
+            </div>
+
+            <!-- PERSONALITY -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                 ${renderSmartField('pc-edit-traits', 'Personality Traits', pc.traits || '', 'What are their unique quirks?', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', false)}
                 ${renderSmartField('pc-edit-ideals', 'Ideals', pc.ideals || '', 'What drives them?', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', false)}
@@ -517,9 +538,23 @@ export function getPCEditHTML(state) {
                 ${renderSmartField('pc-edit-flaws', 'Flaws', pc.flaws || '', 'What are their weaknesses?', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', false)}
             </div>
 
+            <!-- LORE & INVENTORY -->
             <div class="space-y-4 sm:space-y-6">
                 ${renderSmartField('pc-edit-appearance', `<i class="fa-solid fa-user text-stone-500 mr-2"></i> Appearance`, pc.appearance || '', "Detailed physical description, scars, tattoos, clothing...", 4, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', false)}
                 ${renderSmartField('pc-edit-backstory', `<i class="fa-solid fa-book-open text-stone-500 mr-2"></i> Backstory`, pc.backstory || '', "The hero's origins...", 5, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', false)}
+                
+                <!-- EQUIPMENT & WEALTH SECTION -->
+                <div class="bg-[#fdfbf7] p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-inner mt-4 sm:mt-6 mb-4 sm:mb-6">
+                    <h3 class="text-xs sm:text-sm font-bold text-stone-800 font-serif mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-sack-dollar mr-2 text-stone-500"></i> Equipment & Wealth</h3>
+                    <div class="mb-4 sm:mb-6">
+                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Wealth & Currency</label>
+                        <input type="text" id="pc-edit-wealth" value="${pc.wealth || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. 150 gp, 20 sp...">
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                        ${renderSmartField('pc-edit-equipped', `<i class="fa-solid fa-shield-halved text-stone-500 mr-2"></i> Equipped Items`, pc.equipped || '', "Armor, weapons, and readied gear...", 3, 'bg-white border border-[#d4c5a9] shadow-inner h-full flex-grow', false)}
+                        ${renderSmartField('pc-edit-backpack', `<i class="fa-solid fa-sack-xmark text-stone-500 mr-2"></i> Backpack / Inventory`, pc.backpack || '', "Other items, rations, torches...", 3, 'bg-white border border-[#d4c5a9] shadow-inner h-full flex-grow', false)}
+                    </div>
+                </div>
                 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mt-4">
                     ${renderSmartField('pc-edit-organizations', `<i class="fa-solid fa-users-rectangle text-stone-500 mr-2"></i> Organizations`, pc.organizations || '', "Factions, guilds, orders...", 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner h-full flex-grow', false)}
@@ -620,7 +655,10 @@ export const savePCEdit = async () => {
       birthDay: null,
       extraBdayBoons: [],
       availableDowntime: 0,
-      downtimeLog: ''
+      downtimeLog: '',
+      str: '', dex: '', con: '', int: '', wis: '', cha: '',
+      saves: '', skills: '', proficiencies: '',
+      wealth: '', equipped: '', backpack: ''
   };
 
   const isOwner = existingPC.playerId === myUid;
@@ -685,6 +723,16 @@ export const savePCEdit = async () => {
       eyes: getVal('pc-edit-eyes', existingPC.eyes),
       hair: getVal('pc-edit-hair', existingPC.hair),
       skin: getVal('pc-edit-skin', existingPC.skin),
+      // Core Stats
+      str: getVal('pc-edit-str', existingPC.str),
+      dex: getVal('pc-edit-dex', existingPC.dex),
+      con: getVal('pc-edit-con', existingPC.con),
+      int: getVal('pc-edit-int', existingPC.int),
+      wis: getVal('pc-edit-wis', existingPC.wis),
+      cha: getVal('pc-edit-cha', existingPC.cha),
+      saves: getVal('pc-edit-saves', existingPC.saves),
+      skills: getVal('pc-edit-skills', existingPC.skills),
+      proficiencies: getVal('pc-edit-proficiencies', existingPC.proficiencies),
       // Personality & Roleplay
       traits: getVal('input-pc-edit-traits', existingPC.traits),
       ideals: getVal('input-pc-edit-ideals', existingPC.ideals),
@@ -695,6 +743,10 @@ export const savePCEdit = async () => {
       organizations: getVal('input-pc-edit-organizations', existingPC.organizations),
       allies: getVal('input-pc-edit-allies', existingPC.allies),
       enemies: getVal('input-pc-edit-enemies', existingPC.enemies),
+      // Equipment & Wealth
+      wealth: getVal('pc-edit-wealth', existingPC.wealth),
+      equipped: getVal('input-pc-edit-equipped', existingPC.equipped),
+      backpack: getVal('input-pc-edit-backpack', existingPC.backpack),
 
       // Downtime Log (Explicitly allowing it to be cleared out)
       downtimeLog: getVal('input-pc-edit-downtimelog', existingPC.downtimeLog),
