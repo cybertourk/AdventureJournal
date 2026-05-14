@@ -965,6 +965,7 @@ export const fetchAndAnalyzeDndBeyond = async () => {
         };
 
         const formatName = (str) => str.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        const stripHtml = (html) => html ? html.replace(/<[^>]*>?/gm, '').trim() : 'Empty';
 
         // --- CALCULATE BASE STATS & MODIFIERS ---
         const stats = { 
@@ -1010,10 +1011,17 @@ export const fetchAndAnalyzeDndBeyond = async () => {
                              proficiencies.languages.push(friendlyName);
                         } else if (subType.includes('armor') || subType === 'shields') {
                             proficiencies.armor.push(friendlyName);
-                        } else if (subType.includes('weapons') || subType.includes('sword') || subType.includes('bow')) {
+                        } else if (subType.includes('weapons') || subType.includes('sword') || subType.includes('bow') || subType.includes('axe') || subType.includes('hammer') || subType.includes('mace') || subType.includes('crossbow')) {
                              proficiencies.weapons.push(friendlyName);
-                        } else if (subType.includes('tools') || subType.includes('kit') || subType.includes('supplies') || subType.includes('instrument') || subType.includes('vehicles')) {
+                        } else if (subType.includes('tools') || subType.includes('kit') || subType.includes('supplies') || subType.includes('instrument') || subType.includes('vehicles') || subType.includes('utensils')) {
                              proficiencies.tools.push(friendlyName);
+                        } else {
+                            // Fallback categorizations
+                            if (friendlyName.includes('Armor') || friendlyName.includes('Shield')) {
+                                proficiencies.armor.push(friendlyName);
+                            } else if (friendlyName.includes('Weapons') || friendlyName.includes('Sword') || friendlyName.includes('Bow')) {
+                                proficiencies.weapons.push(friendlyName);
+                            }
                         }
                     } else if (type === 'language') {
                          proficiencies.languages.push(friendlyName);
@@ -1035,6 +1043,26 @@ export const fetchAndAnalyzeDndBeyond = async () => {
             charData.classes.forEach(c => totalLevel += c.level);
         }
         const pb = Math.ceil(totalLevel / 4) + 1;
+
+        // --- PARSE INVENTORY ---
+        const equippedItems = [];
+        const backpackItems = [];
+        let wealth = { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 };
+        
+        if (charData.currencies) wealth = charData.currencies;
+
+        if (charData.inventory && Array.isArray(charData.inventory)) {
+            charData.inventory.forEach(item => {
+                const name = item.definition?.name || 'Unknown Item';
+                const qty = item.quantity > 1 ? ` (x${item.quantity})` : '';
+                const itemString = `${name}${qty}`;
+                if (item.equipped) {
+                    equippedItems.push(itemString);
+                } else {
+                    backpackItems.push(itemString);
+                }
+            });
+        }
 
         // --- BUILD ANALYSIS OUTPUT ---
         let analysis = `✅ Character Successfully Fetched via API.\n`;
@@ -1106,20 +1134,21 @@ export const fetchAndAnalyzeDndBeyond = async () => {
         analysis += `Tools/Kits: ${[...new Set(proficiencies.tools)].join(', ') || 'None'}\n`;
         analysis += `Languages: ${[...new Set(proficiencies.languages)].join(', ') || 'None'}\n`;
 
-        analysis += "\n--- TRAITS & LORE ---\n";
-        analysis += `Personality Traits: ${charData.traits?.personalityTraits ? 'Present' : 'Empty'}\n`;
-        analysis += `Ideals: ${charData.traits?.ideals ? 'Present' : 'Empty'}\n`;
-        analysis += `Bonds: ${charData.traits?.bonds ? 'Present' : 'Empty'}\n`;
-        analysis += `Flaws: ${charData.traits?.flaws ? 'Present' : 'Empty'}\n`;
-        analysis += `Appearance: ${charData.traits?.appearance ? 'Present' : 'Empty'}\n`;
-        analysis += `Backstory: ${charData.notes?.backstory ? 'Present' : 'Empty'}\n`;
-        analysis += `Allies: ${charData.notes?.allies ? 'Present' : 'Empty'}\n`;
-        analysis += `Enemies: ${charData.notes?.enemies ? 'Present' : 'Empty'}\n`;
-        analysis += `Organizations: ${charData.notes?.organizations ? 'Present' : 'Empty'}\n`;
+        analysis += "\n--- EQUIPMENT & CURRENCY ---\n";
+        analysis += `Wealth: ${wealth.cp}cp, ${wealth.sp}sp, ${wealth.ep}ep, ${wealth.gp}gp, ${wealth.pp}pp\n`;
+        analysis += `Equipped Items: ${equippedItems.join(', ') || 'None'}\n`;
+        analysis += `Backpack Inventory: ${backpackItems.join(', ') || 'Empty'}\n`;
 
-        analysis += "\n--- RAW NARRATIVE DATA PREVIEW ---\n";
-        analysis += `[Backstory]\n${charData.notes?.backstory || 'N/A'}\n\n`;
-        analysis += `[Personality]\n${charData.traits?.personalityTraits || 'N/A'}\n`;
+        analysis += "\n--- TRAITS & LORE ---\n";
+        analysis += `Personality Traits:\n${stripHtml(charData.traits?.personalityTraits)}\n\n`;
+        analysis += `Ideals:\n${stripHtml(charData.traits?.ideals)}\n\n`;
+        analysis += `Bonds:\n${stripHtml(charData.traits?.bonds)}\n\n`;
+        analysis += `Flaws:\n${stripHtml(charData.traits?.flaws)}\n\n`;
+        analysis += `Appearance:\n${stripHtml(charData.traits?.appearance)}\n\n`;
+        analysis += `Backstory:\n${stripHtml(charData.notes?.backstory)}\n\n`;
+        analysis += `Allies:\n${stripHtml(charData.notes?.allies)}\n\n`;
+        analysis += `Enemies:\n${stripHtml(charData.notes?.enemies)}\n\n`;
+        analysis += `Organizations:\n${stripHtml(charData.notes?.organizations)}\n`;
 
         output.textContent = analysis;
         output.classList.remove('hidden');
