@@ -650,7 +650,7 @@ export const calculateBirthdaysLive = () => {
 
     countEl.textContent = calculatedBirthdays;
 
-    // --- NEW: LIVE REVEAL OF EXTRA BOON SLOTS (3rd+) ---
+    // --- LIVE REVEAL OF EXTRA BOON SLOTS (3rd+) ---
     for (let i = 3; i <= 12; i++) {
         const slot = document.getElementById(`extra-boon-slot-${i}`);
         if (slot) {
