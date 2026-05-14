@@ -39,9 +39,6 @@ export function getPCManagerHTML(state) {
             </div>
             <div class="flex flex-wrap gap-2 w-full md:w-auto">
                 ${isDM ? `
-                <button onclick="window.appActions.openDDBModal()" class="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-blue-900 text-amber-50 border border-blue-950 rounded-sm hover:bg-blue-800 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md">
-                    <i class="fa-solid fa-cloud-arrow-down mr-2"></i> D&D Beyond
-                </button>
                 <button onclick="window.appActions.openPCEdit(null)" class="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-red-900 text-amber-50 border border-red-950 rounded-sm hover:bg-red-800 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md">
                     <i class="fa-solid fa-user-plus mr-2"></i> Enroll Hero
                 </button>
@@ -192,33 +189,6 @@ export function getPCManagerHTML(state) {
         }
         html += `</div></div>`;
     }
-
-    // --- D&D BEYOND IMPORT TEST MODAL ---
-    html += `
-    <div id="ddb-import-modal" class="hidden fixed inset-0 bg-stone-900/80 z-[19000] flex items-center justify-center p-4 backdrop-blur-sm animate-in pointer-events-auto">
-        <div class="bg-[#f4ebd8] p-5 sm:p-6 rounded-sm w-full max-w-4xl border border-[#d4c5a9] shadow-2xl relative flex flex-col h-[90vh]">
-            <h3 class="font-serif font-bold text-xl text-blue-900 mb-3 border-b border-[#d4c5a9] pb-2 flex items-center shrink-0"><i class="fa-solid fa-cloud-arrow-down mr-2 text-blue-700"></i> D&D Beyond Integration</h3>
-            
-            <p class="text-xs text-stone-600 italic mb-4 shrink-0">Paste your character's D&D Beyond URL (or just the ID number at the end). The character's privacy settings must be set to <b>Public</b>.</p>
-            
-            <div class="flex gap-2 mb-4 shrink-0">
-                <input type="text" id="ddb-import-id" placeholder="e.g. https://www.dndbeyond.com/characters/12345678" class="flex-grow p-2.5 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-white shadow-inner">
-                <button id="ddb-fetch-btn" onclick="window.appActions.fetchDDBCharacter()" class="px-5 py-2.5 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] shadow-sm whitespace-nowrap"><i class="fa-solid fa-cloud-arrow-down mr-1.5"></i> Fetch JSON</button>
-            </div>
-
-            <div id="ddb-preview-container" class="bg-white border border-[#d4c5a9] rounded-sm shadow-inner p-4 text-sm mb-5 flex-grow overflow-hidden flex flex-col">
-                <div class="flex flex-col items-center justify-center h-full text-stone-400 italic">
-                    <i class="fa-solid fa-file-code text-3xl mb-2 opacity-50"></i>
-                    <span>Raw JSON payload will appear here...</span>
-                </div>
-            </div>
-
-            <div class="flex justify-end pt-3 border-t border-[#d4c5a9] shrink-0">
-                <button onclick="window.appActions.closeDDBModal()" class="px-5 py-2 text-stone-600 border border-stone-400 rounded-sm hover:bg-stone-200 transition font-bold uppercase tracking-wider text-[10px]">Close</button>
-            </div>
-        </div>
-    </div>
-    `;
 
     html += `</div>`;
     return html;
@@ -775,132 +745,3 @@ export const savePCEdit = async () => {
   window.appActions.setView('pc-manager');
   notify("Hero profile inscribed.", "success");
 };
-
-export const deletePC = async (pcId) => {
-  updateDerivedState();
-  const camp = window.appData.activeCampaign;
-  if (!camp || !camp._isDM) {
-    notify("Only the DM can remove heroes.", "error");
-    return;
-  }
-  
-  if (!confirm("Are you sure you want to remove this hero from the campaign?")) return;
-  
-  const updatedCamp = {
-    ...camp,
-    playerCharacters: camp.playerCharacters.filter(pc => pc.id !== pcId),
-    codex: (camp.codex || []).filter(c => c.id !== pcId) // Clean up the linked public codex entry
-  };
-  
-  await saveCampaign(updatedCamp);
-  notify("Hero removed.", "success");
-};
-
-export const kickPlayer = async (uid) => {
-  updateDerivedState();
-  const camp = window.appData.activeCampaign;
-  if (!camp || !camp._isDM) return;
-  
-  if (!confirm("Exile this player from the campaign? They will lose access to the tome.")) return;
-  
-  const updatedPlayers = (camp.activePlayers || []).filter(id => id !== uid);
-  
-  const updatedNames = { ...camp.playerNames };
-  delete updatedNames[uid];
-  
-  const updatedBirthdays = { ...camp.playerBirthdays };
-  delete updatedBirthdays[uid];
-  
-  const updatedPCs = (camp.playerCharacters || []).map(pc => {
-    if (pc.playerId === uid) return { ...pc, playerId: '' };
-    return pc;
-  });
-  
-  const updatedCamp = {
-    ...camp,
-    activePlayers: updatedPlayers,
-    playerNames: updatedNames,
-    playerBirthdays: updatedBirthdays,
-    playerCharacters: updatedPCs
-  };
-  
-  await saveCampaign(updatedCamp);
-  notify("Player exiled from the campaign.", "success");
-};
-
-// --- D&D BEYOND IMPORT TEST LOGIC ---
-export const openDDBModal = () => {
-    const modal = document.getElementById('ddb-import-modal');
-    if (modal) modal.classList.remove('hidden');
-};
-
-export const closeDDBModal = () => {
-    const modal = document.getElementById('ddb-import-modal');
-    if (modal) modal.classList.add('hidden');
-};
-
-export const fetchDDBCharacter = async () => {
-    const input = document.getElementById('ddb-import-id').value.trim();
-    if (!input) { 
-        const { notify } = await import('./firebase-manager.js');
-        notify("Enter a D&D Beyond URL or ID.", "error"); 
-        return; 
-    }
-
-    const match = input.match(/(\d+)$/);
-    const charId = match ? match[1] : null;
-
-    if (!charId) { 
-        const { notify } = await import('./firebase-manager.js');
-        notify("Invalid ID or URL.", "error"); 
-        return; 
-    }
-
-    const btn = document.getElementById('ddb-fetch-btn');
-    const origText = btn.innerHTML;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Fetching...';
-    btn.disabled = true;
-
-    try {
-        // Using allOrigins CORS proxy to bypass browser restrictions for the test
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(`https://character-service.dndbeyond.com/character/v5/character/${charId}`)}`;
-        const response = await fetch(proxyUrl);
-        if (!response.ok) throw new Error("Network response was not ok");
-        
-        const proxyData = await response.json();
-        const charData = JSON.parse(proxyData.contents);
-
-        if (!charData.success) throw new Error(charData.message || "Failed to fetch character.");
-
-        const character = charData.data;
-        console.log("D&D Beyond Character Data:", character);
-
-        // Convert the massive JSON payload to a nicely formatted string
-        const jsonStr = JSON.stringify(character, null, 2);
-
-        document.getElementById('ddb-preview-container').innerHTML = `
-            <div class="flex justify-between items-center mb-2 shrink-0">
-                <p class="text-sm font-bold text-emerald-700"><i class="fa-solid fa-check-circle mr-1"></i> Data Fetched Successfully!</p>
-                <button onclick="navigator.clipboard.writeText(document.getElementById('ddb-json-output').value); this.innerHTML='<i class=\\'fa-solid fa-check mr-1\\'></i> Copied!'" class="text-[10px] bg-stone-200 hover:bg-stone-300 text-stone-700 px-3 py-1.5 rounded border border-stone-400 font-bold uppercase tracking-wider transition shadow-sm flex items-center">
-                    <i class="fa-solid fa-copy mr-1.5"></i> Copy JSON
-                </button>
-            </div>
-            <textarea id="ddb-json-output" class="w-full h-full min-h-[300px] p-4 text-xs font-mono bg-stone-900 text-emerald-400 border-2 border-stone-700 rounded-sm overflow-y-auto custom-scrollbar shadow-inner" readonly spellcheck="false">${jsonStr}</textarea>
-        `;
-
-    } catch (error) {
-        console.error(error);
-        document.getElementById('ddb-preview-container').innerHTML = `<p class="text-sm text-red-600 font-bold bg-red-50 border border-red-200 p-3 rounded-sm"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i> Error: ${error.message}</p>`;
-    } finally {
-        btn.innerHTML = origText;
-        btn.disabled = false;
-    }
-};
-
-// --- GLOBAL BINDINGS ---
-if (typeof window !== 'undefined') {
-    window.appActions = window.appActions || {};
-    window.appActions.openDDBModal = openDDBModal;
-    window.appActions.closeDDBModal = closeDDBModal;
-    window.appActions.fetchDDBCharacter = fetchDDBCharacter;
-}
