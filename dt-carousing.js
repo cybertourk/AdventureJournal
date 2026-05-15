@@ -181,7 +181,7 @@ export const openCarousingModal = () => {
         </div>
     `;
 
-    setTimeout(window.appActions.updateCarousingMath, 50);
+    setTimeout(() => { window.appActions.updateCarousingMath('init'); }, 50);
 };
 
 // --- DISGUISE INFILTRATION SYSTEM ---
@@ -231,12 +231,19 @@ export const attemptDisguiseCheck = async () => {
     window.appData.activeCampaign = updatedCamp;
     await saveCampaign(updatedCamp);
 
+    // Provide Instant Feedback and UI Update
     if (status === 'success') {
         notify(`Disguise successful! (Rolled ${total} vs DC 15)`, 'success');
+        const nobleToggle = document.getElementById('dt-carouse-noble-toggle');
+        if (nobleToggle) nobleToggle.checked = true;
+        
+        const classSelect = document.getElementById('dt-carouse-class');
+        if (classSelect) classSelect.value = 'upper';
     } else {
         notify(`Disguise failed! (Rolled ${total} vs DC 15). The upper class sees through your ruse.`, 'error');
     }
     
+    // Pass 'input' so it runs the bottom half of the math function without overwriting their input boxes
     window.appActions.updateCarousingMath('input');
 };
 
@@ -597,9 +604,9 @@ export const updateCarousingMath = (triggerSource = 'input') => {
         const isNaturallyNoble = bg.includes('noble') || bg.includes('knight') || bg.includes('waterdhavian');
         
         if (isNaturallyNoble || pc.disguiseCarouseStatus === 'success') {
-            nobleToggle.checked = true;
+            if (nobleToggle) nobleToggle.checked = true;
         } else {
-            nobleToggle.checked = false;
+            if (nobleToggle) nobleToggle.checked = false;
         }
     }
 
@@ -695,6 +702,7 @@ export const executeCarousing = async () => {
     else baseAlliedGained = 3;
 
     // --- ENFORCE MAX ALLIED CONTACTS LIMIT (Official: Banked <= 1 + Cha Mod) ---
+    // Use the spread operator to ensure we clone the array and don't accidentally mutate the underlying state object early
     let bankedContacts = [...(pc.bankedContacts || [])];
     
     let currentBankedAllies = bankedContacts.filter(c => c.type === 'ally').length;
