@@ -101,7 +101,7 @@ export const openBuyMagicItemModal = () => {
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Select Hero</label>
-                            <select id="dt-buy-pc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-white shadow-inner">
+                            <select id="dt-buy-pc" onchange="window.appActions.updateBuyMagicItemMath('pc')" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-white shadow-inner">
                                 ${validPCs.map(pc => {
                                     const currentDays = parseInt(pc.availableDowntime) || 0;
                                     return `<option value="${pc.id}">${pc.name} (${currentDays} Days)</option>`;
@@ -228,10 +228,40 @@ export const openBuyMagicItemModal = () => {
         </div>
     `;
 
-    setTimeout(window.appActions.updateBuyMagicItemMath, 50);
+    setTimeout(() => { window.appActions.updateBuyMagicItemMath('init'); }, 50);
 };
 
-export const updateBuyMagicItemMath = () => {
+export const updateBuyMagicItemMath = (triggerSource = 'input') => {
+    // --- AUTO-CALCULATE MODIFIER ---
+    if (triggerSource === 'pc' || triggerSource === 'init') {
+        const pcId = document.getElementById('dt-buy-pc')?.value;
+        const camp = window.appData?.activeCampaign;
+        const pc = camp?.playerCharacters?.find(p => p.id === pcId);
+
+        if (pc) {
+            const getAbilityMod = (score) => Math.floor(((parseInt(score) || 10) - 10) / 2);
+            let pb = 2;
+            if (pc.classLevel) {
+                const levels = pc.classLevel.match(/\d+/g);
+                if (levels) pb = Math.max(2, Math.ceil(levels.reduce((a, b) => a + parseInt(b), 0) / 4) + 1);
+            }
+            const chaMod = getAbilityMod(pc.cha);
+            let isProf = false, isExp = false;
+            const cleanSkill = 'persuasion';
+            const profsStr = ((pc.skills || '') + ',' + (pc.proficiencies || '')).toLowerCase();
+            const checkArr = profsStr.split(',').map(s => s.trim());
+            const match = checkArr.find(s => s.includes(cleanSkill));
+            if (match) {
+                isProf = true;
+                if (match.includes('expertise')) isExp = true;
+            }
+            const persMod = chaMod + (isExp ? pb * 2 : (isProf ? pb : 0));
+            
+            const modEl = document.getElementById('dt-buy-mod');
+            if (modEl) modEl.value = persMod;
+        }
+    }
+
     const daysSelect = document.getElementById('dt-buy-days');
     const goldSelect = document.getElementById('dt-buy-gold');
     const modEl = document.getElementById('dt-buy-mod');
