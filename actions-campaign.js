@@ -968,7 +968,7 @@ const parseDDBCharacter = (charData) => {
         eyes: charData.eyes || '',
         hair: charData.hair || '',
         skin: charData.skin || '',
-        image: charData.avatarUrl || charData.decorations?.avatarUrl || '',
+        image: '', // Intentionally ignoring D&D Beyond portrait as requested
         str: stats[1].total, dex: stats[2].total, con: stats[3].total, 
         int: stats[4].total, wis: stats[5].total, cha: stats[6].total,
         saves: savesArr.join(', '),
@@ -1219,9 +1219,10 @@ export const quickSyncDDB = async (pcId) => {
             setVal('pc-edit-hair', parsedData.hair);
             setVal('pc-edit-skin', parsedData.skin);
             
-            if (parsedData.image && !document.getElementById('pc-edit-image').value) {
-                setVal('pc-edit-image', parsedData.image);
-            }
+            // Intentionally not setting image from DDB
+            // if (parsedData.image && !document.getElementById('pc-edit-image').value) {
+            //     setVal('pc-edit-image', parsedData.image);
+            // }
             
             setVal('pc-edit-str', parsedData.str);
             setVal('pc-edit-dex', parsedData.dex);
@@ -1262,7 +1263,7 @@ export const quickSyncDDB = async (pcId) => {
             const mergedPC = {
                 ...pc,
                 ...parsedData,
-                image: parsedData.image || pc.image || '',
+                image: pc.image || '', // Always preserve local image, completely ignore DDB
                 appearance: parsedData.appearance || pc.appearance || '',
                 backstory: parsedData.backstory || pc.backstory || '',
             };
