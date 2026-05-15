@@ -149,18 +149,19 @@ export const openCarousingModal = () => {
                                 <h4 class="text-[10px] uppercase font-bold text-stone-500 tracking-widest"><i class="fa-solid fa-feather-pointed mr-1 text-stone-400"></i> Define Contact</h4>
                                 <button onclick="document.getElementById('dt-carouse-contact-form').classList.add('hidden')" class="text-stone-400 hover:text-red-900 transition"><i class="fa-solid fa-xmark text-sm"></i></button>
                             </div>
-                            <div class="grid grid-cols-2 gap-3 mb-3">
-                                <input type="text" id="dt-carouse-contact-name" placeholder="Contact Name" class="col-span-2 p-2 text-xs border border-[#d4c5a9] rounded-sm outline-none focus:border-amber-600 shadow-sm bg-white font-bold text-stone-900">
-                                <select id="dt-carouse-contact-type" class="p-2 text-xs border border-[#d4c5a9] rounded-sm outline-none focus:border-amber-600 shadow-sm bg-white font-bold text-stone-900 disabled:bg-stone-200 disabled:text-stone-500">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                                <input type="text" id="dt-carouse-contact-name" placeholder="Contact Name *" class="w-full p-2 text-xs border border-[#d4c5a9] rounded-sm outline-none focus:border-amber-600 shadow-sm bg-white font-bold text-stone-900">
+                                <input type="text" id="dt-carouse-contact-loc" placeholder="Location (Optional)" class="w-full p-2 text-xs border border-[#d4c5a9] rounded-sm outline-none focus:border-amber-600 shadow-sm bg-white font-bold text-stone-900">
+                                <select id="dt-carouse-contact-type" class="w-full p-2 text-xs border border-[#d4c5a9] rounded-sm outline-none focus:border-amber-600 shadow-sm bg-white font-bold text-stone-900 disabled:bg-stone-200 disabled:text-stone-500">
                                     <option value="ally">Ally</option>
                                     <option value="hostile">Hostile</option>
                                 </select>
-                                <select id="dt-carouse-contact-class" class="p-2 text-xs border border-[#d4c5a9] rounded-sm outline-none focus:border-amber-600 shadow-sm bg-white font-bold text-stone-900 disabled:bg-stone-200 disabled:text-stone-500">
+                                <select id="dt-carouse-contact-class" class="w-full p-2 text-xs border border-[#d4c5a9] rounded-sm outline-none focus:border-amber-600 shadow-sm bg-white font-bold text-stone-900 disabled:bg-stone-200 disabled:text-stone-500">
                                     <option value="lower">Lower Class</option>
                                     <option value="middle">Middle Class</option>
                                     <option value="upper">Upper Class</option>
                                 </select>
-                                <textarea id="dt-carouse-contact-desc" placeholder="Description & Notes..." class="col-span-2 p-2 text-xs border border-[#d4c5a9] rounded-sm outline-none focus:border-amber-600 shadow-sm bg-white font-serif resize-none h-20 custom-scrollbar"></textarea>
+                                <textarea id="dt-carouse-contact-desc" placeholder="Description & Notes..." class="col-span-1 sm:col-span-2 p-2 text-xs border border-[#d4c5a9] rounded-sm outline-none focus:border-amber-600 shadow-sm bg-white font-serif resize-none h-20 custom-scrollbar"></textarea>
                             </div>
                             <div class="flex justify-end">
                                 <button onclick="window.appActions.saveNewCarouseContact()" class="px-4 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] shadow-md flex items-center"><i class="fa-solid fa-floppy-disk mr-1.5"></i> Save & Bind Contact</button>
@@ -288,6 +289,7 @@ export const prepDefineContact = (id, type, socialClass) => {
     }
 
     document.getElementById('dt-carouse-contact-name').value = '';
+    document.getElementById('dt-carouse-contact-loc').value = '';
     document.getElementById('dt-carouse-contact-desc').value = '';
 
     setTimeout(() => {
@@ -362,7 +364,7 @@ export const renderCarouseContactsList = (pcId) => {
                         <div class="w-5 flex justify-center shrink-0">${typeIcon}</div>
                         <div>
                             <span class="font-bold text-stone-900 text-sm truncate block leading-tight">${c.name}</span>
-                            <span class="text-[8px] uppercase tracking-widest text-stone-500 font-bold block mt-0.5">${c.socialClass} Class</span>
+                            <span class="text-[8px] uppercase tracking-widest text-stone-500 font-bold block mt-0.5">${c.socialClass} Class ${c.location ? `• ${c.location}` : ''}</span>
                         </div>
                     </div>
                     <div class="flex gap-2 items-center shrink-0">
@@ -407,6 +409,7 @@ export const saveNewCarouseContact = async () => {
     const defineId = document.getElementById('dt-carouse-define-id').value;
     
     const name = document.getElementById('dt-carouse-contact-name').value.trim();
+    const location = document.getElementById('dt-carouse-contact-loc').value.trim();
     const type = document.getElementById('dt-carouse-contact-type').value;
     const socialClass = document.getElementById('dt-carouse-contact-class').value;
     const desc = document.getElementById('dt-carouse-contact-desc').value.trim();
@@ -428,6 +431,7 @@ export const saveNewCarouseContact = async () => {
     const newContact = {
         id: generateId(),
         name,
+        location,
         type,
         socialClass,
         description: desc,
@@ -436,7 +440,7 @@ export const saveNewCarouseContact = async () => {
 
     const typeDisplay = type === 'ally' ? 'Allied Contact' : 'Hostile Contact';
     const classDisplay = socialClass.charAt(0).toUpperCase() + socialClass.slice(1);
-    const logAddition = `\n\n---\n\n**Logged on ${new Date().toLocaleDateString()}**\n**Downtime: Contact Scribed**\n*Hero:* ${pc.name}\n\nDefined a new **${classDisplay} ${typeDisplay}**: **${name}**.\n> *"${desc}"*`;
+    const logAddition = `\n\n---\n\n**Logged on ${new Date().toLocaleDateString()}**\n**Downtime: Contact Scribed**\n*Hero:* ${pc.name}\n\nDefined a new **${classDisplay} ${typeDisplay}**: **${name}**${location ? ` (in ${location})` : ''}.\n> *"${desc}"*`;
 
     const updatedPCs = camp.playerCharacters.map(p => {
         if (p.id === pcId) {
