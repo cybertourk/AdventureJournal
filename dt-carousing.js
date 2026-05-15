@@ -205,7 +205,8 @@ export const attemptDisguiseCheck = async () => {
     const profStr = ((pc.skills || '') + ',' + (pc.proficiencies || '')).toLowerCase();
     const checkArr = profStr.split(',').map(s => s.trim());
     
-    const match = checkArr.find(s => s.includes('disguise kit') || s.includes('deception'));
+    // Loosened string match to handle typos on sheet ("disguise kit", "disguise", "deception")
+    const match = checkArr.find(s => s.includes('disguise') || s.includes('deception'));
     if (match) {
         isProf = true;
         if (match.includes('expertise')) isExp = true;
@@ -605,7 +606,8 @@ export const updateCarousingMath = (triggerSource = 'input') => {
     if (pc) {
         let hasDisguiseProf = false;
         const profsAndSkills = ((pc.skills || '') + ',' + (pc.proficiencies || '')).toLowerCase();
-        if (profsAndSkills.includes('disguise kit') || profsAndSkills.includes('deception')) hasDisguiseProf = true;
+        // Loosened check to match "disguise kit" or just "disguise"
+        if (profsAndSkills.includes('disguise') || profsAndSkills.includes('deception')) hasDisguiseProf = true;
 
         const bg = (pc.background || '').toLowerCase();
         const isNaturallyNoble = bg.includes('noble') || bg.includes('knight') || bg.includes('waterdhavian');
