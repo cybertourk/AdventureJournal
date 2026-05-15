@@ -1040,11 +1040,12 @@ export const fetchAndAnalyzeDndBeyond = async () => {
     output.classList.add('hidden');
 
     try {
-        const apiUrl = `https://character-service.dndbeyond.com/character/v5/character/${characterId}`;
+        const cacheBust = new Date().getTime();
+        const apiUrl = `https://character-service.dndbeyond.com/character/v5/character/${characterId}?cb=${cacheBust}`;
         let ddbData = null;
 
         try {
-            const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(apiUrl)}`);
+            const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(apiUrl)}`, { headers: { 'Cache-Control': 'no-cache' } });
             if (!response.ok) throw new Error(`Proxy 1 failed`);
             ddbData = await response.json();
         } catch (proxy1Err) {
@@ -1179,11 +1180,12 @@ export const quickSyncDDB = async (pcId) => {
     notify("Syncing with D&D Beyond...", "info");
 
     try {
-        const apiUrl = `https://character-service.dndbeyond.com/character/v5/character/${characterId}`;
+        const cacheBust = new Date().getTime();
+        const apiUrl = `https://character-service.dndbeyond.com/character/v5/character/${characterId}?cb=${cacheBust}`;
         let ddbData = null;
 
         try {
-            const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(apiUrl)}`);
+            const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(apiUrl)}`, { headers: { 'Cache-Control': 'no-cache' } });
             if (!response.ok) throw new Error(`Proxy 1 failed`);
             ddbData = await response.json();
         } catch (p1Err) {
