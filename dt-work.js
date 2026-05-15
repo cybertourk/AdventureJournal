@@ -49,6 +49,64 @@ const WORK_EXAMPLES = {
     "Viol": "e.g., Chamber Musician, Somber Balladeer"
 };
 
+// Auto-Calculation Engine for Modifiers
+const calculatePCModifier = (pc, skillName) => {
+    if (!pc || !skillName) return 0;
+    
+    // 1. Calculate Proficiency Bonus based on total class levels
+    let pb = 2;
+    if (pc.classLevel) {
+        const levels = pc.classLevel.match(/\d+/g);
+        if (levels) {
+            const totalLevel = levels.reduce((a, b) => a + parseInt(b), 0);
+            pb = Math.max(2, Math.ceil(totalLevel / 4) + 1);
+        }
+    }
+
+    // 2. Calculate relevant Ability Modifier
+    const getAbilityMod = (score) => Math.floor((parseInt(score) || 10) - 10) / 2;
+    let abilityMod = 0;
+    let checkName = skillName.toLowerCase();
+    
+    if (checkName.includes('strength')) abilityMod = getAbilityMod(pc.str);
+    else if (checkName.includes('dexterity')) abilityMod = getAbilityMod(pc.dex);
+    else if (checkName.includes('constitution')) abilityMod = getAbilityMod(pc.con);
+    else if (checkName.includes('intelligence')) abilityMod = getAbilityMod(pc.int);
+    else if (checkName.includes('wisdom')) abilityMod = getAbilityMod(pc.wis);
+    else if (checkName.includes('charisma')) abilityMod = getAbilityMod(pc.cha);
+    else {
+        // Smart defaults for tools based on standard XGtE / PHB applications
+        if (['disguise', 'bagpipes', 'drum', 'dulcimer', 'flute', 'lute', 'lyre', 'horn', 'pan flute', 'shawm', 'viol'].some(t => checkName.includes(t))) {
+            abilityMod = getAbilityMod(pc.cha);
+        } else if (['thieves', 'water vehicles', 'land vehicles', 'air vehicles', 'space vehicles', 'cobbler', 'glassblower', 'jeweler', 'leatherworker', 'potter', 'weaver', 'woodcarver'].some(t => checkName.includes(t))) {
+            abilityMod = getAbilityMod(pc.dex);
+        } else if (['herbalism', 'navigator', 'painter', 'brewer', 'cook', 'mason', 'smith', 'carpenter'].some(t => checkName.includes(t))) {
+            abilityMod = getAbilityMod(pc.wis);
+        } else {
+            abilityMod = getAbilityMod(pc.int); // Default for remaining artisan tools/forgery/poisoner
+        }
+    }
+
+    // 3. Check for Proficiency or Expertise
+    let isProf = false;
+    let isExp = false;
+    let cleanSkill = skillName.includes('(') ? skillName.split('(')[1].replace(')', '').trim().toLowerCase() : skillName.trim().toLowerCase();
+    
+    const checkList = (listStr) => {
+        const arr = (listStr || '').toLowerCase().split(',').map(s => s.trim());
+        const match = arr.find(s => s.includes(cleanSkill) || cleanSkill.includes(s.replace(' (expertise)', '')));
+        if (match) {
+            isProf = true;
+            if (match.includes('expertise')) isExp = true;
+        }
+    };
+
+    checkList(pc.skills);
+    checkList(pc.proficiencies);
+
+    return abilityMod + (isExp ? pb * 2 : (isProf ? pb : 0));
+};
+
 export const openWorkModal = () => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
@@ -80,7 +138,7 @@ export const openWorkModal = () => {
                     <div class="grid grid-cols-1 gap-4 mb-5">
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Select Hero</label>
-                            <select id="dt-work-pc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-orange-700 bg-white shadow-inner">
+                            <select id="dt-work-pc" onchange="window.appActions.updateWorkMath('pc')" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-orange-700 bg-white shadow-inner">
                                 ${validPCs.map(pc => {
                                     const currentDays = parseInt(pc.availableDowntime) || 0;
                                     return `<option value="${pc.id}">${pc.name} (${currentDays} Days)</option>`;
@@ -94,7 +152,7 @@ export const openWorkModal = () => {
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Skill / Tool Used</label>
-                                <select id="dt-work-skill-name" onchange="window.appActions.updateWorkMath()" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-orange-700 bg-stone-50 shadow-inner">
+                                <select id="dt-work-skill-name" onchange="window.appActions.updateWorkMath('skill')" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-orange-700 bg-stone-50 shadow-inner">
                                     <optgroup label="Core Skills">
                                         <option value="Strength (Athletics)">Strength (Athletics)</option>
                                         <option value="Dexterity (Acrobatics)">Dexterity (Acrobatics)</option>
@@ -217,18 +275,32 @@ export const openWorkModal = () => {
         </div>
     `;
 
-    // Initialize math and placeholders
     setTimeout(() => {
-        window.appActions.updateWorkMath();
+        window.appActions.updateWorkMath('init');
     }, 50);
 };
 
-export const updateWorkMath = () => {
+export const updateWorkMath = (triggerSource = 'input') => {
     const skillName = document.getElementById('dt-work-skill-name')?.value;
     const workTypeEl = document.getElementById('dt-work-type');
     
     if (skillName && workTypeEl && WORK_EXAMPLES[skillName]) {
         workTypeEl.placeholder = WORK_EXAMPLES[skillName];
+    }
+
+    // --- AUTO-CALCULATE MODIFIER ---
+    if (triggerSource === 'pc' || triggerSource === 'init' || triggerSource === 'skill') {
+        updateDerivedState();
+        const camp = window.appData.activeCampaign;
+        const pcId = document.getElementById('dt-work-pc')?.value;
+        if (camp && pcId && skillName) {
+            const pc = camp.playerCharacters?.find(p => p.id === pcId);
+            if (pc) {
+                const mod = calculatePCModifier(pc, skillName);
+                const modEl = document.getElementById('dt-work-mod');
+                if (modEl) modEl.value = mod;
+            }
+        }
     }
 };
 
