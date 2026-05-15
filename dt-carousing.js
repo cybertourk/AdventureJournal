@@ -50,7 +50,7 @@ export const openCarousingModal = () => {
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Select Hero</label>
-                            <select id="dt-carouse-pc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-white shadow-inner">
+                            <select id="dt-carouse-pc" onchange="window.appActions.updateCarousingMath('pc')" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-white shadow-inner">
                                 ${validPCs.map(pc => {
                                     const currentDays = parseInt(pc.availableDowntime) || 0;
                                     return `<option value="${pc.id}">${pc.name} (${currentDays} Days)</option>`;
@@ -89,7 +89,14 @@ export const openCarousingModal = () => {
                                     <input type="checkbox" id="dt-carouse-noble-toggle" onchange="window.appActions.updateCarousingMath()" class="w-4 h-4 text-amber-600 rounded-sm cursor-pointer shadow-sm border-amber-400">
                                     <span class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-amber-900 group-hover:text-amber-700 transition">Has Noble Background</span>
                                 </label>
-                                <p class="text-[9px] text-stone-500 italic">Check this box to unlock Upper Class carousing (or if you succeeded on a Deception check with a Disguise Kit).</p>
+                                <p class="text-[9px] text-stone-500 italic">Check this box to unlock Upper Class carousing.</p>
+                                
+                                <div id="dt-carouse-disguise-wrapper" class="hidden mt-2 pt-2 border-t border-[#d4c5a9]">
+                                    <button id="dt-carouse-disguise-btn" onclick="window.appActions.attemptDisguiseCheck()" class="w-full py-1.5 bg-stone-800 text-amber-50 rounded-sm hover:bg-stone-700 transition text-[9px] font-bold uppercase tracking-wider shadow-sm flex items-center justify-center">
+                                        <i class="fa-solid fa-mask mr-1.5"></i> Infiltrate Upper Class (DC 15)
+                                    </button>
+                                    <p id="dt-carouse-disguise-msg" class="text-[9px] text-red-600 font-bold mt-1 text-center hidden"></p>
+                                </div>
                             </div>
                         </div>
                         
@@ -175,6 +182,61 @@ export const openCarousingModal = () => {
     `;
 
     setTimeout(window.appActions.updateCarousingMath, 50);
+};
+
+// --- DISGUISE INFILTRATION SYSTEM ---
+
+export const attemptDisguiseCheck = async () => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    const pcId = document.getElementById('dt-carouse-pc').value;
+    const pc = camp?.playerCharacters?.find(p => p.id === pcId);
+    if (!pc) return;
+
+    // Calculate Deception / Disguise mod
+    const getAbilityMod = (score) => Math.floor(((parseInt(score) || 10) - 10) / 2);
+    let pb = 2;
+    if (pc.classLevel) {
+        const levels = pc.classLevel.match(/\d+/g);
+        if (levels) pb = Math.max(2, Math.ceil(levels.reduce((a, b) => a + parseInt(b), 0) / 4) + 1);
+    }
+    
+    let isProf = false, isExp = false;
+    const profStr = ((pc.skills || '') + ',' + (pc.proficiencies || '')).toLowerCase();
+    const checkArr = profStr.split(',').map(s => s.trim());
+    
+    const match = checkArr.find(s => s.includes('disguise kit') || s.includes('deception'));
+    if (match) {
+        isProf = true;
+        if (match.includes('expertise')) isExp = true;
+    }
+
+    const mod = getAbilityMod(pc.cha) + (isExp ? pb * 2 : (isProf ? pb : 0));
+    const d20 = Math.floor(Math.random() * 20) + 1;
+    const total = d20 + mod;
+    const dc = 15; 
+
+    const status = total >= dc ? 'success' : 'failed';
+
+    // Save state dynamically so it persists if they close the window!
+    const updatedPCs = camp.playerCharacters.map(p => {
+        if (p.id === pcId) {
+            return { ...p, disguiseCarouseStatus: status };
+        }
+        return p;
+    });
+    const updatedCamp = { ...camp, playerCharacters: updatedPCs };
+    
+    window.appData.activeCampaign = updatedCamp;
+    await saveCampaign(updatedCamp);
+
+    if (status === 'success') {
+        notify(`Disguise successful! (Rolled ${total} vs DC 15)`, 'success');
+    } else {
+        notify(`Disguise failed! (Rolled ${total} vs DC 15). The upper class sees through your ruse.`, 'error');
+    }
+    
+    window.appActions.updateCarousingMath('input');
 };
 
 // --- NEW CONTACT MANAGEMENT SYSTEM ---
@@ -488,9 +550,87 @@ export const deleteCarouseContact = async (pcId, contactId) => {
 
 // --- CORE CAROUSING MATH ---
 
-export const updateCarousingMath = () => {
-    const classSelect = document.getElementById('dt-carouse-class');
+export const updateCarousingMath = (triggerSource = 'input') => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    const pcId = document.getElementById('dt-carouse-pc')?.value;
+    const pc = camp?.playerCharacters?.find(p => p.id === pcId);
+
     const nobleToggle = document.getElementById('dt-carouse-noble-toggle');
+    const disguiseWrapper = document.getElementById('dt-carouse-disguise-wrapper');
+    const disguiseBtn = document.getElementById('dt-carouse-disguise-btn');
+    const disguiseMsg = document.getElementById('dt-carouse-disguise-msg');
+
+    // Auto-Fill Logic when Hero is selected
+    if (pc && (triggerSource === 'pc' || triggerSource === 'init')) {
+        const getAbilityMod = (score) => Math.floor(((parseInt(score) || 10) - 10) / 2);
+        const getSkillMod = (statScore, skillName) => {
+            let pb = 2;
+            if (pc.classLevel) {
+                const levels = pc.classLevel.match(/\d+/g);
+                if (levels) pb = Math.max(2, Math.ceil(levels.reduce((a, b) => a + parseInt(b), 0) / 4) + 1);
+            }
+            const mod = getAbilityMod(statScore);
+            let isProf = false, isExp = false;
+            const cleanSkill = skillName.toLowerCase();
+            const checkList = (listStr) => {
+                const arr = (listStr || '').toLowerCase().split(',').map(s => s.trim());
+                const match = arr.find(s => s.includes(cleanSkill));
+                if (match) {
+                    isProf = true;
+                    if (match.includes('expertise')) isExp = true;
+                }
+            };
+            checkList(pc.skills);
+            return mod + (isExp ? pb * 2 : (isProf ? pb : 0));
+        };
+
+        const chaMod = getAbilityMod(pc.cha);
+        const persMod = getSkillMod(pc.cha, 'persuasion');
+        
+        document.getElementById('dt-carouse-cha').value = chaMod;
+        document.getElementById('dt-carouse-mod').value = persMod;
+
+        // Auto-detect noble background to unlock Upper Class
+        const bg = (pc.background || '').toLowerCase();
+        const isNaturallyNoble = bg.includes('noble') || bg.includes('knight') || bg.includes('waterdhavian');
+        
+        if (isNaturallyNoble || pc.disguiseCarouseStatus === 'success') {
+            nobleToggle.checked = true;
+        } else {
+            nobleToggle.checked = false;
+        }
+    }
+
+    if (pc) {
+        let hasDisguiseProf = false;
+        const profsAndSkills = ((pc.skills || '') + ',' + (pc.proficiencies || '')).toLowerCase();
+        if (profsAndSkills.includes('disguise kit') || profsAndSkills.includes('deception')) hasDisguiseProf = true;
+
+        const bg = (pc.background || '').toLowerCase();
+        const isNaturallyNoble = bg.includes('noble') || bg.includes('knight') || bg.includes('waterdhavian');
+
+        if (nobleToggle && disguiseWrapper && disguiseBtn && disguiseMsg) {
+            if (nobleToggle.checked || isNaturallyNoble) {
+                disguiseWrapper.classList.add('hidden');
+            } else if (hasDisguiseProf) {
+                disguiseWrapper.classList.remove('hidden');
+                if (pc.disguiseCarouseStatus === 'failed') {
+                    disguiseBtn.classList.add('hidden');
+                    disguiseMsg.classList.remove('hidden');
+                    disguiseMsg.textContent = "Disguise failed. The upper class rejected you.";
+                    disguiseMsg.className = "text-[9px] text-red-600 font-bold mt-1 text-center";
+                } else {
+                    disguiseBtn.classList.remove('hidden');
+                    disguiseMsg.classList.add('hidden');
+                }
+            } else {
+                disguiseWrapper.classList.add('hidden');
+            }
+        }
+    }
+
+    const classSelect = document.getElementById('dt-carouse-class');
     const goldOut = document.getElementById('dt-carouse-gold-out');
     
     if (!classSelect || !nobleToggle || !goldOut) return;
@@ -553,12 +693,10 @@ export const executeCarousing = async () => {
     else baseAlliedGained = 3;
 
     // --- ENFORCE MAX ALLIED CONTACTS LIMIT (Official: Banked <= 1 + Cha Mod) ---
-    // Use the spread operator to ensure we clone the array and don't accidentally mutate the underlying state object early
     let bankedContacts = [...(pc.bankedContacts || [])];
     
     let currentBankedAllies = bankedContacts.filter(c => c.type === 'ally').length;
     const maxAllies = Math.max(1, 1 + chaMod); // Official Rule: 1 + Cha Mod, minimum 1
-    // Note: Active (named) contacts do not count towards this limit.
 
     let actualAlliedGained = 0;
     let lostAllies = 0;
@@ -623,19 +761,30 @@ export const executeCarousing = async () => {
     if (lostAllies > 0) resultBody += `⚠️ **Limit Reached:** You met ${lostAllies} more potential allies, but your social network is full! Banked Allies are capped by your Charisma modifier (Max: ${maxAllies}).\n`;
     if (hostileGained === 0 && actualAlliedGained === 0 && lostAllies === 0) resultBody += `You made no notable new contacts during this time.\n`;
 
-    const noteText = `**Downtime: Carousing (${socialClass.charAt(0).toUpperCase() + socialClass.slice(1)} Class)**\n*Hero:* ${pc.name}\n\n**Time Spent:** 5 Days\n**Gold Spent (Expenses):** ${goldCost} gp\n**Check Result:** ${checkTotal} (Rolled ${d20} ${pMod >= 0 ? `+ ${pMod}` : `- ${Math.abs(pMod)}`})\n\n${resultBody}\n*(Be sure to check your Banked Contacts using the **Manage Contacts** button!)*${complicationText}`;
+    let modifiersNote = "";
+    if (pc.disguiseCarouseStatus === 'success') {
+        modifiersNote = "\n*Utilized a Disguise Kit to infiltrate the upper class.*";
+    }
+
+    const noteText = `**Downtime: Carousing (${socialClass.charAt(0).toUpperCase() + socialClass.slice(1)} Class)**\n*Hero:* ${pc.name}\n\n**Time Spent:** 5 Days\n**Gold Spent (Expenses):** ${goldCost} gp\n**Check Result:** ${checkTotal} (Rolled ${d20} ${pMod >= 0 ? `+ ${pMod}` : `- ${Math.abs(pMod)}`})\n\n${resultBody}${modifiersNote}${complicationText}\n*(Be sure to check your Banked Contacts using the **Manage Contacts** button!)*`;
 
     const timestampStr = new Date().toLocaleDateString();
     const logAddition = `${pc.downtimeLog ? '\n\n---\n\n' : ''}**Logged on ${timestampStr}**\n${noteText}`;
 
-    const updatedPCs = camp.playerCharacters.map(p => 
-        p.id === pc.id ? { 
-            ...p, 
-            availableDowntime: Math.max(0, (parseInt(p.availableDowntime) || 0) - 5),
-            downtimeLog: (p.downtimeLog || '') + logAddition,
-            bankedContacts: bankedContacts
-        } : p
-    );
+    const updatedPCs = camp.playerCharacters.map(p => {
+        if (p.id === pc.id) {
+            // Strip the disguiseCarouseStatus flag so they can try again next downtime
+            const { disguiseCarouseStatus, ...restOfPc } = p;
+            
+            return { 
+                ...restOfPc, 
+                availableDowntime: Math.max(0, (parseInt(p.availableDowntime) || 0) - 5),
+                downtimeLog: (p.downtimeLog || '') + logAddition,
+                bankedContacts: bankedContacts
+            };
+        }
+        return p;
+    });
 
     let updatedCamp = { ...camp, playerCharacters: updatedPCs };
     updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime carousing with <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-beer-mug-empty');
@@ -670,6 +819,7 @@ if (typeof window !== 'undefined') {
     window.appActions.openCarousingModal = openCarousingModal;
     window.appActions.updateCarousingMath = updateCarousingMath;
     window.appActions.executeCarousing = executeCarousing;
+    window.appActions.attemptDisguiseCheck = attemptDisguiseCheck;
     
     // Contact Management System
     window.appActions.openCarouseContacts = openCarouseContacts;
