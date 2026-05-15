@@ -661,7 +661,8 @@ export const savePCEdit = async () => {
       downtimeLog: '',
       str: '', dex: '', con: '', int: '', wis: '', cha: '',
       saves: '', skills: '', proficiencies: '',
-      wealth: '', equipped: '', backpack: '', ddbId: ''
+      wealth: '', equipped: '', backpack: '',
+      ddbId: ''
   };
 
   const isOwner = existingPC.playerId === myUid;
@@ -687,7 +688,9 @@ export const savePCEdit = async () => {
   if (isDM) {
       for (let i = 3; i <= 12; i++) {
           const select = document.getElementById(`pc-edit-boon-${i}`);
-          if (select) extraBdayBoons.push(select.value);
+          if (select) {
+              extraBdayBoons.push(select.value);
+          }
       }
       while (extraBdayBoons.length > 0 && extraBdayBoons[extraBdayBoons.length - 1] === '') {
           extraBdayBoons.pop();
@@ -792,11 +795,12 @@ export const savePCEdit = async () => {
   }
 
   window.appData.activeCampaign = updatedCamp;
+  reRender();
+
   await saveCampaign(updatedCamp);
 
   window.appActions.setView('pc-manager');
   notify("Hero profile inscribed.", "success");
-  reRender(true);
 };
 
 export const deletePC = async (pcId) => {
@@ -862,6 +866,129 @@ export const kickPlayer = async (uid) => {
 // --- D&D BEYOND IMPORT ENGINE ---
 // ============================================================================
 
+const parseDDBCharacter = (charData) => {
+    const statModMap = { 'strength-score': 1, 'dexterity-score': 2, 'constitution-score': 3, 'intelligence-score': 4, 'wisdom-score': 5, 'charisma-score': 6 };
+    const skillAbilities = {
+        'athletics': 1, 'acrobatics': 2, 'sleight-of-hand': 2, 'stealth': 2,
+        'arcana': 4, 'history': 4, 'investigation': 4, 'nature': 4, 'religion': 4,
+        'animal-handling': 5, 'insight': 5, 'medicine': 5, 'perception': 5, 'survival': 5,
+        'deception': 6, 'intimidation': 6, 'performance': 6, 'persuasion': 6
+    };
+    
+    const formatName = (str) => str.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    const stripHtml = (html) => html ? html.replace(/<[^>]*>?/gm, '').trim() : '';
+
+    const alignmentMap = { 1: 'Lawful Good', 2: 'Neutral Good', 3: 'Chaotic Good', 4: 'Lawful Neutral', 5: 'True Neutral', 6: 'Chaotic Neutral', 7: 'Lawful Evil', 8: 'Neutral Evil', 9: 'Chaotic Evil' };
+    const sizeMap = { 2: 'Tiny', 3: 'Small', 4: 'Medium', 5: 'Large', 6: 'Huge', 7: 'Gargantuan' };
+
+    const stats = { 1: {base: 10, bonus: 0, override: 0}, 2: {base: 10, bonus: 0, override: 0}, 3: {base: 10, bonus: 0, override: 0}, 4: {base: 10, bonus: 0, override: 0}, 5: {base: 10, bonus: 0, override: 0}, 6: {base: 10, bonus: 0, override: 0} };
+    charData.stats?.forEach(s => { if(stats[s.id]) stats[s.id].base = s.value; });
+    charData.overrideStats?.forEach(s => { if(stats[s.id] && s.value) stats[s.id].override = s.value; });
+    
+    let proficiencies = { saves: {}, skills: {}, weapons: [], armor: [], tools: [], languages: [] };
+
+    Object.values(charData.modifiers || {}).forEach(modArr => {
+        if (Array.isArray(modArr)) {
+            modArr.forEach(mod => {
+                const subType = mod.subType || '';
+                const type = mod.type || '';
+                const friendlyName = mod.friendlySubtypeName || formatName(subType);
+
+                if (type === 'bonus' && statModMap[subType]) {
+                    stats[statModMap[subType]].bonus += mod.value;
+                }
+                
+                if (type === 'proficiency' || type === 'expertise') {
+                    const profVal = type === 'expertise' ? 2 : 1;
+                    if (subType.includes('saving-throws')) {
+                        const statId = statModMap[subType.replace('-saving-throws', '-score')];
+                        if (statId) proficiencies.saves[statId] = profVal;
+                    } else if (skillAbilities[subType]) {
+                        proficiencies.skills[subType] = Math.max(proficiencies.skills[subType] || 0, profVal);
+                    } else if (type === 'language') {
+                         proficiencies.languages.push(friendlyName);
+                    } else if (subType.includes('armor') || subType === 'shields') {
+                        proficiencies.armor.push(friendlyName);
+                    } else if (subType.includes('weapons') || subType.includes('sword') || subType.includes('bow') || subType.includes('axe') || subType.includes('hammer') || subType.includes('mace') || subType.includes('crossbow')) {
+                         proficiencies.weapons.push(friendlyName);
+                    } else if (subType.includes('tools') || subType.includes('kit') || subType.includes('supplies') || subType.includes('instrument') || subType.includes('vehicles') || subType.includes('utensils')) {
+                         proficiencies.tools.push(friendlyName);
+                    } else {
+                        if (friendlyName.includes('Armor') || friendlyName.includes('Shield')) proficiencies.armor.push(friendlyName);
+                        else if (friendlyName.includes('Weapons') || friendlyName.includes('Sword') || friendlyName.includes('Bow')) proficiencies.weapons.push(friendlyName);
+                    }
+                } else if (type === 'language') {
+                     proficiencies.languages.push(friendlyName);
+                }
+            });
+        }
+    });
+
+    for(let i=1; i<=6; i++) {
+        stats[i].total = stats[i].override || (stats[i].base + stats[i].bonus);
+    }
+
+    const equippedItems = [];
+    const backpackItems = [];
+    let wealth = charData.currencies || { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 };
+    
+    if (charData.inventory && Array.isArray(charData.inventory)) {
+        charData.inventory.forEach(item => {
+            const name = item.definition?.name || 'Unknown Item';
+            const qty = item.quantity > 1 ? ` (x${item.quantity})` : '';
+            if (item.equipped) equippedItems.push(`${name}${qty}`);
+            else backpackItems.push(`${name}${qty}`);
+        });
+    }
+
+    const savesArr = [];
+    const statNames = {1:'STR', 2:'DEX', 3:'CON', 4:'INT', 5:'WIS', 6:'CHA'};
+    for (let i = 1; i <= 6; i++) { if (proficiencies.saves[i]) savesArr.push(statNames[i]); }
+
+    const skillsArr = [];
+    Object.keys(skillAbilities).forEach(skillKey => {
+        if (proficiencies.skills[skillKey]) skillsArr.push(formatName(skillKey));
+    });
+
+    const sizeId = charData.race?.sizeId || charData.sizeId;
+    const finalSize = sizeMap[sizeId] || charData.size || '';
+
+    return {
+        name: charData.name || 'Unknown',
+        race: charData.race?.fullName || charData.race?.baseName || '',
+        classLevel: charData.classes?.map(c => `${c.definition?.name} ${c.level}`).join(' / ') || '',
+        background: charData.background?.definition?.name || (charData.background?.customBackground ? charData.background.customBackground.name : ''),
+        alignment: alignmentMap[charData.alignmentId] || '', 
+        faith: charData.faith || '',
+        gender: charData.gender || '',
+        age: charData.age || '',
+        size: finalSize,
+        height: charData.height || '',
+        weight: charData.weight || '',
+        eyes: charData.eyes || '',
+        hair: charData.hair || '',
+        skin: charData.skin || '',
+        image: charData.avatarUrl || charData.decorations?.avatarUrl || '',
+        str: stats[1].total, dex: stats[2].total, con: stats[3].total, 
+        int: stats[4].total, wis: stats[5].total, cha: stats[6].total,
+        saves: savesArr.join(', '),
+        skills: skillsArr.join(', '),
+        proficiencies: [...new Set([...proficiencies.weapons, ...proficiencies.armor, ...proficiencies.tools, ...proficiencies.languages])].join(', '),
+        wealth: `${wealth.cp}cp, ${wealth.sp}sp, ${wealth.ep}ep, ${wealth.gp}gp, ${wealth.pp}pp`,
+        equipped: equippedItems.join('\n'),
+        backpack: backpackItems.join('\n'),
+        traits: stripHtml(charData.traits?.personalityTraits),
+        ideals: stripHtml(charData.traits?.ideals),
+        bonds: stripHtml(charData.traits?.bonds),
+        flaws: stripHtml(charData.traits?.flaws),
+        appearance: stripHtml(charData.traits?.appearance),
+        backstory: stripHtml(charData.notes?.backstory),
+        organizations: stripHtml(charData.notes?.organizations),
+        allies: stripHtml(charData.notes?.allies),
+        enemies: stripHtml(charData.notes?.enemies)
+    };
+};
+
 export const openDndBeyondImportModal = () => {
     const container = document.getElementById('global-popup-container');
     if (!container) return;
@@ -916,15 +1043,14 @@ export const fetchAndAnalyzeDndBeyond = async () => {
         const apiUrl = `https://character-service.dndbeyond.com/character/v5/character/${characterId}`;
         let ddbData = null;
 
-        // Proxy Waterfall
         try {
             const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(apiUrl)}`);
-            if (!response.ok) throw new Error(`Proxy 1 failed with status ${response.status}`);
+            if (!response.ok) throw new Error(`Proxy 1 failed`);
             ddbData = await response.json();
         } catch (proxy1Err) {
-            console.warn("First proxy failed, trying fallback...", proxy1Err);
+            console.warn("First proxy failed, trying fallback...");
             const response2 = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(apiUrl)}`);
-            if (!response2.ok) throw new Error(`Proxy 2 failed with status ${response2.status}`);
+            if (!response2.ok) throw new Error(`Proxy 2 failed`);
             ddbData = await response2.json();
         }
         
@@ -932,199 +1058,37 @@ export const fetchAndAnalyzeDndBeyond = async () => {
             throw new Error("D&D Beyond returned an unexpected data structure. Ensure the character is set to Public.");
         }
 
-        const charData = ddbData.data;
-
-        // --- HELPER DICTIONARIES ---
-        const statModMap = { 
-            'strength-score': 1, 'dexterity-score': 2, 'constitution-score': 3, 
-            'intelligence-score': 4, 'wisdom-score': 5, 'charisma-score': 6 
-        };
-        const skillAbilities = {
-            'athletics': 1, 'acrobatics': 2, 'sleight-of-hand': 2, 'stealth': 2,
-            'arcana': 4, 'history': 4, 'investigation': 4, 'nature': 4, 'religion': 4,
-            'animal-handling': 5, 'insight': 5, 'medicine': 5, 'perception': 5, 'survival': 5,
-            'deception': 6, 'intimidation': 6, 'performance': 6, 'persuasion': 6
-        };
-
-        const formatName = (str) => str.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-        const stripHtml = (html) => html ? html.replace(/<[^>]*>?/gm, '').trim() : '';
-
-        const alignmentMap = {
-            1: 'Lawful Good', 2: 'Neutral Good', 3: 'Chaotic Good',
-            4: 'Lawful Neutral', 5: 'True Neutral', 6: 'Chaotic Neutral',
-            7: 'Lawful Evil', 8: 'Neutral Evil', 9: 'Chaotic Evil'
-        };
+        const parsedData = parseDDBCharacter(ddbData.data);
         
-        const sizeMap = {
-            2: 'Tiny', 3: 'Small', 4: 'Medium', 5: 'Large', 6: 'Huge', 7: 'Gargantuan'
-        };
-
-        // --- CALCULATE BASE STATS & MODIFIERS ---
-        const stats = { 
-            1: {name: 'STR', base: 10, bonus: 0, override: 0}, 2: {name: 'DEX', base: 10, bonus: 0, override: 0}, 
-            3: {name: 'CON', base: 10, bonus: 0, override: 0}, 4: {name: 'INT', base: 10, bonus: 0, override: 0}, 
-            5: {name: 'WIS', base: 10, bonus: 0, override: 0}, 6: {name: 'CHA', base: 10, bonus: 0, override: 0} 
-        };
-        
-        charData.stats?.forEach(s => { if(stats[s.id]) stats[s.id].base = s.value; });
-        charData.overrideStats?.forEach(s => { if(stats[s.id] && s.value) stats[s.id].override = s.value; });
-        
-        let proficiencies = { saves: {}, skills: {}, weapons: [], armor: [], tools: [], languages: [] };
-        let halfProficiency = false;
-
-        Object.values(charData.modifiers || {}).forEach(modArr => {
-            if (Array.isArray(modArr)) {
-                modArr.forEach(mod => {
-                    const subType = mod.subType || '';
-                    const type = mod.type || '';
-                    const friendlyName = mod.friendlySubtypeName || formatName(subType);
-
-                    if (type === 'bonus' && statModMap[subType]) {
-                        stats[statModMap[subType]].bonus += mod.value;
-                    }
-                    if (type === 'half-proficiency' && subType === 'ability-checks') {
-                        halfProficiency = true;
-                    }
-                    if (type === 'proficiency' || type === 'expertise') {
-                        const profVal = type === 'expertise' ? 2 : 1;
-                        if (subType.includes('saving-throws')) {
-                            const statId = statModMap[subType.replace('-saving-throws', '-score')];
-                            if (statId) proficiencies.saves[statId] = profVal;
-                        } else if (skillAbilities[subType]) {
-                            proficiencies.skills[subType] = Math.max(proficiencies.skills[subType] || 0, profVal);
-                        } else if (type === 'language') {
-                             proficiencies.languages.push(friendlyName);
-                        } else if (subType.includes('armor') || subType === 'shields') {
-                            proficiencies.armor.push(friendlyName);
-                        } else if (subType.includes('weapons') || subType.includes('sword') || subType.includes('bow') || subType.includes('axe') || subType.includes('hammer') || subType.includes('mace') || subType.includes('crossbow')) {
-                             proficiencies.weapons.push(friendlyName);
-                        } else if (subType.includes('tools') || subType.includes('kit') || subType.includes('supplies') || subType.includes('instrument') || subType.includes('vehicles') || subType.includes('utensils')) {
-                             proficiencies.tools.push(friendlyName);
-                        } else {
-                            if (friendlyName.includes('Armor') || friendlyName.includes('Shield')) {
-                                proficiencies.armor.push(friendlyName);
-                            } else if (friendlyName.includes('Weapons') || friendlyName.includes('Sword') || friendlyName.includes('Bow')) {
-                                proficiencies.weapons.push(friendlyName);
-                            }
-                        }
-                    } else if (type === 'language') {
-                         proficiencies.languages.push(friendlyName);
-                    }
-                });
-            }
-        });
-
-        for(let i=1; i<=6; i++) {
-            let total = stats[i].override || (stats[i].base + stats[i].bonus);
-            stats[i].total = total;
-            stats[i].mod = Math.floor((total - 10) / 2);
-        }
-
-        let totalLevel = 0;
-        if (charData.classes) {
-            charData.classes.forEach(c => totalLevel += c.level);
-        }
-
-        // --- PARSE INVENTORY ---
-        const equippedItems = [];
-        const backpackItems = [];
-        let wealth = { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 };
-        
-        if (charData.currencies) wealth = charData.currencies;
-
-        if (charData.inventory && Array.isArray(charData.inventory)) {
-            charData.inventory.forEach(item => {
-                const name = item.definition?.name || 'Unknown Item';
-                const qty = item.quantity > 1 ? ` (x${item.quantity})` : '';
-                const itemString = `${name}${qty}`;
-                if (item.equipped) {
-                    equippedItems.push(itemString);
-                } else {
-                    backpackItems.push(itemString);
-                }
-            });
-        }
-
-        const wealthStr = `${wealth.cp}cp, ${wealth.sp}sp, ${wealth.ep}ep, ${wealth.gp}gp, ${wealth.pp}pp`;
-        
-        const savesArr = [];
-        for (let i = 1; i <= 6; i++) {
-            if (proficiencies.saves[i]) savesArr.push(stats[i].name);
-        }
-
-        const skillsArr = [];
-        Object.keys(skillAbilities).forEach(skillKey => {
-            const profMultiplier = proficiencies.skills[skillKey] || (halfProficiency ? 0.5 : 0);
-            if (profMultiplier > 0) skillsArr.push(formatName(skillKey));
-        });
-
-        const sizeId = charData.race?.sizeId || charData.sizeId;
-        const finalSize = sizeMap[sizeId] || charData.size || '';
-
-        const newPC = {
+        window.appData.tempDdbImport = {
+            ...parsedData,
             id: generateId(),
-            name: charData.name || 'Unknown',
             ddbId: characterId,
-            race: charData.race?.fullName || charData.race?.baseName || '',
-            classLevel: charData.classes?.map(c => `${c.definition?.name} ${c.level}`).join(' / ') || '',
-            background: charData.background?.definition?.name || (charData.background?.customBackground ? charData.background.customBackground.name : ''),
-            alignment: alignmentMap[charData.alignmentId] || '', 
-            faith: charData.faith || '',
-            gender: charData.gender || '',
-            age: charData.age || '',
-            size: finalSize,
-            height: charData.height || '',
-            weight: charData.weight || '',
-            eyes: charData.eyes || '',
-            hair: charData.hair || '',
-            skin: charData.skin || '',
-            image: charData.avatarUrl || charData.decorations?.avatarUrl || '',
-            
-            str: stats[1].total, dex: stats[2].total, con: stats[3].total, 
-            int: stats[4].total, wis: stats[5].total, cha: stats[6].total,
-            
-            saves: savesArr.join(', '),
-            skills: skillsArr.join(', '),
-            proficiencies: [...new Set([...proficiencies.weapons, ...proficiencies.armor, ...proficiencies.tools, ...proficiencies.languages])].join(', '),
-            
-            wealth: wealthStr,
-            equipped: equippedItems.join('\n'),
-            backpack: backpackItems.join('\n'),
-            
-            traits: stripHtml(charData.traits?.personalityTraits),
-            ideals: stripHtml(charData.traits?.ideals),
-            bonds: stripHtml(charData.traits?.bonds),
-            flaws: stripHtml(charData.traits?.flaws),
-            appearance: stripHtml(charData.traits?.appearance),
-            backstory: stripHtml(charData.notes?.backstory),
-            organizations: stripHtml(charData.notes?.organizations),
-            allies: stripHtml(charData.notes?.allies),
-            enemies: stripHtml(charData.notes?.enemies),
-            
             playerId: '', inspiration: 0, automaticSuccess: false, availableDowntime: 0, downtimeLog: ''
         };
 
-        window.appData.tempDdbImport = newPC;
-
         let analysis = `✅ Character Successfully Fetched via API.\n\n`;
-        analysis += `Name: ${newPC.name}\n`;
-        analysis += `Race: ${newPC.race}\n`;
-        analysis += `Class: ${newPC.classLevel}\n\n`;
+        analysis += `Name: ${parsedData.name}\n`;
+        analysis += `Race: ${parsedData.race}\n`;
+        analysis += `Class: ${parsedData.classLevel}\n\n`;
         
-        analysis += `STR: ${newPC.str} | DEX: ${newPC.dex} | CON: ${newPC.con}\n`;
-        analysis += `INT: ${newPC.int} | WIS: ${newPC.wis} | CHA: ${newPC.cha}\n\n`;
+        analysis += `STR: ${parsedData.str} | DEX: ${parsedData.dex} | CON: ${parsedData.con}\n`;
+        analysis += `INT: ${parsedData.int} | WIS: ${parsedData.wis} | CHA: ${parsedData.cha}\n\n`;
         
-        analysis += `Saving Throws: ${newPC.saves || 'None'}\n`;
-        analysis += `Skills: ${newPC.skills || 'None'}\n`;
-        analysis += `Proficiencies: ${newPC.proficiencies || 'None'}\n\n`;
+        analysis += `Saving Throws: ${parsedData.saves || 'None'}\n`;
+        analysis += `Skills: ${parsedData.skills || 'None'}\n`;
+        analysis += `Proficiencies: ${parsedData.proficiencies || 'None'}\n\n`;
         
-        analysis += `Wealth: ${newPC.wealth}\n`;
-        analysis += `Equipment: ${equippedItems.length} items equipped, ${backpackItems.length} in backpack.\n`;
+        analysis += `Wealth: ${parsedData.wealth}\n`;
+        
+        const eqCount = parsedData.equipped ? parsedData.equipped.split('\n').length : 0;
+        const bpCount = parsedData.backpack ? parsedData.backpack.split('\n').length : 0;
+        analysis += `Equipment: ${eqCount} items equipped, ${bpCount} in backpack.\n`;
 
         output.innerHTML = `
             <div class="text-green-400 whitespace-pre-wrap mb-4">${analysis}</div>
             <button onclick="window.appActions.executeDndBeyondImport()" class="w-full py-3 bg-emerald-700 text-white rounded-sm hover:bg-emerald-600 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md">
-                <i class="fa-solid fa-user-check mr-2"></i> Import ${newPC.name} into Campaign
+                <i class="fa-solid fa-user-check mr-2"></i> Import ${parsedData.name} into Campaign
             </button>
         `;
         
@@ -1174,8 +1138,8 @@ export const executeDndBeyondImport = async () => {
 
     document.getElementById('global-popup-container').innerHTML = '';
     window.appData.tempDdbImport = null;
-    window.appActions.setView('pc-manager');
-    notify(`${newPC.name} successfully imported!`, "success");
+    notify("Hero imported successfully.", "success");
+    reRender(true);
 };
 
 export const quickSyncDDB = async (pcId) => {
@@ -1183,20 +1147,36 @@ export const quickSyncDDB = async (pcId) => {
     const camp = window.appData.activeCampaign;
     if (!camp) return;
 
-    const pc = camp.playerCharacters?.find(p => p.id === pcId);
-    if (!pc || !pc.ddbId) {
-        notify("No D&D Beyond ID found for this hero.", "error");
+    let ddbIdToUse = "";
+    const isEditView = window.appData.currentView === 'pc-edit';
+    
+    if (isEditView) {
+        const inputEl = document.getElementById('pc-edit-ddb-id');
+        if (inputEl && inputEl.value.trim()) {
+            ddbIdToUse = inputEl.value.trim();
+        }
+    } 
+    
+    if (!ddbIdToUse) {
+        const pc = camp.playerCharacters?.find(p => p.id === pcId);
+        if (pc && pc.ddbId) {
+            ddbIdToUse = pc.ddbId;
+        }
+    }
+
+    if (!ddbIdToUse) {
+        notify("No D&D Beyond ID or URL found for this hero. Enter one and try again.", "error");
         return;
     }
 
-    const match = pc.ddbId.match(/\/characters?\/(\d+)/i) || pc.ddbId.match(/^(\d+)$/);
+    const match = ddbIdToUse.match(/\/characters?\/(\d+)/i) || ddbIdToUse.match(/^(\d+)$/);
     if (!match) {
-        notify("Invalid D&D Beyond ID format.", "error");
+        notify("Invalid D&D Beyond ID or URL format.", "error");
         return;
     }
     const characterId = match[1];
 
-    notify("Fetching updates from D&D Beyond...", "info");
+    notify("Syncing with D&D Beyond...", "info");
 
     try {
         const apiUrl = `https://character-service.dndbeyond.com/character/v5/character/${characterId}`;
@@ -1204,128 +1184,99 @@ export const quickSyncDDB = async (pcId) => {
 
         try {
             const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(apiUrl)}`);
-            if (!response.ok) throw new Error(`Proxy 1 failed with status ${response.status}`);
+            if (!response.ok) throw new Error(`Proxy 1 failed`);
             ddbData = await response.json();
-        } catch (proxy1Err) {
+        } catch (p1Err) {
             const response2 = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(apiUrl)}`);
-            if (!response2.ok) throw new Error(`Proxy 2 failed with status ${response2.status}`);
+            if (!response2.ok) throw new Error(`Proxy 2 failed`);
             ddbData = await response2.json();
         }
 
         if (!ddbData || !ddbData.success || !ddbData.data) {
-            throw new Error("Invalid data returned.");
+            throw new Error("D&D Beyond returned an unexpected data structure.");
         }
 
-        const charData = ddbData.data;
+        const parsedData = parseDDBCharacter(ddbData.data);
+        parsedData.ddbId = characterId;
 
-        const statModMap = { 'strength-score': 1, 'dexterity-score': 2, 'constitution-score': 3, 'intelligence-score': 4, 'wisdom-score': 5, 'charisma-score': 6 };
-        const skillAbilities = { 'athletics': 1, 'acrobatics': 2, 'sleight-of-hand': 2, 'stealth': 2, 'arcana': 4, 'history': 4, 'investigation': 4, 'nature': 4, 'religion': 4, 'animal-handling': 5, 'insight': 5, 'medicine': 5, 'perception': 5, 'survival': 5, 'deception': 6, 'intimidation': 6, 'performance': 6, 'persuasion': 6 };
-        const formatName = (str) => str.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-        const stripHtml = (html) => html ? html.replace(/<[^>]*>?/gm, '').trim() : '';
-
-        const stats = { 1: {name: 'STR', base: 10, bonus: 0, override: 0}, 2: {name: 'DEX', base: 10, bonus: 0, override: 0}, 3: {name: 'CON', base: 10, bonus: 0, override: 0}, 4: {name: 'INT', base: 10, bonus: 0, override: 0}, 5: {name: 'WIS', base: 10, bonus: 0, override: 0}, 6: {name: 'CHA', base: 10, bonus: 0, override: 0} };
-        charData.stats?.forEach(s => { if(stats[s.id]) stats[s.id].base = s.value; });
-        charData.overrideStats?.forEach(s => { if(stats[s.id] && s.value) stats[s.id].override = s.value; });
-        
-        let proficiencies = { saves: {}, skills: {}, weapons: [], armor: [], tools: [], languages: [] };
-        let halfProficiency = false;
-
-        Object.values(charData.modifiers || {}).forEach(modArr => {
-            if (Array.isArray(modArr)) {
-                modArr.forEach(mod => {
-                    const subType = mod.subType || '';
-                    const type = mod.type || '';
-                    const friendlyName = mod.friendlySubtypeName || formatName(subType);
-                    if (type === 'bonus' && statModMap[subType]) stats[statModMap[subType]].bonus += mod.value;
-                    if (type === 'half-proficiency' && subType === 'ability-checks') halfProficiency = true;
-                    if (type === 'proficiency' || type === 'expertise') {
-                        const profVal = type === 'expertise' ? 2 : 1;
-                        if (subType.includes('saving-throws')) {
-                            const statId = statModMap[subType.replace('-saving-throws', '-score')];
-                            if (statId) proficiencies.saves[statId] = profVal;
-                        } else if (skillAbilities[subType]) {
-                            proficiencies.skills[subType] = Math.max(proficiencies.skills[subType] || 0, profVal);
-                        } else if (type === 'language') {
-                             proficiencies.languages.push(friendlyName);
-                        } else if (subType.includes('armor') || subType === 'shields') {
-                            proficiencies.armor.push(friendlyName);
-                        } else if (subType.includes('weapons') || subType.includes('sword') || subType.includes('bow') || subType.includes('axe') || subType.includes('hammer') || subType.includes('mace') || subType.includes('crossbow')) {
-                             proficiencies.weapons.push(friendlyName);
-                        } else if (subType.includes('tools') || subType.includes('kit') || subType.includes('supplies') || subType.includes('instrument') || subType.includes('vehicles') || subType.includes('utensils')) {
-                             proficiencies.tools.push(friendlyName);
-                        } else {
-                            if (friendlyName.includes('Armor') || friendlyName.includes('Shield')) proficiencies.armor.push(friendlyName);
-                            else if (friendlyName.includes('Weapons') || friendlyName.includes('Sword') || friendlyName.includes('Bow')) proficiencies.weapons.push(friendlyName);
-                        }
-                    } else if (type === 'language') {
-                         proficiencies.languages.push(friendlyName);
-                    }
-                });
+        if (isEditView) {
+            const setVal = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined) el.value = val; };
+            
+            setVal('pc-edit-name', parsedData.name);
+            setVal('pc-edit-race', parsedData.race);
+            setVal('pc-edit-class', parsedData.classLevel);
+            setVal('pc-edit-background', parsedData.background);
+            setVal('pc-edit-alignment', parsedData.alignment);
+            setVal('pc-edit-faith', parsedData.faith);
+            setVal('pc-edit-gender', parsedData.gender);
+            setVal('pc-edit-age', parsedData.age);
+            setVal('pc-edit-size', parsedData.size);
+            setVal('pc-edit-height', parsedData.height);
+            setVal('pc-edit-weight', parsedData.weight);
+            setVal('pc-edit-eyes', parsedData.eyes);
+            setVal('pc-edit-hair', parsedData.hair);
+            setVal('pc-edit-skin', parsedData.skin);
+            
+            if (parsedData.image && !document.getElementById('pc-edit-image').value) {
+                setVal('pc-edit-image', parsedData.image);
             }
-        });
-
-        for(let i=1; i<=6; i++) {
-            let total = stats[i].override || (stats[i].base + stats[i].bonus);
-            stats[i].total = total;
-        }
-
-        const equippedItems = [];
-        const backpackItems = [];
-        let wealth = charData.currencies || { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 };
-
-        if (charData.inventory && Array.isArray(charData.inventory)) {
-            charData.inventory.forEach(item => {
-                const name = item.definition?.name || 'Unknown Item';
-                const qty = item.quantity > 1 ? ` (x${item.quantity})` : '';
-                const itemString = `${name}${qty}`;
-                if (item.equipped) equippedItems.push(itemString);
-                else backpackItems.push(itemString);
+            
+            setVal('pc-edit-str', parsedData.str);
+            setVal('pc-edit-dex', parsedData.dex);
+            setVal('pc-edit-con', parsedData.con);
+            setVal('pc-edit-int', parsedData.int);
+            setVal('pc-edit-wis', parsedData.wis);
+            setVal('pc-edit-cha', parsedData.cha);
+            
+            setVal('pc-edit-saves', parsedData.saves);
+            setVal('pc-edit-skills', parsedData.skills);
+            setVal('pc-edit-proficiencies', parsedData.proficiencies);
+            setVal('pc-edit-wealth', parsedData.wealth);
+            
+            setVal('input-pc-edit-traits', parsedData.traits);
+            setVal('input-pc-edit-ideals', parsedData.ideals);
+            setVal('input-pc-edit-bonds', parsedData.bonds);
+            setVal('input-pc-edit-flaws', parsedData.flaws);
+            setVal('input-pc-edit-appearance', parsedData.appearance);
+            setVal('input-pc-edit-backstory', parsedData.backstory);
+            setVal('input-pc-edit-organizations', parsedData.organizations);
+            setVal('input-pc-edit-allies', parsedData.allies);
+            setVal('input-pc-edit-enemies', parsedData.enemies);
+            setVal('input-pc-edit-equipped', parsedData.equipped);
+            setVal('input-pc-edit-backpack', parsedData.backpack);
+            
+            notify("Fields populated! Click 'Inscribe' when ready to save.", "success");
+            
+            const zenDivs = ['traits', 'ideals', 'bonds', 'flaws', 'appearance', 'backstory', 'organizations', 'allies', 'enemies', 'equipped', 'backpack'];
+            zenDivs.forEach(z => {
+                const viewDiv = document.getElementById(`view-input-pc-edit-${z}`);
+                if (viewDiv) viewDiv.innerHTML = parsedData[z] ? window.appActions.parseSmartText(parsedData[z]) : '<span class="text-stone-400 italic">No entry provided...</span>';
             });
-        }
+        } 
+        else {
+            const pc = camp.playerCharacters?.find(p => p.id === pcId);
+            if (!pc) return;
 
-        const wealthStr = `${wealth.cp}cp, ${wealth.sp}sp, ${wealth.ep}ep, ${wealth.gp}gp, ${wealth.pp}pp`;
-        
-        const savesArr = [];
-        for (let i = 1; i <= 6; i++) {
-            if (proficiencies.saves[i]) savesArr.push(stats[i].name);
-        }
+            const mergedPC = {
+                ...pc,
+                ...parsedData,
+                image: parsedData.image || pc.image || '',
+                appearance: parsedData.appearance || pc.appearance || '',
+                backstory: parsedData.backstory || pc.backstory || '',
+            };
 
-        const skillsArr = [];
-        Object.keys(skillAbilities).forEach(skillKey => {
-            const profMultiplier = proficiencies.skills[skillKey] || (halfProficiency ? 0.5 : 0);
-            if (profMultiplier > 0) skillsArr.push(formatName(skillKey));
-        });
+            const updatedPCs = camp.playerCharacters.map(p => p.id === pcId ? mergedPC : p);
+            
+            let updatedCamp = { ...camp, playerCharacters: updatedPCs };
+            updatedCamp = logPlayerActivity(updatedCamp, window.appData.currentUserUid, `synced <span class="font-bold text-amber-700">${mergedPC.name}</span> with D&D Beyond.`, 'fa-cloud-arrow-down');
 
-        const updatedPC = {
-            ...pc,
-            name: charData.name || pc.name,
-            classLevel: charData.classes?.map(c => `${c.definition?.name} ${c.level}`).join(' / ') || pc.classLevel,
-            image: charData.avatarUrl || charData.decorations?.avatarUrl || pc.image,
-            str: stats[1].total, dex: stats[2].total, con: stats[3].total, 
-            int: stats[4].total, wis: stats[5].total, cha: stats[6].total,
-            saves: savesArr.join(', '),
-            skills: skillsArr.join(', '),
-            proficiencies: [...new Set([...proficiencies.weapons, ...proficiencies.armor, ...proficiencies.tools, ...proficiencies.languages])].join(', '),
-            wealth: wealthStr,
-            equipped: equippedItems.join('\n'),
-            backpack: backpackItems.join('\n'),
-            appearance: stripHtml(charData.traits?.appearance) || pc.appearance,
-            backstory: stripHtml(charData.notes?.backstory) || pc.backstory
-        };
-
-        const updatedPCs = camp.playerCharacters.map(p => p.id === pcId ? updatedPC : p);
-        const updatedCamp = { ...camp, playerCharacters: updatedPCs };
-
-        await saveCampaign(updatedCamp);
-        notify(`${pc.name} successfully synced with D&D Beyond.`, "success");
-        
-        // If the user happens to have the edit screen open, force it to refresh
-        if (window.appData.currentView === 'pc-edit' && window.appData.activePcId === pcId) {
+            await saveCampaign(updatedCamp);
+            notify(`${mergedPC.name} synced perfectly.`, "success");
             reRender(true);
         }
 
     } catch (e) {
         console.error(e);
-        notify("Sync failed: " + e.message, "error");
+        notify("Failed to sync: " + e.message, "error");
     }
 };
