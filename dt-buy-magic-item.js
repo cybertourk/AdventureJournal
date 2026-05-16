@@ -427,6 +427,18 @@ export const executeBuyMagicItem = async () => {
     let resultHeader = "";
     let resultBody = "";
 
+    // --- NEW: Generate D&D Beyond Sync Tasks ---
+    let newTasks = [];
+    if (gold > 0) {
+        newTasks.push({
+            id: generateId(),
+            text: `D&D Beyond Sync (${pc.name}): Deduct ${gold} gp for magic item search expenses.`,
+            resolvedBy: [],
+            visibility: { mode: pc.playerId ? 'specific' : 'public', visibleTo: pc.playerId ? [pc.playerId] : [] },
+            timestamp: Date.now()
+        });
+    }
+
     if (isSpecific) {
         resultHeader = `**Objective:** Searching for ${itemName}`;
         const dcMap = { "common": 10, "uncommon": 15, "rare": 20, "very-rare": 25, "legendary": 30 };
@@ -435,6 +447,15 @@ export const executeBuyMagicItem = async () => {
         if (checkTotal >= dc) {
             const finalPrice = calculateCustomPrice(itemName, itemRarity);
             resultBody = `✅ **Success!** You found a seller for the **${itemName}** (DC ${dc}).\n> Asking Price: **${finalPrice.toLocaleString()} gp**`;
+            
+            // Add purchase task
+            newTasks.push({
+                id: generateId(),
+                text: `D&D Beyond Sync (${pc.name}): If purchased, deduct ${finalPrice.toLocaleString()} gp and add '${itemName}' to inventory.`,
+                resolvedBy: [],
+                visibility: { mode: pc.playerId ? 'specific' : 'public', visibleTo: pc.playerId ? [pc.playerId] : [] },
+                timestamp: Date.now() + 1
+            });
         } else {
             resultBody = `❌ **Failure.** You could not locate a seller for the **${itemName}** (DC ${dc}).`;
         }
@@ -536,6 +557,15 @@ export const executeBuyMagicItem = async () => {
             });
             
             resultBody = `✅ **Success!** You found a seller offering the following items (Table ${tableLetter}):${itemsStr}`;
+            
+            // Add general purchase task
+            newTasks.push({
+                id: generateId(),
+                text: `D&D Beyond Sync (${pc.name}): Review search results. Deduct gold and add any purchased magic items to your inventory.`,
+                resolvedBy: [],
+                visibility: { mode: pc.playerId ? 'specific' : 'public', visibleTo: pc.playerId ? [pc.playerId] : [] },
+                timestamp: Date.now() + 1
+            });
         } else {
             resultBody = `❌ **Failure.** Your search yielded no results.`;
         }
@@ -557,7 +587,11 @@ export const executeBuyMagicItem = async () => {
         } : p
     );
 
-    let updatedCamp = { ...camp, playerCharacters: updatedPCs };
+    let updatedCamp = { 
+        ...camp, 
+        playerCharacters: updatedPCs,
+        sheetUpdates: [...(camp.sheetUpdates || []), ...newTasks]
+    };
     updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime searching for magic items with <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-gem');
 
     await saveCampaign(updatedCamp);
