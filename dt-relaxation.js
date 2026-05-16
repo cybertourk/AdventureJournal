@@ -240,6 +240,18 @@ export const executeRelaxation = async () => {
     const timestampStr = new Date().toLocaleDateString();
     const logAddition = `${pc.downtimeLog ? '\n\n---\n\n' : ''}**Logged on ${timestampStr}**\n${noteText}`;
 
+    // --- GENERATE SYNC TASKS ---
+    let newTasks = [];
+    if (totalCostNum > 0) {
+        newTasks.push({
+            id: generateId(),
+            text: `D&D Beyond Sync (${pc.name}): Deduct ${costStr} for lifestyle expenses.`,
+            resolvedBy: [],
+            visibility: { mode: pc.playerId ? 'specific' : 'public', visibleTo: pc.playerId ? [pc.playerId] : [] },
+            timestamp: Date.now()
+        });
+    }
+
     const updatedPCs = camp.playerCharacters.map(p => 
         p.id === pc.id ? { 
             ...p, 
@@ -248,7 +260,11 @@ export const executeRelaxation = async () => {
         } : p
     );
 
-    let updatedCamp = { ...camp, playerCharacters: updatedPCs };
+    let updatedCamp = { 
+        ...camp, 
+        playerCharacters: updatedPCs,
+        sheetUpdates: [...(camp.sheetUpdates || []), ...newTasks]
+    };
     updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime relaxing in ${loc} with <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-bed');
 
     await saveCampaign(updatedCamp);
