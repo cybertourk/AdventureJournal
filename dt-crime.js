@@ -399,6 +399,7 @@ export const executeCrime = async (actionType = 'new') => {
     let logAddition = "";
     let daysToDeduct = 0;
     let recordsDict = { ...(pc.crimeRecords || {}) };
+    let newTasks = [];
 
     if (isResuming) {
         // --- PROCESS SENTENCE RESOLUTION ---
@@ -416,6 +417,15 @@ export const executeCrime = async (actionType = 'new') => {
             let resText = `**Downtime: Bribed Authorities**\n*Hero:* ${pc.name}\n\n**Crime:** ${rec.desc} at ${rec.loc}\n`;
             resText += `**Gold Spent:** ${bribeCost.toLocaleString()} gp (${fineRem.toLocaleString()} gp towards fine, ${(jailRem * 10).toLocaleString()} gp in bribes)\n\n`;
             resText += `✅ **Debt to Society Cleared!** You paid off the authorities and your record was expunged.`;
+
+            // NEW TASK: Deduct Bribe/Fine combo
+            newTasks.push({
+                id: generateId(),
+                text: `D&D Beyond Sync (${pc.name}): Deduct ${bribeCost.toLocaleString()} gp for bribes and legal fines.`,
+                resolvedBy: [],
+                visibility: { mode: pc.playerId ? 'specific' : 'public', visibleTo: pc.playerId ? [pc.playerId] : [] },
+                timestamp: Date.now()
+            });
 
             delete recordsDict[recordId]; // Erase the record when bribed
 
@@ -449,6 +459,17 @@ export const executeCrime = async (actionType = 'new') => {
             if (serveDays > 0) resText += `**Downtime Spent:** ${serveDays} Days in Jail\n`;
             if (finePaid > 0) resText += `**Gold Spent:** ${finePaid.toLocaleString()} gp towards fine\n`;
             resText += `\n`;
+
+            if (finePaid > 0) {
+                // NEW TASK: Deduct specific fine payment
+                newTasks.push({
+                    id: generateId(),
+                    text: `D&D Beyond Sync (${pc.name}): Deduct ${finePaid.toLocaleString()} gp for legal fines.`,
+                    resolvedBy: [],
+                    visibility: { mode: pc.playerId ? 'specific' : 'public', visibleTo: pc.playerId ? [pc.playerId] : [] },
+                    timestamp: Date.now()
+                });
+            }
 
             if (isComplete) {
                 resText += `✅ **Debt to Society Paid!** You have completely resolved your sentence for this crime.`;
@@ -507,6 +528,15 @@ export const executeCrime = async (actionType = 'new') => {
         let resultHeader = `**Crime:** ${desc} at ${loc} (DC ${dc})`;
         let resultBody = ``;
         let complicationText = ``;
+        
+        // NEW TASK: Always deduct the upfront expense
+        newTasks.push({
+            id: generateId(),
+            text: `D&D Beyond Sync (${pc.name}): Deduct 25 gp for heist expenses.`,
+            resolvedBy: [],
+            visibility: { mode: pc.playerId ? 'specific' : 'public', visibleTo: pc.playerId ? [pc.playerId] : [] },
+            timestamp: Date.now()
+        });
 
         if (successes === 0) {
             const fine = payoutMax;
@@ -532,10 +562,27 @@ export const executeCrime = async (actionType = 'new') => {
             resultBody = `❌ **Failure (1 Success)**\n\nYou failed to secure the loot, but you managed to escape without being caught.`;
         } 
         else if (successes === 2) {
-            resultBody = `⚠️ **Partial Success (2 Successes)**\n\nThings got messy, but you made off with loot worth **${payoutMax / 2} gp**.`;
+            const earnings = payoutMax / 2;
+            resultBody = `⚠️ **Partial Success (2 Successes)**\n\nThings got messy, but you made off with loot worth **${earnings} gp**.`;
+            // NEW TASK: Add earnings
+            newTasks.push({
+                id: generateId(),
+                text: `D&D Beyond Sync (${pc.name}): Add ${earnings.toLocaleString()} gp earned from the heist.`,
+                resolvedBy: [],
+                visibility: { mode: pc.playerId ? 'specific' : 'public', visibleTo: pc.playerId ? [pc.playerId] : [] },
+                timestamp: Date.now()
+            });
         } 
         else if (successes === 3) {
             resultBody = `✅ **Full Success (3 Successes)**\n\nA perfect heist! You earn the full loot of **${payoutMax} gp**.`;
+            // NEW TASK: Add earnings
+            newTasks.push({
+                id: generateId(),
+                text: `D&D Beyond Sync (${pc.name}): Add ${payoutMax.toLocaleString()} gp earned from the heist.`,
+                resolvedBy: [],
+                visibility: { mode: pc.playerId ? 'specific' : 'public', visibleTo: pc.playerId ? [pc.playerId] : [] },
+                timestamp: Date.now()
+            });
         }
 
         if (successes === 1 || (successes === 2 && isRival)) {
@@ -573,7 +620,11 @@ export const executeCrime = async (actionType = 'new') => {
         } : p
     );
 
-    let updatedCamp = { ...camp, playerCharacters: updatedPCs };
+    let updatedCamp = { 
+        ...camp, 
+        playerCharacters: updatedPCs,
+        sheetUpdates: [...(camp.sheetUpdates || []), ...newTasks] 
+    };
     
     if (isResuming) {
         updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime resolving a criminal sentence with <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-gavel');
