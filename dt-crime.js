@@ -109,7 +109,7 @@ export const openCrimeModal = () => {
                             </div>
                             <div>
                                 <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">
-                                    <select id="dt-crime-third-skill" class="bg-transparent outline-none font-bold text-stone-500 hover:text-stone-800 transition cursor-pointer">
+                                    <select id="dt-crime-third-skill" onchange="window.appActions.updateCrimeMath('skill')" class="bg-transparent outline-none font-bold text-stone-500 hover:text-stone-800 transition cursor-pointer">
                                         <option value="Investigation">Investigation</option>
                                         <option value="Perception">Perception</option>
                                         <option value="Deception">Deception</option>
@@ -225,6 +225,45 @@ export const updateCrimeMath = (triggerSource = 'input') => {
     const resConfigDiv = document.getElementById('dt-crime-resolve-config');
     const clearBtn = document.getElementById('dt-crime-clear-btn');
     const submitBtn = document.getElementById('dt-crime-submit-btn');
+
+    // --- AUTO-CALCULATE MODIFIERS ---
+    if (triggerSource === 'pc' || triggerSource === 'init' || triggerSource === 'skill') {
+        const getAbilityMod = (score) => Math.floor(((parseInt(score) || 10) - 10) / 2);
+        let pb = 2;
+        if (pc.classLevel) {
+            const levels = pc.classLevel.match(/\d+/g);
+            if (levels) pb = Math.max(2, Math.ceil(levels.reduce((a, b) => a + parseInt(b), 0) / 4) + 1);
+        }
+        
+        const getSkillMod = (statScore, skillName) => {
+            const mod = getAbilityMod(statScore);
+            let isProf = false, isExp = false;
+            const cleanSkill = skillName.toLowerCase();
+            const profStr = ((pc.skills || '') + ',' + (pc.proficiencies || '')).toLowerCase();
+            const checkArr = profStr.split(',').map(s => s.trim());
+            const match = checkArr.find(s => s.includes(cleanSkill));
+            if (match) {
+                isProf = true;
+                if (match.includes('expertise')) isExp = true;
+            }
+            return mod + (isExp ? pb * 2 : (isProf ? pb : 0));
+        };
+
+        const stealthEl = document.getElementById('dt-crime-stealth');
+        const toolsEl = document.getElementById('dt-crime-tools');
+        const thirdSkillEl = document.getElementById('dt-crime-third-skill');
+        const thirdModEl = document.getElementById('dt-crime-third-mod');
+
+        if (stealthEl) stealthEl.value = getSkillMod(pc.dex, 'stealth');
+        if (toolsEl) toolsEl.value = getSkillMod(pc.dex, 'thieves');
+        
+        if (thirdSkillEl && thirdModEl) {
+            const thirdChoice = thirdSkillEl.value;
+            if (thirdChoice === 'Investigation') thirdModEl.value = getSkillMod(pc.int, 'investigation');
+            else if (thirdChoice === 'Perception') thirdModEl.value = getSkillMod(pc.wis, 'perception');
+            else if (thirdChoice === 'Deception') thirdModEl.value = getSkillMod(pc.cha, 'deception');
+        }
+    }
 
     // Rebuild Sentences Dropdown if PC changed
     const records = pc.crimeRecords || {};
