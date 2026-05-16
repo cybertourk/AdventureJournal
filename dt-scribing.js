@@ -63,6 +63,12 @@ export const openScribingModal = () => {
                             <li><b>Step 4:</b> Log your days! High-level scrolls take months to complete, so your progress will be safely banked until finished.</li>
                         </ul>
                     </div>
+                    
+                    <!-- Arcana Proficiency Warning -->
+                    <div id="dt-scribe-arcana-warning" class="hidden mb-5 bg-red-50 border border-red-200 p-3 rounded-sm shadow-sm flex items-center gap-3">
+                        <i class="fa-solid fa-triangle-exclamation text-red-600 text-lg"></i>
+                        <p class="text-[10px] sm:text-xs text-red-900 font-bold uppercase tracking-widest leading-snug">Warning: This hero lacks proficiency in the Arcana skill, which is required to scribe spell scrolls.</p>
+                    </div>
 
                     <!-- Basic Setup & Project Selection -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
@@ -297,6 +303,19 @@ export const updateScribingMath = (triggerSource = 'input') => {
     const projectSelect = document.getElementById('dt-scribe-project');
     const newConfigDiv = document.getElementById('dt-scribe-new-config');
     const abandonBtn = document.getElementById('dt-scribe-abandon-btn');
+
+    // --- ARCANA CHECK ---
+    if (triggerSource === 'init' || triggerSource === 'pc') {
+        const warningEl = document.getElementById('dt-scribe-arcana-warning');
+        if (warningEl && pc) {
+            const profsStr = ((pc.skills || '') + ',' + (pc.proficiencies || '')).toLowerCase();
+            if (profsStr.includes('arcana')) {
+                warningEl.classList.add('hidden');
+            } else {
+                warningEl.classList.remove('hidden');
+            }
+        }
+    }
 
     // UNLOCK RECIPE FIELDS IF SWITCHING HEROES OR MANUALLY STARTING A NEW PROJECT
     if (triggerSource === 'init' || triggerSource === 'project' || triggerSource === 'pc') {
