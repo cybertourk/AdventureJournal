@@ -46,7 +46,7 @@ export const openGamblingModal = () => {
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Select Hero</label>
-                            <select id="dt-gamble-pc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 bg-white shadow-inner">
+                            <select id="dt-gamble-pc" onchange="window.appActions.updateGamblingMath('pc')" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 bg-white shadow-inner">
                                 ${validPCs.map(pc => {
                                     const currentDays = parseInt(pc.availableDowntime) || 0;
                                     return `<option value="${pc.id}">${pc.name} (${currentDays} Days)</option>`;
@@ -152,7 +152,61 @@ export const openGamblingModal = () => {
     }, 50);
 };
 
-export const updateGamblingMath = (val, source) => {
+export const updateGamblingMath = (triggerSource = 'input') => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    const pcId = document.getElementById('dt-gamble-pc')?.value;
+    const pc = camp?.playerCharacters?.find(p => p.id === pcId);
+
+    // --- AUTO-CALCULATE MODIFIER ---
+    if (pc && (triggerSource === 'init' || triggerSource === 'pc')) {
+        const getAbilityMod = (score) => Math.floor(((parseInt(score) || 10) - 10) / 2);
+        let pb = 2;
+        if (pc.classLevel) {
+            const levels = pc.classLevel.match(/\d+/g);
+            if (levels) pb = Math.max(2, Math.ceil(levels.reduce((a, b) => a + parseInt(b), 0) / 4) + 1);
+        }
+        
+        const getSkillMod = (statScore, skillName) => {
+            const mod = getAbilityMod(statScore);
+            let isProf = false, isExp = false;
+            const cleanSkill = skillName.toLowerCase();
+            const profStr = ((pc.skills || '') + ',' + (pc.proficiencies || '')).toLowerCase();
+            const checkArr = profStr.split(',').map(s => s.trim());
+            const match = checkArr.find(s => s.includes(cleanSkill));
+            if (match) {
+                isProf = true;
+                if (match.includes('expertise')) isExp = true;
+            }
+            return mod + (isExp ? pb * 2 : (isProf ? pb : 0));
+        };
+
+        const insEl = document.getElementById('dt-gamble-ins');
+        const decEl = document.getElementById('dt-gamble-dec');
+        const itmEl = document.getElementById('dt-gamble-itm');
+        const toolEl = document.getElementById('dt-gamble-tool-mod');
+
+        if (insEl) insEl.value = getSkillMod(pc.wis, 'insight');
+        if (decEl) decEl.value = getSkillMod(pc.cha, 'deception');
+        if (itmEl) itmEl.value = getSkillMod(pc.cha, 'intimidation');
+
+        if (toolEl) {
+            // Determine best mental stat for gaming set
+            let bestMentalMod = Math.max(getAbilityMod(pc.int), getAbilityMod(pc.wis), getAbilityMod(pc.cha));
+            let isProf = false, isExp = false;
+            const profStr = ((pc.skills || '') + ',' + (pc.proficiencies || '')).toLowerCase();
+            const checkArr = profStr.split(',').map(s => s.trim());
+            
+            // Check for common gaming sets
+            const match = checkArr.find(s => s.includes('dice') || s.includes('card') || s.includes('chess') || s.includes('gaming set') || s.includes('three-dragon'));
+            if (match) {
+                isProf = true;
+                if (match.includes('expertise')) isExp = true;
+            }
+            toolEl.value = bestMentalMod + (isExp ? pb * 2 : (isProf ? pb : 0));
+        }
+    }
+
     const slider = document.getElementById('dt-gamble-slider');
     const input = document.getElementById('dt-gamble-stake');
     const payoutOut = document.getElementById('dt-gamble-payout-out');
@@ -160,7 +214,7 @@ export const updateGamblingMath = (val, source) => {
     if (!slider || !input || !payoutOut) return;
 
     let stake = 10;
-    if (source === 'slider') {
+    if (triggerSource === 'slider') {
         stake = parseInt(slider.value) || 10;
         input.value = stake;
     } else {
