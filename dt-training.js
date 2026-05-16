@@ -489,6 +489,27 @@ export const executeTraining = async () => {
         }
     }
 
+    // --- DDB SYNC TASKS ---
+    let newTasks = [];
+    if (!isResuming && projectData.cost > 0) {
+        newTasks.push({
+            id: generateId(),
+            text: `D&D Beyond Sync (${pc.name}): Deduct ${projectData.cost.toLocaleString()} gp for training materials.`,
+            resolvedBy: [],
+            visibility: { mode: pc.playerId ? 'specific' : 'public', visibleTo: pc.playerId ? [pc.playerId] : [] },
+            timestamp: Date.now()
+        });
+    }
+    if (isComplete) {
+        newTasks.push({
+            id: generateId(),
+            text: `D&D Beyond Sync (${pc.name}): Add proficiency in ${projectData.subject}.`,
+            resolvedBy: [],
+            visibility: { mode: pc.playerId ? 'specific' : 'public', visibleTo: pc.playerId ? [pc.playerId] : [] },
+            timestamp: Date.now()
+        });
+    }
+
     // Build the log text
     let resultHeader = `**Objective:** Training (${projectData.subject})`;
     let resultBody = isComplete 
@@ -505,7 +526,7 @@ export const executeTraining = async () => {
 
     const timestampStr = new Date().toLocaleDateString();
     
-    // --- UPDATE CHARACTERS ---
+    // --- UPDATE CHARACTERS & CAMPAIGN ---
     const updatedPCs = camp.playerCharacters.map(p => {
         if (p.id === pcId) {
             let projectsDict = { ...(p.trainingProjects || {}) };
@@ -524,7 +545,11 @@ export const executeTraining = async () => {
         return p;
     });
 
-    let updatedCamp = { ...camp, playerCharacters: updatedPCs };
+    let updatedCamp = { 
+        ...camp, 
+        playerCharacters: updatedPCs,
+        sheetUpdates: [...(camp.sheetUpdates || []), ...newTasks] 
+    };
 
     updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime training with <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-graduation-cap');
 
