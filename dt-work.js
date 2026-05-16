@@ -63,8 +63,8 @@ const calculatePCModifier = (pc, skillName) => {
         }
     }
 
-    // 2. Calculate relevant Ability Modifier (Fixed Math.floor bug)
-    const getAbilityMod = (score) => Math.floor(((parseInt(score) || 10) - 10) / 2);
+    // 2. Calculate relevant Ability Modifier
+    const getAbilityMod = (score) => Math.floor((parseInt(score) || 10) - 10) / 2;
     let abilityMod = 0;
     let checkName = skillName.toLowerCase();
     
@@ -153,7 +153,56 @@ export const openWorkModal = () => {
                             <div>
                                 <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Skill / Tool Used</label>
                                 <select id="dt-work-skill-name" onchange="window.appActions.updateWorkMath('skill')" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-orange-700 bg-stone-50 shadow-inner">
-                                    <!-- Populated dynamically via JS to only show proficient tools -->
+                                    <optgroup label="Core Skills">
+                                        <option value="Strength (Athletics)">Strength (Athletics)</option>
+                                        <option value="Dexterity (Acrobatics)">Dexterity (Acrobatics)</option>
+                                        <option value="Charisma (Performance)">Charisma (Performance)</option>
+                                    </optgroup>
+                                    <optgroup label="Artisan's Tools">
+                                        <option value="Alchemist's Supplies">Alchemist's Supplies</option>
+                                        <option value="Brewer's Supplies">Brewer's Supplies</option>
+                                        <option value="Calligrapher's Supplies">Calligrapher's Supplies</option>
+                                        <option value="Carpenter's Tools">Carpenter's Tools</option>
+                                        <option value="Cartographer's Tools">Cartographer's Tools</option>
+                                        <option value="Cobbler's Tools">Cobbler's Tools</option>
+                                        <option value="Cook's Utensils">Cook's Utensils</option>
+                                        <option value="Glassblower's Tools">Glassblower's Tools</option>
+                                        <option value="Jeweler's Tools">Jeweler's Tools</option>
+                                        <option value="Leatherworker's Tools">Leatherworker's Tools</option>
+                                        <option value="Mason's Tools">Mason's Tools</option>
+                                        <option value="Painter's Supplies">Painter's Supplies</option>
+                                        <option value="Potter's Tools">Potter's Tools</option>
+                                        <option value="Smith's Tools">Smith's Tools</option>
+                                        <option value="Tinker's Tools">Tinker's Tools</option>
+                                        <option value="Weaver's Tools">Weaver's Tools</option>
+                                        <option value="Woodcarver's Tools">Woodcarver's Tools</option>
+                                    </optgroup>
+                                    <optgroup label="Other Tools & Kits">
+                                        <option value="Disguise Kit">Disguise Kit</option>
+                                        <option value="Forgery Kit">Forgery Kit</option>
+                                        <option value="Herbalism Kit">Herbalism Kit</option>
+                                        <option value="Navigator's Tools">Navigator's Tools</option>
+                                        <option value="Poisoner's Kit">Poisoner's Kit</option>
+                                        <option value="Thieves' Tools">Thieves' Tools</option>
+                                    </optgroup>
+                                    <optgroup label="Vehicles">
+                                        <option value="Land Vehicles">Land Vehicles</option>
+                                        <option value="Water Vehicles">Water Vehicles</option>
+                                        <option value="Air Vehicles">Air Vehicles</option>
+                                        <option value="Space Vehicles">Space Vehicles</option>
+                                    </optgroup>
+                                    <optgroup label="Musical Instruments">
+                                        <option value="Bagpipes">Bagpipes</option>
+                                        <option value="Drum">Drum</option>
+                                        <option value="Dulcimer">Dulcimer</option>
+                                        <option value="Flute">Flute</option>
+                                        <option value="Lute">Lute</option>
+                                        <option value="Lyre">Lyre</option>
+                                        <option value="Horn">Horn</option>
+                                        <option value="Pan Flute">Pan Flute</option>
+                                        <option value="Shawm">Shawm</option>
+                                        <option value="Viol">Viol</option>
+                                    </optgroup>
                                 </select>
                             </div>
                             <div>
@@ -232,64 +281,7 @@ export const openWorkModal = () => {
 };
 
 export const updateWorkMath = (triggerSource = 'input') => {
-    updateDerivedState();
-    const camp = window.appData.activeCampaign;
-    if (!camp) return;
-    
-    const pcId = document.getElementById('dt-work-pc')?.value;
-    const pc = camp.playerCharacters?.find(p => p.id === pcId);
-    const skillSelect = document.getElementById('dt-work-skill-name');
-    
-    // --- BUILD DYNAMIC PROFICIENCY DROPDOWN ---
-    if (pc && (triggerSource === 'pc' || triggerSource === 'init')) {
-        const currentSkill = skillSelect?.value;
-        let html = `
-            <optgroup label="Core Skills">
-                <option value="Strength (Athletics)">Strength (Athletics)</option>
-                <option value="Dexterity (Acrobatics)">Dexterity (Acrobatics)</option>
-                <option value="Charisma (Performance)">Charisma (Performance)</option>
-            </optgroup>
-        `;
-        
-        const profs = (pc.proficiencies || '').toLowerCase().split(',').map(s => s.replace(' (expertise)', '').trim());
-        let toolsHtml = '';
-        
-        Object.keys(WORK_EXAMPLES).forEach(key => {
-            if (key.includes('Strength') || key.includes('Dexterity') || key.includes('Charisma')) return;
-            
-            const keyLower = key.toLowerCase();
-            const isProf = profs.some(p => {
-                if (p.includes(keyLower) || keyLower.includes(p)) return true;
-                
-                // Fuzzy match DDB's "Vehicles (Land)" vs "Land Vehicles"
-                if (p.includes('vehicles') && keyLower.includes('vehicles')) {
-                    if (p.includes('land') && keyLower.includes('land')) return true;
-                    if (p.includes('water') && keyLower.includes('water')) return true;
-                    if (p.includes('air') && keyLower.includes('air')) return true;
-                    if (p.includes('space') && keyLower.includes('space')) return true;
-                }
-                return false;
-            });
-            
-            if (isProf) {
-                toolsHtml += `<option value="${key}">${key}</option>`;
-            }
-        });
-        
-        if (toolsHtml) {
-            html += `<optgroup label="Proficient Tools & Instruments">${toolsHtml}</optgroup>`;
-        }
-        
-        if (skillSelect) {
-            skillSelect.innerHTML = html;
-            // Preserve selection if it still exists in the newly generated list
-            if (currentSkill && html.includes(`value="${currentSkill}"`)) {
-                skillSelect.value = currentSkill;
-            }
-        }
-    }
-    
-    const skillName = skillSelect?.value;
+    const skillName = document.getElementById('dt-work-skill-name')?.value;
     const workTypeEl = document.getElementById('dt-work-type');
     
     if (skillName && workTypeEl && WORK_EXAMPLES[skillName]) {
@@ -297,10 +289,18 @@ export const updateWorkMath = (triggerSource = 'input') => {
     }
 
     // --- AUTO-CALCULATE MODIFIER ---
-    if (pc && skillName) {
-        const mod = calculatePCModifier(pc, skillName);
-        const modEl = document.getElementById('dt-work-mod');
-        if (modEl) modEl.value = mod;
+    if (triggerSource === 'pc' || triggerSource === 'init' || triggerSource === 'skill') {
+        updateDerivedState();
+        const camp = window.appData.activeCampaign;
+        const pcId = document.getElementById('dt-work-pc')?.value;
+        if (camp && pcId && skillName) {
+            const pc = camp.playerCharacters?.find(p => p.id === pcId);
+            if (pc) {
+                const mod = calculatePCModifier(pc, skillName);
+                const modEl = document.getElementById('dt-work-mod');
+                if (modEl) modEl.value = mod;
+            }
+        }
     }
 };
 
@@ -419,7 +419,23 @@ export const executeWork = async () => {
         } : p
     );
 
-    let updatedCamp = { ...camp, playerCharacters: updatedPCs };
+    // --- GENERATE SYNC TASKS ---
+    let newTasks = [];
+    if (cashValue > 0) {
+        newTasks.push({
+            id: generateId(),
+            text: `D&D Beyond Sync (${pc.name}): Add ${cashValue} gp earned from working.`,
+            resolvedBy: [],
+            visibility: { mode: pc.playerId ? 'specific' : 'public', visibleTo: pc.playerId ? [pc.playerId] : [] },
+            timestamp: Date.now()
+        });
+    }
+
+    let updatedCamp = { 
+        ...camp, 
+        playerCharacters: updatedPCs,
+        sheetUpdates: [...(camp.sheetUpdates || []), ...newTasks]
+    };
 
     updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime working in ${loc} with <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-briefcase');
 
