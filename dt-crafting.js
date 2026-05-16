@@ -433,7 +433,23 @@ export const updateCraftingMath = (triggerSource = 'input') => {
             // Clean out the "(Expertise)" tags so the list is clean
             const skills = (pc.skills || '').split(',').map(s => s.replace(/\(Expertise\)/ig, '').trim()).filter(Boolean);
             const profs = (pc.proficiencies || '').split(',').map(s => s.trim()).filter(Boolean);
-            const allProfs = [...new Set([...skills, ...profs])].sort();
+            
+            const excludedTerms = [
+                'common', 'dwarvish', 'elvish', 'giant', 'gnomish', 'goblin', 'halfling', 'orc',
+                'abyssal', 'celestial', 'draconic', 'deep speech', 'infernal', 'primordial', 'sylvan', 'undercommon',
+                'druidic', "thieves' cant", 'auran', 'aquan', 'ignan', 'terran', 'telepathy',
+                'light armor', 'medium armor', 'heavy armor', 'shields', 'simple weapons', 'martial weapons'
+            ];
+
+            const allProfs = [...new Set([...skills, ...profs])]
+                .filter(p => {
+                    const pl = p.toLowerCase();
+                    if (excludedTerms.includes(pl)) return false;
+                    if (pl.includes(' armor') || pl.includes(' weapons') || pl === 'shields') return false;
+                    if (pl.includes('language')) return false;
+                    return true;
+                })
+                .sort();
             
             let html = '<option value="">-- Select Proficiency --</option>';
             allProfs.forEach(p => {
