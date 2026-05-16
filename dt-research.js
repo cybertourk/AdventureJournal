@@ -35,7 +35,7 @@ export const openResearchModal = () => {
                     <div class="bg-teal-900/5 border border-teal-900/20 p-4 rounded-sm shadow-sm mb-5">
                         <h3 class="text-xs font-bold text-teal-900 uppercase tracking-widest mb-2"><i class="fa-solid fa-clipboard-list mr-1.5 text-teal-700"></i> Research Workflow</h3>
                         <ul class="text-[10px] sm:text-xs text-teal-950 space-y-1.5 leading-snug font-serif">
-                            <li><b>Step 1:</b> Select your <b>Hero</b> and enter their <b>Intelligence Modifier</b>.</li>
+                            <li><b>Step 1:</b> Select your <b>Hero</b> and their <b>Intelligence Modifier</b> will be auto-calculated.</li>
                             <li><b>Step 2:</b> Define your <b>Research Topic</b>. You may spend up to 300 additional gold to gain a maximum +6 bonus to your check.</li>
                             <li><b>Step 3:</b> Select any <b>Advantages & Network Support</b>. Superior Resources (Advantage) and Harper Support (-50% cost) require traveling to a specific Location.</li>
                             <li><b>Step 4:</b> Execute Research! Success yields pieces of lore. You can edit your journal entry later once the DM provides the specific lore details.</li>
@@ -46,7 +46,7 @@ export const openResearchModal = () => {
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Select Hero</label>
-                            <select id="dt-research-pc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-teal-700 bg-white shadow-inner">
+                            <select id="dt-research-pc" onchange="window.appActions.updateResearchMath('pc')" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-teal-700 bg-white shadow-inner">
                                 ${validPCs.map(pc => {
                                     const currentDays = parseInt(pc.availableDowntime) || 0;
                                     return `<option value="${pc.id}">${pc.name} (${currentDays} Days)</option>`;
@@ -143,10 +143,26 @@ export const openResearchModal = () => {
         </div>
     `;
 
-    setTimeout(window.appActions.updateResearchMath, 50);
+    setTimeout(() => {
+        window.appActions.updateResearchMath('init');
+    }, 50);
 };
 
-export const updateResearchMath = () => {
+export const updateResearchMath = (triggerSource = 'input') => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    const pcId = document.getElementById('dt-research-pc')?.value;
+    const pc = camp?.playerCharacters?.find(p => p.id === pcId);
+
+    if (pc && (triggerSource === 'pc' || triggerSource === 'init')) {
+        // Calculate the raw Intelligence Modifier
+        const intScore = parseInt(pc.int) || 10;
+        const intMod = Math.floor((intScore - 10) / 2);
+        
+        const modEl = document.getElementById('dt-research-mod');
+        if (modEl) modEl.value = intMod;
+    }
+
     const goldSelect = document.getElementById('dt-research-gold');
     const harperToggle = document.getElementById('dt-research-harper');
     const advToggle = document.getElementById('dt-research-adv');
