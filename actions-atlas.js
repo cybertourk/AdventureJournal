@@ -1,6 +1,7 @@
 import { generateId, updateDerivedState, reRender } from './state.js';
 import { saveCampaign, notify } from './firebase-manager.js';
 import { getPresetTravelData, getCoreTravelMath } from './actions-rules.js';
+import { logPlayerActivity } from './actions-campaign.js';
 
 // --- LEAFLET ATLAS STATE ---
 let mapInstance = null;
@@ -705,6 +706,7 @@ export const atlasFinishDrawing = () => {
 export const confirmAtlasRoute = async () => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
+    const myUid = window.appData.currentUserUid;
     if (!camp) return;
 
     const distStr = document.getElementById('atlas-route-dist').textContent;
@@ -830,6 +832,7 @@ export const confirmAtlasRoute = async () => {
     const paceLabel = paceSelect.options[paceSelect.selectedIndex].text;
 
     let updatedCodex = camp.codex || [];
+    let entryName = searchInput;
     
     let descriptionText = `A journey logged on the Atlas.\n\n**Departure:** ${departureStr}\n**Arrival:** ${arrivalStr}\n**Total Distance:** ${distanceMiles.toFixed(1)} Miles\n**Travel Mode:** ${modeLabel}\n**Travel Pace:** ${paceLabel}\n**Calculated Travel Time:** ${timeDisplay}`;
 
@@ -849,13 +852,14 @@ export const confirmAtlasRoute = async () => {
             type: 'Route',
             tags: ['Travel Log'],
             desc: descriptionText,
-            authorId: window.appData.currentUserUid,
+            authorId: myUid,
             visibility: { mode: 'public' }
         };
         updatedCodex = [...updatedCodex, newEntry];
     } else {
         const existingEntryIndex = updatedCodex.findIndex(c => c.id === codexId);
         if (existingEntryIndex > -1) {
+            entryName = updatedCodex[existingEntryIndex].name;
             updatedCodex[existingEntryIndex] = {
                 ...updatedCodex[existingEntryIndex],
                 desc: updatedCodex[existingEntryIndex].desc + `\n\n---\n\n` + descriptionText
@@ -867,17 +871,18 @@ export const confirmAtlasRoute = async () => {
 
     const newRoute = {
         id: generateId(),
-        codexId: codexId, 
+        codexId: codexId,
+        name: entryName, 
         points: plainPoints,
         stops: stopsData, 
         stopIndices: drawingStopIndices, // Save the visual indices so we can redraw the yellow dots perfectly
         distanceMiles: distanceMiles,
         durationDays: calendarDuration, 
         startDate: departureDate,
-        authorId: window.appData.currentUserUid
+        authorId: myUid
     };
 
-    const updatedCamp = {
+    let updatedCamp = {
         ...camp,
         codex: updatedCodex,
         atlasRoutes: [...(camp.atlasRoutes || []), newRoute]
@@ -885,6 +890,11 @@ export const confirmAtlasRoute = async () => {
 
     if (!window.appData.activeAtlasRoutes) window.appData.activeAtlasRoutes = [];
     window.appData.activeAtlasRoutes.push(newRoute.id);
+
+    // Apply the Activity Logger
+    if (!camp._isDM) {
+        updatedCamp = logPlayerActivity(updatedCamp, myUid, `inscribed a new travel route on the Atlas: <span class="font-bold text-stone-900">${entryName}</span>`, 'fa-route');
+    }
 
     await saveCampaign(updatedCamp);
     document.getElementById('atlas-route-modal').classList.add('hidden');
@@ -929,7 +939,7 @@ export const searchAtlasCodex = (query, filterType = 'Location') => {
         html += `
             <div class="p-3 border-b border-[#d4c5a9] hover:bg-amber-50 cursor-pointer transition-colors" onclick="window.appActions.selectAtlasCodexEntry('${m.id}', '${safeName}', '${prefix}')">
                 <span class="font-bold text-stone-900">${m.name}</span> 
-                <span class="text-[9px] uppercase font-bold text-stone-500 ml-2 bg-stone-200 px-1.5 py-0.5 rounded-sm">${m.type}</span>
+                <span class="text-[9px] uppercase font-bold text-stone-500 ml-2 bg-stone-200 px-1.5 py-0.5 rounded-sm shadow-sm">${m.type}</span>
             </div>
         `;
     });
@@ -960,6 +970,7 @@ export const selectAtlasCodexEntry = (id, name, prefix) => {
 export const confirmAtlasPin = async () => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
+    const myUid = window.appData.currentUserUid;
     if (!camp) return;
 
     const lat = parseFloat(document.getElementById('atlas-pin-lat').value);
@@ -973,6 +984,7 @@ export const confirmAtlasPin = async () => {
     }
 
     let updatedCodex = camp.codex || [];
+    let entryName = searchInput;
     
     if (!codexId && searchInput) {
         codexId = generateId();
@@ -982,10 +994,13 @@ export const confirmAtlasPin = async () => {
             type: 'Location',
             tags: ['Map Pin'],
             desc: 'A newly discovered location on the Atlas.',
-            authorId: window.appData.currentUserUid,
+            authorId: myUid,
             visibility: { mode: 'public' }
         };
         updatedCodex = [...updatedCodex, newEntry];
+    } else {
+        const existingEntry = updatedCodex.find(c => c.id === codexId);
+        if (existingEntry) entryName = existingEntry.name;
     }
 
     const newPin = {
@@ -993,14 +1008,20 @@ export const confirmAtlasPin = async () => {
         lat,
         lng,
         codexId,
-        authorId: window.appData.currentUserUid
+        customLabel: entryName,
+        authorId: myUid
     };
 
-    const updatedCamp = {
+    let updatedCamp = {
         ...camp,
         codex: updatedCodex,
         atlasPins: [...(camp.atlasPins || []), newPin]
     };
+
+    // Apply the Activity Logger
+    if (!camp._isDM) {
+        updatedCamp = logPlayerActivity(updatedCamp, myUid, `marked a new location on the Atlas: <span class="font-bold text-stone-900">${entryName}</span>`, 'fa-map-pin');
+    }
 
     await saveCampaign(updatedCamp);
     document.getElementById('atlas-pin-modal').classList.add('hidden');
@@ -1134,12 +1155,18 @@ export const deleteAtlasPin = async (id) => {
     
     updateDerivedState();
     const camp = window.appData.activeCampaign;
+    const myUid = window.appData.currentUserUid;
     if (!camp) return;
 
-    const updatedCamp = {
+    let updatedCamp = {
         ...camp,
         atlasPins: (camp.atlasPins || []).filter(p => p.id !== id)
     };
+    
+    if (!camp._isDM) {
+        updatedCamp = logPlayerActivity(updatedCamp, myUid, `removed a pin from the Atlas.`, 'fa-eraser');
+    }
+
     await saveCampaign(updatedCamp);
     notify("Pin removed.", "success");
     window.appActions.refreshAtlasEntities();
@@ -1150,12 +1177,18 @@ export const deleteAtlasRoute = async (id) => {
     
     updateDerivedState();
     const camp = window.appData.activeCampaign;
+    const myUid = window.appData.currentUserUid;
     if (!camp) return;
 
-    const updatedCamp = {
+    let updatedCamp = {
         ...camp,
         atlasRoutes: (camp.atlasRoutes || []).filter(r => r.id !== id)
     };
+    
+    if (!camp._isDM) {
+        updatedCamp = logPlayerActivity(updatedCamp, myUid, `erased a travel route from the Atlas.`, 'fa-eraser');
+    }
+
     await saveCampaign(updatedCamp);
     notify("Route removed.", "success");
     window.appActions.refreshAtlasEntities();
