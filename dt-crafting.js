@@ -168,7 +168,7 @@ export const openCraftingModal = () => {
                         
                         <div class="border-t border-[#d4c5a9] pt-3 mt-1">
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Proficiency Used <span class="text-red-500">*</span></label>
-                            <select id="dt-craft-prof" onchange="if(this.value === 'other') document.getElementById('dt-craft-prof-custom').classList.remove('hidden'); else document.getElementById('dt-craft-prof-custom').classList.add('hidden');" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-stone-50 shadow-inner">
+                            <select id="dt-craft-prof" onchange="if(this.value === 'other') document.getElementById('dt-craft-prof-custom').classList.remove('hidden'); else document.getElementById('dt-craft-prof-custom').classList.add('hidden'); window.appActions.updateCraftingMath('prof');" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-stone-50 shadow-inner">
                                 <option value="">-- Select Proficiency --</option>
                             </select>
                             <input type="text" id="dt-craft-prof-custom" class="hidden w-full mt-2 p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-white shadow-inner" placeholder="Type custom proficiency...">
@@ -484,8 +484,8 @@ export const updateCraftingMath = (triggerSource = 'input') => {
                 if (otherPc.id !== pcId) {
                     const days = parseInt(otherPc.availableDowntime) || 0;
                     collabHtml += `
-                        <label class="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 border border-[#d4c5a9] rounded-sm hover:bg-amber-50 transition">
-                            <input type="checkbox" value="${otherPc.id}" class="dt-collab-check w-3 h-3 text-amber-600 rounded-sm" onchange="window.appActions.updateCraftingMath('input')">
+                        <label id="lbl-collab-${otherPc.id}" class="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 border border-[#d4c5a9] rounded-sm hover:bg-amber-50 transition">
+                            <input type="checkbox" id="chk-collab-${otherPc.id}" value="${otherPc.id}" class="dt-collab-check w-3 h-3 text-amber-600 rounded-sm" onchange="window.appActions.updateCraftingMath('input')">
                             <span class="text-[10px] font-bold text-stone-700">${otherPc.name} <span class="font-normal italic text-stone-500">(${days}d)</span></span>
                         </label>
                     `;
@@ -623,6 +623,43 @@ export const updateCraftingMath = (triggerSource = 'input') => {
         totalTime = baseTime;
         totalCost = baseCost;
     }
+
+    // --- FILTER COLLABORATORS BY PROFICIENCY ---
+    let reqProf = "";
+    if (isResuming) {
+        reqProf = projects[projectId].prof;
+    } else {
+        reqProf = document.getElementById('dt-craft-prof')?.value;
+    }
+
+    camp.playerCharacters.forEach(otherPc => {
+        if (otherPc.id !== pcId) {
+            const lbl = document.getElementById(`lbl-collab-${otherPc.id}`);
+            const chk = document.getElementById(`chk-collab-${otherPc.id}`);
+            
+            if (lbl && chk) {
+                let hasProf = true;
+                if (reqProf && reqProf !== 'other') {
+                    const cleanReq = reqProf.toLowerCase().trim();
+                    const otherProfs = ((otherPc.skills || '') + ',' + (otherPc.proficiencies || '')).toLowerCase();
+                    hasProf = otherProfs.includes(cleanReq);
+                }
+
+                if (hasProf) {
+                    lbl.classList.remove('opacity-40', 'grayscale', 'cursor-not-allowed');
+                    lbl.classList.add('cursor-pointer', 'hover:bg-amber-50');
+                    chk.disabled = false;
+                    chk.classList.remove('cursor-not-allowed');
+                } else {
+                    lbl.classList.add('opacity-40', 'grayscale', 'cursor-not-allowed');
+                    lbl.classList.remove('cursor-pointer', 'hover:bg-amber-50');
+                    chk.disabled = true;
+                    chk.classList.add('cursor-not-allowed');
+                    chk.checked = false; // Force uncheck if they lose eligibility
+                }
+            }
+        }
+    });
 
     // --- APPLY COLLABORATORS TO REMAINING TIME ---
     const checkedCollabs = Array.from(document.querySelectorAll('.dt-collab-check:checked'));
