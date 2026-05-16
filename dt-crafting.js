@@ -167,7 +167,7 @@ export const openCraftingModal = () => {
                         </div>
                         
                         <div class="border-t border-[#d4c5a9] pt-3 mt-1">
-                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Proficiency Used <span class="normal-case font-normal">(Optional, for the log)</span></label>
+                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Proficiency Used <span class="text-red-500">*</span></label>
                             <select id="dt-craft-prof" onchange="if(this.value === 'other') document.getElementById('dt-craft-prof-custom').classList.remove('hidden'); else document.getElementById('dt-craft-prof-custom').classList.add('hidden');" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-stone-50 shadow-inner">
                                 <option value="">-- Select Proficiency --</option>
                             </select>
@@ -197,7 +197,7 @@ export const openCraftingModal = () => {
                             <div id="dt-craft-collaborators" class="flex flex-wrap gap-2">
                                 <!-- Populated dynamically -->
                             </div>
-                            <p class="text-[9px] text-stone-500 italic leading-snug mt-2">Multiple characters combining their efforts divide the time needed to create an item. (Days spent will be deducted from all selected helpers).</p>
+                            <p class="text-[9px] text-stone-500 italic leading-snug mt-2">Multiple characters combining their efforts divide the time needed to create an item. Days spent will be deducted from all selected helpers. <span class="font-bold text-stone-600">Everyone who collaborates must possess the selected tool/skill proficiency.</span></p>
                         </div>
                     </div>
 
@@ -435,7 +435,7 @@ export const updateCraftingMath = (triggerSource = 'input') => {
             const profs = (pc.proficiencies || '').split(',').map(s => s.trim()).filter(Boolean);
             const allProfs = [...new Set([...skills, ...profs])].sort();
             
-            let html = '<option value="">-- Select Proficiency (Optional) --</option>';
+            let html = '<option value="">-- Select Proficiency --</option>';
             allProfs.forEach(p => {
                 html += `<option value="${p}">${p}</option>`;
             });
@@ -781,6 +781,11 @@ export const executeCrafting = async () => {
         let profVal = document.getElementById('dt-craft-prof').value;
         if (profVal === 'other') {
             profVal = document.getElementById('dt-craft-prof-custom').value.trim();
+        }
+        
+        if (!profVal) {
+            notify("You must specify the tool or skill proficiency used for crafting.", "error");
+            return;
         }
 
         projectData = {
