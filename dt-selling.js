@@ -557,7 +557,33 @@ export const finalizeSale = async (isAccepted) => {
         } : p
     );
 
-    let updatedCamp = { ...camp, playerCharacters: updatedPCs };
+    // NEW TASK GENERATOR
+    let newTasks = [];
+    
+    // Always add the expense task
+    newTasks.push({
+        id: generateId(),
+        text: `D&D Beyond Sync (${pc.name}): Deduct 25 gp for selling expenses.`,
+        resolvedBy: [],
+        visibility: { mode: pc.playerId ? 'specific' : 'public', visibleTo: pc.playerId ? [pc.playerId] : [] },
+        timestamp: Date.now()
+    });
+
+    if (isAccepted) {
+        newTasks.push({
+            id: generateId(),
+            text: `D&D Beyond Sync (${pc.name}): Add ${finalOffer.toLocaleString()} gp and remove '${itemName}' from inventory.`,
+            resolvedBy: [],
+            visibility: { mode: pc.playerId ? 'specific' : 'public', visibleTo: pc.playerId ? [pc.playerId] : [] },
+            timestamp: Date.now()
+        });
+    }
+
+    let updatedCamp = { 
+        ...camp, 
+        playerCharacters: updatedPCs,
+        sheetUpdates: [...(camp.sheetUpdates || []), ...newTasks]
+    };
 
     updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime negotiating the sale of a magic item with <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-coins');
 
