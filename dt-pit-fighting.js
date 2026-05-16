@@ -356,17 +356,21 @@ export const executePitFighting = async () => {
     if (totCon >= dc3) successes++;
 
     let resultBody = ``;
+    let goldWon = 0;
 
     if (successes === 0) {
         resultBody = `🚨 **0 Successes**\n\nYou lose your bouts, earning nothing.`;
     } 
     else if (successes === 1) {
+        goldWon = 50;
         resultBody = `❌ **1 Success**\n\nYou win **50 gp**!`;
     } 
     else if (successes === 2) {
+        goldWon = 100;
         resultBody = `⚠️ **2 Successes**\n\nYou win **100 gp**!`;
     } 
     else if (successes === 3) {
+        goldWon = 200;
         resultBody = `✅ **3 Successes**\n\nYou are victorious, winning **200 gp**!`;
     }
 
@@ -403,7 +407,24 @@ export const executePitFighting = async () => {
         } : p
     );
 
-    let updatedCamp = { ...camp, playerCharacters: updatedPCs };
+    // --- GENERATE SYNC TASKS ---
+    let newTasks = [];
+    if (goldWon > 0) {
+        newTasks.push({
+            id: generateId(),
+            text: `D&D Beyond Sync (${pc.name}): Add ${goldWon} gp earned from pit fighting.`,
+            resolvedBy: [],
+            visibility: { mode: pc.playerId ? 'specific' : 'public', visibleTo: pc.playerId ? [pc.playerId] : [] },
+            timestamp: Date.now()
+        });
+    }
+
+    let updatedCamp = { 
+        ...camp, 
+        playerCharacters: updatedPCs,
+        sheetUpdates: [...(camp.sheetUpdates || []), ...newTasks]
+    };
+    
     updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime pit fighting in ${loc} with <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-hand-fist');
 
     await saveCampaign(updatedCamp);
