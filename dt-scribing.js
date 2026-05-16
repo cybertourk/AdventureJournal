@@ -564,17 +564,13 @@ export const executeScribing = async () => {
         complicationText = `\n\n*No complications arose during your work (${d100}/100).*`;
     }
 
-    // Build the log text
-    let resultHeader = `**Objective:** Spell Scroll (${projectData.name})`;
     let resultBody = "";
-    
     if (isComplete) {
         if (finalItemName !== projectData.name) {
              resultBody = `✅ **Project Completed (With Errors)!** You finished the scroll, but due to a magical mishap, you have successfully scribed a **Spell Scroll of ${finalItemName}** instead!`;
         } else {
              resultBody = `✅ **Project Completed!** You have successfully scribed a **Spell Scroll of ${finalItemName}**.`;
         }
-        
         if (projectData.level === 0) {
              resultBody += `\n*(Note: The version of this cantrip on the scroll works as if the caster were 1st level).*`;
         }
@@ -585,10 +581,32 @@ export const executeScribing = async () => {
     let costNote = `**Total Project Material Cost:** ${projectData.cost.toLocaleString()} gp`;
     if (!isResuming) costNote += ` *(Materials must be purchased up front when starting a project).*`;
 
+    const resultHeader = `**Objective:** Spell Scroll (${projectData.name})`;
     const noteText = `**Downtime: Scribing a Spell Scroll**\n*Hero:* ${pc.name}\n\n${resultHeader}\n\n**Work Days Logged:** ${daysSpent} Days\n${costNote}\n\n${resultBody}${complicationText}`;
-
     const timestampStr = new Date().toLocaleDateString();
-    
+
+    // --- GENERATE SYNC TASKS ---
+    let newTasks = [];
+    if (!isResuming && projectData.cost > 0) {
+        newTasks.push({
+            id: generateId(),
+            text: `D&D Beyond Sync (${pc.name}): Deduct ${projectData.cost.toLocaleString()} gp for scribing materials.`,
+            resolvedBy: [],
+            visibility: { mode: pc.playerId ? 'specific' : 'public', visibleTo: pc.playerId ? [pc.playerId] : [] },
+            timestamp: Date.now()
+        });
+    }
+
+    if (isComplete) {
+        newTasks.push({
+            id: generateId(),
+            text: `D&D Beyond Sync (${pc.name}): Add 'Spell Scroll of ${finalItemName}' to inventory.`,
+            resolvedBy: [],
+            visibility: { mode: pc.playerId ? 'specific' : 'public', visibleTo: pc.playerId ? [pc.playerId] : [] },
+            timestamp: Date.now()
+        });
+    }
+
     // --- UPDATE CHARACTERS ---
     const updatedPCs = camp.playerCharacters.map(p => {
         if (p.id === pcId) {
@@ -608,7 +626,12 @@ export const executeScribing = async () => {
         return p;
     });
 
-    let updatedCamp = { ...camp, playerCharacters: updatedPCs };
+    let updatedCamp = {
+        ...camp,
+        playerCharacters: updatedPCs,
+        sheetUpdates: [...(camp.sheetUpdates || []), ...newTasks]
+    };
+
     updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime scribing a spell scroll with <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-scroll');
 
     await saveCampaign(updatedCamp);
