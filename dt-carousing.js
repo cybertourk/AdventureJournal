@@ -89,7 +89,7 @@ export const openCarousingModal = () => {
                                     <input type="checkbox" id="dt-carouse-noble-toggle" onchange="window.appActions.updateCarousingMath()" class="w-4 h-4 text-amber-600 rounded-sm cursor-pointer shadow-sm border-amber-400">
                                     <span class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-amber-900 group-hover:text-amber-700 transition">Has Noble Background</span>
                                 </label>
-                                <p class="text-[9px] text-stone-500 italic">Check this box to unlock Upper Class carousing.</p>
+                                <p class="text-[9px] text-stone-500 italic">Check this box to unlock Upper Class carousing (or if you succeeded on a Deception check with a Disguise Kit).</p>
                                 
                                 <div id="dt-carouse-disguise-wrapper" class="hidden mt-2 pt-2 border-t border-[#d4c5a9]">
                                     <button id="dt-carouse-disguise-btn" onclick="window.appActions.attemptDisguiseCheck()" class="w-full py-1.5 bg-stone-800 text-amber-50 rounded-sm hover:bg-stone-700 transition text-[9px] font-bold uppercase tracking-wider shadow-sm flex items-center justify-center">
@@ -540,26 +540,6 @@ export const reactivateCarouseContact = async (pcId, contactId) => {
     notify(`${contact.name} reactivated!`, 'success');
 };
 
-export const deleteCarouseContact = async (pcId, contactId) => {
-    if(!confirm("Are you sure you want to permanently erase this contact?")) return;
-    
-    const camp = window.appData.activeCampaign;
-    const updatedPCs = camp.playerCharacters.map(p => {
-        if (p.id === pcId) {
-            const updatedContacts = (p.carousingContacts || []).filter(c => c.id !== contactId);
-            return { ...p, carousingContacts: updatedContacts };
-        }
-        return p;
-    });
-    
-    // Local Optimistic Update
-    window.appData.activeCampaign.playerCharacters = updatedPCs;
-    window.appActions.renderCarouseContactsList(pcId);
-
-    await saveCampaign({ ...camp, playerCharacters: updatedPCs });
-    notify("Contact deleted.", "success");
-};
-
 // --- CORE CAROUSING MATH ---
 
 export const updateCarousingMath = (triggerSource = 'input') => {
@@ -711,6 +691,7 @@ export const executeCarousing = async () => {
     
     let currentBankedAllies = bankedContacts.filter(c => c.type === 'ally').length;
     const maxAllies = Math.max(1, 1 + chaMod); // Official Rule: 1 + Cha Mod, minimum 1
+    // Note: Active (named) contacts do not count towards this limit.
 
     let actualAlliedGained = 0;
     let lostAllies = 0;
@@ -785,6 +766,18 @@ export const executeCarousing = async () => {
     const timestampStr = new Date().toLocaleDateString();
     const logAddition = `${pc.downtimeLog ? '\n\n---\n\n' : ''}**Logged on ${timestampStr}**\n${noteText}`;
 
+    // --- NEW: Generate D&D Beyond Sync Task ---
+    let newTasks = [];
+    if (goldCost > 0) {
+        newTasks.push({
+            id: generateId(),
+            text: `D&D Beyond Sync (${pc.name}): Deduct ${goldCost} gp for carousing expenses.`,
+            resolvedBy: [],
+            visibility: { mode: pc.playerId ? 'specific' : 'public', visibleTo: pc.playerId ? [pc.playerId] : [] },
+            timestamp: Date.now()
+        });
+    }
+
     const updatedPCs = camp.playerCharacters.map(p => {
         if (p.id === pc.id) {
             // Strip the disguiseCarouseStatus flag so they can try again next downtime
@@ -800,7 +793,12 @@ export const executeCarousing = async () => {
         return p;
     });
 
-    let updatedCamp = { ...camp, playerCharacters: updatedPCs };
+    let updatedCamp = { 
+        ...camp, 
+        playerCharacters: updatedPCs,
+        sheetUpdates: [...(camp.sheetUpdates || []), ...newTasks]
+    };
+    
     updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime carousing with <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-beer-mug-empty');
 
     await saveCampaign(updatedCamp);
