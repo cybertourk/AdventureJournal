@@ -1,7 +1,7 @@
 import { generateId, updateDerivedState, reRender } from './state.js';
 import { saveCampaign, notify } from './firebase-manager.js';
 import { logPlayerActivity } from './actions-campaign.js';
-import { MAGIC_ITEM_TABLES } from './data-roll-tables.js'; // Import our official magic item tables!
+import { MAGIC_ITEM_TABLES } from './data-roll-tables.js'; 
 
 // ============================================================================
 // --- 3. CRAFTING AN ITEM ---
@@ -168,7 +168,10 @@ export const openCraftingModal = () => {
                         
                         <div class="border-t border-[#d4c5a9] pt-3 mt-1">
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Proficiency Used <span class="normal-case font-normal">(Optional, for the log)</span></label>
-                            <input type="text" id="dt-craft-prof" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-stone-50 shadow-inner" placeholder="e.g. Smith's Tools, Arcana...">
+                            <select id="dt-craft-prof" onchange="if(this.value === 'other') document.getElementById('dt-craft-prof-custom').classList.remove('hidden'); else document.getElementById('dt-craft-prof-custom').classList.add('hidden');" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-stone-50 shadow-inner">
+                                <option value="">-- Select Proficiency --</option>
+                            </select>
+                            <input type="text" id="dt-craft-prof-custom" class="hidden w-full mt-2 p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-white shadow-inner" placeholder="Type custom proficiency...">
                         </div>
                     </div>
 
@@ -419,6 +422,40 @@ export const updateCraftingMath = (triggerSource = 'input') => {
         }
         if (consEl) {
             consEl.disabled = false;
+        }
+    }
+
+    // NEW: Auto-populate Proficiency dropdown & Artificer feature based on imported Sheet
+    if (triggerSource === 'pc' || triggerSource === 'init') {
+        const profSelect = document.getElementById('dt-craft-prof');
+        if (profSelect) {
+            const currentProf = profSelect.value;
+            // Clean out the "(Expertise)" tags so the list is clean
+            const skills = (pc.skills || '').split(',').map(s => s.replace(/\(Expertise\)/ig, '').trim()).filter(Boolean);
+            const profs = (pc.proficiencies || '').split(',').map(s => s.trim()).filter(Boolean);
+            const allProfs = [...new Set([...skills, ...profs])].sort();
+            
+            let html = '<option value="">-- Select Proficiency (Optional) --</option>';
+            allProfs.forEach(p => {
+                html += `<option value="${p}">${p}</option>`;
+            });
+            html += `<option value="other">Other / Not Listed</option>`;
+            
+            profSelect.innerHTML = html;
+            if (currentProf && html.includes(`value="${currentProf}"`)) {
+                profSelect.value = currentProf;
+            }
+        }
+
+        const artificerBoxEl = document.getElementById('dt-craft-artificer');
+        if (artificerBoxEl && pc.classLevel) {
+            const classStr = pc.classLevel.toLowerCase();
+            const match = classStr.match(/artificer\s+(\d+)/);
+            if (match && parseInt(match[1], 10) >= 10) {
+                artificerBoxEl.checked = true;
+            } else if (triggerSource === 'pc') {
+                artificerBoxEl.checked = false;
+            }
         }
     }
 
@@ -741,6 +778,11 @@ export const executeCrafting = async () => {
         if (applyArtificer) { effectiveTime = Math.ceil(baseTime * 0.25); effectiveCost = Math.ceil(baseCost * 0.5); }
         if (isHarper) { effectiveTime = Math.ceil(effectiveTime * 0.8); effectiveCost = isConsumable ? Math.ceil(effectiveCost * 0.75) : Math.ceil(effectiveCost * 0.9); }
 
+        let profVal = document.getElementById('dt-craft-prof').value;
+        if (profVal === 'other') {
+            profVal = document.getElementById('dt-craft-prof-custom').value.trim();
+        }
+
         projectData = {
             id: generateId(),
             name: itemName,
@@ -748,7 +790,7 @@ export const executeCrafting = async () => {
             totalTime: effectiveTime,
             cost: effectiveCost,
             progress: 0,
-            prof: document.getElementById('dt-craft-prof').value.trim()
+            prof: profVal
         };
         
         if (applyArtificer) projectData.artificerNote = true;
