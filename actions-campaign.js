@@ -575,7 +575,13 @@ export const toggleSheetUpdateResolved = async (id) => {
   const updatedUpdates = [...updates];
   updatedUpdates[targetIdx] = { ...target, resolvedBy: newResolvedBy };
   
-  const updatedCamp = { ...camp, sheetUpdates: updatedUpdates };
+  let updatedCamp = { ...camp, sheetUpdates: updatedUpdates };
+  
+  // LOG ACTIVITY WHEN A PLAYER MARKS A TASK AS COMPLETE
+  if (!camp._isDM && !hasResolved) {
+      updatedCamp = logPlayerActivity(updatedCamp, myUid, `marked a task as complete: <span class="italic text-stone-600">"${target.text}"</span>`, 'fa-check');
+  }
+  
   await saveCampaign(updatedCamp);
   reRender(true);
 };
@@ -968,7 +974,7 @@ const parseDDBCharacter = (charData) => {
         eyes: charData.eyes || '',
         hair: charData.hair || '',
         skin: charData.skin || '',
-        image: '', // Intentionally ignoring D&D Beyond portrait as requested
+        image: '', 
         str: stats[1].total, dex: stats[2].total, con: stats[3].total, 
         int: stats[4].total, wis: stats[5].total, cha: stats[6].total,
         saves: savesArr.join(', '),
@@ -1219,11 +1225,6 @@ export const quickSyncDDB = async (pcId) => {
             setVal('pc-edit-hair', parsedData.hair);
             setVal('pc-edit-skin', parsedData.skin);
             
-            // Intentionally not setting image from DDB
-            // if (parsedData.image && !document.getElementById('pc-edit-image').value) {
-            //     setVal('pc-edit-image', parsedData.image);
-            // }
-            
             setVal('pc-edit-str', parsedData.str);
             setVal('pc-edit-dex', parsedData.dex);
             setVal('pc-edit-con', parsedData.con);
@@ -1263,7 +1264,7 @@ export const quickSyncDDB = async (pcId) => {
             const mergedPC = {
                 ...pc,
                 ...parsedData,
-                image: pc.image || '', // Always preserve local image, completely ignore DDB
+                image: pc.image || '', 
                 appearance: parsedData.appearance || pc.appearance || '',
                 backstory: parsedData.backstory || pc.backstory || '',
             };
