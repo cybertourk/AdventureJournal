@@ -338,6 +338,37 @@ export const selectSellItem = (name, rarity, isConsumable) => {
 };
 
 export const updateSellingMath = (triggerSource = 'input') => {
+    // --- AUTO-CALCULATE MODIFIER ---
+    if (triggerSource === 'pc' || triggerSource === 'init') {
+        updateDerivedState();
+        const camp = window.appData.activeCampaign;
+        const pcId = document.getElementById('dt-sell-pc')?.value;
+        const pc = camp?.playerCharacters?.find(p => p.id === pcId);
+        
+        if (pc) {
+            const getAbilityMod = (score) => Math.floor(((parseInt(score) || 10) - 10) / 2);
+            let pb = 2;
+            if (pc.classLevel) {
+                const levels = pc.classLevel.match(/\d+/g);
+                if (levels) pb = Math.max(2, Math.ceil(levels.reduce((a, b) => a + parseInt(b), 0) / 4) + 1);
+            }
+            const chaMod = getAbilityMod(pc.cha);
+            let isProf = false, isExp = false;
+            const cleanSkill = 'persuasion';
+            const profsStr = ((pc.skills || '') + ',' + (pc.proficiencies || '')).toLowerCase();
+            const checkArr = profsStr.split(',').map(s => s.trim());
+            const match = checkArr.find(s => s.includes(cleanSkill));
+            if (match) {
+                isProf = true;
+                if (match.includes('expertise')) isExp = true;
+            }
+            const persMod = chaMod + (isExp ? pb * 2 : (isProf ? pb : 0));
+            
+            const modEl = document.getElementById('dt-sell-mod');
+            if (modEl) modEl.value = persMod;
+        }
+    }
+
     // UNLOCK RECIPE FIELDS IF SWITCHING HEROES OR MANUALLY STARTING OVER
     if (triggerSource === 'init' || triggerSource === 'pc') {
         const nameEl = document.getElementById('dt-sell-item-name');
