@@ -923,6 +923,28 @@ export const executeCrafting = async () => {
     // --- BUILD COLLABORATOR LOG ---
     const collabNoteText = `**Downtime: Assisted Crafting**\n*Hero:* {CollabName}\n\n**Objective:** Assisting ${pc.name} with ${projectData.name}\n**Work Days Logged:** ${daysSpent} Days\n\n${isComplete ? `✅ **Project Completed!** With your help, the item was finished.` : `⏳ **Progress Logged:** The project is now at ${projectData.progress} / ${projectData.totalTime} work-days.`}`;
 
+    // --- NEW: GENERATE CHECKLIST TASKS ---
+    let newTasks = [];
+    if (!isResuming && projectData.cost > 0) {
+        newTasks.push({
+            id: generateId(),
+            text: `D&D Beyond Sync (${pc.name}): Deduct ${projectData.cost.toLocaleString()} gp for crafting materials.`,
+            resolvedBy: [],
+            visibility: { mode: pc.playerId ? 'specific' : 'public', visibleTo: pc.playerId ? [pc.playerId] : [] },
+            timestamp: Date.now()
+        });
+    }
+
+    if (isComplete) {
+        newTasks.push({
+            id: generateId(),
+            text: `D&D Beyond Sync (${pc.name}): Add '${projectData.name}' to inventory.`,
+            resolvedBy: [],
+            visibility: { mode: pc.playerId ? 'specific' : 'public', visibleTo: pc.playerId ? [pc.playerId] : [] },
+            timestamp: Date.now()
+        });
+    }
+
     // --- UPDATE ALL CHARACTERS ---
     const updatedPCs = camp.playerCharacters.map(p => {
         if (p.id === pcId) {
@@ -953,7 +975,12 @@ export const executeCrafting = async () => {
         return p;
     });
 
-    let updatedCamp = { ...camp, playerCharacters: updatedPCs };
+    let updatedCamp = { 
+        ...camp, 
+        playerCharacters: updatedPCs,
+        sheetUpdates: [...(camp.sheetUpdates || []), ...newTasks] 
+    };
+    
     updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime crafting with <span class="font-bold text-amber-700">${pc.name}</span>${collabNamesStr ? ` and allies` : ''}.`, 'fa-hammer');
 
     await saveCampaign(updatedCamp);
