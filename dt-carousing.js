@@ -540,6 +540,26 @@ export const reactivateCarouseContact = async (pcId, contactId) => {
     notify(`${contact.name} reactivated!`, 'success');
 };
 
+export const deleteCarouseContact = async (pcId, contactId) => {
+    if(!confirm("Are you sure you want to permanently erase this contact?")) return;
+    
+    const camp = window.appData.activeCampaign;
+    const updatedPCs = camp.playerCharacters.map(p => {
+        if (p.id === pcId) {
+            const updatedContacts = (p.carousingContacts || []).filter(c => c.id !== contactId);
+            return { ...p, carousingContacts: updatedContacts };
+        }
+        return p;
+    });
+    
+    // Local Optimistic Update
+    window.appData.activeCampaign.playerCharacters = updatedPCs;
+    window.appActions.renderCarouseContactsList(pcId);
+
+    await saveCampaign({ ...camp, playerCharacters: updatedPCs });
+    notify("Contact deleted.", "success");
+};
+
 // --- CORE CAROUSING MATH ---
 
 export const updateCarousingMath = (triggerSource = 'input') => {
