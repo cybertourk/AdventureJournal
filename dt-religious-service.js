@@ -139,7 +139,7 @@ export const openReligiousServiceModal = () => {
                             </div>
                             <div>
                                 <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Skill to Use</label>
-                                <select id="dt-relig-skill" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-yellow-600 bg-white shadow-sm">
+                                <select id="dt-relig-skill" onchange="window.appActions.updateReligiousServiceMath('skill')" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-yellow-600 bg-white shadow-sm">
                                     <option value="rel">Intelligence (Religion)</option>
                                     <option value="per">Charisma (Persuasion)</option>
                                 </select>
@@ -224,7 +224,18 @@ export const updateReligiousServiceMath = (triggerSource = 'input') => {
             'lawfulneutral': 'LN', 'ln': 'LN', 'neutral': 'N', 'trueneutral': 'N', 'n': 'N',
             'chaoticneutral': 'CN', 'cn': 'CN', 'lawfulevil': 'LE', 'le': 'LE', 'neutralevil': 'NE', 'ne': 'NE', 'chaoticevil': 'CE', 'ce': 'CE'
         };
-        const alignmentSteps = { 'LG': ['LG', 'NG', 'LN'], 'NG': ['LG', 'NG', 'CG', 'N'], 'CG': ['NG', 'CG', 'CN'], 'LN': ['LG', 'LN', 'LE', 'N'], 'N': ['LG', 'NG', 'CG', 'LN', 'N', 'CN', 'LE', 'NE', 'CE'], 'CN': ['CG', 'N', 'CN', 'CE'], 'LE': ['LN', 'LE', 'NE'], 'NE': ['LE', 'NE', 'CE', 'N'], 'CE': ['NE', 'CE', 'CN'] };
+        
+        const alignmentSteps = { 
+            'LG': ['LG', 'NG', 'LN'], 
+            'NG': ['LG', 'NG', 'CG', 'N'], 
+            'CG': ['NG', 'CG', 'CN'], 
+            'LN': ['LG', 'LN', 'LE', 'N'], 
+            'N': ['LG', 'NG', 'CG', 'LN', 'N', 'CN', 'LE', 'NE', 'CE'], 
+            'CN': ['CG', 'N', 'CN', 'CE'], 
+            'LE': ['LN', 'LE', 'NE'], 
+            'NE': ['LE', 'NE', 'CE', 'N'], 
+            'CE': ['NE', 'CE', 'CN'] 
+        };
         
         const abbr = alignmentAbbr[cleanAlign];
         let pantheonsToShow = DEITY_PANTHEONS;
@@ -260,17 +271,39 @@ export const updateReligiousServiceMath = (triggerSource = 'input') => {
             if (currentVal && optionExists) deitySelect.value = currentVal;
         }
 
-        // Sync Modifiers from PC Record Safely
-        if (document.getElementById('dt-relig-cha-mod')) {
-            const savedCha = pc.religiousChaMod !== undefined ? pc.religiousChaMod : 0;
-            document.getElementById('dt-relig-cha-mod').value = savedCha;
-        }
-        if (document.getElementById('dt-relig-mod')) {
-            const savedMod = pc.religiousSkillMod !== undefined ? pc.religiousSkillMod : 0;
-            document.getElementById('dt-relig-mod').value = savedMod;
-        }
-        if (document.getElementById('dt-relig-skill') && pc.religiousSkillType) {
-            document.getElementById('dt-relig-skill').value = pc.religiousSkillType;
+        // AUTO-CALCULATION: Charisma Mod
+        const getAbilityMod = (score) => Math.floor(((parseInt(score) || 10) - 10) / 2);
+        const chaMod = getAbilityMod(pc.cha);
+        const chaModEl = document.getElementById('dt-relig-cha-mod');
+        if (chaModEl) chaModEl.value = chaMod;
+    }
+
+    // AUTO-CALCULATION: Skill Mod (Updates on init, pc change, or explicitly selecting the skill dropdown)
+    if (triggerSource === 'pc' || triggerSource === 'init' || triggerSource === 'skill') {
+        const skillSelect = document.getElementById('dt-relig-skill');
+        const modEl = document.getElementById('dt-relig-mod');
+        if (skillSelect && modEl) {
+            const isReligion = skillSelect.value === 'rel';
+            
+            const getAbilityMod = (score) => Math.floor(((parseInt(score) || 10) - 10) / 2);
+            let pb = 2;
+            if (pc.classLevel) {
+                const levels = pc.classLevel.match(/\d+/g);
+                if (levels) pb = Math.max(2, Math.ceil(levels.reduce((a, b) => a + parseInt(b), 0) / 4) + 1);
+            }
+            
+            const abilityMod = isReligion ? getAbilityMod(pc.int) : getAbilityMod(pc.cha);
+            let isProf = false, isExp = false;
+            const cleanSkill = isReligion ? 'religion' : 'persuasion';
+            const profsStr = ((pc.skills || '') + ',' + (pc.proficiencies || '')).toLowerCase();
+            const checkArr = profsStr.split(',').map(s => s.trim());
+            const match = checkArr.find(s => s.includes(cleanSkill));
+            if (match) {
+                isProf = true;
+                if (match.includes('expertise')) isExp = true;
+            }
+            
+            modEl.value = abilityMod + (isExp ? pb * 2 : (isProf ? pb : 0));
         }
     }
 
@@ -461,9 +494,6 @@ export const executeReligiousService = async (actionType = 'new') => {
         p.id === pc.id ? { 
             ...p, 
             religiousFavors: favorsArray,
-            religiousChaMod: chaMod,
-            religiousSkillMod: skillMod,
-            religiousSkillType: skillType,
             availableDowntime: Math.max(0, (parseInt(p.availableDowntime) || 0) - daysToDeduct),
             downtimeLog: (p.downtimeLog || '') + logAddition
         } : p
