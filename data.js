@@ -33,7 +33,7 @@ import { openCarousingModal, updateCarousingMath, executeCarousing, attemptDisgu
 import { openCraftingModal, updateCraftingMath, executeCrafting, abandonCraftingProject, openRecipeBrowser, closeRecipeBrowser, filterRecipes, selectRecipe } from './dt-crafting.js';
 import { openCrimeModal, updateCrimeMath, executeCrime, clearCrimeRecord } from './dt-crime.js';
 import { openGamblingModal, updateGamblingMath, executeGambling } from './dt-gambling.js';
-import { openPitFightingModal, updatePitFightingMath, executePitFighting } from './dt-pit-fighting.js';
+import { openPitFightingModal, updatePitFightingMath, executePitFighting, searchPitLocation, selectPitLocation } from './dt-pit-fighting.js';
 import { openRelaxationModal, updateRelaxationMath, executeRelaxation } from './dt-relaxation.js';
 import { openReligiousServiceModal, updateReligiousServiceMath, executeReligiousService } from './dt-religious-service.js';
 import { openResearchModal, updateResearchMath, executeResearch } from './dt-research.js';
@@ -263,6 +263,8 @@ if (typeof window !== 'undefined') {
       openPitFightingModal,
       updatePitFightingMath,
       executePitFighting,
+      searchPitLocation,
+      selectPitLocation,
 
       openRelaxationModal,
       updateRelaxationMath,
