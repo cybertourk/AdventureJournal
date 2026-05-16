@@ -1,5 +1,6 @@
 import { generateId, updateDerivedState, reRender, DEFAULT_CALENDAR } from './state.js';
 import { saveCampaign, notify } from './firebase-manager.js';
+import { logPlayerActivity } from './actions-campaign.js';
 
 // --- Calendar Navigation & Initialization ---
 export const openCalendar = async () => {
@@ -134,7 +135,7 @@ export const openCalendarDay = async (year, monthIndex, day) => {
     // Set the active date to trigger the modal overlay
     window.appData.activeCalendarDate = { year, monthIndex, day };
     
-    reRender(); // Force a render to show the modal!
+    reRender(); 
 };
 
 export const closeCalendarDay = () => {
@@ -153,11 +154,10 @@ export const setCurrentCampaignDate = async (year, monthIndex, day) => {
 
     await saveCampaign(camp);
     notify("Campaign date updated.", "success");
-    reRender(); // Refresh to show the new "Current Date" styling on the grid
+    reRender(); 
 };
 
 // --- STRICT CALENDAR MATH HELPERS ---
-// Using strict parseInt to guarantee no string concatenation explosions
 const getDaysInYear = (cal) => cal.months.reduce((sum, m) => sum + parseInt(m.days || 0, 10), 0);
 
 const getDayOfYear = (cal, mIdx, day) => {
@@ -196,7 +196,6 @@ export const syncCalendarNoteDates = (trigger) => {
 
     if (!startYEl || !startMEl || !startDEl || !endYEl || !endMEl || !endDEl || !durationEl) return;
 
-    // Strict numerical parsing avoiding "falsy zero" overrides
     let sY = parseInt(startYEl.value, 10); if (isNaN(sY)) sY = 0;
     let sM = parseInt(startMEl.value, 10); if (isNaN(sM)) sM = 0;
     let sD = parseInt(startDEl.value, 10); if (isNaN(sD)) sD = 1;
@@ -248,7 +247,7 @@ export const syncCalendarNoteDates = (trigger) => {
 // --- Notes ---
 export const saveCalendarNote = async () => {
     updateDerivedState();
-    const camp = window.appData.activeCampaign;
+    let camp = window.appData.activeCampaign;
     const myUid = window.appData.currentUserUid;
     if (!camp || !camp.calendar) return;
 
@@ -279,7 +278,6 @@ export const saveCalendarNote = async () => {
 
     if (!textInput || textInput.value.trim() === '') return;
 
-    // Strict numerical parsing avoiding "falsy zero" overrides
     let startY = startYInput ? parseInt(startYInput.value, 10) : NaN;
     if (isNaN(startY)) startY = date.year;
 
@@ -298,7 +296,6 @@ export const saveCalendarNote = async () => {
     let endD = endDInput ? parseInt(endDInput.value, 10) : NaN;
     if (isNaN(endD)) endD = startD;
 
-    // Calculate strict absolute duration based on integer calendar days
     const totalDays = getDaysInYear(camp.calendar);
     const startDoy = getDayOfYear(camp.calendar, startM, startD);
     const endDoy = getDayOfYear(camp.calendar, endM, endD);
@@ -310,7 +307,6 @@ export const saveCalendarNote = async () => {
     
     if (!camp.calendar.notes) camp.calendar.notes = {};
 
-    // Remove the note from its original anchor date if the user moved its start date
     if (origYInput && origYInput.value !== '') {
         const oY = parseInt(origYInput.value, 10);
         const oM = parseInt(origMInput.value, 10);
@@ -337,7 +333,6 @@ export const saveCalendarNote = async () => {
     const dateKey = `${startY}-${startM}-${startD}`;
     const text = textInput.value.trim();
 
-    // Backward compatibility: Convert legacy single-note object to an array
     let dayNotes = camp.calendar.notes[dateKey];
     if (dayNotes && !Array.isArray(dayNotes)) {
         dayNotes = [{ id: generateId(), text: dayNotes.text, visibility: dayNotes.visibility, authorId: camp.dmId, category: 'Misc' }];
@@ -345,6 +340,7 @@ export const saveCalendarNote = async () => {
     if (!dayNotes) dayNotes = [];
 
     const existingNoteIndex = dayNotes.findIndex(n => n.id === noteId);
+    const isNewNote = existingNoteIndex < 0;
 
     const newNote = {
         id: noteId,
@@ -360,7 +356,7 @@ export const saveCalendarNote = async () => {
         category: categoryInput ? categoryInput.value : 'Misc'
     };
 
-    if (existingNoteIndex >= 0) {
+    if (!isNewNote) {
         newNote.authorId = dayNotes[existingNoteIndex].authorId || myUid;
         dayNotes[existingNoteIndex] = newNote;
     } else {
@@ -385,6 +381,19 @@ export const saveCalendarNote = async () => {
     if (repeatsInput) repeatsInput.checked = false;
     if (categoryInput) categoryInput.value = 'Misc';
     
+    // --- ACTIVITY LOGGING ---
+    if (!camp._isDM) {
+        let mName = camp.calendar.months[startM]?.name || "Unknown";
+        if (mName.includes('(') && camp.calendar.months[startM]?.nickname === undefined) mName = mName.split('(')[0].trim();
+        const dateDisplay = `${startD} ${mName}, ${startY}`;
+        
+        if (isNewNote) {
+            camp = logPlayerActivity(camp, myUid, `inscribed a new historical record on <span class="font-bold text-amber-700">${dateDisplay}</span>.`, 'fa-calendar-plus');
+        } else {
+            camp = logPlayerActivity(camp, myUid, `amended a historical record on <span class="font-bold text-amber-700">${dateDisplay}</span>.`, 'fa-pen-clip');
+        }
+    }
+
     await saveCampaign(camp);
     notify("Chronicle inscribed.", "success");
     reRender(); 
@@ -393,10 +402,9 @@ export const saveCalendarNote = async () => {
 export const editCalendarNote = (noteId, anchorYear, anchorMonth, anchorDay) => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
-    const date = window.appData.activeCalendarDate; // The day currently being viewed
+    const date = window.appData.activeCalendarDate;
     if (!camp || !date) return;
 
-    // Load from the anchor date (where the note actually lives), fallback to active date for legacy
     let targetY = anchorYear !== undefined ? anchorYear : date.year;
     let targetM = anchorMonth !== undefined ? anchorMonth : date.monthIndex;
     let targetD = anchorDay !== undefined ? anchorDay : date.day;
@@ -404,7 +412,6 @@ export const editCalendarNote = (noteId, anchorYear, anchorMonth, anchorDay) => 
     const dateKey = `${targetY}-${targetM}-${targetD}`;
     const dayNotes = camp.calendar.notes[dateKey] || [];
     
-    // Backward compatibility
     let targetNote = null;
     if (!Array.isArray(dayNotes)) {
         targetNote = { id: noteId, text: dayNotes.text, visibility: dayNotes.visibility, category: 'Misc' };
@@ -492,13 +499,13 @@ export const deleteCalendarNote = async (anchorYear, anchorMonth, anchorDay, not
     if (!confirm("Are you sure you want to delete this historical note?")) return;
     
     updateDerivedState();
-    const camp = window.appData.activeCampaign;
+    let camp = window.appData.activeCampaign;
+    const myUid = window.appData.currentUserUid;
     if (!camp || !camp.calendar || !camp.calendar.notes) return;
 
     const dateKey = `${anchorYear}-${anchorMonth}-${anchorDay}`;
     let dayNotes = camp.calendar.notes[dateKey];
 
-    // Backward compatibility & array filtering
     if (dayNotes && !Array.isArray(dayNotes)) {
         delete camp.calendar.notes[dateKey];
     } else if (Array.isArray(dayNotes)) {
@@ -508,6 +515,11 @@ export const deleteCalendarNote = async (anchorYear, anchorMonth, anchorDay, not
         } else {
             camp.calendar.notes[dateKey] = dayNotes;
         }
+    }
+
+    // --- ACTIVITY LOGGING ---
+    if (!camp._isDM) {
+        camp = logPlayerActivity(camp, myUid, `erased a historical record from the Chronicle timeline.`, 'fa-eraser');
     }
 
     await saveCampaign(camp);
@@ -525,17 +537,13 @@ export const importFoundryCalendarNotes = async (event) => {
         try {
             const data = JSON.parse(e.target.result);
             
-            // 1. Flatten all notes gracefully depending on the export format
             let rawNotes = [];
             if (Array.isArray(data)) {
-                // Older flat array
                 rawNotes = data;
             } else if (data.notes) {
                 if (Array.isArray(data.notes)) {
-                    // Wrapped array
                     rawNotes = data.notes;
                 } else if (typeof data.notes === 'object') {
-                    // Foundry V11/12 Journal V2 dictionary format (keyed by calendar ID)
                     Object.values(data.notes).forEach(arr => {
                         if (Array.isArray(arr)) rawNotes.push(...arr);
                     });
@@ -554,7 +562,6 @@ export const importFoundryCalendarNotes = async (event) => {
             let importCount = 0;
 
             rawNotes.forEach(fn => {
-                // 2. Extract Date (Foundry hides this inside flags)
                 const scFlags = fn.flags?.["foundryvtt-simple-calendar-reborn"] || fn.flags?.["foundryvtt-simple-calendar"];
                 const startDate = scFlags?.noteData?.startDate || fn.date;
                 
@@ -566,23 +573,20 @@ export const importFoundryCalendarNotes = async (event) => {
 
                 if (y === undefined || m === undefined || d === undefined) return;
 
-                // Simple Calendar days are 0-indexed internally. 
-                // Simple Calendar months perfectly align with our monthIndex handling of intercalary days!
-                d += 1;
+                d += 1; // Simple Calendar is 0-indexed for days
 
-                // Determine Duration and Repeats from Simple Calendar format
                 let duration = 1;
                 let repeatsYearly = false;
-                let category = 'Misc'; // Default our newly imported notes to Misc
+                let category = 'Misc'; 
                 
                 if (scFlags?.noteData) {
-                    if (scFlags.noteData.repeats === 1) repeatsYearly = true; // Simple Calendar uses '1' for Yearly
+                    if (scFlags.noteData.repeats === 1) repeatsYearly = true; 
                     
                     const endDate = scFlags.noteData.endDate;
                     if (endDate && endDate.year !== undefined && endDate.month !== undefined && endDate.day !== undefined) {
                         let ey = endDate.year;
                         let em = endDate.month;
-                        let ed = endDate.day + 1; // Convert 0-indexed to 1-indexed
+                        let ed = endDate.day + 1; 
                         
                         const totalDays = getDaysInYear(camp.calendar);
                         const startDoy = getDayOfYear(camp.calendar, m, d);
@@ -591,7 +595,6 @@ export const importFoundryCalendarNotes = async (event) => {
                         if (duration < 1) duration = 1;
                     }
 
-                    // Smart map Foundry Categories to our native Color-coded Categories
                     if (scFlags.noteData.categories && scFlags.noteData.categories.length > 0) {
                         const rawCat = scFlags.noteData.categories[0].toLowerCase();
                         if (rawCat.includes('holiday')) category = 'Holiday';
@@ -602,10 +605,7 @@ export const importFoundryCalendarNotes = async (event) => {
                     }
                 }
 
-                // 3. Extract Title
                 let title = fn.title || fn.name || '';
-
-                // 4. Extract Content (Journal V2 uses the pages array)
                 let rawContent = '';
                 if (fn.pages && Array.isArray(fn.pages)) {
                     fn.pages.forEach(page => {
@@ -614,15 +614,11 @@ export const importFoundryCalendarNotes = async (event) => {
                         }
                     });
                 } else {
-                    // Fallback for Journal V1
                     rawContent = fn.content || fn.details || '';
                 }
 
-                // 5. Clean up HTML and proprietary Foundry tags
                 let processedContent = rawContent.replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n\n');
                 let strippedContent = processedContent.replace(/<[^>]*>?/gm, '').trim();
-                
-                // Scrub out UUID tags like @UUID[JournalEntry.TkjqfkZ6w8WBe1Lh]{Session 42!} -> Session 42!
                 strippedContent = strippedContent.replace(/@UUID\[.*?\]\{(.*?)\}/g, '$1');
                 
                 let combinedText = title;
@@ -648,11 +644,11 @@ export const importFoundryCalendarNotes = async (event) => {
                     id: generateId(),
                     text: combinedText,
                     authorId: camp.dmId,
-                    visibility: { mode: 'public' }, // Imported notes default to public
+                    visibility: { mode: 'public' },
                     timestamp: Date.now(),
                     duration: duration,
                     repeatsYearly: repeatsYearly,
-                    category: category // Injects the mapped category here!
+                    category: category 
                 });
 
                 camp.calendar.notes[dateKey] = dayNotes;
@@ -671,7 +667,6 @@ export const importFoundryCalendarNotes = async (event) => {
     };
     reader.readAsText(file);
     
-    // Reset the input so the same file can be selected again if needed
     event.target.value = '';
 };
 
@@ -776,7 +771,6 @@ export const saveCalendarSettings = async () => {
     camp.calendar.daysInWeek = daysInWeekInput ? parseInt(daysInWeekInput.value, 10) || 7 : 7;
     camp.calendar.months = newMonths;
 
-    // Reset view to the beginning of the year just in case they deleted the month they were currently viewing
     window.appData.calendarViewMonth = 0;
 
     await saveCampaign(camp);
@@ -794,7 +788,7 @@ export const resetCalendarToDefault = async () => {
     const defaults = JSON.parse(JSON.stringify(DEFAULT_CALENDAR));
     camp.calendar.name = defaults.name;
     camp.calendar.description = defaults.description;
-    camp.calendar.daysInWeek = defaults.defaultsInWeek; // Bug fix here, falling back to defaults if it doesn't map perfectly initially
+    camp.calendar.daysInWeek = defaults.defaultsInWeek; 
     if(!defaults.daysInWeek) camp.calendar.daysInWeek = 10;
     else camp.calendar.daysInWeek = defaults.daysInWeek;
 
