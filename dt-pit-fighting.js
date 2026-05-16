@@ -46,7 +46,7 @@ export const openPitFightingModal = () => {
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Select Hero</label>
-                            <select id="dt-pit-pc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-red-900 bg-white shadow-inner">
+                            <select id="dt-pit-pc" onchange="window.appActions.updatePitFightingMath('pc')" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-red-900 bg-white shadow-inner">
                                 ${validPCs.map(pc => {
                                     const currentDays = parseInt(pc.availableDowntime) || 0;
                                     return `<option value="${pc.id}">${pc.name} (${currentDays} Days)</option>`;
@@ -112,7 +112,7 @@ export const openPitFightingModal = () => {
                     <div class="bg-red-50 border border-red-200 p-4 rounded-sm shadow-sm mb-5 flex flex-col sm:flex-row gap-4 justify-between items-center">
                         <div class="flex-grow w-full">
                             <label class="flex items-center gap-2 cursor-pointer group mb-2">
-                                <input type="checkbox" id="dt-pit-replace-toggle" onchange="window.appActions.updatePitFightingMath()" class="w-4 h-4 text-red-700 rounded-sm cursor-pointer shadow-sm border-red-400">
+                                <input type="checkbox" id="dt-pit-replace-toggle" onchange="window.appActions.updatePitFightingMath('input')" class="w-4 h-4 text-red-700 rounded-sm cursor-pointer shadow-sm border-red-400">
                                 <span class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-red-900 group-hover:text-red-700 transition">Use Weapon Attack</span>
                             </label>
                             <p class="text-[9px] text-red-800 italic">Replace ONE of the standard checks above with your Attack modifier.</p>
@@ -153,6 +153,10 @@ export const openPitFightingModal = () => {
             </div>
         </div>
     `;
+
+    setTimeout(() => {
+        window.appActions.updatePitFightingMath('init');
+    }, 50);
 };
 
 // --- LOCATION CODEX AUTOCOMPLETE LOGIC ---
@@ -208,7 +212,59 @@ export const selectPitLocation = (name) => {
     }
 };
 
-export const updatePitFightingMath = () => {
+export const updatePitFightingMath = (triggerSource = 'input') => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    const pcId = document.getElementById('dt-pit-pc')?.value;
+    const pc = camp?.playerCharacters?.find(p => p.id === pcId);
+
+    // --- AUTO-CALCULATE MODIFIER ---
+    if (pc && (triggerSource === 'init' || triggerSource === 'pc')) {
+        const getAbilityMod = (score) => Math.floor(((parseInt(score) || 10) - 10) / 2);
+        let pb = 2;
+        if (pc.classLevel) {
+            const levels = pc.classLevel.match(/\d+/g);
+            if (levels) pb = Math.max(2, Math.ceil(levels.reduce((a, b) => a + parseInt(b), 0) / 4) + 1);
+        }
+
+        const getSkillMod = (statScore, skillName) => {
+            const mod = getAbilityMod(statScore);
+            let isProf = false, isExp = false;
+            const cleanSkill = skillName.toLowerCase();
+            const profStr = ((pc.skills || '') + ',' + (pc.proficiencies || '')).toLowerCase();
+            const checkArr = profStr.split(',').map(s => s.trim());
+            const match = checkArr.find(s => s.includes(cleanSkill));
+            if (match) {
+                isProf = true;
+                if (match.includes('expertise')) isExp = true;
+            }
+            return mod + (isExp ? pb * 2 : (isProf ? pb : 0));
+        };
+
+        const athEl = document.getElementById('dt-pit-ath');
+        const acrEl = document.getElementById('dt-pit-acr');
+        const conEl = document.getElementById('dt-pit-con');
+        const atkEl = document.getElementById('dt-pit-atk');
+        const hdEl = document.getElementById('dt-pit-hd');
+
+        if (athEl) athEl.value = getSkillMod(pc.str, 'athletics');
+        if (acrEl) acrEl.value = getSkillMod(pc.dex, 'acrobatics');
+        if (conEl) conEl.value = getAbilityMod(pc.con);
+
+        // Smart Weapon Attack default (Best of STR/DEX + PB)
+        if (atkEl) atkEl.value = Math.max(getAbilityMod(pc.str), getAbilityMod(pc.dex)) + pb;
+
+        // Smart Hit Die Detection based on common classes
+        if (hdEl && pc.classLevel) {
+            const classStr = pc.classLevel.toLowerCase();
+            if (classStr.includes('barbarian')) hdEl.value = "12";
+            else if (classStr.includes('fighter') || classStr.includes('paladin') || classStr.includes('ranger') || classStr.includes('blood hunter')) hdEl.value = "10";
+            else if (classStr.includes('sorcerer') || classStr.includes('wizard')) hdEl.value = "6";
+            else hdEl.value = "8"; // Default for Bard, Cleric, Druid, Monk, Rogue, Warlock, Artificer
+        }
+    }
+
+    // Toggle Weapon Attack UI block opacity
     const toggle = document.getElementById('dt-pit-replace-toggle');
     const group = document.getElementById('dt-pit-replace-group');
     if (!toggle || !group) return;
