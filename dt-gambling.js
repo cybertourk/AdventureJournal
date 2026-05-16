@@ -342,7 +342,50 @@ export const executeGambling = async () => {
         } : p
     );
 
-    let updatedCamp = { ...camp, playerCharacters: updatedPCs };
+    // --- GENERATE SYNC TASKS ---
+    let newTasks = [];
+    if (successes === 0) {
+        newTasks.push({
+            id: generateId(),
+            text: `D&D Beyond Sync (${pc.name}): Deduct ${stake.toLocaleString()} gp (gambling loss) and note a ${stake.toLocaleString()} gp debt.`,
+            resolvedBy: [],
+            visibility: { mode: pc.playerId ? 'specific' : 'public', visibleTo: pc.playerId ? [pc.playerId] : [] },
+            timestamp: Date.now()
+        });
+    } else if (successes === 1) {
+        const loss = Math.ceil(stake / 2);
+        newTasks.push({
+            id: generateId(),
+            text: `D&D Beyond Sync (${pc.name}): Deduct ${loss.toLocaleString()} gp (gambling loss).`,
+            resolvedBy: [],
+            visibility: { mode: pc.playerId ? 'specific' : 'public', visibleTo: pc.playerId ? [pc.playerId] : [] },
+            timestamp: Date.now()
+        });
+    } else if (successes === 2) {
+        const profit = Math.ceil(stake * 1.5);
+        newTasks.push({
+            id: generateId(),
+            text: `D&D Beyond Sync (${pc.name}): Add ${profit.toLocaleString()} gp earned from gambling.`,
+            resolvedBy: [],
+            visibility: { mode: pc.playerId ? 'specific' : 'public', visibleTo: pc.playerId ? [pc.playerId] : [] },
+            timestamp: Date.now()
+        });
+    } else if (successes === 3) {
+        const profit = stake * 2;
+        newTasks.push({
+            id: generateId(),
+            text: `D&D Beyond Sync (${pc.name}): Add ${profit.toLocaleString()} gp earned from gambling.`,
+            resolvedBy: [],
+            visibility: { mode: pc.playerId ? 'specific' : 'public', visibleTo: pc.playerId ? [pc.playerId] : [] },
+            timestamp: Date.now()
+        });
+    }
+
+    let updatedCamp = { 
+        ...camp, 
+        playerCharacters: updatedPCs,
+        sheetUpdates: [...(camp.sheetUpdates || []), ...newTasks] 
+    };
     updatedCamp = logPlayerActivity(updatedCamp, myUid, `spent downtime gambling in ${loc} with <span class="font-bold text-amber-700">${pc.name}</span>.`, 'fa-dice-d20');
 
     await saveCampaign(updatedCamp);
