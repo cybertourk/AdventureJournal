@@ -12,11 +12,35 @@ let currentMode = 'pan';
 let drawingPolyline = null;
 let drawingPoints = [];
 let drawingMarkers = []; 
-let drawingStopIndices = []; // NEW: Tracks exactly which clicks were marked as official stops
+let drawingStopIndices = []; // Tracks exactly which clicks were marked as official stops
 
 // Memory trackers for preserving your viewport!
 let savedMapCenter = null;
 let savedMapZoom = null;
+
+// Variables for custom right-click panning
+let rightDrag = false;
+let lastMousePos = null;
+
+// --- GLOBAL WINDOW LISTENERS (Bind only once!) ---
+if (typeof window !== 'undefined') {
+    window.addEventListener('mousemove', e => {
+        if (rightDrag && lastMousePos && mapInstance) {
+            const dx = lastMousePos.x - e.clientX;
+            const dy = lastMousePos.y - e.clientY;
+            mapInstance.panBy([dx, dy], { animate: false });
+            lastMousePos = { x: e.clientX, y: e.clientY };
+        }
+    });
+    
+    window.addEventListener('mouseup', e => {
+        if (e.button === 2) {
+            rightDrag = false;
+            const container = document.getElementById('map-container');
+            if (container) container.style.cursor = 'crosshair'; 
+        }
+    });
+}
 
 // --- CALENDAR MATH HELPERS (For Arrival Date Calculation) ---
 const getDaysInYear = (cal) => cal.months.reduce((sum, m) => sum + parseInt(m.days || 0, 10), 0);
@@ -141,34 +165,16 @@ export const initAtlas = () => {
     img.src = config.url;
 
     // --- 3. CUSTOM RIGHT-CLICK PANNING LOGIC ---
-    let rightDrag = false;
-    let lastMousePos = null;
-    
-    container.addEventListener('contextmenu', e => e.preventDefault());
-    
-    container.addEventListener('mousedown', e => {
+    // Using property assignment (oncontextmenu/onmousedown) instead of addEventListener 
+    // prevents duplicate listeners from stacking if the container persists between renders.
+    container.oncontextmenu = e => e.preventDefault();
+    container.onmousedown = e => {
         if (e.button === 2) { // Right Click
             rightDrag = true;
             lastMousePos = { x: e.clientX, y: e.clientY };
             container.style.cursor = 'grabbing';
         }
-    });
-    
-    window.addEventListener('mousemove', e => {
-        if (rightDrag && lastMousePos && mapInstance) {
-            const dx = lastMousePos.x - e.clientX;
-            const dy = lastMousePos.y - e.clientY;
-            mapInstance.panBy([dx, dy], { animate: false });
-            lastMousePos = { x: e.clientX, y: e.clientY };
-        }
-    });
-    
-    window.addEventListener('mouseup', e => {
-        if (e.button === 2) {
-            rightDrag = false;
-            container.style.cursor = 'crosshair'; 
-        }
-    });
+    };
 
     // --- 4. ACTION LEFT-CLICKS ---
     mapInstance.on('click', function(e) {
@@ -208,7 +214,7 @@ export const initAtlas = () => {
     window.appActions.setAtlasMode('pan');
 };
 
-// --- NEW HELPER: FLAG THE LAST DRAWN POINT AS A STOP ---
+// --- HELPER: FLAG THE LAST DRAWN POINT AS A STOP ---
 export const atlasMarkLastPointAsStop = () => {
     if (drawingPoints.length < 2) {
         notify("Draw at least one segment of a path before marking a stop.", "error");
