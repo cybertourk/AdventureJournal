@@ -16,11 +16,15 @@ export const _canViewCodex = (id) => {
     const isHeroOwner = camp.playerCharacters?.some(p => p.id === id && p.playerId === myUid);
     if (isHeroOwner) return true;
 
+    // NEW HARD BLOCK: If it is a PC and it's marked private, but NOT owned by the player, block it immediately.
+    const pc = camp.playerCharacters?.find(p => p.id === id);
+    if (pc && pc.isPrivate) return false;
+
     // 2. Look for formal codex entry
     const entry = camp.codex?.find(c => c.id === id);
 
     // 3. If there is no formal codex entry but it is a PC, default to public
-    if (!entry && camp.playerCharacters?.some(p => p.id === id)) return true;
+    if (!entry && pc) return true;
 
     if (entry) {
         const vis = entry.visibility || { mode: 'public' };
@@ -237,13 +241,19 @@ export const viewCodex = (id) => {
     // Fallback for Legacy PCs that don't have a generated codex entry yet
     if (!entry && camp?.playerCharacters?.some(p => p.id === id)) {
         const pc = camp.playerCharacters.find(p => p.id === id);
+        
+        let fallbackVis = { mode: 'public' };
+        if (pc.isPrivate) {
+            fallbackVis = pc.playerId ? { mode: 'specific', visibleTo: [pc.playerId] } : { mode: 'hidden', visibleTo: [] };
+        }
+        
         entry = {
             id: pc.id,
             name: pc.name,
             type: 'PC',
             tags: ['Hero', pc.race, pc.classLevel].filter(Boolean),
             desc: 'Rumors and public knowledge surrounding this hero are yet to be penned.',
-            visibility: { mode: 'public' },
+            visibility: fallbackVis,
             image: pc.image || ""
         };
     }
