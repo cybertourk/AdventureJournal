@@ -1,5 +1,5 @@
 import { generateId, calculateLootValue, updateDerivedState, reRender } from './state.js';
-import { saveCampaign, notify } from './firebase-manager.js';
+import { saveCampaign, saveSpecificAdventure, saveSpecificCodexEntry, saveSpecificSheetUpdate, pushActivityLog, notify } from './firebase-manager.js';
 import { BUDGET_BY_LEVEL, updateBudgetUI, updateSessionTabUI } from './ui-core.js';
 import { generateSessionMarkdown } from './markdown.js';
 import { logPlayerActivity } from './actions-campaign.js';
@@ -440,23 +440,30 @@ export const saveSession = async () => {
             visibleTo: playersInput && playersInput.value ? playersInput.value.split(',') : []
         };
 
-        const updatedAdventures = camp.adventures.map(a => {
-            if (a.id !== adv.id) return a;
-            const updatedSessions = a.sessions.map(s => {
-                if (s.id !== session.id) return s;
-                const pNotes = s.playerNotes ? JSON.parse(JSON.stringify(s.playerNotes)) : {};
-                pNotes[myUid] = { text: noteInput.value, visibility: vis };
-                return { ...s, playerNotes: pNotes };
-            });
-            return { ...a, sessions: updatedSessions };
+        const updatedSessions = adv.sessions.map(s => {
+            if (s.id !== session.id) return s;
+            const pNotes = s.playerNotes ? JSON.parse(JSON.stringify(s.playerNotes)) : {};
+            pNotes[myUid] = { text: noteInput.value, visibility: vis };
+            return { ...s, playerNotes: pNotes };
         });
+
+        const updatedAdventure = { ...adv, sessions: updatedSessions };
+        const updatedAdventures = camp.adventures.map(a => a.id === adv.id ? updatedAdventure : a);
 
         let updatedCamp = { ...camp, adventures: updatedAdventures };
         
         // Track Player Edits!
         updatedCamp = logPlayerActivity(updatedCamp, myUid, `updated their private notes for the session <span class="font-bold text-amber-700">${session.name}</span>.`, 'fa-lock');
+        
+        // Local Optimistic Update
+        window.appData.activeCampaign = updatedCamp;
+        
+        // Granular Save
+        await saveSpecificAdventure(camp.id, updatedAdventure);
+        if (updatedCamp.activityLog && updatedCamp.activityLog.length > 0) {
+            await pushActivityLog(camp.id, updatedCamp.activityLog[0]);
+        }
 
-        await saveCampaign(updatedCamp);
         window.appActions.setView('adventure');
         notify("Personal notes inscribed.", "success");
         return;
@@ -569,14 +576,13 @@ export const submitSessionClue = async () => {
         visibility: { mode: 'public', visibleTo: [] }
     };
 
-    const updatedAdventures = camp.adventures.map(a => {
-        if (a.id !== adv.id) return a;
-        const updatedSessions = a.sessions.map(s => {
-            if (s.id !== session.id) return s;
-            return { ...s, clues: [...(s.clues || []), newClue] };
-        });
-        return { ...a, sessions: updatedSessions };
+    const updatedSessions = adv.sessions.map(s => {
+        if (s.id !== session.id) return s;
+        return { ...s, clues: [...(s.clues || []), newClue] };
     });
+    
+    const updatedAdventure = { ...adv, sessions: updatedSessions };
+    const updatedAdventures = camp.adventures.map(a => a.id === adv.id ? updatedAdventure : a);
 
     let updatedCamp = { ...camp, adventures: updatedAdventures };
     
@@ -584,9 +590,14 @@ export const submitSessionClue = async () => {
         updatedCamp = logPlayerActivity(updatedCamp, myUid, `logged a discovery in <span class="font-bold text-amber-700">${session.name}</span>.`, 'fa-magnifying-glass');
     }
 
+    window.appData.activeCampaign = updatedCamp;
     input.value = ''; // Clean up input
     
-    await saveCampaign(updatedCamp);
+    // Granular Saves
+    await saveSpecificAdventure(camp.id, updatedAdventure);
+    if (!camp._isDM && updatedCamp.activityLog && updatedCamp.activityLog.length > 0) {
+        await pushActivityLog(camp.id, updatedCamp.activityLog[0]);
+    }
     reRender(); // Instant UI update
 };
 
@@ -601,17 +612,13 @@ export const deleteSessionClue = async (clueId) => {
     
     if (!camp || !adv || !session || !myUid) return;
 
-    const updatedAdventures = camp.adventures.map(a => {
-        if (a.id !== adv.id) return a;
-        const updatedSessions = a.sessions.map(s => {
-            if (s.id !== session.id) return s;
-            return {
-                ...s,
-                clues: (s.clues || []).filter(c => c.id !== clueId)
-            };
-        });
-        return { ...a, sessions: updatedSessions };
+    const updatedSessions = adv.sessions.map(s => {
+        if (s.id !== session.id) return s;
+        return { ...s, clues: (s.clues || []).filter(c => c.id !== clueId) };
     });
+    
+    const updatedAdventure = { ...adv, sessions: updatedSessions };
+    const updatedAdventures = camp.adventures.map(a => a.id === adv.id ? updatedAdventure : a);
 
     let updatedCamp = { ...camp, adventures: updatedAdventures };
     
@@ -619,7 +626,13 @@ export const deleteSessionClue = async (clueId) => {
         updatedCamp = logPlayerActivity(updatedCamp, myUid, `removed a discovery from <span class="font-bold text-amber-700">${session.name}</span>.`, 'fa-eraser');
     }
     
-    await saveCampaign(updatedCamp);
+    window.appData.activeCampaign = updatedCamp;
+    
+    // Granular Saves
+    await saveSpecificAdventure(camp.id, updatedAdventure);
+    if (!camp._isDM && updatedCamp.activityLog && updatedCamp.activityLog.length > 0) {
+        await pushActivityLog(camp.id, updatedCamp.activityLog[0]);
+    }
     reRender();
 };
 
@@ -689,33 +702,32 @@ export const addChronicleEntry = async () => {
 
     const editId = editIdInput ? editIdInput.value : '';
 
-    const updatedAdventures = camp.adventures.map(a => {
-        if (a.id !== adv.id) return a;
-        const updatedSessions = a.sessions.map(s => {
-            if (s.id !== session.id) return s;
-            
-            let newChronicle = s.chronicle ? [...s.chronicle] : [];
-            
-            if (editId) {
-                // UPDATE EXISTING ENTRY
-                const targetIdx = newChronicle.findIndex(e => e.id === editId);
-                if (targetIdx > -1) {
-                    newChronicle[targetIdx].text = text;
-                }
-            } else {
-                // ADD NEW ENTRY
-                newChronicle.push({
-                    id: generateId(),
-                    text: text,
-                    authorId: myUid,
-                    timestamp: Date.now()
-                });
+    const updatedSessions = adv.sessions.map(s => {
+        if (s.id !== session.id) return s;
+        
+        let newChronicle = s.chronicle ? [...s.chronicle] : [];
+        
+        if (editId) {
+            // UPDATE EXISTING ENTRY
+            const targetIdx = newChronicle.findIndex(e => e.id === editId);
+            if (targetIdx > -1) {
+                newChronicle[targetIdx].text = text;
             }
+        } else {
+            // ADD NEW ENTRY
+            newChronicle.push({
+                id: generateId(),
+                text: text,
+                authorId: myUid,
+                timestamp: Date.now()
+            });
+        }
 
-            return { ...s, chronicle: newChronicle };
-        });
-        return { ...a, sessions: updatedSessions };
+        return { ...s, chronicle: newChronicle };
     });
+    
+    const updatedAdventure = { ...adv, sessions: updatedSessions };
+    const updatedAdventures = camp.adventures.map(a => a.id === adv.id ? updatedAdventure : a);
 
     let updatedCamp = { ...camp, adventures: updatedAdventures };
     
@@ -726,13 +738,16 @@ export const addChronicleEntry = async () => {
         updatedCamp = logPlayerActivity(updatedCamp, myUid, `added a new Chronicle entry to <span class="font-bold text-amber-700">${session.name}</span>.`, 'fa-feather-pointed');
     }
     
-    // Clean up input fields and UI state
+    window.appData.activeCampaign = updatedCamp;
     input.value = '';
     window.appActions.cancelChronicleEdit();
     
-    await saveCampaign(updatedCamp);
+    // Granular Saves
+    await saveSpecificAdventure(camp.id, updatedAdventure);
+    if (updatedCamp.activityLog && updatedCamp.activityLog.length > 0) {
+        await pushActivityLog(camp.id, updatedCamp.activityLog[0]);
+    }
     
-    // Force a local re-render so the new/edited message pops up instantly for the author
     reRender();
 };
 
@@ -747,24 +762,29 @@ export const deleteChronicleEntry = async (entryId) => {
     
     if (!camp || !adv || !session || !myUid) return;
 
-    const updatedAdventures = camp.adventures.map(a => {
-        if (a.id !== adv.id) return a;
-        const updatedSessions = a.sessions.map(s => {
-            if (s.id !== session.id) return s;
-            return {
-                ...s,
-                chronicle: (s.chronicle || []).filter(e => e.id !== entryId)
-            };
-        });
-        return { ...a, sessions: updatedSessions };
+    const updatedSessions = adv.sessions.map(s => {
+        if (s.id !== session.id) return s;
+        return {
+            ...s,
+            chronicle: (s.chronicle || []).filter(e => e.id !== entryId)
+        };
     });
+    
+    const updatedAdventure = { ...adv, sessions: updatedSessions };
+    const updatedAdventures = camp.adventures.map(a => a.id === adv.id ? updatedAdventure : a);
 
     let updatedCamp = { ...camp, adventures: updatedAdventures };
     
     // Track Player Edits!
     updatedCamp = logPlayerActivity(updatedCamp, myUid, `erased a Chronicle entry from <span class="font-bold text-amber-700">${session.name}</span>.`, 'fa-eraser');
     
-    await saveCampaign(updatedCamp);
+    window.appData.activeCampaign = updatedCamp;
+    
+    // Granular Saves
+    await saveSpecificAdventure(camp.id, updatedAdventure);
+    if (updatedCamp.activityLog && updatedCamp.activityLog.length > 0) {
+        await pushActivityLog(camp.id, updatedCamp.activityLog[0]);
+    }
     
     // If they delete an entry they were currently editing, clear the edit state!
     const editIdInput = document.getElementById('edit-chronicle-id');
@@ -997,15 +1017,16 @@ export const saveVisibility = async () => {
 
         const newCodexArray = camp.codex.map(c => {
             if (c.id === explicitId) {
-                return {
-                    ...c,
-                    visibility: { mode: finalMode, visibleTo: selectedPlayers }
-                };
+                return { ...c, visibility: { mode: finalMode, visibleTo: selectedPlayers } };
             }
             return c;
         });
 
-        await window.appActions._saveCampaignHelper({ ...camp, codex: newCodexArray });
+        camp.codex = newCodexArray;
+        window.appData.activeCampaign = camp;
+        
+        const updatedEntry = newCodexArray.find(c => c.id === explicitId);
+        await saveSpecificCodexEntry(camp.id, updatedEntry);
     }
     // MODE C: Database Update (For Global Checklist Tasks)
     else if (targetType === 'checklist') {
@@ -1016,15 +1037,16 @@ export const saveVisibility = async () => {
 
         const newUpdatesArray = (camp.sheetUpdates || []).map(u => {
             if (u.id === explicitId) {
-                return {
-                    ...u,
-                    visibility: { mode: finalMode, visibleTo: selectedPlayers }
-                };
+                return { ...u, visibility: { mode: finalMode, visibleTo: selectedPlayers } };
             }
             return u;
         });
 
-        await window.appActions._saveCampaignHelper({ ...camp, sheetUpdates: newUpdatesArray });
+        camp.sheetUpdates = newUpdatesArray;
+        window.appData.activeCampaign = camp;
+
+        const updatedTask = newUpdatesArray.find(u => u.id === explicitId);
+        await saveSpecificSheetUpdate(camp.id, updatedTask);
     }
 
     // Clean up
