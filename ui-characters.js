@@ -26,9 +26,17 @@ const renderBoonSelect = (id, selectedVal, extraClass="") => {
 export function getPCManagerHTML(state) {
     const camp = state.activeCampaign;
     if (!camp) return '';
-    const pcs = camp.playerCharacters || [];
     const isDM = camp._isDM;
     const myUid = state.currentUserUid;
+    
+    // NEW FILTER LOGIC: Hide Private Heroes from unauthorized players
+    const allPcs = camp.playerCharacters || [];
+    const pcs = allPcs.filter(pc => {
+        if (!pc.isPrivate) return true; // Public, everyone sees
+        if (isDM) return true; // DM sees all
+        if (pc.playerId === myUid) return true; // Owner sees their own private hero
+        return false;
+    });
 
     let html = `
     <div class="animate-in fade-in duration-300">
@@ -121,6 +129,8 @@ export function getPCManagerHTML(state) {
                 `;
             }
 
+            const privateBadge = pc.isPrivate ? `<span class="bg-red-900 text-white px-1.5 py-0.5 rounded text-[9px] uppercase tracking-widest font-bold shadow-sm ml-2 align-middle whitespace-nowrap" title="Hidden from other players"><i class="fa-solid fa-user-secret mr-1"></i> Private</span>` : '';
+
             html += `
             <div class="bg-[#fdfbf7] p-0 sm:p-0 rounded-sm border border-[#d4c5a9] shadow-sm flex flex-col group relative overflow-hidden hover:shadow-md transition">
                 <div class="absolute top-0 left-0 w-1 h-full ${canEdit ? 'bg-red-900 group-hover:bg-red-700' : 'bg-stone-400 group-hover:bg-amber-600'} transition-colors z-20"></div>
@@ -129,7 +139,7 @@ export function getPCManagerHTML(state) {
                 
                 <div class="p-4 sm:p-5 pl-5 sm:pl-6 flex flex-col justify-between flex-grow">
                     <div>
-                        <h3 class="font-serif font-bold text-lg sm:text-xl text-stone-900 truncate">${pc.name}</h3>
+                        <h3 class="font-serif font-bold text-lg sm:text-xl text-stone-900 truncate leading-tight flex items-center">${pc.name} ${privateBadge}</h3>
                         <p class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-stone-500 mt-1 sm:mt-2">
                             ${race} <span class="mx-1">•</span> ${classLevel}
                         </p>
@@ -209,7 +219,7 @@ export function getPCEditHTML(state) {
     // Updated default structure to hold stats, equipment, and ddbId
     const pc = !isNew && camp?.playerCharacters 
         ? camp.playerCharacters.find(p => p.id === state.activePcId) 
-        : { name: '', race: '', classLevel: '', background: '', alignment: '', faith: '', gender: '', age: '', size: '', height: '', weight: '', eyes: '', hair: '', skin: '', traits: '', ideals: '', bonds: '', flaws: '', appearance: '', backstory: '', organizations: '', allies: '', enemies: '', dmNotes: '', playerId: '', image: '', boonBackstory: false, boon1stBday: '', boon2ndBday: '', extraBdayBoons: [], unlockAutoSuccess: false, availableDowntime: 0, downtimeLog: '', str: '', dex: '', con: '', int: '', wis: '', cha: '', saves: '', skills: '', proficiencies: '', wealth: '', equipped: '', backpack: '', ddbId: '' };
+        : { name: '', race: '', classLevel: '', background: '', alignment: '', faith: '', gender: '', age: '', size: '', height: '', weight: '', eyes: '', hair: '', skin: '', traits: '', ideals: '', bonds: '', flaws: '', appearance: '', backstory: '', organizations: '', allies: '', enemies: '', dmNotes: '', playerId: '', image: '', boonBackstory: false, boon1stBday: '', boon2ndBday: '', extraBdayBoons: [], unlockAutoSuccess: false, availableDowntime: 0, downtimeLog: '', str: '', dex: '', con: '', int: '', wis: '', cha: '', saves: '', skills: '', proficiencies: '', wealth: '', equipped: '', backpack: '', ddbId: '', isPrivate: false };
 
     if (!pc && !isNew) return `<div class="text-center text-red-500 p-8 font-serif font-bold text-xl">Hero not found in the archives.</div>`;
 
@@ -248,13 +258,19 @@ export function getPCEditHTML(state) {
         }).join('');
         
         playerAssignHTML = `
-            <div class="col-span-full border-b-2 border-stone-300 pb-4 mb-2">
-                <label class="block text-[10px] font-bold text-blue-700 uppercase tracking-widest mb-1.5"><i class="fa-solid fa-link mr-1"></i> DM Override: Assigned Player</label>
-                <select id="pc-edit-player-id" class="w-full sm:w-1/2 p-2 border border-blue-300 rounded-sm text-sm bg-blue-50 font-bold text-blue-900 shadow-sm outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">-- DM Controlled (NPC / Unassigned) --</option>
-                    ${options}
-                </select>
-                <p class="text-[10px] text-stone-500 mt-1 italic">Assigning a player allows them to edit this hero's backstory and traits.</p>
+            <div class="col-span-full border-b-2 border-stone-300 pb-4 mb-2 flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-end">
+                <div class="w-full sm:w-auto flex-grow">
+                    <label class="block text-[10px] font-bold text-blue-700 uppercase tracking-widest mb-1.5"><i class="fa-solid fa-link mr-1"></i> DM Override: Assigned Player</label>
+                    <select id="pc-edit-player-id" class="w-full sm:w-2/3 p-2 border border-blue-300 rounded-sm text-sm bg-blue-50 font-bold text-blue-900 shadow-sm outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">-- DM Controlled (NPC / Unassigned) --</option>
+                        ${options}
+                    </select>
+                    <p class="text-[10px] text-stone-500 mt-1 italic">Assigning a player allows them to edit this hero's backstory and traits.</p>
+                </div>
+                <div class="w-full sm:w-auto bg-red-50 border border-red-200 p-3 rounded-sm shadow-sm flex items-center gap-2 shrink-0">
+                    <input type="checkbox" id="pc-edit-is-private" ${pc.isPrivate ? 'checked' : ''} class="w-4 h-4 text-red-900 rounded-sm cursor-pointer shadow-sm border-red-400 focus:ring-red-500">
+                    <label class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-red-900 cursor-pointer" for="pc-edit-is-private"><i class="fa-solid fa-user-secret mr-1"></i> Keep Hero Private</label>
+                </div>
             </div>
         `;
     } else {
@@ -672,7 +688,8 @@ export const savePCEdit = async () => {
       downtimeLog: '',
       str: '', dex: '', con: '', int: '', wis: '', cha: '',
       saves: '', skills: '', proficiencies: '',
-      wealth: '', equipped: '', backpack: '', ddbId: ''
+      wealth: '', equipped: '', backpack: '', ddbId: '',
+      isPrivate: false
   };
 
   const isOwner = existingPC.playerId === myUid;
@@ -694,6 +711,8 @@ export const savePCEdit = async () => {
 
   const localBMonth = isDM ? ((bMonthEl && !bMonthEl.disabled) ? (parseInt(bMonthEl.value) || null) : existingPC.birthMonth) : existingPC.birthMonth;
   const localBDay = isDM ? ((bDayEl && !bDayEl.disabled) ? (parseInt(bDayEl.value) || null) : existingPC.birthDay) : existingPC.birthDay;
+  
+  const isPrivateFlag = isDM ? (document.getElementById('pc-edit-is-private')?.checked || false) : (existingPC.isPrivate || false);
 
   // Gather Extra Birthday Boons (3rd+)
   const extraBdayBoons = [];
@@ -720,6 +739,7 @@ export const savePCEdit = async () => {
   const updatedPC = {
       ...existingPC,
       id: pcId,
+      isPrivate: isPrivateFlag,
       // Core Identity
       name: nameInput,
       race: getVal('pc-edit-race', existingPC.race),
@@ -784,6 +804,15 @@ export const savePCEdit = async () => {
   const newPCs = isNew ? [...(camp.playerCharacters || []), updatedPC] : camp.playerCharacters.map(p => p.id === pcId ? updatedPC : p);
 
   // --- Auto-Generate / Update Linked Codex Entry for the Hero ---
+  let codexVisibility = { mode: 'public', visibleTo: [] };
+  if (isPrivateFlag) {
+      if (updatedPC.playerId) {
+          codexVisibility = { mode: 'specific', visibleTo: [updatedPC.playerId] };
+      } else {
+          codexVisibility = { mode: 'hidden', visibleTo: [] };
+      }
+  }
+
   let updatedCodexArray = [...(camp.codex || [])];
   const existingCodexEntry = updatedCodexArray.find(c => c.id === pcId);
 
@@ -794,7 +823,7 @@ export const savePCEdit = async () => {
           type: 'PC',
           tags: ['Hero', updatedPC.race, updatedPC.classLevel].filter(Boolean),
           desc: 'Rumors and public knowledge surrounding this hero are yet to be penned.',
-          visibility: { mode: 'public' },
+          visibility: codexVisibility,
           image: updatedPC.image
       });
   } else {
@@ -805,6 +834,7 @@ export const savePCEdit = async () => {
                   name: updatedPC.name,
                   type: 'PC',
                   tags: ['Hero', updatedPC.race, updatedPC.classLevel].filter(Boolean),
+                  visibility: codexVisibility,
                   image: updatedPC.image
               };
           }
