@@ -1,5 +1,5 @@
 import { generateId, updateDerivedState, reRender } from './state.js';
-import { saveCampaign, deleteCampaign as dbDeleteCampaign, notify, joinCampaign as dbJoinCampaign } from './firebase-manager.js';
+import { saveCampaign, deleteCampaign as dbDeleteCampaign, notify, joinCampaign as dbJoinCampaign, saveSpecificSheetUpdate, deleteSpecificSheetUpdate, pushActivityLog } from './firebase-manager.js';
 
 // --- ACTIVITY LOG ENGINE ---
 export const logPlayerActivity = (camp, myUid, message, icon = 'fa-clock-rotate-left') => {
@@ -550,12 +550,12 @@ export const addSheetUpdate = async () => {
     timestamp: Date.now()
   };
 
-  const updatedCamp = {
-    ...camp,
-    sheetUpdates: [...(camp.sheetUpdates || []), newUpdate]
-  };
+  // Optimistic UI update
+  camp.sheetUpdates = [...(camp.sheetUpdates || []), newUpdate];
   input.value = '';
-  await saveCampaign(updatedCamp);
+  
+  // Granular Save
+  await saveSpecificSheetUpdate(camp.id, newUpdate);
   reRender(true);
 };
 
@@ -575,17 +575,33 @@ export const toggleSheetUpdateResolved = async (id) => {
   
   const newResolvedBy = hasResolved ? resolvedBy.filter(uid => uid !== myUid) : [...resolvedBy, myUid];
 
-  const updatedUpdates = [...updates];
-  updatedUpdates[targetIdx] = { ...target, resolvedBy: newResolvedBy };
+  const updatedUpdate = { ...target, resolvedBy: newResolvedBy };
   
-  let updatedCamp = { ...camp, sheetUpdates: updatedUpdates };
+  // Optimistic local update
+  camp.sheetUpdates[targetIdx] = updatedUpdate;
+  
+  // Execute granular remote save without race conditions!
+  await saveSpecificSheetUpdate(camp.id, updatedUpdate);
   
   // LOG ACTIVITY WHEN A PLAYER MARKS A TASK AS COMPLETE
   if (!camp._isDM && !hasResolved) {
-      updatedCamp = logPlayerActivity(updatedCamp, myUid, `marked a task as complete: <span class="italic text-stone-600">"${target.text}"</span>`, 'fa-check');
+      const pName = camp.playerNames ? (camp.playerNames[myUid] || 'Unknown Player') : 'Unknown Player';
+      const logMsg = `<span class="font-bold text-stone-900">${pName}</span> marked a task as complete: <span class="italic text-stone-600">"${target.text}"</span>`;
+      
+      const newLog = {
+          id: generateId(),
+          timestamp: Date.now(),
+          text: logMsg,
+          icon: 'fa-check'
+      };
+      
+      // Optimistic push to local log
+      camp.activityLog = [newLog, ...(camp.activityLog || [])].slice(0, 100);
+      
+      // Granular remote push
+      await pushActivityLog(camp.id, newLog);
   }
   
-  await saveCampaign(updatedCamp);
   reRender(true);
 };
 
@@ -596,11 +612,11 @@ export const deleteSheetUpdate = async (id) => {
   const camp = window.appData.activeCampaign;
   if (!camp || !camp._isDM) return;
 
-  const updatedCamp = {
-    ...camp,
-    sheetUpdates: (camp.sheetUpdates || []).filter(u => u.id !== id)
-  };
-  await saveCampaign(updatedCamp);
+  // Optimistic update
+  camp.sheetUpdates = (camp.sheetUpdates || []).filter(u => u.id !== id);
+  
+  // Granular Save
+  await deleteSpecificSheetUpdate(camp.id, id);
   reRender(true);
 };
 
