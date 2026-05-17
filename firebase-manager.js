@@ -579,6 +579,78 @@ export async function saveCampaign(campaignData) {
     }
 }
 
+// ============================================================================
+// --- GRANULAR COLLABORATIVE SAVES ---
+// These targeted functions prevent race conditions by bypassing the 
+// monolithic saveCampaign function. They use { merge: true } to surgically
+// update only the specific document being edited by the player.
+// ============================================================================
+
+export async function saveSpecificSheetUpdate(campaignId, sheetUpdate) {
+    try {
+        const docRef = doc(db, 'artifacts', appId, 'campaigns', campaignId, 'sheetUpdates', sheetUpdate.id);
+        await setDoc(docRef, sheetUpdate, { merge: true });
+    } catch (error) {
+        console.error("Error saving specific sheet update:", error);
+        notify("Failed to sync specific task.", "error");
+    }
+}
+
+export async function deleteSpecificSheetUpdate(campaignId, sheetUpdateId) {
+    try {
+        const docRef = doc(db, 'artifacts', appId, 'campaigns', campaignId, 'sheetUpdates', sheetUpdateId);
+        await deleteDoc(docRef);
+    } catch (error) {
+        console.error("Error deleting specific sheet update:", error);
+    }
+}
+
+export async function saveSpecificAdventure(campaignId, adventure) {
+    try {
+        const docRef = doc(db, 'artifacts', appId, 'campaigns', campaignId, 'adventures', adventure.id);
+        await setDoc(docRef, adventure, { merge: true });
+    } catch (error) {
+        console.error("Error saving specific adventure:", error);
+        notify("Failed to sync adventure record.", "error");
+    }
+}
+
+export async function saveSpecificCodexEntry(campaignId, codexEntry) {
+    try {
+        const docRef = doc(db, 'artifacts', appId, 'campaigns', campaignId, 'codex', codexEntry.id);
+        await setDoc(docRef, codexEntry, { merge: true });
+    } catch (error) {
+        console.error("Error saving specific codex entry:", error);
+    }
+}
+
+export async function deleteSpecificCodexEntry(campaignId, codexEntryId) {
+    try {
+        const docRef = doc(db, 'artifacts', appId, 'campaigns', campaignId, 'codex', codexEntryId);
+        await deleteDoc(docRef);
+    } catch (error) {
+        console.error("Error deleting specific codex entry:", error);
+    }
+}
+
+export async function pushActivityLog(campaignId, newLog) {
+    try {
+        const docRef = doc(db, 'artifacts', appId, 'campaigns', campaignId);
+        const campSnap = await getDoc(docRef);
+        if (campSnap.exists()) {
+            const data = campSnap.data();
+            const activityLog = data.activityLog || [];
+            activityLog.unshift(newLog);
+            if (activityLog.length > 100) activityLog.length = 100;
+            await setDoc(docRef, { activityLog: activityLog }, { merge: true });
+        }
+    } catch (error) {
+        console.error("Error pushing activity log:", error);
+    }
+}
+
+// ============================================================================
+
 export async function deleteCampaign(campaignId) {
     const user = auth.currentUser;
     if (!user) {
