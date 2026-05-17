@@ -687,7 +687,8 @@ export const savePCEdit = async () => {
       str: '', dex: '', con: '', int: '', wis: '', cha: '',
       saves: '', skills: '', proficiencies: '',
       wealth: '', equipped: '', backpack: '',
-      ddbId: ''
+      ddbId: '',
+      isPrivate: false // Added default
   };
 
   const isOwner = existingPC.playerId === myUid;
@@ -703,12 +704,17 @@ export const savePCEdit = async () => {
       return;
   }
 
+  // Handle DM's manual birthday entry vs Account linkage
   const bMonthEl = document.getElementById('pc-edit-birth-month');
   const bDayEl = document.getElementById('pc-edit-birth-day');
 
   const localBMonth = isDM ? ((bMonthEl && !bMonthEl.disabled) ? (parseInt(bMonthEl.value) || null) : existingPC.birthMonth) : existingPC.birthMonth;
   const localBDay = isDM ? ((bDayEl && !bDayEl.disabled) ? (parseInt(bDayEl.value) || null) : existingPC.birthDay) : existingPC.birthDay;
 
+  // Crucial Fix: Capture the privacy toggle correctly
+  const isPrivateFlag = isDM ? (document.getElementById('pc-edit-is-private')?.checked || false) : (existingPC.isPrivate || false);
+
+  // Gather Extra Birthday Boons (3rd+)
   const extraBdayBoons = [];
   if (isDM) {
       for (let i = 3; i <= 12; i++) {
@@ -722,21 +728,26 @@ export const savePCEdit = async () => {
       }
   }
 
+  // Helper to gracefully extract values, allowing empty strings to overwrite existing data
   const getVal = (id, fallback) => {
       const el = document.getElementById(id);
       if (el) return el.value; 
       return fallback || '';
   };
 
+  // Gather Inputs safely based on access level
   const updatedPC = {
       ...existingPC,
       id: pcId,
+      isPrivate: isPrivateFlag, // Save the flag properly
+      // Core Identity
       name: nameInput,
       race: getVal('pc-edit-race', existingPC.race),
       classLevel: getVal('pc-edit-class', existingPC.classLevel),
       background: getVal('pc-edit-background', existingPC.background),
       image: getVal('pc-edit-image', existingPC.image),
       ddbId: getVal('pc-edit-ddb-id', existingPC.ddbId),
+      // Characteristics
       alignment: getVal('pc-edit-alignment', existingPC.alignment),
       faith: getVal('pc-edit-faith', existingPC.faith),
       gender: getVal('pc-edit-gender', existingPC.gender),
@@ -747,6 +758,7 @@ export const savePCEdit = async () => {
       eyes: getVal('pc-edit-eyes', existingPC.eyes),
       hair: getVal('pc-edit-hair', existingPC.hair),
       skin: getVal('pc-edit-skin', existingPC.skin),
+      // Core Stats
       str: getVal('pc-edit-str', existingPC.str),
       dex: getVal('pc-edit-dex', existingPC.dex),
       con: getVal('pc-edit-con', existingPC.con),
@@ -756,6 +768,7 @@ export const savePCEdit = async () => {
       saves: getVal('pc-edit-saves', existingPC.saves),
       skills: getVal('pc-edit-skills', existingPC.skills),
       proficiencies: getVal('pc-edit-proficiencies', existingPC.proficiencies),
+      // Personality & Roleplay
       traits: getVal('input-pc-edit-traits', existingPC.traits),
       ideals: getVal('input-pc-edit-ideals', existingPC.ideals),
       bonds: getVal('input-pc-edit-bonds', existingPC.bonds),
@@ -765,10 +778,15 @@ export const savePCEdit = async () => {
       organizations: getVal('input-pc-edit-organizations', existingPC.organizations),
       allies: getVal('input-pc-edit-allies', existingPC.allies),
       enemies: getVal('input-pc-edit-enemies', existingPC.enemies),
+      // Equipment & Wealth
       wealth: getVal('pc-edit-wealth', existingPC.wealth),
       equipped: getVal('input-pc-edit-equipped', existingPC.equipped),
       backpack: getVal('input-pc-edit-backpack', existingPC.backpack),
+
+      // Downtime Log (Explicitly allowing it to be cleared out)
       downtimeLog: getVal('input-pc-edit-downtimelog', existingPC.downtimeLog),
+
+      // DM Restricted Administrative Fields
       playerId: isDM ? getVal('pc-edit-player-id', existingPC.playerId) : (existingPC.playerId || ''),
       dmNotes: isDM ? getVal('input-pc-edit-dmnotes', existingPC.dmNotes) : (existingPC.dmNotes || ''),
       joinDate: isDM ? getVal('pc-edit-join-date', existingPC.joinDate) : (existingPC.joinDate || ''), 
@@ -785,6 +803,16 @@ export const savePCEdit = async () => {
   const isNew = !camp.playerCharacters?.some(p => p.id === pcId);
   const newPCs = isNew ? [...(camp.playerCharacters || []), updatedPC] : camp.playerCharacters.map(p => p.id === pcId ? updatedPC : p);
 
+  // --- Auto-Generate / Update Linked Codex Entry for the Hero ---
+  let codexVisibility = { mode: 'public', visibleTo: [] };
+  if (isPrivateFlag) {
+      if (updatedPC.playerId) {
+          codexVisibility = { mode: 'specific', visibleTo: [updatedPC.playerId] };
+      } else {
+          codexVisibility = { mode: 'hidden', visibleTo: [] };
+      }
+  }
+
   let updatedCodexArray = [...(camp.codex || [])];
   const existingCodexEntry = updatedCodexArray.find(c => c.id === pcId);
 
@@ -795,7 +823,7 @@ export const savePCEdit = async () => {
           type: 'PC',
           tags: ['Hero', updatedPC.race, updatedPC.classLevel].filter(Boolean),
           desc: 'Rumors and public knowledge surrounding this hero are yet to be penned.',
-          visibility: { mode: 'public' },
+          visibility: codexVisibility,
           image: updatedPC.image
       });
   } else {
@@ -806,6 +834,7 @@ export const savePCEdit = async () => {
                   name: updatedPC.name,
                   type: 'PC',
                   tags: ['Hero', updatedPC.race, updatedPC.classLevel].filter(Boolean),
+                  visibility: codexVisibility,
                   image: updatedPC.image
               };
           }
@@ -815,10 +844,12 @@ export const savePCEdit = async () => {
 
   let updatedCamp = { ...camp, playerCharacters: newPCs, codex: updatedCodexArray };
 
+  // Track Player Edits!
   if (!isDM) {
       updatedCamp = logPlayerActivity(updatedCamp, myUid, `updated the private journal for <span class="font-bold text-amber-700">${updatedPC.name}</span>.`, 'fa-user-pen');
   }
 
+  // Local Optimistic Update
   window.appData.activeCampaign = updatedCamp;
   reRender();
 
