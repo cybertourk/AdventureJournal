@@ -46,7 +46,9 @@ export function getWebsHTML(state) {
         resolvedNodes = activeWeb.nodes.map(n => {
             let c = camp.codex?.find(x => x.id === n.id);
             if (!c) c = camp.playerCharacters?.find(x => x.id === n.id);
-            return { id: n.id, name: c ? c.name : 'Unknown Entry', type: c ? c.type : 'Unknown', parent: n.parent };
+            // XSS Sanitization for names
+            const safeName = c ? c.name.replace(/</g, "&lt;").replace(/>/g, "&gt;") : 'Unknown Entry';
+            return { id: n.id, name: safeName, type: c ? c.type : 'Unknown', parent: n.parent };
         }).sort((a,b) => a.name.localeCompare(b.name));
         
         nodeOptions += resolvedNodes.map(n => `<option value="${n.id}">${n.name}</option>`).join('');
@@ -86,6 +88,7 @@ export function getWebsHTML(state) {
         existingConnsHtml = activeWeb.connections.map(c => {
             const sName = resolvedNodes.find(n => n.id === c.source)?.name || 'Unknown';
             const tName = resolvedNodes.find(n => n.id === c.target)?.name || 'Unknown';
+            const safeLabel = c.label ? c.label.replace(/</g, "&lt;").replace(/>/g, "&gt;") : '';
 
             let icon = 'fa-arrow-right text-stone-500';
             if (c.type === 'enemy') icon = 'fa-bolt text-red-500';
@@ -99,7 +102,7 @@ export function getWebsHTML(state) {
                     <span class="font-bold text-stone-800 truncate max-w-[100px]" title="${sName}">${sName}</span>
                     <i class="fa-solid ${icon} shrink-0"></i>
                     <span class="font-bold text-stone-800 truncate max-w-[100px]" title="${tName}">${tName}</span>
-                    ${c.label ? `<span class="italic text-stone-500 text-[10px] ml-1 truncate">"${c.label}"</span>` : ''}
+                    ${safeLabel ? `<span class="italic text-stone-500 text-[10px] ml-1 truncate">"${safeLabel}"</span>` : ''}
                 </div>
                 <div class="flex gap-1 shrink-0">
                     <button onclick="window.appActions.openWebEditModal('connection', '${c.id}')" class="text-stone-600 hover:text-amber-900 bg-stone-200 hover:bg-amber-200 p-1.5 rounded transition" title="Edit Connection"><i class="fa-solid fa-pen"></i></button>
@@ -125,7 +128,10 @@ export function getWebsHTML(state) {
                 <div class="flex items-center gap-2 w-full sm:w-auto">
                     <i class="fa-solid fa-diagram-project text-amber-600 ml-1 mr-1 hidden sm:block"></i>
                     <select onchange="window.appActions.switchWeb(this.value)" class="flex-grow sm:w-64 p-2 bg-stone-800 border border-stone-600 text-amber-50 rounded-sm outline-none focus:border-amber-500 font-bold text-sm sm:text-base cursor-pointer shadow-inner">
-                        ${visibleWebs.map(w => `<option value="${w.id}" ${w.id === activeWeb.id ? 'selected' : ''}>${w.name}</option>`).join('')}
+                        ${visibleWebs.map(w => {
+                            const safeWebName = w.name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                            return `<option value="${w.id}" ${w.id === activeWeb.id ? 'selected' : ''}>${safeWebName}</option>`;
+                        }).join('')}
                     </select>
                     ${isDM ? `
                         <button onclick="window.appActions.toggleWebVisibility()" class="w-10 h-10 bg-stone-800 border border-stone-600 rounded-sm flex items-center justify-center hover:bg-stone-700 transition shadow-sm shrink-0" title="${visTitle}">
@@ -320,9 +326,6 @@ export function getWebsHTML(state) {
 
         </div>
     </div>
-    
-    <!-- Auto-Execute Engine Trigger (100% Reliable Fix) -->
-    <img src="trigger-mermaid.jpg" onerror="if(window.appActions && window.appActions.renderMermaidWeb) { setTimeout(window.appActions.renderMermaidWeb, 50); }" class="hidden">
     `;
 
     return html;
