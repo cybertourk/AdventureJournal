@@ -232,7 +232,7 @@ export async function deleteUserAccount() {
 
 // --- DATABASE (FIRESTORE) REAL-TIME LISTENERS & CACHE ---
 
-const campaignCache = {};
+let campaignCache = {};
 const subListeners = {}; 
 
 let dmCallback = null;
@@ -533,13 +533,16 @@ export async function saveCampaign(campaignData) {
         const docRef = doc(db, 'artifacts', appId, 'campaigns', cleanData.id);
         await setDoc(docRef, cleanData);
 
-        // 2. Helper to cleanly sync an array to a Firestore Subcollection
+        // 2. Helper to cleanly sync an array to a Firestore Subcollection (WITH DIRTY CHECKING)
         const syncSubcollection = async (subName, newArray) => {
             const subRef = collection(db, 'artifacts', appId, 'campaigns', cleanData.id, subName);
             
-            // Diff checking: Fetch current items in the DB to see if any were deleted
+            // Diff checking: Fetch current items in the DB
             const currentSnap = await getDocs(subRef);
-            const currentIds = currentSnap.docs.map(d => d.id);
+            const currentDocsMap = new Map();
+            currentSnap.docs.forEach(d => currentDocsMap.set(d.id, d.data()));
+            
+            const currentIds = Array.from(currentDocsMap.keys());
             const newIds = newArray.map(item => item.id);
 
             // Delete orphaned documents (Handles deleting a PC, Session, etc.)
@@ -549,9 +552,16 @@ export async function saveCampaign(campaignData) {
                 }
             }
 
-            // Upsert remaining documents individually
+            // Upsert remaining documents individually if they have changed
             for (const item of newArray) {
                 if (!item.id) continue;
+                
+                const existingData = currentDocsMap.get(item.id);
+                // The dirty check: only write if data is strictly different!
+                if (existingData && JSON.stringify(existingData) === JSON.stringify(item)) {
+                    continue; 
+                }
+                
                 await setDoc(doc(db, 'artifacts', appId, 'campaigns', cleanData.id, subName, item.id), item);
             }
         };
