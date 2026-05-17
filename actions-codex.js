@@ -35,7 +35,7 @@ export const _canViewCodex = (id) => {
     return false; // Otherwise, locked down!
 };
 
-export const parseSmartText = (text) => {
+export const parseSmartText = (text, contextId = null) => {
     if (!text) return "";
     let safeText = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
@@ -71,17 +71,30 @@ export const parseSmartText = (text) => {
         const escapedNames = sortedCache.map(e => e.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
         const massiveRegex = new RegExp(`\\b(${escapedNames.join('|')})\\b`, 'gi');
 
+        // Track which IDs have already been linked in this block of text to prevent over-linking
+        const linkedIds = new Set();
+
         // Split the text by HTML tags to safely ONLY run our Regex replacement on plain text nodes
         let parts = safeText.split(/(<[^>]+>)/g);
         for (let i = 0; i < parts.length; i++) {
             if (parts[i].startsWith('<') && parts[i].endsWith('>')) continue;
             parts[i] = parts[i].replace(massiveRegex, (match) => {
                 const entry = sortedCache.find(e => e.text.toLowerCase() === match.toLowerCase());
-                // SECURITY CHECK: Only generate a link if the current user has permission to see the entry!
-                if (entry && _canViewCodex(entry.id)) {
-                    return `<span class="codex-link" onclick="window.appActions.viewCodex('${entry.id}')">${match}</span>`;
+                
+                if (entry) {
+                    // PREVENT SELF-LINKING: Don't link an entry to itself if we are currently viewing it
+                    if (entry.id === contextId) return match;
+                    
+                    // PREVENT OVER-LINKING: Only link an entity once per text block
+                    if (linkedIds.has(entry.id)) return match;
+                    
+                    // SECURITY CHECK: Only generate a link if the current user has permission to see the entry!
+                    if (_canViewCodex(entry.id)) {
+                        linkedIds.add(entry.id);
+                        return `<span class="codex-link" onclick="window.appActions.viewCodex('${entry.id}')">${match}</span>`;
+                    }
                 }
-                return match; // If hidden, return plain unclickable text
+                return match; // If hidden or skipped, return plain unclickable text
             });
         }
         safeText = parts.join('');
@@ -309,7 +322,7 @@ export const _openCodexModal = (entry) => {
     const dataSrc = linkedPC ? linkedPC : ((isCharacter || isLocation) ? entry : null);
 
     if (isCharacter && dataSrc) {
-        const parsedApp = dataSrc.appearance ? window.appActions.parseSmartText(dataSrc.appearance) : '<span class="text-stone-400 italic">No appearance recorded...</span>';
+        const parsedApp = dataSrc.appearance ? window.appActions.parseSmartText(dataSrc.appearance, id) : '<span class="text-stone-400 italic">No appearance recorded...</span>';
         
         charDataHTML = `
             <div class="mb-6 bg-white border border-[#d4c5a9] p-4 rounded-sm shadow-inner text-sm">
@@ -336,7 +349,7 @@ export const _openCodexModal = (entry) => {
     }
 
     if (isLocation && dataSrc) {
-        const parsedPOI = dataSrc.pointsOfInterest ? window.appActions.parseSmartText(dataSrc.pointsOfInterest) : '<span class="text-stone-400 italic">No points of interest recorded...</span>';
+        const parsedPOI = dataSrc.pointsOfInterest ? window.appActions.parseSmartText(dataSrc.pointsOfInterest, id) : '<span class="text-stone-400 italic">No points of interest recorded...</span>';
         
         locationDataHTML = `
         <div class="mb-6 bg-white border border-[#d4c5a9] p-4 rounded-sm shadow-inner text-sm">
@@ -363,7 +376,7 @@ export const _openCodexModal = (entry) => {
             const renderPrivateBlock = (blockTitle, content) => content ? `
                 <div class="mb-4">
                     <h5 class="font-bold text-stone-800 text-[10px] uppercase tracking-widest border-b border-stone-300 pb-1 mb-1.5">${blockTitle}</h5>
-                    <div class="text-sm text-stone-700 font-serif leading-relaxed">${window.appActions.parseSmartText(content)}</div>
+                    <div class="text-sm text-stone-700 font-serif leading-relaxed">${window.appActions.parseSmartText(content, id)}</div>
                 </div>` : '';
             
             // Check if there is ANY private data to show
@@ -395,7 +408,7 @@ export const _openCodexModal = (entry) => {
         }
     }
 
-    const parsedDesc = desc ? window.appActions.parseSmartText(desc) : '<span class="text-stone-400 italic font-sans">No entries found...</span>';
+    const parsedDesc = desc ? window.appActions.parseSmartText(desc, id) : '<span class="text-stone-400 italic font-sans">No entries found...</span>';
     
     let descLabel = "Description";
     let descPlaceholder = "Description... Codex names link automatically.";
