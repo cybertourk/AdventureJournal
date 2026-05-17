@@ -101,7 +101,8 @@ export const toggleNewCampaignForm = () => {
 
 export const createCampaign = async () => {
   const nameInput = document.getElementById('new-camp-name');
-  const name = nameInput ? nameInput.value.trim() : '';
+  // Sanitize input to prevent XSS injection in the header
+  const name = nameInput ? nameInput.value.trim().replace(/</g, "&lt;").replace(/>/g, "&gt;") : '';
   if (!name) return;
   const newCamp = {
     id: generateId(),
@@ -223,7 +224,8 @@ export const createAdventure = async () => {
   const startLevelSelect = document.getElementById('new-adv-start');
   const endLevelSelect = document.getElementById('new-adv-end');
   
-  const name = nameInput ? nameInput.value.trim() : '';
+  // Sanitize input to prevent XSS
+  const name = nameInput ? nameInput.value.trim().replace(/</g, "&lt;").replace(/>/g, "&gt;") : '';
   if (!name) return;
 
   const startLevel = parseInt(startLevelSelect.value) || 1;
@@ -376,7 +378,8 @@ export const saveEditAdventure = async () => {
     const adv = window.appData.activeAdventure;
     if (!camp || !adv || !camp._isDM) return;
 
-    const newName = document.getElementById('edit-adv-name').value.trim();
+    // Sanitize to prevent XSS
+    const newName = document.getElementById('edit-adv-name').value.trim().replace(/</g, "&lt;").replace(/>/g, "&gt;");
     if (!newName) {
         notify("Adventure title cannot be empty.", "error");
         return;
@@ -532,7 +535,7 @@ export const addSheetUpdate = async () => {
   const input = document.getElementById('new-sheet-update-text');
   if (!input) return;
   
-  const text = input.value.trim();
+  const text = input.value.trim().replace(/</g, "&lt;").replace(/>/g, "&gt;"); // XSS Sanitization
   if (!text) return;
   
   updateDerivedState();
@@ -995,6 +998,39 @@ const parseDDBCharacter = (charData) => {
     };
 };
 
+// --- NEW PROXY CASCADE ENGINE ---
+const fetchWithProxyCascade = async (targetUrl) => {
+    const proxies = [
+        `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
+        `https://thingproxy.freeboard.io/fetch/${targetUrl}`
+    ];
+
+    let lastError = null;
+    for (const proxy of proxies) {
+        try {
+            console.log(`Attempting D&D Beyond fetch via: ${proxy.split('/')[2]}`);
+            const response = await fetch(proxy, { headers: { 'Cache-Control': 'no-cache' } });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP Error: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            return data;
+            
+        } catch (err) {
+            console.warn(`Proxy failed: ${proxy.split('/')[2]}`, err);
+            lastError = err;
+        }
+    }
+    
+    // If we exhaust the loop, all proxies failed
+    throw new Error("All CORS proxies failed. D&D Beyond might be down, or you are being rate-limited. Please try again later.");
+};
+
+
 export const openDndBeyondImportModal = () => {
     const container = document.getElementById('global-popup-container');
     if (!container) return;
@@ -1048,18 +1084,9 @@ export const fetchAndAnalyzeDndBeyond = async () => {
     try {
         const cacheBust = new Date().getTime();
         const apiUrl = `https://character-service.dndbeyond.com/character/v5/character/${characterId}?cb=${cacheBust}`;
-        let ddbData = null;
-
-        try {
-            const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(apiUrl)}`, { headers: { 'Cache-Control': 'no-cache' } });
-            if (!response.ok) throw new Error(`Proxy 1 failed`);
-            ddbData = await response.json();
-        } catch (proxy1Err) {
-            console.warn("First proxy failed, trying fallback...");
-            const response2 = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(apiUrl)}`);
-            if (!response2.ok) throw new Error(`Proxy 2 failed`);
-            ddbData = await response2.json();
-        }
+        
+        // Execute the new Proxy Cascade!
+        const ddbData = await fetchWithProxyCascade(apiUrl);
         
         if (!ddbData || !ddbData.success || !ddbData.data) {
             throw new Error("D&D Beyond returned an unexpected data structure. Ensure the character is set to Public.");
@@ -1188,17 +1215,9 @@ export const quickSyncDDB = async (pcId) => {
     try {
         const cacheBust = new Date().getTime();
         const apiUrl = `https://character-service.dndbeyond.com/character/v5/character/${characterId}?cb=${cacheBust}`;
-        let ddbData = null;
-
-        try {
-            const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(apiUrl)}`, { headers: { 'Cache-Control': 'no-cache' } });
-            if (!response.ok) throw new Error(`Proxy 1 failed`);
-            ddbData = await response.json();
-        } catch (p1Err) {
-            const response2 = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(apiUrl)}`);
-            if (!response2.ok) throw new Error(`Proxy 2 failed`);
-            ddbData = await response2.json();
-        }
+        
+        // Execute the new Proxy Cascade!
+        const ddbData = await fetchWithProxyCascade(apiUrl);
 
         if (!ddbData || !ddbData.success || !ddbData.data) {
             throw new Error("D&D Beyond returned an unexpected data structure.");
