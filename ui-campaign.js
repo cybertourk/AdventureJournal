@@ -1,5 +1,16 @@
 import { renderLevelOptions } from './ui-core.js';
 
+// --- SECURITY HELPER: Prevent XSS Injection ---
+const escapeHTML = (str) => {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+};
+
 export function getHomeHTML(state) {
     const hostedCampaigns = state.campaigns.filter(c => c._isDM);
     const playedCampaigns = state.campaigns.filter(c => c._isPlayer && !c._isDM);
@@ -22,12 +33,14 @@ export function getHomeHTML(state) {
         const totalSessions = camp.adventures ? camp.adventures.reduce((sum, adv) => sum + adv.sessions.length, 0) : 0;
         const advCount = camp.adventures ? camp.adventures.length : 0;
         const pcCount = camp.playerCharacters ? camp.playerCharacters.length : 0;
+        
+        const safeName = escapeHTML(camp.name);
 
         html += `
             <div class="bg-[#fdfbf7] p-5 rounded-sm border border-[#d4c5a9] shadow-sm flex flex-col justify-between group relative overflow-hidden">
                 <div class="absolute top-0 left-0 w-1.5 h-full bg-red-900"></div>
                 <div class="pl-2">
-                    <h3 class="font-serif font-bold text-xl text-stone-900 truncate leading-tight" title="${camp.name}">${camp.name}</h3>
+                    <h3 class="font-serif font-bold text-xl text-stone-900 truncate leading-tight" title="${safeName}">${safeName}</h3>
                     <p class="text-[10px] font-bold uppercase tracking-wider text-stone-500 mt-2">
                         ${advCount} Adventures <span class="mx-1">•</span> ${pcCount} Heroes
                     </p>
@@ -76,12 +89,13 @@ export function getHomeHTML(state) {
     playedCampaigns.forEach(camp => {
         const totalSessions = camp.adventures ? camp.adventures.reduce((sum, adv) => sum + adv.sessions.length, 0) : 0;
         const pcCount = camp.playerCharacters ? camp.playerCharacters.length : 0;
+        const safeName = escapeHTML(camp.name);
 
         html += `
             <div class="bg-[#fdfbf7] p-5 rounded-sm border border-[#d4c5a9] shadow-sm flex flex-col justify-between group relative overflow-hidden hover:border-blue-400 transition-colors">
                 <div class="absolute top-0 left-0 w-1.5 h-full bg-blue-700"></div>
                 <div class="pl-2">
-                    <h3 class="font-serif font-bold text-xl text-stone-900 truncate leading-tight" title="${camp.name}">${camp.name}</h3>
+                    <h3 class="font-serif font-bold text-xl text-stone-900 truncate leading-tight" title="${safeName}">${safeName}</h3>
                     <p class="text-[10px] font-bold uppercase tracking-wider text-stone-500 mt-2">
                         ${pcCount} Heroes in Party
                     </p>
@@ -129,7 +143,6 @@ export function getCampaignHTML(state) {
     const pcCount = camp.playerCharacters ? camp.playerCharacters.length : 0;
     const codexCount = camp.codex ? camp.codex.length : 0;
 
-    // The main Campaign Name is now displayed in the global header, so we only need a summary block here
     let html = `
     <div class="animate-in fade-in duration-300">
         
@@ -165,14 +178,13 @@ export function getCampaignHTML(state) {
     `;
 
     if (camp.adventures) {
-        // Sort adventures alphanumerically by name
         const sortedAdventures = [...camp.adventures].sort((a, b) => {
             return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
         });
 
         sortedAdventures.forEach((adv, index) => {
-            // Treat the very last adventure in the sorted list as the "Active" one for styling
             const isActive = index === sortedAdventures.length - 1;
+            const safeAdvName = escapeHTML(adv.name);
             
             const cardBg = isActive ? 'bg-[#fcf8ee]' : 'bg-[#fdfbf7]';
             const cardBorder = isActive ? 'border-amber-500' : 'border-[#d4c5a9]';
@@ -188,7 +200,7 @@ export function getCampaignHTML(state) {
                 ${activeBadge}
                 
                 <div class="pl-2">
-                    <h3 class="font-serif font-bold text-xl ${titleColor} truncate leading-tight w-[85%]" title="${adv.name}">${adv.name}</h3>
+                    <h3 class="font-serif font-bold text-xl ${titleColor} truncate leading-tight w-[85%]" title="${safeAdvName}">${safeAdvName}</h3>
                     <p class="text-[10px] font-bold uppercase tracking-wider text-stone-500 mt-2">
                         Lvl ${adv.startLevel}-${adv.endLevel} <span class="mx-1">•</span> ${adv.numPlayers} Players ${lootText}
                     </p>
@@ -245,6 +257,7 @@ export function getAdventureHTML(state) {
 
     const isDM = camp._isDM;
     const myUid = state.currentUserUid;
+    const safeAdvName = escapeHTML(adv.name);
 
     // Local fog of war helper for the session loop
     const isVisible = (visObj) => {
@@ -299,6 +312,7 @@ export function getAdventureHTML(state) {
         sortedSessions.forEach(session => {
             const showLoot = isVisible(session.lootVisibility);
             const showNotes = isVisible(session.notesVisibility);
+            const safeSessionName = escapeHTML(session.name);
             
             const lootHtml = showLoot ? `<span class="text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap"><i class="fa-solid fa-coins mr-1"></i>${session.lootValue.toLocaleString()} gp</span>` : '';
             
@@ -307,7 +321,7 @@ export function getAdventureHTML(state) {
             // --- SMART IN-GAME DATE PARSER ---
             let inGameDateParsed = '';
             if (typeof session.inGameDate === 'string') {
-                inGameDateParsed = session.inGameDate;
+                inGameDateParsed = escapeHTML(session.inGameDate);
             } else if (session.inGameDate && typeof session.inGameDate === 'object') {
                 const { year, month, day, endYear, endMonth, endDay, duration } = session.inGameDate;
                 
@@ -319,7 +333,7 @@ export function getAdventureHTML(state) {
                             mName = mName.split('(')[0].trim();
                         }
                     }
-                    return mName;
+                    return escapeHTML(mName);
                 };
 
                 const startMonthName = getMonthName(month);
@@ -375,7 +389,7 @@ export function getAdventureHTML(state) {
 
             html += `
             <div class="bg-white border border-[#d4c5a9] rounded-sm shadow-sm p-4 sm:p-5 flex flex-col mb-4 relative group hover:border-stone-400 transition-colors">
-                <h4 class="font-serif font-bold text-lg sm:text-xl text-stone-900 leading-tight pr-8">${session.name}</h4>
+                <h4 class="font-serif font-bold text-lg sm:text-xl text-stone-900 leading-tight pr-8">${safeSessionName}</h4>
                 <p class="text-[9px] uppercase tracking-widest text-stone-500 mt-2 font-bold flex items-center flex-wrap gap-2">
                     <span class="bg-stone-100 border border-stone-200 px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap"><i class="fa-regular fa-calendar mr-1"></i>${dateStr}</span> 
                     ${inGameStr} 
@@ -410,13 +424,14 @@ export function getAdvRosterHTML(state) {
 
     const allPCs = camp.playerCharacters || [];
     const selectedIds = state.tempAdvRoster || [];
+    const safeAdvName = escapeHTML(adv.name);
 
     let html = `
     <div class="animate-in fade-in duration-300 max-w-3xl mx-auto bg-[#f4ebd8] p-5 sm:p-8 rounded-sm border border-[#d4c5a9] shadow-[0_10px_30px_rgba(0,0,0,0.5)] relative overflow-hidden mb-12">
         <div class="absolute top-0 left-0 w-full h-1.5 bg-amber-600"></div>
         <div class="flex justify-between items-center mb-5">
             <h2 class="text-xl sm:text-2xl font-serif font-bold text-stone-900 flex items-center border-b border-[#d4c5a9] pb-2 w-full">
-                <i class="fa-solid fa-users-viewfinder mr-3 text-amber-600"></i> Arc Roster: ${adv.name}
+                <i class="fa-solid fa-users-viewfinder mr-3 text-amber-600"></i> Arc Roster: ${safeAdvName}
             </h2>
         </div>
         <p class="text-xs sm:text-sm text-stone-600 italic mb-6 leading-relaxed">Select which heroes are actively participating in this adventure arc. Heroes not selected will not appear in session logs for this arc.</p>
@@ -429,6 +444,10 @@ export function getAdvRosterHTML(state) {
     } else {
         allPCs.forEach(pc => {
             const isSelected = selectedIds.includes(pc.id);
+            const safePcName = escapeHTML(pc.name);
+            const safePcRace = escapeHTML(pc.race || 'Unknown');
+            const safePcClass = escapeHTML(pc.classLevel || 'Unknown');
+            
             html += `
             <label class="flex items-center p-3 sm:p-4 border rounded-sm cursor-pointer transition-colors shadow-sm ${isSelected ? 'bg-amber-50 border-amber-400' : 'bg-white border-[#d4c5a9] hover:border-amber-300'}">
                 <div class="relative flex items-center justify-center w-5 h-5 sm:w-6 sm:h-6 mr-3 sm:mr-4 border-2 rounded-sm transition-colors ${isSelected ? 'bg-amber-500 border-amber-600' : 'bg-stone-100 border-stone-300'}">
@@ -436,8 +455,8 @@ export function getAdvRosterHTML(state) {
                     <input type="checkbox" class="hidden" ${isSelected ? 'checked' : ''} onchange="window.appActions.toggleAdvRosterPc('${pc.id}')">
                 </div>
                 <div>
-                    <div class="font-serif font-bold text-stone-900 text-base sm:text-lg leading-tight">${pc.name}</div>
-                    <div class="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-stone-500 mt-1">${pc.race || 'Unknown'} • ${pc.classLevel || 'Unknown'}</div>
+                    <div class="font-serif font-bold text-stone-900 text-base sm:text-lg leading-tight">${safePcName}</div>
+                    <div class="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-stone-500 mt-1">${safePcRace} • ${safePcClass}</div>
                 </div>
             </label>
             `;
@@ -463,6 +482,7 @@ export function getActivityLogHTML(state) {
     if (!camp || !camp._isDM) return `<div class="text-center text-red-500 p-8 font-serif font-bold text-xl">Access Denied.</div>`;
 
     const logs = camp.activityLog || [];
+    const safeCampName = escapeHTML(camp.name);
 
     let html = `
     <div class="animate-in fade-in duration-300 max-w-3xl mx-auto pb-12">
@@ -471,7 +491,7 @@ export function getActivityLogHTML(state) {
                 <h2 class="text-xl sm:text-2xl font-serif font-bold text-amber-900 leading-tight flex items-center">
                     <i class="fa-solid fa-clock-rotate-left mr-2 text-stone-400"></i> Player Activity Log
                 </h2>
-                <p class="text-stone-500 text-xs font-sans mt-1 italic">Recent actions taken by players in ${camp.name}</p>
+                <p class="text-stone-500 text-xs font-sans mt-1 italic">Recent actions taken by players in ${safeCampName}</p>
             </div>
             <div class="flex gap-2">
                 ${logs.length > 0 ? `<button onclick="window.appActions.clearActivityLog()" class="px-3 py-1.5 bg-white text-red-800 rounded-sm text-[10px] font-bold uppercase tracking-wider shadow-sm hover:bg-red-50 transition flex items-center border border-[#d4c5a9] active:scale-95"><i class="fa-solid fa-eraser mr-1.5"></i> Clear Log</button>` : ''}
@@ -493,6 +513,8 @@ export function getActivityLogHTML(state) {
             const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             const dateString = dateObj.toLocaleDateString();
 
+            // log.text explicitly contains generated HTML span tags from actions-campaign.js, 
+            // so we do not pass it through escapeHTML here to preserve the bold/colored font styling.
             html += `
             <div class="bg-white border border-[#d4c5a9] p-3 sm:p-4 rounded-sm shadow-sm flex items-start gap-3 sm:gap-4 hover:border-amber-300 transition-colors">
                 <div class="mt-1 text-stone-400 text-base sm:text-lg w-6 flex justify-center shrink-0">
