@@ -1,1352 +1,879 @@
-import { generateId, updateDerivedState, reRender } from './state.js';
-import { saveCampaign, deleteCampaign as dbDeleteCampaign, notify, joinCampaign as dbJoinCampaign, saveSpecificSheetUpdate, deleteSpecificSheetUpdate, pushActivityLog } from './firebase-manager.js';
+import { generateId, updateDerivedState } from './state.js';
+import { saveCampaign, notify } from './firebase-manager.js';
+import { generateSessionMarkdown, generateAdventureMarkdown, generateCampaignMarkdown } from './markdown.js';
+import { logPlayerActivity } from './actions-campaign.js';
 
-// --- ACTIVITY LOG ENGINE ---
-export const logPlayerActivity = (camp, myUid, message, icon = 'fa-clock-rotate-left') => {
-    if (!camp || camp.dmId === myUid) return camp;
-    
-    const pName = camp.playerNames ? (camp.playerNames[myUid] || 'Unknown Player') : 'Unknown Player';
-    const fullMessage = `<span class="font-bold text-stone-900">${pName}</span> ${message}`;
-    
-    const newLog = {
-        id: generateId(),
-        timestamp: Date.now(),
-        text: fullMessage,
-        icon: icon
-    };
-    
-    return {
-        ...camp,
-        activityLog: [newLog, ...(camp.activityLog || [])].slice(0, 100)
-    };
-};
+// --- Smart Text & Codex Interactions ---
 
-export const openActivityLog = () => {
-    window.appActions.setView('activity-log');
-};
-
-export const clearActivityLog = async () => {
-    if (!confirm("Are you sure you want to clear the entire activity log?")) return;
-    
-    updateDerivedState();
+// Core security helper to ensure players only link/see what they are allowed to see
+export const _canViewCodex = (id) => {
     const camp = window.appData.activeCampaign;
-    if (!camp || !camp._isDM) return;
-    
-    const updatedCamp = { ...camp, activityLog: [] };
-    await saveCampaign(updatedCamp);
-    notify("Activity log cleared.", "success");
-    reRender(true);
-};
+    if (!camp) return false;
+    if (camp._isDM) return true; // DM sees everything
+    const myUid = window.appData.currentUserUid;
 
-// --- Navigation ---
-export const setView = (viewName) => {
-  window.appData.currentView = viewName;
-  if (viewName === 'home') {
-    window.appData.activeCampaignId = null;
-    window.appData.activeAdventureId = null;
-    window.appData.activeSessionId = null;
-    window.appData.activePcId = null;
-    window.appData.activeCalendarDate = null;
-  } else if (viewName === 'campaign') {
-    window.appData.activeAdventureId = null;
-    window.appData.activeSessionId = null;
-    window.appData.activePcId = null;
-    window.appData.activeCalendarDate = null;
-  } else if (viewName === 'pc-manager') {
-    window.appData.activePcId = null;
-  } else if (viewName === 'calendar') {
-    window.appData.activeAdventureId = null;
-    window.appData.activeSessionId = null;
-    window.appData.activePcId = null;
-    window.appData.activeCalendarDate = null;
-    window.appData.showCalendarSettings = false;
-  } else if (viewName === 'rules') {
-    window.appData.activeAdventureId = null;
-    window.appData.activeSessionId = null;
-    window.appData.activePcId = null;
-    window.appData.activeCalendarDate = null;
-    window.appData.showCalendarSettings = false;
-  } else if (viewName === 'activity-log') {
-    window.appData.activeAdventureId = null;
-    window.appData.activeSessionId = null;
-    window.appData.activePcId = null;
-    window.appData.activeCalendarDate = null;
-    window.appData.showCalendarSettings = false;
-  }
-  reRender(true); 
-};
+    // 1. Is it a PC owned by the player?
+    const isHeroOwner = camp.playerCharacters?.some(p => p.id === id && p.playerId === myUid);
+    if (isHeroOwner) return true;
 
-export const openCampaign = (id) => {
-  window.appData.activeCampaignId = id;
-  window.appActions.setView('campaign');
-};
+    // NEW HARD BLOCK: If it is a PC and it's marked private, but NOT owned by the player, block it immediately.
+    const pc = camp.playerCharacters?.find(p => p.id === id);
+    if (pc && pc.isPrivate) return false;
 
-export const openAdventure = (id) => {
-  window.appData.activeAdventureId = id;
-  window.appActions.setView('adventure');
-};
+    // 2. Look for formal codex entry
+    const entry = camp.codex?.find(c => c.id === id);
 
-// --- Campaigns ---
-export const toggleNewCampaignForm = () => {
-  const btn = document.getElementById('new-camp-btn');
-  const form = document.getElementById('new-camp-form');
-  if (btn && form) {
-    btn.classList.toggle('hidden');
-    form.classList.toggle('hidden');
-    if (!form.classList.contains('hidden')) {
-      document.getElementById('new-camp-name').focus();
-    }
-  }
-};
+    // 3. If there is no formal codex entry but it is a PC, default to public
+    if (!entry && pc) return true;
 
-export const createCampaign = async () => {
-  const nameInput = document.getElementById('new-camp-name');
-  // Sanitize input to prevent XSS injection in the header
-  const name = nameInput ? nameInput.value.trim().replace(/</g, "&lt;").replace(/>/g, "&gt;") : '';
-  if (!name) return;
-  const newCamp = {
-    id: generateId(),
-    name: name,
-    playerCharacters: [],
-    adventures: [],
-    sheetUpdates: [],
-    codex: [],
-    rulesGlossary: [],
-    activityLog: []
-  };
-  await saveCampaign(newCamp);
-};
-
-export const deleteCampaignAction = async (id) => {
-  const success = await dbDeleteCampaign(id);
-  if (success && window.appData.activeCampaignId === id) {
-    window.appActions.setView('home');
-  }
-};
-
-// --- Player Actions ---
-export const copyCampaignId = (id, btn) => {
-  const originalHtml = btn.innerHTML;
-  const originalClass = btn.className;
-  
-  const handleSuccess = () => {
-    btn.innerHTML = `Copied!`;
-    btn.className = "mt-3 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-white transition flex items-center bg-emerald-600 border border-emerald-700 px-2 py-1 rounded-sm shadow-sm w-max";
-    setTimeout(() => {
-      btn.innerHTML = originalHtml;
-      btn.className = originalClass;
-    }, 2000);
-  };
-
-  if (navigator.clipboard && window.isSecureContext) {
-    navigator.clipboard.writeText(id).then(handleSuccess);
-  } else {
-    let textArea = document.createElement("textarea");
-    textArea.value = id;
-    textArea.style.position = "fixed";
-    textArea.style.left = "-999999px";
-    textArea.style.top = "-999999px";
-    document.body.appendChild(textArea);
-    textArea.focus();
-    textArea.select();
-    try {
-      document.execCommand('copy');
-      handleSuccess();
-    } catch (err) {
-      console.error('Fallback: Oops, unable to copy', err);
-    }
-    document.body.removeChild(textArea);
-  }
-};
-
-export const toggleJoinCampaignForm = () => {
-  const btn = document.getElementById('join-camp-btn');
-  const form = document.getElementById('join-camp-form');
-  if (btn && form) {
-    btn.classList.toggle('hidden');
-    form.classList.toggle('hidden');
-    if (!form.classList.contains('hidden')) {
-      document.getElementById('join-camp-id').focus();
-    }
-  }
-};
-
-export const joinCampaignAction = async () => {
-  const input = document.getElementById('join-camp-id');
-  const campId = input ? input.value.trim() : '';
-  if (!campId) {
-    notify("Please enter a valid Campaign ID.", "error");
-    return;
-  }
-  
-  const form = document.getElementById('join-camp-form');
-  const submitBtn = form.querySelector('button:last-child');
-  const origText = submitBtn.textContent;
-  submitBtn.textContent = "Joining...";
-  submitBtn.disabled = true;
-
-  try {
-    const success = await dbJoinCampaign(campId);
-    if (success) {
-      input.value = '';
-      window.appActions.toggleJoinCampaignForm();
-    }
-  } catch (e) {
-    console.error(e);
-  } finally {
-    submitBtn.textContent = origText;
-    submitBtn.disabled = false;
-  }
-};
-
-// --- Adventures ---
-export const toggleNewAdventureForm = () => {
-  const btn = document.getElementById('new-adv-btn');
-  const form = document.getElementById('new-adv-form');
-  if (btn && form) {
-    btn.classList.toggle('hidden');
-    form.classList.toggle('hidden');
-    if (!form.classList.contains('hidden')) {
-      document.getElementById('new-adv-name').focus();
-    }
-  }
-};
-
-export const createAdventure = async () => {
-  updateDerivedState();
-  const camp = window.appData.activeCampaign;
-  if (!camp || !camp._isDM) {
-    notify("Only the DM can begin new adventures.", "error");
-    return;
-  }
-  
-  const nameInput = document.getElementById('new-adv-name');
-  const startLevelSelect = document.getElementById('new-adv-start');
-  const endLevelSelect = document.getElementById('new-adv-end');
-  
-  // Sanitize input to prevent XSS
-  const name = nameInput ? nameInput.value.trim().replace(/</g, "&lt;").replace(/>/g, "&gt;") : '';
-  if (!name) return;
-
-  const startLevel = parseInt(startLevelSelect.value) || 1;
-  const endLevel = parseInt(endLevelSelect.value) || 2;
-  
-  const defaultRoster = [];
-  const assignedPlayers = new Set();
-  (camp.playerCharacters || []).forEach(pc => {
-      if (pc.playerId && !assignedPlayers.has(pc.playerId)) {
-          defaultRoster.push(pc.id);
-          assignedPlayers.add(pc.playerId);
-      } else if (!pc.playerId) {
-          defaultRoster.push(pc.id);
-      }
-  });
-
-  const newAdv = {
-    id: generateId(),
-    name: name,
-    startLevel: startLevel,
-    endLevel: endLevel,
-    numPlayers: defaultRoster.length || 4,
-    activePcIds: defaultRoster,
-    totalLootGP: 0,
-    sessions: []
-  };
-
-  const updatedPCs = (camp.playerCharacters || []).map(pc => {
-      let maxInsp = 0;
-      if (pc.boonBackstory) maxInsp += 1;
-      if (pc.boon2ndBday) maxInsp += 1;
-      return {
-          ...pc,
-          inspiration: maxInsp,
-          automaticSuccess: pc.unlockAutoSuccess ? true : false
-      };
-  });
-
-  const updatedCamp = {
-    ...camp,
-    playerCharacters: updatedPCs,
-    adventures: [...(camp.adventures || []), newAdv]
-  };
-  
-  await saveCampaign(updatedCamp);
-  window.appActions.openAdventure(newAdv.id);
-  notify("Adventure begun! Party boons have been refreshed.", "success");
-};
-
-export const deleteAdventure = async (id) => {
-  updateDerivedState();
-  const camp = window.appData.activeCampaign;
-  if (!camp || !camp._isDM) {
-    notify("Only the DM can delete adventures.", "error");
-    return;
-  }
-  
-  if (!confirm("Delete this adventure arc? All contained sessions will be lost.")) return;
-  
-  if (camp.calendar && camp.calendar.notes) {
-      Object.keys(camp.calendar.notes).forEach(key => {
-          if (Array.isArray(camp.calendar.notes[key])) {
-              camp.calendar.notes[key] = camp.calendar.notes[key].filter(n => n.id !== id);
-              if (camp.calendar.notes[key].length === 0) {
-                  delete camp.calendar.notes[key];
-              }
-          }
-      });
-  }
-
-  const updatedCamp = {
-    ...camp,
-    adventures: camp.adventures.filter(a => a.id !== id)
-  };
-  await saveCampaign(updatedCamp);
-  
-  if (window.appData.activeAdventureId === id) {
-    window.appActions.setView('campaign');
-  } else {
-    reRender(true);
-  }
-};
-
-export const openEditAdventureModal = () => {
-    updateDerivedState();
-    const camp = window.appData.activeCampaign;
-    const adv = window.appData.activeAdventure;
-    if (!camp || !adv || !camp._isDM) return;
-
-    const container = document.getElementById('global-popup-container');
-    if (!container) return;
-
-    let levelOptionsHtml = '';
-    for (let i = 1; i <= 21; i++) {
-        const lbl = i === 21 ? '20+' : i;
-        levelOptionsHtml += `<option value="${i}">Level ${lbl}</option>`;
+    if (entry) {
+        const vis = entry.visibility || { mode: 'public' };
+        if (vis.mode === 'public') return true;
+        if (vis.mode === 'specific' && vis.visibleTo?.includes(myUid)) return true;
     }
 
-    const startOptions = levelOptionsHtml.replace(`value="${adv.startLevel}"`, `value="${adv.startLevel}" selected`);
-    const endOptions = levelOptionsHtml.replace(`value="${adv.endLevel}"`, `value="${adv.endLevel}" selected`);
-
-    container.innerHTML = `
-        <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[13000] backdrop-blur-sm animate-in">
-            <div class="bg-[#f4ebd8] rounded-sm shadow-2xl w-full max-w-md border border-[#d4c5a9] overflow-hidden flex flex-col">
-                <div class="bg-stone-900 p-4 border-b-2 border-amber-600 shadow-md flex justify-between items-center">
-                    <h2 class="text-lg font-serif font-bold text-amber-50 leading-tight"><i class="fa-solid fa-pen-to-square mr-2 text-amber-500"></i>Amend Arc Details</h2>
-                    <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="text-stone-400 hover:text-red-400 transition"><i class="fa-solid fa-times text-xl"></i></button>
-                </div>
-                <div class="p-5 sm:p-6 bg-[#fdfbf7]">
-                    <div class="mb-4">
-                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Adventure Title</label>
-                        <input type="text" id="edit-adv-name" value="${adv.name.replace(/"/g, '&quot;')}" class="w-full bg-white text-stone-900 border border-[#d4c5a9] p-2 text-sm font-bold outline-none rounded-sm shadow-inner focus:border-amber-600">
-                    </div>
-                    <div class="grid grid-cols-2 gap-4 mb-4">
-                        <div>
-                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Start Level</label>
-                            <select id="edit-adv-start" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 bg-white outline-none focus:border-amber-600 shadow-inner">
-                                ${startOptions}
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">End Level</label>
-                            <select id="edit-adv-end" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 bg-white outline-none focus:border-amber-600 shadow-inner">
-                                ${endOptions}
-                            </select>
-                        </div>
-                    </div>
-                    <div class="mb-2">
-                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Party Size (Active Heroes)</label>
-                        <input type="number" id="edit-adv-players" min="1" value="${adv.numPlayers || 4}" class="w-full bg-white text-stone-900 border border-[#d4c5a9] p-2 text-sm font-bold outline-none rounded-sm shadow-inner focus:border-amber-600">
-                    </div>
-                </div>
-                <div class="p-4 bg-stone-200 border-t border-[#d4c5a9] flex flex-wrap-reverse sm:flex-nowrap justify-between gap-3 items-center">
-                    <button onclick="window.appActions.refreshPartyBoons()" class="w-full sm:w-auto px-4 py-2 border border-amber-400 bg-amber-100 text-amber-700 rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-amber-200 transition whitespace-nowrap" title="Top up Inspiration & Auto-Success">
-                        <i class="fa-solid fa-gift mr-1"></i> Refresh Boons
-                    </button>
-                    <div class="flex gap-2 w-full sm:w-auto justify-end">
-                        <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="px-4 py-2 border border-stone-400 text-stone-600 rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-stone-300 transition">Cancel</button>
-                        <button onclick="window.appActions.saveEditAdventure()" class="px-5 py-2 bg-stone-800 text-amber-50 rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-stone-700 transition">Save Changes</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
+    return false; // Otherwise, locked down!
 };
 
-export const saveEditAdventure = async () => {
-    updateDerivedState();
-    const camp = window.appData.activeCampaign;
-    const adv = window.appData.activeAdventure;
-    if (!camp || !adv || !camp._isDM) return;
-
-    // Sanitize to prevent XSS
-    const newName = document.getElementById('edit-adv-name').value.trim().replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    if (!newName) {
-        notify("Adventure title cannot be empty.", "error");
-        return;
-    }
-
-    const newStart = parseInt(document.getElementById('edit-adv-start').value) || 1;
-    const newEnd = parseInt(document.getElementById('edit-adv-end').value) || 1;
-    const newPlayers = parseInt(document.getElementById('edit-adv-players').value) || 1;
-
-    if (camp.calendar && camp.calendar.notes) {
-        Object.keys(camp.calendar.notes).forEach(key => {
-            const notesArr = camp.calendar.notes[key];
-            if (Array.isArray(notesArr)) {
-                const noteIdx = notesArr.findIndex(n => n.id === adv.id);
-                if (noteIdx !== -1) {
-                    const oldText = notesArr[noteIdx].text;
-                    const textParts = oldText.split('\n\n');
-                    textParts[0] = `**${newName}**`;
-                    notesArr[noteIdx].text = textParts.join('\n\n');
-                }
-            }
-        });
-    }
-
-    const updatedAdventures = camp.adventures.map(a => {
-        if (a.id === adv.id) {
-            return { ...a, name: newName, startLevel: newStart, endLevel: newEnd, numPlayers: newPlayers };
-        }
-        return a;
-    });
-
-    const updatedCamp = { ...camp, adventures: updatedAdventures };
-    await saveCampaign(updatedCamp);
-    
-    document.getElementById('global-popup-container').innerHTML = '';
-    notify("Adventure details updated.", "success");
-    reRender(true);
-};
-
-export const refreshPartyBoons = async () => {
-    updateDerivedState();
-    const camp = window.appData.activeCampaign;
-    if (!camp || !camp._isDM) return;
-
-    if (!confirm("This will restore Inspiration to maximum and grant 1 Auto-Success for eligible heroes. Proceed?")) return;
-
-    const updatedPCs = (camp.playerCharacters || []).map(pc => {
-        let maxInsp = 0;
-        if (pc.boonBackstory) maxInsp += 1;
-        if (pc.boon2ndBday) maxInsp += 1;
-        return {
-            ...pc,
-            inspiration: maxInsp,
-            automaticSuccess: pc.unlockAutoSuccess ? true : false
-        };
-    });
-
-    const updatedCamp = { ...camp, playerCharacters: updatedPCs };
-    await saveCampaign(updatedCamp);
-    
-    notify("Party boons have been refreshed.", "success");
-    reRender(true);
-};
-
-export const openAdvRoster = () => {
-  updateDerivedState();
-  const adv = window.appData.activeAdventure;
-  const camp = window.appData.activeCampaign;
-  if (!adv || !camp || !camp._isDM) return;
-  
-  if (adv.activePcIds) {
-      window.appData.tempAdvRoster = [...adv.activePcIds];
-  } else {
-      window.appData.tempAdvRoster = [];
-      const assignedPlayers = new Set();
-      camp.playerCharacters.forEach(pc => {
-          if (pc.playerId && !assignedPlayers.has(pc.playerId)) {
-              window.appData.tempAdvRoster.push(pc.id);
-              assignedPlayers.add(pc.playerId);
-          } else if (!pc.playerId) {
-              window.appData.tempAdvRoster.push(pc.id);
-          }
-      });
-  }
-  window.appActions.setView('adv-roster');
-};
-
-export const toggleAdvRosterPc = (pcId) => {
-  const camp = window.appData.activeCampaign;
-  const targetPc = camp.playerCharacters.find(p => p.id === pcId);
-  const idx = window.appData.tempAdvRoster.indexOf(pcId);
-
-  if (idx === -1) {
-    if (targetPc && targetPc.playerId) {
-        const existingPcIdx = window.appData.tempAdvRoster.findIndex(id => {
-            const p = camp.playerCharacters.find(c => c.id === id);
-            return p && p.playerId === targetPc.playerId;
-        });
-        
-        if (existingPcIdx !== -1) {
-            const oldPcId = window.appData.tempAdvRoster[existingPcIdx];
-            const oldPc = camp.playerCharacters.find(c => c.id === oldPcId);
-            window.appData.tempAdvRoster.splice(existingPcIdx, 1);
-            notify(`Swapped active hero (Removed ${oldPc.name}).`, 'info');
-        }
-    }
-    window.appData.tempAdvRoster.push(pcId);
-  } else {
-    window.appData.tempAdvRoster.splice(idx, 1);
-  }
-  reRender(true);
-};
-
-export const saveAdvRoster = async () => {
-  updateDerivedState();
-  const camp = window.appData.activeCampaign;
-  const adv = window.appData.activeAdventure;
-  if (!camp || !adv || !camp._isDM) return;
-
-  const updatedAdventures = camp.adventures.map(a => {
-    if (a.id !== adv.id) return a;
-    return {
-      ...a,
-      activePcIds: window.appData.tempAdvRoster,
-      numPlayers: window.appData.tempAdvRoster.length 
-    };
-  });
-
-  const updatedCamp = { ...camp, adventures: updatedAdventures };
-  await saveCampaign(updatedCamp);
-  window.appActions.setView('adventure');
-  notify("Arc roster inscribed.", "success");
-};
-
-// ============================================================================
-// --- PC MANAGEMENT AND CHECKLIST / SHEET UPDATES ---
-// ============================================================================
-
-export const openChecklistMenu = () => {
-  const modal = document.getElementById('checklist-modal');
-  if (modal) {
-    reRender(true);
-    modal.classList.remove('hidden');
-  }
-};
-
-export const closeChecklistMenu = () => {
-  const modal = document.getElementById('checklist-modal');
-  if (modal) modal.classList.add('hidden');
-};
-
-export const addSheetUpdate = async () => {
-  const input = document.getElementById('new-sheet-update-text');
-  if (!input) return;
-  
-  const text = input.value.trim().replace(/</g, "&lt;").replace(/>/g, "&gt;"); // XSS Sanitization
-  if (!text) return;
-  
-  updateDerivedState();
-  const camp = window.appData.activeCampaign;
-  if (!camp || !camp._isDM) return;
-
-  const newUpdate = {
-    id: generateId(),
-    text: text,
-    resolvedBy: [],
-    visibility: { mode: 'public' },
-    timestamp: Date.now()
-  };
-
-  // Optimistic UI update
-  camp.sheetUpdates = [...(camp.sheetUpdates || []), newUpdate];
-  input.value = '';
-  
-  // Granular Save
-  await saveSpecificSheetUpdate(camp.id, newUpdate);
-  reRender(true);
-};
-
-export const toggleSheetUpdateResolved = async (id) => {
-  updateDerivedState();
-  const camp = window.appData.activeCampaign;
-  const myUid = window.appData.currentUserUid;
-  if (!camp || !myUid) return;
-
-  const updates = camp.sheetUpdates || [];
-  const targetIdx = updates.findIndex(u => u.id === id);
-  if (targetIdx === -1) return;
-
-  const target = updates[targetIdx];
-  const resolvedBy = target.resolvedBy || [];
-  const hasResolved = resolvedBy.includes(myUid);
-  
-  const newResolvedBy = hasResolved ? resolvedBy.filter(uid => uid !== myUid) : [...resolvedBy, myUid];
-
-  const updatedUpdate = { ...target, resolvedBy: newResolvedBy };
-  
-  // Optimistic local update
-  camp.sheetUpdates[targetIdx] = updatedUpdate;
-  
-  // Execute granular remote save without race conditions!
-  await saveSpecificSheetUpdate(camp.id, updatedUpdate);
-  
-  // LOG ACTIVITY WHEN A PLAYER MARKS A TASK AS COMPLETE
-  if (!camp._isDM && !hasResolved) {
-      const pName = camp.playerNames ? (camp.playerNames[myUid] || 'Unknown Player') : 'Unknown Player';
-      const logMsg = `<span class="font-bold text-stone-900">${pName}</span> marked a task as complete: <span class="italic text-stone-600">"${target.text}"</span>`;
-      
-      const newLog = {
-          id: generateId(),
-          timestamp: Date.now(),
-          text: logMsg,
-          icon: 'fa-check'
-      };
-      
-      // Optimistic push to local log
-      camp.activityLog = [newLog, ...(camp.activityLog || [])].slice(0, 100);
-      
-      // Granular remote push
-      await pushActivityLog(camp.id, newLog);
-  }
-  
-  reRender(true);
-};
-
-export const deleteSheetUpdate = async (id) => {
-  if (!confirm("Are you sure you want to permanently delete this task?")) return;
-  
-  updateDerivedState();
-  const camp = window.appData.activeCampaign;
-  if (!camp || !camp._isDM) return;
-
-  // Optimistic update
-  camp.sheetUpdates = (camp.sheetUpdates || []).filter(u => u.id !== id);
-  
-  // Granular Save
-  await deleteSpecificSheetUpdate(camp.id, id);
-  reRender(true);
-};
-
-export const toggleSheetUpdateVis = () => {}; 
-
-export const openPCEdit = (pcId = null) => {
-  window.appData.activePcId = pcId;
-  window.appActions.setView('pc-edit');
-};
-
-export const calculateBirthdaysLive = () => {
-    const monthEl = document.getElementById('pc-edit-birth-month');
-    const dayEl = document.getElementById('pc-edit-birth-day');
-    const joinEl = document.getElementById('pc-edit-join-date');
-    const countEl = document.getElementById('pc-edit-bday-count');
-
-    if (!monthEl || !dayEl || !joinEl || !countEl) return;
-
-    const effMonth = parseInt(monthEl.value, 10);
-    const effDay = parseInt(dayEl.value, 10);
-    const joinDateStr = joinEl.value;
-
-    let calculatedBirthdays = 0;
-
-    if (!isNaN(effMonth) && !isNaN(effDay) && joinDateStr) {
-        const joinDate = new Date(joinDateStr);
-        if (!isNaN(joinDate.getTime())) {
-            const today = new Date();
-            let count = 0;
-            for (let y = joinDate.getFullYear(); y <= today.getFullYear(); y++) {
-                const bDateThisYear = new Date(y, effMonth - 1, effDay);
-                if (bDateThisYear >= joinDate && bDateThisYear <= today) count++;
-            }
-            calculatedBirthdays = count;
-        }
-    }
-
-    countEl.textContent = calculatedBirthdays;
-
-    for (let i = 3; i <= 12; i++) {
-        const slot = document.getElementById(`extra-boon-slot-${i}`);
-        if (slot) {
-            const select = document.getElementById(`pc-edit-boon-${i}`);
-            if (i <= calculatedBirthdays || (select && select.value !== '')) slot.classList.remove('hidden');
-            else slot.classList.add('hidden');
-        }
-    }
-};
-
-export const savePCEdit = async () => {
-  updateDerivedState();
-  const camp = window.appData.activeCampaign;
-  if (!camp) return;
-
-  const isDM = camp._isDM;
-  const myUid = window.appData.currentUserUid;
-  const pcId = window.appData.activePcId || generateId();
-
-  const existingPC = camp.playerCharacters?.find(p => p.id === pcId) || {
-      inspiration: 0,
-      automaticSuccess: false,
-      playerId: '',
-      birthMonth: null,
-      birthDay: null,
-      extraBdayBoons: [],
-      availableDowntime: 0,
-      downtimeLog: '',
-      str: '', dex: '', con: '', int: '', wis: '', cha: '',
-      saves: '', skills: '', proficiencies: '',
-      wealth: '', equipped: '', backpack: '',
-      ddbId: '',
-      isPrivate: false // Added default
-  };
-
-  const isOwner = existingPC.playerId === myUid;
-
-  if (!isDM && !isOwner) {
-      notify("You do not have permission to modify this hero.", "error");
-      return;
-  }
-
-  const nameInput = document.getElementById('pc-edit-name')?.value.trim();
-  if (!nameInput) {
-      notify("Hero must have a name.", "error");
-      return;
-  }
-
-  // Handle DM's manual birthday entry vs Account linkage
-  const bMonthEl = document.getElementById('pc-edit-birth-month');
-  const bDayEl = document.getElementById('pc-edit-birth-day');
-
-  const localBMonth = isDM ? ((bMonthEl && !bMonthEl.disabled) ? (parseInt(bMonthEl.value) || null) : existingPC.birthMonth) : existingPC.birthMonth;
-  const localBDay = isDM ? ((bDayEl && !bDayEl.disabled) ? (parseInt(bDayEl.value) || null) : existingPC.birthDay) : existingPC.birthDay;
-
-  // Crucial Fix: Capture the privacy toggle correctly
-  const isPrivateFlag = isDM ? (document.getElementById('pc-edit-is-private')?.checked || false) : (existingPC.isPrivate || false);
-
-  // Gather Extra Birthday Boons (3rd+)
-  const extraBdayBoons = [];
-  if (isDM) {
-      for (let i = 3; i <= 12; i++) {
-          const select = document.getElementById(`pc-edit-boon-${i}`);
-          if (select) {
-              extraBdayBoons.push(select.value);
-          }
-      }
-      while (extraBdayBoons.length > 0 && extraBdayBoons[extraBdayBoons.length - 1] === '') {
-          extraBdayBoons.pop();
-      }
-  }
-
-  // Helper to gracefully extract values, allowing empty strings to overwrite existing data
-  const getVal = (id, fallback) => {
-      const el = document.getElementById(id);
-      if (el) return el.value; 
-      return fallback || '';
-  };
-
-  // Gather Inputs safely based on access level
-  const updatedPC = {
-      ...existingPC,
-      id: pcId,
-      isPrivate: isPrivateFlag, // Save the flag properly
-      // Core Identity
-      name: nameInput,
-      race: getVal('pc-edit-race', existingPC.race),
-      classLevel: getVal('pc-edit-class', existingPC.classLevel),
-      background: getVal('pc-edit-background', existingPC.background),
-      image: getVal('pc-edit-image', existingPC.image),
-      ddbId: getVal('pc-edit-ddb-id', existingPC.ddbId),
-      // Characteristics
-      alignment: getVal('pc-edit-alignment', existingPC.alignment),
-      faith: getVal('pc-edit-faith', existingPC.faith),
-      gender: getVal('pc-edit-gender', existingPC.gender),
-      age: getVal('pc-edit-age', existingPC.age),
-      size: getVal('pc-edit-size', existingPC.size),
-      height: getVal('pc-edit-height', existingPC.height),
-      weight: getVal('pc-edit-weight', existingPC.weight),
-      eyes: getVal('pc-edit-eyes', existingPC.eyes),
-      hair: getVal('pc-edit-hair', existingPC.hair),
-      skin: getVal('pc-edit-skin', existingPC.skin),
-      // Core Stats
-      str: getVal('pc-edit-str', existingPC.str),
-      dex: getVal('pc-edit-dex', existingPC.dex),
-      con: getVal('pc-edit-con', existingPC.con),
-      int: getVal('pc-edit-int', existingPC.int),
-      wis: getVal('pc-edit-wis', existingPC.wis),
-      cha: getVal('pc-edit-cha', existingPC.cha),
-      saves: getVal('pc-edit-saves', existingPC.saves),
-      skills: getVal('pc-edit-skills', existingPC.skills),
-      proficiencies: getVal('pc-edit-proficiencies', existingPC.proficiencies),
-      // Personality & Roleplay
-      traits: getVal('input-pc-edit-traits', existingPC.traits),
-      ideals: getVal('input-pc-edit-ideals', existingPC.ideals),
-      bonds: getVal('input-pc-edit-bonds', existingPC.bonds),
-      flaws: getVal('input-pc-edit-flaws', existingPC.flaws),
-      appearance: getVal('input-pc-edit-appearance', existingPC.appearance),
-      backstory: getVal('input-pc-edit-backstory', existingPC.backstory),
-      organizations: getVal('input-pc-edit-organizations', existingPC.organizations),
-      allies: getVal('input-pc-edit-allies', existingPC.allies),
-      enemies: getVal('input-pc-edit-enemies', existingPC.enemies),
-      // Equipment & Wealth
-      wealth: getVal('pc-edit-wealth', existingPC.wealth),
-      equipped: getVal('input-pc-edit-equipped', existingPC.equipped),
-      backpack: getVal('input-pc-edit-backpack', existingPC.backpack),
-
-      // Downtime Log (Explicitly allowing it to be cleared out)
-      downtimeLog: getVal('input-pc-edit-downtimelog', existingPC.downtimeLog),
-
-      // DM Restricted Administrative Fields
-      playerId: isDM ? getVal('pc-edit-player-id', existingPC.playerId) : (existingPC.playerId || ''),
-      dmNotes: isDM ? getVal('input-pc-edit-dmnotes', existingPC.dmNotes) : (existingPC.dmNotes || ''),
-      joinDate: isDM ? getVal('pc-edit-join-date', existingPC.joinDate) : (existingPC.joinDate || ''), 
-      birthMonth: localBMonth,
-      birthDay: localBDay,
-      boonBackstory: isDM ? (document.getElementById('pc-edit-boon-backstory')?.checked || false) : (existingPC.boonBackstory || false),
-      unlockAutoSuccess: isDM ? (document.getElementById('pc-edit-unlock-auto-success')?.checked || false) : (existingPC.unlockAutoSuccess || false),
-      boon1stBday: isDM ? getVal('pc-edit-boon-1st', existingPC.boon1stBday) : (existingPC.boon1stBday || ''),
-      boon2ndBday: isDM ? getVal('pc-edit-boon-2nd', existingPC.boon2ndBday) : (existingPC.boon2ndBday || ''),
-      extraBdayBoons: isDM ? extraBdayBoons : (existingPC.extraBdayBoons || []),
-      availableDowntime: isDM ? (parseInt(document.getElementById('pc-edit-downtime')?.value) || 0) : (parseInt(existingPC.availableDowntime) || 0)
-  };
-
-  const isNew = !camp.playerCharacters?.some(p => p.id === pcId);
-  const newPCs = isNew ? [...(camp.playerCharacters || []), updatedPC] : camp.playerCharacters.map(p => p.id === pcId ? updatedPC : p);
-
-  // --- Auto-Generate / Update Linked Codex Entry for the Hero ---
-  let codexVisibility = { mode: 'public', visibleTo: [] };
-  if (isPrivateFlag) {
-      if (updatedPC.playerId) {
-          codexVisibility = { mode: 'specific', visibleTo: [updatedPC.playerId] };
-      } else {
-          codexVisibility = { mode: 'hidden', visibleTo: [] };
-      }
-  }
-
-  let updatedCodexArray = [...(camp.codex || [])];
-  const existingCodexEntry = updatedCodexArray.find(c => c.id === pcId);
-
-  if (!existingCodexEntry) {
-      updatedCodexArray.push({
-          id: pcId,
-          name: updatedPC.name,
-          type: 'PC',
-          tags: ['Hero', updatedPC.race, updatedPC.classLevel].filter(Boolean),
-          desc: 'Rumors and public knowledge surrounding this hero are yet to be penned.',
-          visibility: codexVisibility,
-          image: updatedPC.image
-      });
-  } else {
-      updatedCodexArray = updatedCodexArray.map(c => {
-          if (c.id === pcId) {
-              return {
-                  ...c,
-                  name: updatedPC.name,
-                  type: 'PC',
-                  tags: ['Hero', updatedPC.race, updatedPC.classLevel].filter(Boolean),
-                  visibility: codexVisibility,
-                  image: updatedPC.image
-              };
-          }
-          return c;
-      });
-  }
-
-  let updatedCamp = { ...camp, playerCharacters: newPCs, codex: updatedCodexArray };
-
-  // Track Player Edits!
-  if (!isDM) {
-      updatedCamp = logPlayerActivity(updatedCamp, myUid, `updated the private journal for <span class="font-bold text-amber-700">${updatedPC.name}</span>.`, 'fa-user-pen');
-  }
-
-  // Local Optimistic Update
-  window.appData.activeCampaign = updatedCamp;
-  reRender();
-
-  await saveCampaign(updatedCamp);
-
-  window.appActions.setView('pc-manager');
-  notify("Hero profile inscribed.", "success");
-};
-
-export const deletePC = async (pcId) => {
-  updateDerivedState();
-  const camp = window.appData.activeCampaign;
-  if (!camp || !camp._isDM) {
-    notify("Only the DM can remove heroes.", "error");
-    return;
-  }
-  
-  if (!confirm("Are you sure you want to remove this hero from the campaign?")) return;
-  
-  const updatedCamp = {
-    ...camp,
-    playerCharacters: camp.playerCharacters.filter(pc => pc.id !== pcId),
-    codex: (camp.codex || []).filter(c => c.id !== pcId) 
-  };
-  
-  await saveCampaign(updatedCamp);
-  notify("Hero removed.", "success");
-  
-  if (window.appData.activePcId === pcId) {
-      window.appActions.setView('pc-manager');
-  } else {
-      reRender(true);
-  }
-};
-
-export const kickPlayer = async (uid) => {
-  updateDerivedState();
-  const camp = window.appData.activeCampaign;
-  if (!camp || !camp._isDM) return;
-  
-  if (!confirm("Exile this player from the campaign? They will lose access to the tome.")) return;
-  
-  const updatedPlayers = (camp.activePlayers || []).filter(id => id !== uid);
-  
-  const updatedNames = { ...camp.playerNames };
-  delete updatedNames[uid];
-  
-  const updatedBirthdays = { ...camp.playerBirthdays };
-  delete updatedBirthdays[uid];
-  
-  const updatedPCs = (camp.playerCharacters || []).map(pc => {
-    if (pc.playerId === uid) return { ...pc, playerId: '' };
-    return pc;
-  });
-  
-  const updatedCamp = {
-    ...camp,
-    activePlayers: updatedPlayers,
-    playerNames: updatedNames,
-    playerBirthdays: updatedBirthdays,
-    playerCharacters: updatedPCs
-  };
-  
-  await saveCampaign(updatedCamp);
-  notify("Player exiled from the campaign.", "success");
-  reRender(true);
-};
-
-// ============================================================================
-// --- D&D BEYOND IMPORT ENGINE ---
-// ============================================================================
-
-const parseDDBCharacter = (charData) => {
-    const statModMap = { 'strength-score': 1, 'dexterity-score': 2, 'constitution-score': 3, 'intelligence-score': 4, 'wisdom-score': 5, 'charisma-score': 6 };
-    const skillAbilities = {
-        'athletics': 1, 'acrobatics': 2, 'sleight-of-hand': 2, 'stealth': 2,
-        'arcana': 4, 'history': 4, 'investigation': 4, 'nature': 4, 'religion': 4,
-        'animal-handling': 5, 'insight': 5, 'medicine': 5, 'perception': 5, 'survival': 5,
-        'deception': 6, 'intimidation': 6, 'performance': 6, 'persuasion': 6
-    };
-    
-    const formatName = (str) => str.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-    const stripHtml = (html) => html ? html.replace(/<[^>]*>?/gm, '').trim() : '';
-
-    const alignmentMap = { 1: 'Lawful Good', 2: 'Neutral Good', 3: 'Chaotic Good', 4: 'Lawful Neutral', 5: 'True Neutral', 6: 'Chaotic Neutral', 7: 'Lawful Evil', 8: 'Neutral Evil', 9: 'Chaotic Evil' };
-    const sizeMap = { 2: 'Tiny', 3: 'Small', 4: 'Medium', 5: 'Large', 6: 'Huge', 7: 'Gargantuan' };
-
-    const stats = { 1: {base: 10, bonus: 0, override: 0}, 2: {base: 10, bonus: 0, override: 0}, 3: {base: 10, bonus: 0, override: 0}, 4: {base: 10, bonus: 0, override: 0}, 5: {base: 10, bonus: 0, override: 0}, 6: {base: 10, bonus: 0, override: 0} };
-    charData.stats?.forEach(s => { if(stats[s.id]) stats[s.id].base = s.value; });
-    charData.overrideStats?.forEach(s => { if(stats[s.id] && s.value) stats[s.id].override = s.value; });
-    
-    let proficiencies = { saves: {}, skills: {}, weapons: [], armor: [], tools: [], languages: [] };
-
-    Object.values(charData.modifiers || {}).forEach(modArr => {
-        if (Array.isArray(modArr)) {
-            modArr.forEach(mod => {
-                const subType = mod.subType || '';
-                const type = mod.type || '';
-                const friendlyName = mod.friendlySubtypeName || formatName(subType);
-
-                if (type === 'bonus' && statModMap[subType]) {
-                    stats[statModMap[subType]].bonus += mod.value;
-                }
+export const parseSmartText = (text, contextId = null) => {
+    if (!text) return "";
+    let safeText = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+    // --- 1. PARSE MARKDOWN FORMATTING ---
+    // Enhanced Headings and Dividers to perfectly support the markdown generator outputs
+    safeText = safeText.replace(/^#### (.*?)$/gim, '<h4 class="text-sm font-bold mt-4 mb-1 text-stone-800">$1</h4>');
+    safeText = safeText.replace(/^### (.*?)$/gim, '<h3 class="text-base font-bold mt-5 mb-2 text-stone-900 border-b border-[#d4c5a9] pb-1">$1</h3>');
+    safeText = safeText.replace(/^## (.*?)$/gim, '<h2 class="text-lg font-bold mt-6 mb-2 text-stone-900 border-b-2 border-stone-400 pb-1">$1</h2>');
+    safeText = safeText.replace(/^# (.*?)$/gim, '<h1 class="text-xl font-bold mt-6 mb-3 text-red-900 uppercase tracking-wider border-b-2 border-red-900 pb-2">$1</h1>');
+    safeText = safeText.replace(/^---$/gim, '<hr class="my-4 border-[#d4c5a9]">');
+
+    // Lists
+    safeText = safeText.replace(/^- (.*?)$/gim, '<li class="ml-4 list-disc marker:text-stone-400">$1</li>');
+
+    // Bold, Underline, Italic (Safari Safe)
+    safeText = safeText.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-stone-900">$1</strong>');
+    safeText = safeText.replace(/__(.*?)__/g, '<u class="underline decoration-stone-400 underline-offset-2">$1</u>');
+    safeText = safeText.replace(/(^|[^\w])\*(.*?)\*(?!\w)/g, '$1<em class="italic text-stone-800">$2</em>');
+    safeText = safeText.replace(/\b_(.*?)_\b/g, '<em class="italic text-stone-800">$1</em>');
+
+    // --- 1.5. PARSE CURRENCY HIGHLIGHTING ---
+    // Finds values like "50 gp", "1,500 gold pieces", "5.5 pp", "100 silver", "50 gp x 10" etc.
+    const currencyRegex = /\b((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)\s*(cp|sp|ep|gp|pp|copper|silver|electrum|gold|platinum)(?:\s+(?:pieces?|coins?))?\b(?:\s*[*x]\s*(?:\d{1,3}(?:,\d{3})+|\d+))?\b/gi;
+    safeText = safeText.replace(currencyRegex, '<span class="inline-flex items-center font-bold text-amber-800 bg-amber-100/60 border border-amber-300 px-1.5 py-0.5 rounded-sm shadow-sm whitespace-nowrap mx-0.5 text-xs"><i class="fa-solid fa-coins text-amber-500 mr-1.5 drop-shadow-sm"></i>$&</span>');
+
+    // --- 2. PARSE CODEX LINKS (SAFARI COMPATIBLE, ALIAS SUPPORT & FOG OF WAR PROTECTED) ---
+    // We sort by length descending. This guarantees we match "Corval Shaedmokker" before matching just "Corval"
+    // to prevent nesting links incorrectly!
+    const sortedCache = [...window.appData.codexCache].sort((a,b) => b.text.length - a.text.length);
+
+    if (sortedCache.length > 0) {
+        // Build one massive regex pattern that matches ANY of our known aliases or full names
+        const escapedNames = sortedCache.map(e => e.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+        const massiveRegex = new RegExp(`\\b(${escapedNames.join('|')})\\b`, 'gi');
+
+        // Track which IDs have already been linked in this block of text to prevent over-linking
+        const linkedIds = new Set();
+
+        // Split the text by HTML tags to safely ONLY run our Regex replacement on plain text nodes
+        let parts = safeText.split(/(<[^>]+>)/g);
+        for (let i = 0; i < parts.length; i++) {
+            if (parts[i].startsWith('<') && parts[i].endsWith('>')) continue;
+            parts[i] = parts[i].replace(massiveRegex, (match) => {
+                const entry = sortedCache.find(e => e.text.toLowerCase() === match.toLowerCase());
                 
-                if (type === 'proficiency' || type === 'expertise') {
-                    const profVal = type === 'expertise' ? 2 : 1;
-                    if (subType.includes('saving-throws')) {
-                        const statId = statModMap[subType.replace('-saving-throws', '-score')];
-                        if (statId) proficiencies.saves[statId] = profVal;
-                    } else if (skillAbilities[subType]) {
-                        proficiencies.skills[subType] = Math.max(proficiencies.skills[subType] || 0, profVal);
-                    } else if (type === 'language') {
-                         proficiencies.languages.push(friendlyName);
-                    } else if (subType.includes('armor') || subType === 'shields') {
-                        proficiencies.armor.push(friendlyName);
-                    } else if (subType.includes('weapons') || subType.includes('sword') || subType.includes('bow') || subType.includes('axe') || subType.includes('hammer') || subType.includes('mace') || subType.includes('crossbow')) {
-                         proficiencies.weapons.push(friendlyName);
-                    } else if (subType.includes('tools') || subType.includes('kit') || subType.includes('supplies') || subType.includes('instrument') || subType.includes('vehicles') || subType.includes('utensils')) {
-                         proficiencies.tools.push(friendlyName);
-                    } else {
-                        if (friendlyName.includes('Armor') || friendlyName.includes('Shield')) proficiencies.armor.push(friendlyName);
-                        else if (friendlyName.includes('Weapons') || friendlyName.includes('Sword') || friendlyName.includes('Bow')) proficiencies.weapons.push(friendlyName);
+                if (entry) {
+                    // PREVENT SELF-LINKING: Don't link an entry to itself if we are currently viewing it
+                    if (entry.id === contextId) return match;
+                    
+                    // PREVENT OVER-LINKING: Only link an entity once per text block
+                    if (linkedIds.has(entry.id)) return match;
+                    
+                    // SECURITY CHECK: Only generate a link if the current user has permission to see the entry!
+                    if (_canViewCodex(entry.id)) {
+                        linkedIds.add(entry.id);
+                        return `<span class="codex-link" onclick="window.appActions.viewCodex('${entry.id}')">${match}</span>`;
                     }
-                } else if (type === 'language') {
-                     proficiencies.languages.push(friendlyName);
                 }
+                return match; // If hidden or skipped, return plain unclickable text
             });
         }
-    });
-
-    for(let i=1; i<=6; i++) {
-        stats[i].total = stats[i].override || (stats[i].base + stats[i].bonus);
+        safeText = parts.join('');
     }
 
-    const equippedItems = [];
-    const backpackItems = [];
-    let wealth = charData.currencies || { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 };
-    
-    if (charData.inventory && Array.isArray(charData.inventory)) {
-        charData.inventory.forEach(item => {
-            const name = item.definition?.name || 'Unknown Item';
-            const qty = item.quantity > 1 ? ` (x${item.quantity})` : '';
-            if (item.equipped) equippedItems.push(`${name}${qty}`);
-            else backpackItems.push(`${name}${qty}`);
-        });
-    }
+    // --- 3. LINE BREAKS ---
+    safeText = safeText.replace(/\n/g, '<br>');
 
-    const savesArr = [];
-    const statNames = {1:'STR', 2:'DEX', 3:'CON', 4:'INT', 5:'WIS', 6:'CHA'};
-    for (let i = 1; i <= 6; i++) { if (proficiencies.saves[i]) savesArr.push(statNames[i]); }
+    // Cleanup trailing tags immediately following block elements
+    safeText = safeText.replace(/<\/h1><br>/g, '</h1>');
+    safeText = safeText.replace(/<\/h2><br>/g, '</h2>');
+    safeText = safeText.replace(/<\/h3><br>/g, '</h3>');
+    safeText = safeText.replace(/<\/h4><br>/g, '</h4>');
+    safeText = safeText.replace(/<\/li><br>/g, '</li>');
+    safeText = safeText.replace(/(<hr[^>]*>)<br>/g, '$1');
 
-    const skillsArr = [];
-    Object.keys(skillAbilities).forEach(skillKey => {
-        if (proficiencies.skills[skillKey]) skillsArr.push(formatName(skillKey));
-    });
-
-    const sizeId = charData.race?.sizeId || charData.sizeId;
-    const finalSize = sizeMap[sizeId] || charData.size || '';
-
-    return {
-        name: charData.name || 'Unknown',
-        race: charData.race?.fullName || charData.race?.baseName || '',
-        classLevel: charData.classes?.map(c => `${c.definition?.name} ${c.level}`).join(' / ') || '',
-        background: charData.background?.definition?.name || (charData.background?.customBackground ? charData.background.customBackground.name : ''),
-        alignment: alignmentMap[charData.alignmentId] || '', 
-        faith: charData.faith || '',
-        gender: charData.gender || '',
-        age: charData.age || '',
-        size: finalSize,
-        height: charData.height || '',
-        weight: charData.weight || '',
-        eyes: charData.eyes || '',
-        hair: charData.hair || '',
-        skin: charData.skin || '',
-        image: '', 
-        str: stats[1].total, dex: stats[2].total, con: stats[3].total, 
-        int: stats[4].total, wis: stats[5].total, cha: stats[6].total,
-        saves: savesArr.join(', '),
-        skills: skillsArr.join(', '),
-        proficiencies: [...new Set([...proficiencies.weapons, ...proficiencies.armor, ...proficiencies.tools, ...proficiencies.languages])].join(', '),
-        wealth: `${wealth.cp}cp, ${wealth.sp}sp, ${wealth.ep}ep, ${wealth.gp}gp, ${wealth.pp}pp`,
-        equipped: equippedItems.join('\n'),
-        backpack: backpackItems.join('\n'),
-        traits: stripHtml(charData.traits?.personalityTraits),
-        ideals: stripHtml(charData.traits?.ideals),
-        bonds: stripHtml(charData.traits?.bonds),
-        flaws: stripHtml(charData.traits?.flaws),
-        appearance: stripHtml(charData.traits?.appearance),
-        backstory: stripHtml(charData.notes?.backstory),
-        organizations: stripHtml(charData.notes?.organizations),
-        allies: stripHtml(charData.notes?.allies),
-        enemies: stripHtml(charData.notes?.enemies)
-    };
+    return safeText;
 };
 
-// --- NEW PROXY CASCADE ENGINE ---
-const fetchWithProxyCascade = async (targetUrl) => {
-    const proxies = [
-        `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
-        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
-        `https://thingproxy.freeboard.io/fetch/${targetUrl}`
-    ];
+export const handleSmartInput = (textarea) => {
+    window.appData.activeSmartTextarea = textarea;
+    const text = textarea.value;
+    const cursorPos = textarea.selectionStart;
 
-    let lastError = null;
-    for (const proxy of proxies) {
-        try {
-            console.log(`Attempting D&D Beyond fetch via: ${proxy.split('/')[2]}`);
-            const response = await fetch(proxy, { headers: { 'Cache-Control': 'no-cache' } });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP Error: ${response.status}`);
+    // Extract the last 40 characters before cursor to process auto-complete
+    const textBefore = text.substring(Math.max(0, cursorPos - 40), cursorPos);
+    
+    let bestMatches = [];
+    let matchLength = 0;
+
+    const sortedCache = [...window.appData.codexCache].sort((a,b) => b.text.length - a.text.length);
+
+    for (let entry of sortedCache) {
+        // SECURITY CHECK: Do not suggest hidden codex entries in the autocomplete box
+        if (!_canViewCodex(entry.id)) continue;
+
+        const lowerName = entry.text.toLowerCase();
+        // Check substrings from 3 chars up to the full length of the codex name
+        for (let i = 3; i <= entry.text.length; i++) {
+            const prefix = lowerName.substring(0, i);
+            if (textBefore.toLowerCase().endsWith(prefix)) {
+                // Ensure we are matching from the start of a word to prevent spam
+                const charBeforeMatch = textBefore.charAt(textBefore.length - i - 1);
+                if (textBefore.length === i || /[ \n\t]/.test(charBeforeMatch)) {
+                    if (i > matchLength) {
+                        matchLength = i;
+                        bestMatches = [entry.text];
+                    } else if (i === matchLength && !bestMatches.includes(entry.text)) {
+                        bestMatches.push(entry.text);
+                    }
+                }
             }
-            
-            const data = await response.json();
-            return data;
-            
-        } catch (err) {
-            console.warn(`Proxy failed: ${proxy.split('/')[2]}`, err);
-            lastError = err;
         }
     }
-    
-    // If we exhaust the loop, all proxies failed
-    throw new Error("All CORS proxies failed. D&D Beyond might be down, or you are being rate-limited. Please try again later.");
-};
 
+    if (bestMatches.length > 0 && bestMatches.length <= 5) {
+        const typedWord = textBefore.substring(textBefore.length - matchLength).toLowerCase();
+        const isExactAliasMatch = window.appData.codexCache.some(c => c.text.toLowerCase() === typedWord);
+        
+        // If what they typed perfectly matches an existing alias/short name (e.g. "Corval"), hide the annoying box!
+        if (isExactAliasMatch) {
+            document.getElementById('autocomplete-suggestions').style.display = 'none';
+            return;
+        }
 
-export const openDndBeyondImportModal = () => {
-    const container = document.getElementById('global-popup-container');
-    if (!container) return;
-
-    container.innerHTML = `
-        <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[18000] backdrop-blur-sm animate-in">
-            <div class="bg-[#f4ebd8] rounded-sm w-full max-w-4xl border border-[#d4c5a9] shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
-                <div class="bg-stone-900 p-4 border-b-4 border-red-900 shadow-md shrink-0 flex justify-between items-center text-amber-50">
-                    <h2 class="text-lg font-serif font-bold flex items-center"><i class="fa-solid fa-file-import mr-2 text-red-500"></i> D&D Beyond Importer</h2>
-                    <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="text-stone-400 hover:text-white transition"><i class="fa-solid fa-times text-xl"></i></button>
-                </div>
-                <div class="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-grow bg-[#fdfbf7] flex flex-col gap-4">
-                    <div class="bg-amber-50 border border-amber-200 p-4 rounded-sm shadow-sm text-amber-900 text-sm leading-snug">
-                        <i class="fa-solid fa-circle-info mr-1 text-amber-600"></i> Paste the full URL to your public D&D Beyond character sheet. The app will fetch the data and extract your hero's attributes, classes, and lore automatically.
-                    </div>
-                    
-                    <div class="flex gap-2 w-full max-w-2xl mx-auto mt-2">
-                        <input type="text" id="ddb-url-input" class="flex-grow p-3 border border-[#d4c5a9] rounded-sm text-sm font-bold bg-white shadow-inner focus:border-red-900 outline-none" placeholder="e.g. https://www.dndbeyond.com/characters/12345678">
-                        <button id="ddb-fetch-btn" onclick="window.appActions.fetchAndAnalyzeDndBeyond()" class="px-6 py-3 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-xs shadow-md shrink-0 whitespace-nowrap"><i class="fa-solid fa-cloud-arrow-down mr-2"></i> Fetch & Analyze</button>
-                    </div>
-
-                    <div id="ddb-analysis-output" class="hidden flex-grow bg-stone-900 text-green-400 p-4 rounded-sm font-mono text-[10px] sm:text-xs overflow-auto custom-scrollbar min-h-[300px] border border-stone-700 shadow-inner whitespace-pre-wrap mt-4"></div>
-                </div>
-            </div>
-        </div>
-    `;
-};
-
-export const fetchAndAnalyzeDndBeyond = async () => {
-    const input = document.getElementById('ddb-url-input').value.trim();
-    const output = document.getElementById('ddb-analysis-output');
-    const btn = document.getElementById('ddb-fetch-btn');
-    
-    if (!input) {
-        notify("Please enter a valid D&D Beyond character URL.", "error");
+        _showSuggestions(bestMatches, textarea, cursorPos, matchLength);
         return;
     }
 
-    const match = input.match(/\/characters?\/(\d+)/i) || input.match(/^(\d+)$/);
-    if (!match) {
-        notify("Could not find a character ID. Please ensure it looks like dndbeyond.com/characters/12345678", "error");
-        return;
-    }
-    const characterId = match[1];
+    document.getElementById('autocomplete-suggestions').style.display = 'none';
+};
 
-    const originalBtnHtml = btn.innerHTML;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Fetching...';
-    btn.disabled = true;
-    output.classList.add('hidden');
+export const _showSuggestions = (matches, inputEl, cursor, triggerLen) => {
+    const suggestions = document.getElementById('autocomplete-suggestions');
+    if(!suggestions) return;
+    
+    suggestions.innerHTML = '';
+    const rect = inputEl.getBoundingClientRect();
+    suggestions.style.left = (rect.left + window.scrollX + 20) + 'px';
+    suggestions.style.top = (rect.top + window.scrollY + 30) + 'px';
+    suggestions.style.display = 'block';
 
-    try {
-        const cacheBust = new Date().getTime();
-        const apiUrl = `https://character-service.dndbeyond.com/character/v5/character/${characterId}?cb=${cacheBust}`;
-        
-        // Execute the new Proxy Cascade!
-        const ddbData = await fetchWithProxyCascade(apiUrl);
-        
-        if (!ddbData || !ddbData.success || !ddbData.data) {
-            throw new Error("D&D Beyond returned an unexpected data structure. Ensure the character is set to Public.");
-        }
-
-        const parsedData = parseDDBCharacter(ddbData.data);
-        
-        window.appData.tempDdbImport = {
-            ...parsedData,
-            id: generateId(),
-            ddbId: characterId,
-            playerId: '', inspiration: 0, automaticSuccess: false, availableDowntime: 0, downtimeLog: ''
+    matches.forEach(m => {
+        const div = document.createElement('div');
+        div.className = "autocomplete-item";
+        div.innerText = m;
+        div.onmousedown = (e) => {
+            e.preventDefault();
+            const text = inputEl.value;
+            const before = text.substring(0, cursor - triggerLen);
+            const after = text.substring(cursor);
+            inputEl.value = before + m + after;
+            suggestions.style.display = 'none';
         };
+        suggestions.appendChild(div);
+    });
+};
 
-        let analysis = `✅ Character Successfully Fetched via API.\n\n`;
-        analysis += `Name: ${parsedData.name}\n`;
-        analysis += `Race: ${parsedData.race}\n`;
-        analysis += `Class: ${parsedData.classLevel}\n\n`;
-        
-        analysis += `STR: ${parsedData.str} | DEX: ${parsedData.dex} | CON: ${parsedData.con}\n`;
-        analysis += `INT: ${parsedData.int} | WIS: ${parsedData.wis} | CHA: ${parsedData.cha}\n\n`;
-        
-        analysis += `Saving Throws: ${parsedData.saves || 'None'}\n`;
-        analysis += `Skills: ${parsedData.skills || 'None'}\n`;
-        analysis += `Proficiencies: ${parsedData.proficiencies || 'None'}\n\n`;
-        
-        analysis += `Wealth: ${parsedData.wealth}\n`;
-        
-        const eqCount = parsedData.equipped ? parsedData.equipped.split('\n').length : 0;
-        const bpCount = parsedData.backpack ? parsedData.backpack.split('\n').length : 0;
-        analysis += `Equipment: ${eqCount} items equipped, ${bpCount} in backpack.\n`;
+// --- NEW FEATURE: CREATE ENTRY FROM HIGHLIGHTED TEXT (CASCADE SAVE PROTECTED) ---
+export const defineEntryFromSelection = async (textareaId) => {
+    const textarea = document.getElementById(textareaId);
+    if (!textarea) return;
 
-        output.innerHTML = `
-            <div class="text-green-400 whitespace-pre-wrap mb-4">${analysis}</div>
-            <button onclick="window.appActions.executeDndBeyondImport()" class="w-full py-3 bg-emerald-700 text-white rounded-sm hover:bg-emerald-600 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md">
-                <i class="fa-solid fa-user-check mr-2"></i> Import ${parsedData.name} into Campaign
+    // 1. Grab the text the user has highlighted BEFORE we potentially save and destroy the DOM element
+    const selectedText = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd).trim();
+    
+    if (!selectedText) {
+        notify("Please highlight a word or phrase to define.", "error");
+        return;
+    }
+
+    // 2. Auto-save mechanisms for Modals that share the global-popup-container to prevent data loss
+    if (textareaId === 'cx-modal-desc' || textareaId === 'cx-modal-dmnotes') {
+        const nameInput = document.getElementById('cx-modal-name');
+        if (!nameInput || !nameInput.value.trim()) {
+            notify("Please name this entry before defining links inside it.", "error");
+            return;
+        }
+        await window.appActions.saveCodexEntry();
+    } 
+    else if (textareaId === 'rule-modal-text') {
+        const nameInput = document.getElementById('rule-modal-name');
+        if (!nameInput || !nameInput.value.trim()) {
+            notify("Please title this rule before defining links inside it.", "error");
+            return;
+        }
+        await window.appActions.saveRule();
+    }
+    else if (textareaId === 'cal-note-text') {
+        const textInput = document.getElementById('cal-note-text');
+        if (!textInput || !textInput.value.trim()) {
+            notify("Please write something in your note before defining links.", "error");
+            return;
+        }
+        await window.appActions.saveCalendarNote();
+    }
+    else if (textareaId === 'ue-textarea') {
+        // Synchronously dump the Universal Editor contents back to the underlying form
+        window.appActions.saveUniversalEditor();
+    }
+
+    // 3. Open a fresh Codex Modal, prefilling the name! 
+    window.appActions._openCodexModal({ isNew: true, name: selectedText });
+};
+
+export const viewCodex = (id) => {
+    // SECURITY CHECK: Final hard block if someone explicitly triggers viewCodex on a hidden ID
+    if (!_canViewCodex(id)) {
+        notify("The contents of this entry are sealed.", "error");
+        return;
+    }
+
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    let entry = (camp?.codex || []).find(c => c.id === id);
+
+    // Fallback for Legacy PCs that don't have a generated codex entry yet
+    if (!entry && camp?.playerCharacters?.some(p => p.id === id)) {
+        const pc = camp.playerCharacters.find(p => p.id === id);
+        
+        let fallbackVis = { mode: 'public' };
+        if (pc.isPrivate) {
+            fallbackVis = pc.playerId ? { mode: 'specific', visibleTo: [pc.playerId] } : { mode: 'hidden', visibleTo: [] };
+        }
+        
+        entry = {
+            id: pc.id,
+            name: pc.name,
+            type: 'PC',
+            tags: ['Hero', pc.race, pc.classLevel].filter(Boolean),
+            desc: 'Rumors and public knowledge surrounding this hero are yet to be penned.',
+            visibility: fallbackVis,
+            image: pc.image || ""
+        };
+    }
+
+    if (!entry) {
+        notify("Codex entry not found.", "error");
+        return;
+    }
+    _openCodexModal(entry);
+};
+
+export const _openCodexModal = (entry) => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    const container = document.getElementById('global-popup-container');
+    if (!container || !camp) return;
+
+    const isNew = entry.isNew || !entry.id;
+    const id = entry.id || "";
+    const name = entry.name || "";
+    const type = entry.type || "NPC";
+    const desc = entry.desc || "";
+    const tags = entry.tags ? entry.tags.join(', ') : "";
+    const image = entry.image || "";
+
+    // Check editing permissions
+    const isDM = camp._isDM;
+    const myUid = window.appData.currentUserUid;
+    const linkedPC = camp.playerCharacters?.find(p => p.id === id);
+    const isHeroOwner = linkedPC && linkedPC.playerId === myUid;
+    const isAuthor = entry.authorId === myUid;
+    const canEdit = isDM || isHeroOwner || isAuthor || isNew;
+    const canDelete = (isDM || isAuthor) && !linkedPC; // Core Hero profiles can only be deleted via the PC manager
+
+    const viewHidden = isNew ? "hidden" : "";
+    const editHidden = isNew ? "" : "hidden";
+
+    let tagsHTML = `<span class="codex-tag">${type}</span>`;
+    if (entry.tags) {
+        tagsHTML += entry.tags.map(t => `<span class="codex-tag">${t}</span>`).join('');
+    }
+
+    const resolvedImage = image || (linkedPC ? linkedPC.image : "");
+    const imgHTML = resolvedImage ? `<div class="mb-5 w-full h-48 sm:h-64 bg-stone-900 border border-[#d4c5a9] rounded-sm overflow-hidden shadow-inner"><img src="${resolvedImage}" class="w-full h-full object-contain object-top" alt="${name}" onerror="this.style.display='none'"></div>` : '';
+
+    // --- DYNAMIC HERO, NPC & LOCATION INJECTION (Unifies Public & Private Knowledge) ---
+    let charDataHTML = '';
+    let locationDataHTML = '';
+    let privateDataHTML = '';
+
+    const isCharacter = type === 'PC' || type === 'NPC';
+    const isLocation = type === 'Location';
+    
+    // Universally bind dataSrc so ALL entries (Lore, Factions, Items, etc.) can display DM Notes
+    const dataSrc = linkedPC ? linkedPC : entry;
+
+    if (isCharacter && dataSrc) {
+        const parsedApp = dataSrc.appearance ? window.appActions.parseSmartText(dataSrc.appearance, id) : '<span class="text-stone-400 italic">No appearance recorded...</span>';
+        
+        charDataHTML = `
+            <div class="mb-6 bg-white border border-[#d4c5a9] p-4 rounded-sm shadow-inner text-sm">
+                <h4 class="font-bold text-red-900 border-b border-[#d4c5a9] pb-1 mb-3"><i class="fa-solid fa-clipboard-user mr-1"></i> Characteristics</h4>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-stone-700 mb-4">
+                    <div><span class="font-bold text-stone-900 block">Race / Lineage</span> ${dataSrc.race || '--'}</div>
+                    <div><span class="font-bold text-stone-900 block">Class / Level</span> ${dataSrc.classLevel || '--'}</div>
+                    <div><span class="font-bold text-stone-900 block">Background</span> ${dataSrc.background || '--'}</div>
+                    <div><span class="font-bold text-stone-900 block">Alignment</span> ${dataSrc.alignment || '--'}</div>
+                    <div><span class="font-bold text-stone-900 block">Faith</span> ${dataSrc.faith || '--'}</div>
+                    <div><span class="font-bold text-stone-900 block">Gender</span> ${dataSrc.gender || '--'}</div>
+                    <div><span class="font-bold text-stone-900 block">Age</span> ${dataSrc.age || '--'}</div>
+                    <div><span class="font-bold text-stone-900 block">Size</span> ${dataSrc.size || '--'}</div>
+                    <div><span class="font-bold text-stone-900 block">Height</span> ${dataSrc.height || '--'}</div>
+                    <div><span class="font-bold text-stone-900 block">Weight</span> ${dataSrc.weight || '--'}</div>
+                    <div><span class="font-bold text-stone-900 block">Eyes</span> ${dataSrc.eyes || '--'}</div>
+                    <div><span class="font-bold text-stone-900 block">Hair</span> ${dataSrc.hair || '--'}</div>
+                    <div><span class="font-bold text-stone-900 block">Skin</span> ${dataSrc.skin || '--'}</div>
+                </div>
+                <h4 class="font-bold text-red-900 border-b border-[#d4c5a9] pb-1 mb-2"><i class="fa-solid fa-eye mr-1"></i> Appearance</h4>
+                <div class="text-stone-800 text-sm leading-relaxed font-serif">${parsedApp}</div>
+            </div>
+        `;
+    }
+
+    if (isLocation && dataSrc) {
+        const parsedPOI = dataSrc.pointsOfInterest ? window.appActions.parseSmartText(dataSrc.pointsOfInterest, id) : '<span class="text-stone-400 italic">No points of interest recorded...</span>';
+        
+        locationDataHTML = `
+        <div class="mb-6 bg-white border border-[#d4c5a9] p-4 rounded-sm shadow-inner text-sm">
+            <h4 class="font-bold text-emerald-900 border-b border-[#d4c5a9] pb-1 mb-3"><i class="fa-solid fa-map-location-dot mr-1"></i> Location Details</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-stone-700 mb-4">
+                <div><span class="font-bold text-stone-900 block">Scale / Type</span> ${dataSrc.locationType || '--'}</div>
+                <div><span class="font-bold text-stone-900 block">Region / Territory</span> ${dataSrc.region || '--'}</div>
+                <div><span class="font-bold text-stone-900 block">Population</span> ${dataSrc.population || '--'}</div>
+                <div><span class="font-bold text-stone-900 block">Government / Ruler</span> ${dataSrc.government || '--'}</div>
+                <div><span class="font-bold text-stone-900 block">Economy / Trade</span> ${dataSrc.economy || '--'}</div>
+                <div class="col-span-1 sm:col-span-2"><span class="font-bold text-stone-900 block">Defenses</span> ${dataSrc.defenses || '--'}</div>
+            </div>
+            <h4 class="font-bold text-emerald-900 border-b border-[#d4c5a9] pb-1 mb-2"><i class="fa-solid fa-location-dot mr-1"></i> Points of Interest</h4>
+            <div class="text-stone-800 text-sm leading-relaxed font-serif">${parsedPOI}</div>
+        </div>
+        `;
+    }
+
+    // Render Private Info for Authorized Users
+    if (dataSrc) {
+        const canViewPrivate = isDM || isHeroOwner || (!linkedPC && isAuthor);
+        
+        if (canViewPrivate) {
+            const renderPrivateBlock = (blockTitle, content) => content ? `
+                <div class="mb-4">
+                    <h5 class="font-bold text-stone-800 text-[10px] uppercase tracking-widest border-b border-stone-300 pb-1 mb-1.5">${blockTitle}</h5>
+                    <div class="text-sm text-stone-700 font-serif leading-relaxed">${window.appActions.parseSmartText(content, id)}</div>
+                </div>` : '';
+            
+            // Check if there is ANY private data to show
+            const hasPrivateData = dataSrc.backstory || dataSrc.traits || dataSrc.ideals || dataSrc.bonds || dataSrc.flaws || dataSrc.organizations || dataSrc.allies || dataSrc.enemies || dataSrc.dmNotes || dataSrc.secrets;
+
+            if (hasPrivateData) {
+                privateDataHTML = `
+                <div class="mt-8 border-t-4 border-stone-800 pt-6">
+                    <h4 class="font-serif font-bold text-xl text-stone-900 mb-4 flex items-center"><i class="fa-solid fa-lock mr-2 text-stone-500"></i> Private Information</h4>
+                    <div class="bg-stone-200 p-5 rounded-sm border border-[#d4c5a9] shadow-inner">
+                        ${renderPrivateBlock('Backstory', dataSrc.backstory)}
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+                            ${renderPrivateBlock('Personality Traits', dataSrc.traits)}
+                            ${renderPrivateBlock('Ideals', dataSrc.ideals)}
+                            ${renderPrivateBlock('Bonds', dataSrc.bonds)}
+                            ${renderPrivateBlock('Flaws', dataSrc.flaws)}
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-2 mt-2">
+                            ${renderPrivateBlock('Organizations', dataSrc.organizations)}
+                            ${renderPrivateBlock('Allies', dataSrc.allies)}
+                            ${renderPrivateBlock('Enemies', dataSrc.enemies)}
+                        </div>
+                        ${renderPrivateBlock('<i class="fa-solid fa-user-secret text-stone-800 mr-1"></i> Hidden Secrets', dataSrc.secrets)}
+                        ${renderPrivateBlock('<i class="fa-solid fa-eye text-red-800 mr-1"></i> Secret Notes (DM)', dataSrc.dmNotes)}
+                    </div>
+                </div>
+                `;
+            }
+        }
+    }
+
+    const parsedDesc = desc ? window.appActions.parseSmartText(desc, id) : '<span class="text-stone-400 italic font-sans">No entries found...</span>';
+    
+    let descLabel = "Description";
+    let descPlaceholder = "Description... Codex names link automatically.";
+    if (isCharacter) {
+        descLabel = "Public Knowledge (Rumors & Repute)";
+        descPlaceholder = "What do people know about this character? Scribe their rumors, repute, and public knowledge...";
+    } else if (isLocation) {
+        descLabel = "Location Description (Public)";
+        descPlaceholder = "Scribe the visual description, atmosphere, and public knowledge about this location...";
+    }
+
+    // --- ATLAS MAP INTEGRATION ---
+    let mapBtnHtml = '';
+    const linkedPin = camp.atlasPins?.find(p => p.codexId === id);
+    const linkedRoute = camp.atlasRoutes?.find(r => r.codexId === id);
+    if ((linkedPin || linkedRoute) && !isNew) {
+        mapBtnHtml = `
+            <button onclick="document.getElementById('global-popup-container').innerHTML = ''; window.appActions.viewOnMap('${id}')" class="mt-4 w-full py-2 border border-amber-400 bg-amber-50 text-amber-900 hover:bg-amber-100 rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm flex items-center justify-center">
+                <i class="fa-solid fa-map-location-dot mr-2"></i> View on Atlas
             </button>
         `;
+    }
+
+    // --- SUPPLEMENTARY EDIT FIELDS INJECTION ---
+    const extendedEditHtml = `
+    <div id="npc-edit-fields" class="${type === 'NPC' && !linkedPC ? '' : 'hidden'} mt-6 pt-6 border-t-2 border-stone-300">
+        <div class="bg-blue-900/10 border-l-4 border-blue-600 p-3 rounded-sm text-xs text-stone-800 italic mb-6">
+            <i class="fa-solid fa-circle-info text-blue-600 mr-1"></i> <strong>NPC Details:</strong> Characteristics and Appearance are Public. Backstory and Traits remain Private (visible to the author and DM).
+        </div>
         
-        output.classList.remove('hidden');
-        output.classList.remove('text-red-500');
-        output.classList.add('text-green-400');
+        <h4 class="text-[10px] font-bold text-red-900 uppercase tracking-widest mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-clipboard-user mr-1"></i> Characteristics (Public)</h4>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Race / Lineage</label><input type="text" id="cx-npc-race" value="${entry.race || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Class / Level</label><input type="text" id="cx-npc-class" value="${entry.classLevel || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Background</label><input type="text" id="cx-npc-background" value="${entry.background || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Alignment</label><input type="text" id="cx-npc-alignment" value="${entry.alignment || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Faith</label><input type="text" id="cx-npc-faith" value="${entry.faith || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Gender</label><input type="text" id="cx-npc-gender" value="${entry.gender || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Age</label><input type="text" id="cx-npc-age" value="${entry.age || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Size</label><input type="text" id="cx-npc-size" value="${entry.size || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Height</label><input type="text" id="cx-npc-height" value="${entry.height || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Weight</label><input type="text" id="cx-npc-weight" value="${entry.weight || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Eyes</label><input type="text" id="cx-npc-eyes" value="${entry.eyes || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Hair</label><input type="text" id="cx-npc-hair" value="${entry.hair || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Skin</label><input type="text" id="cx-npc-skin" value="${entry.skin || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
+        </div>
+
+        <div class="mb-6">
+            <div class="flex justify-between items-end mb-1">
+                <label class="block text-[9px] uppercase text-stone-500 font-bold">Appearance (Public)</label>
+                <div class="flex gap-1 bg-stone-200 p-0.5 rounded-sm border border-[#d4c5a9]">
+                    <button type="button" onclick="window.appActions.formatText('cx-npc-appearance', 'bold')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm"><i class="fa-solid fa-bold"></i></button>
+                    <button type="button" onclick="window.appActions.formatText('cx-npc-appearance', 'italic')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm"><i class="fa-solid fa-italic"></i></button>
+                </div>
+            </div>
+            <textarea id="cx-npc-appearance" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white text-stone-900 h-24 font-serif outline-none focus:border-red-900 shadow-inner custom-scrollbar placeholder:italic" placeholder="Detailed physical description, scars, clothing...">${(entry.appearance || '').replace(/"/g, '&quot;')}</textarea>
+        </div>
+
+        <h4 class="text-[10px] font-bold text-stone-700 uppercase tracking-widest mb-3 mt-8 border-b border-stone-300 pb-1"><i class="fa-solid fa-lock mr-1"></i> Private Information</h4>
         
-    } catch (e) {
-        output.textContent = "Error parsing D&D Beyond data: \n" + e.message;
-        output.classList.remove('hidden');
-        output.classList.remove('text-green-400');
-        output.classList.add('text-red-500');
-    } finally {
-        btn.innerHTML = originalBtnHtml;
-        btn.disabled = false;
+        <div class="mb-4">
+            <div class="flex justify-between items-end mb-1">
+                <label class="block text-[9px] uppercase text-stone-500 font-bold">Backstory</label>
+                <div class="flex gap-1 bg-stone-200 p-0.5 rounded-sm border border-[#d4c5a9]">
+                    <button type="button" onclick="window.appActions.formatText('cx-npc-backstory', 'bold')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm"><i class="fa-solid fa-bold"></i></button>
+                    <button type="button" onclick="window.appActions.formatText('cx-npc-backstory', 'italic')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm"><i class="fa-solid fa-italic"></i></button>
+                </div>
+            </div>
+            <textarea id="cx-npc-backstory" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white text-stone-900 h-24 font-serif outline-none focus:border-red-900 shadow-inner custom-scrollbar placeholder:italic" placeholder="Origins, secrets, and history...">${(entry.backstory || '').replace(/"/g, '&quot;')}</textarea>
+        </div>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Personality Traits</label><textarea id="cx-npc-traits" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-white h-20 custom-scrollbar placeholder:italic" placeholder="Quirks, mannerisms...">${(entry.traits || '').replace(/"/g, '&quot;')}</textarea></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Ideals</label><textarea id="cx-npc-ideals" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-white h-20 custom-scrollbar placeholder:italic" placeholder="What drives them...">${(entry.ideals || '').replace(/"/g, '&quot;')}</textarea></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Bonds</label><textarea id="cx-npc-bonds" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-white h-20 custom-scrollbar placeholder:italic" placeholder="Ties to others...">${(entry.bonds || '').replace(/"/g, '&quot;')}</textarea></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Flaws</label><textarea id="cx-npc-flaws" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-white h-20 custom-scrollbar placeholder:italic" placeholder="Weaknesses, secrets...">${(entry.flaws || '').replace(/"/g, '&quot;')}</textarea></div>
+        </div>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Organizations</label><input type="text" id="cx-npc-organizations" value="${(entry.organizations || '').replace(/"/g, '&quot;')}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs bg-white outline-none focus:border-red-900 shadow-inner"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Allies</label><input type="text" id="cx-npc-allies" value="${(entry.allies || '').replace(/"/g, '&quot;')}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs bg-white outline-none focus:border-red-900 shadow-inner"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Enemies</label><input type="text" id="cx-npc-enemies" value="${(entry.enemies || '').replace(/"/g, '&quot;')}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs bg-white outline-none focus:border-red-900 shadow-inner"></div>
+        </div>
+    </div>
+    
+    <div id="location-edit-fields" class="${type === 'Location' ? '' : 'hidden'} mt-6 pt-6 border-t-2 border-stone-300">
+        <div class="bg-emerald-900/10 border-l-4 border-emerald-600 p-3 rounded-sm text-xs text-stone-800 italic mb-6">
+            <i class="fa-solid fa-circle-info text-emerald-600 mr-1"></i> <strong>Location Details:</strong> Region, demographics, and points of interest are Public. Secrets remain Private (visible to the author and DM).
+        </div>
+        
+        <h4 class="text-[10px] font-bold text-emerald-900 uppercase tracking-widest mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-map-pin mr-1"></i> Details (Public)</h4>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+            <div>
+                <label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Scale / Type</label>
+                <select id="cx-loc-scale" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm font-bold">
+                    <option value="" ${!entry.locationType ? 'selected' : ''}>-- Select Scale --</option>
+                    <option value="Realm / Plane" ${entry.locationType === 'Realm / Plane' ? 'selected' : ''}>Realm / Plane</option>
+                    <option value="Continent" ${entry.locationType === 'Continent' ? 'selected' : ''}>Continent</option>
+                    <option value="Region / Province" ${entry.locationType === 'Region / Province' ? 'selected' : ''}>Region / Province</option>
+                    <option value="City / Settlement" ${entry.locationType === 'City / Settlement' ? 'selected' : ''}>City / Settlement</option>
+                    <option value="District / Neighborhood" ${entry.locationType === 'District / Neighborhood' ? 'selected' : ''}>District / Neighborhood</option>
+                    <option value="Building / Establishment" ${entry.locationType === 'Building / Establishment' ? 'selected' : ''}>Building / Establishment</option>
+                    <option value="Dungeon / Ruin" ${entry.locationType === 'Dungeon / Ruin' ? 'selected' : ''}>Dungeon / Ruin</option>
+                    <option value="Geographical Feature" ${entry.locationType === 'Geographical Feature' ? 'selected' : ''}>Geographical Feature</option>
+                </select>
+            </div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Region / Territory</label><input type="text" id="cx-loc-region" value="${entry.region || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm" placeholder="e.g. Sword Coast"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Population</label><input type="text" id="cx-loc-population" value="${entry.population || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm" placeholder="e.g. ~130,000 (Diverse)"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Government / Ruler</label><input type="text" id="cx-loc-government" value="${entry.government || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm" placeholder="e.g. Masked Lords"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Economy / Trade</label><input type="text" id="cx-loc-economy" value="${entry.economy || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm" placeholder="e.g. Trade Hub, Fishing"></div>
+            <div class="sm:col-span-2"><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Defenses</label><input type="text" id="cx-loc-defenses" value="${entry.defenses || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm" placeholder="e.g. City Guard, High Walls"></div>
+        </div>
+
+        <div class="mb-6">
+            <div class="flex justify-between items-end mb-1">
+                <label class="block text-[9px] uppercase text-stone-500 font-bold">Points of Interest (Public)</label>
+                <div class="flex gap-1 bg-stone-200 p-0.5 rounded-sm border border-[#d4c5a9]">
+                    <button type="button" onclick="window.appActions.formatText('cx-loc-poi', 'bold')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm"><i class="fa-solid fa-bold"></i></button>
+                    <button type="button" onclick="window.appActions.formatText('cx-loc-poi', 'italic')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm"><i class="fa-solid fa-italic"></i></button>
+                    <button type="button" onclick="window.appActions.formatText('cx-loc-poi', 'list')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm"><i class="fa-solid fa-list-ul"></i></button>
+                </div>
+            </div>
+            <textarea id="cx-loc-poi" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white text-stone-900 h-24 font-serif outline-none focus:border-emerald-900 shadow-inner custom-scrollbar placeholder:italic" placeholder="Taverns, shops, notable structures...">${(entry.pointsOfInterest || '').replace(/"/g, '&quot;')}</textarea>
+        </div>
+
+        <h4 class="text-[10px] font-bold text-stone-700 uppercase tracking-widest mb-3 mt-8 border-b border-stone-300 pb-1"><i class="fa-solid fa-lock mr-1"></i> Private Information</h4>
+        
+        <div class="mb-2">
+            <label class="block text-[9px] uppercase text-stone-500 font-bold mb-1"><i class="fa-solid fa-user-secret mr-1"></i> Hidden Secrets & DM Notes</label>
+            <textarea id="cx-loc-secrets" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-stone-200 border-l-4 border-l-red-900 text-stone-900 h-24 custom-scrollbar placeholder:italic" placeholder="Underground cults, hidden treasure, traps, or DM only details...">${(entry.secrets || '').replace(/"/g, '&quot;')}</textarea>
+        </div>
+    </div>
+    `;
+
+    container.innerHTML = `
+        <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[17000] backdrop-blur-sm animate-in">
+            <div class="bg-[#f4ebd8] rounded-sm shadow-2xl w-full max-w-2xl border border-[#d4c5a9] overflow-hidden flex flex-col max-h-[90vh]">
+                
+                <!-- Header -->
+                <div class="bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-[#292524] p-4 flex justify-between items-center border-b-2 border-red-900 shadow-md">
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-book-journal-whills text-amber-500 text-xl"></i>
+                        <div>
+                            <h2 class="text-lg font-serif font-bold text-amber-50 leading-tight">Codex Entry</h2>
+                            <p class="text-stone-400 text-[10px] uppercase tracking-widest font-bold">${isCharacter ? 'Character Profile' : 'Knowledge Base'}</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        ${(!isNew && canEdit) ? `<button id="cx-edit-btn" class="w-8 h-8 rounded bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 transition flex items-center justify-center" title="Edit Entry"><i class="fa-solid fa-pen-nib"></i></button>` : ''}
+                        <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="w-8 h-8 rounded bg-stone-800 text-stone-300 hover:text-red-400 hover:bg-stone-700 transition flex items-center justify-center"><i class="fa-solid fa-times"></i></button>
+                    </div>
+                </div>
+
+                <!-- View Mode -->
+                <div id="cx-view-mode" class="p-5 sm:p-8 overflow-y-auto custom-scrollbar flex-grow bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-[#fdfbf7] ${viewHidden}">
+                    ${imgHTML}
+                    <div class="mb-6">
+                        <h3 class="text-2xl sm:text-3xl font-serif font-bold text-stone-900">${name}</h3>
+                        <div class="mt-2">${tagsHTML}</div>
+                        ${mapBtnHtml}
+                    </div>
+                    
+                    ${charDataHTML}
+                    ${locationDataHTML}
+                    
+                    <h4 class="font-bold text-red-900 border-b border-[#d4c5a9] pb-1 mb-2">${descLabel}</h4>
+                    <div class="text-stone-800 text-sm font-serif leading-relaxed">${parsedDesc}</div>
+                    
+                    ${privateDataHTML}
+                </div>
+
+                <!-- Edit Mode -->
+                <div id="cx-edit-mode" class="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-grow bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-[#fdfbf7] ${editHidden}">
+                    <input type="hidden" id="cx-modal-id" value="${id}">
+                    <div class="bg-red-900 text-amber-50 text-xs font-bold uppercase tracking-wider py-1 px-3 inline-block rounded-sm mb-4 shadow-sm">
+                        ${isNew ? 'Define New Entity' : 'Amend Record'}
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Name (Auto-Link Trigger)</label>
+                        <input type="text" id="cx-modal-name" value="${name}" ${linkedPC ? 'readonly disabled' : ''} class="w-full ${linkedPC ? 'bg-stone-200 text-stone-500' : 'bg-white text-stone-900 focus:border-red-900'} border border-[#d4c5a9] p-2 text-sm font-bold outline-none rounded-sm shadow-inner">
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Type</label>
+                        <select id="cx-modal-type" ${linkedPC ? 'disabled' : ''} onchange="document.getElementById('npc-edit-fields').classList.toggle('hidden', this.value !== 'NPC'); document.getElementById('location-edit-fields').classList.toggle('hidden', this.value !== 'Location');" class="w-full ${linkedPC ? 'bg-stone-200 text-stone-500' : 'bg-white text-stone-900'} border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner font-bold">
+                            <option value="PC" ${type==='PC'?'selected':''}>PC</option>
+                            <option value="NPC" ${type==='NPC'?'selected':''}>NPC</option>
+                            <option value="Location" ${type==='Location'?'selected':''}>Location</option>
+                            <option value="Faction" ${type==='Faction'?'selected':''}>Faction</option>
+                            <option value="Route" ${type==='Route'?'selected':''}>Route</option>
+                            <option value="Item" ${type==='Item'?'selected':''}>Item</option>
+                            <option value="Lore" ${type==='Lore'?'selected':''}>Lore</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Tags (Comma Separated)</label>
+                        <input type="text" id="cx-modal-tags" value="${tags}" ${linkedPC ? 'readonly disabled' : ''} class="w-full ${linkedPC ? 'bg-stone-200 text-stone-500' : 'bg-white text-stone-900 focus:border-red-900'} border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner font-bold" placeholder="e.g. Ally, Vendor">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Image URL</label>
+                        <input type="text" id="cx-modal-image" value="${image}" ${linkedPC ? 'readonly disabled title="Edit this hero\'s image in the PC Manager"' : ''} class="w-full ${linkedPC ? 'bg-stone-200 text-stone-500' : 'bg-white text-stone-900 focus:border-red-900'} border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner font-bold" placeholder="https://example.com/image.jpg">
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="flex justify-between items-end mb-1">
+                            <label class="block text-[10px] uppercase text-stone-500 font-bold tracking-widest">${descLabel}</label>
+                            <div class="flex gap-1 bg-stone-200 p-1 rounded-sm border border-[#d4c5a9] overflow-x-auto hide-scrollbar">
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'bold')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bold"><i class="fa-solid fa-bold"></i></button>
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'italic')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Italic"><i class="fa-solid fa-italic"></i></button>
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'underline')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Underline"><i class="fa-solid fa-underline"></i></button>
+                                <div class="w-px bg-[#d4c5a9] mx-1 shrink-0"></div>
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'h1')" class="w-6 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Heading 1">H1</button>
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'h2')" class="w-6 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Heading 2">H2</button>
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'list')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
+                                <div class="w-px bg-[#d4c5a9] mx-1 shrink-0"></div>
+                                <button type="button" onclick="window.appActions.defineEntryFromSelection('cx-modal-desc')" class="px-2 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-amber-700 hover:text-amber-900 hover:bg-[#d4c5a9] rounded-sm transition uppercase tracking-wider" title="Define Highlighted Text"><i class="fa-solid fa-book-medical mr-1"></i> Define</button>
+                            </div>
+                        </div>
+                        <textarea id="cx-modal-desc" class="w-full h-40 bg-white border border-[#d4c5a9] text-stone-900 p-3 text-sm focus:border-red-900 outline-none resize-none rounded-sm shadow-inner custom-scrollbar" placeholder="${descPlaceholder}">${desc}</textarea>
+                    </div>
+                    
+                    ${isDM ? `
+                    <div class="mb-4 mt-4">
+                        <div class="flex justify-between items-end mb-1">
+                            <label class="block text-[10px] uppercase text-red-800 font-bold tracking-widest"><i class="fa-solid fa-eye mr-1"></i> Secret Notes (DM Only)</label>
+                            <div class="flex gap-1 bg-stone-200 p-1 rounded-sm border border-[#d4c5a9] overflow-x-auto hide-scrollbar">
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-dmnotes', 'bold')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bold"><i class="fa-solid fa-bold"></i></button>
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-dmnotes', 'italic')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Italic"><i class="fa-solid fa-italic"></i></button>
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-dmnotes', 'underline')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Underline"><i class="fa-solid fa-underline"></i></button>
+                                <div class="w-px bg-[#d4c5a9] mx-1 shrink-0"></div>
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-dmnotes', 'h1')" class="w-6 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Heading 1">H1</button>
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-dmnotes', 'h2')" class="w-6 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Heading 2">H2</button>
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-dmnotes', 'list')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
+                                <div class="w-px bg-[#d4c5a9] mx-1 shrink-0"></div>
+                                <button type="button" onclick="window.appActions.defineEntryFromSelection('cx-modal-dmnotes')" class="px-2 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-amber-700 hover:text-amber-900 hover:bg-[#d4c5a9] rounded-sm transition uppercase tracking-wider" title="Define Highlighted Text"><i class="fa-solid fa-book-medical mr-1"></i> Define</button>
+                            </div>
+                        </div>
+                        <textarea id="cx-modal-dmnotes" class="w-full h-32 bg-stone-200 border border-[#d4c5a9] border-l-4 border-l-red-900 text-stone-900 p-3 text-sm focus:border-red-900 outline-none resize-none rounded-sm shadow-inner custom-scrollbar" placeholder="True motives, hidden stats, traps, or DM-only details... Codex names link automatically.">${(entry.dmNotes || '').replace(/"/g, '&quot;')}</textarea>
+                    </div>
+                    ` : ''}
+
+                    ${extendedEditHtml}
+
+                </div>
+
+                <!-- Actions -->
+                <div id="cx-edit-actions" class="p-4 bg-stone-200 border-t border-[#d4c5a9] flex flex-wrap-reverse sm:flex-nowrap justify-between gap-3 shrink-0 ${editHidden}">
+                    ${(!isNew && canDelete) ? `<button onclick="window.appActions.deleteCodexEntry('${id}')" class="w-full sm:w-auto px-4 py-2 bg-red-900 text-white rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-red-800 transition"><i class="fa-solid fa-trash mr-1"></i> Delete</button>` : `<div class="hidden sm:block">${linkedPC ? '<span class="text-[10px] uppercase text-stone-500 font-bold"><i class="fa-solid fa-lock mr-1"></i> Core Hero Profile</span>' : ''}</div>`}
+                    <div class="flex gap-2 w-full sm:w-auto">
+                        <button onclick="${isNew ? `document.getElementById('global-popup-container').innerHTML = '';` : `document.getElementById('cx-view-mode').classList.remove('hidden'); document.getElementById('cx-edit-mode').classList.add('hidden'); document.getElementById('cx-edit-actions').classList.add('hidden');`}" class="flex-1 sm:flex-none px-4 py-2 border border-stone-400 text-stone-600 rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-stone-300 transition">Cancel</button>
+                        <button onclick="window.appActions.saveCodexEntry()" class="flex-1 sm:flex-none px-5 py-2 bg-stone-800 text-amber-50 rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-stone-700 transition">Save</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    if (!isNew && canEdit) {
+        const editBtn = document.getElementById('cx-edit-btn');
+        if (editBtn) {
+            editBtn.onclick = () => {
+                document.getElementById('cx-view-mode').classList.add('hidden');
+                document.getElementById('cx-edit-mode').classList.remove('hidden');
+                document.getElementById('cx-edit-actions').classList.remove('hidden');
+            };
+        }
     }
 };
 
-export const executeDndBeyondImport = async () => {
+export const saveCodexEntry = async () => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
     if (!camp) return;
 
-    const newPC = window.appData.tempDdbImport;
-    if (!newPC) {
-        notify("No character data found to import.", "error");
+    const id = document.getElementById('cx-modal-id').value;
+    const name = document.getElementById('cx-modal-name').value.trim();
+    const typeVal = document.getElementById('cx-modal-type').value;
+
+    if (!name) {
+        notify("A name is required for Codex auto-linking.", "error");
         return;
     }
 
-    const newPCs = [...(camp.playerCharacters || []), newPC];
+    const myUid = window.appData.currentUserUid;
+    const isNew = !id;
+    const existingEntry = camp.codex?.find(c => c.id === id);
 
-    let updatedCodexArray = [...(camp.codex || [])];
-    updatedCodexArray.push({
-        id: newPC.id,
-        name: newPC.name,
-        type: 'PC',
-        tags: ['Hero', newPC.race, newPC.classLevel].filter(Boolean),
-        desc: 'Rumors and public knowledge surrounding this hero are yet to be penned.',
-        visibility: { mode: 'public' },
-        image: newPC.image
-    });
+    let npcData = {};
+    if (typeVal === 'NPC') {
+        npcData = {
+            race: document.getElementById('cx-npc-race')?.value.trim() || '',
+            classLevel: document.getElementById('cx-npc-class')?.value.trim() || '',
+            background: document.getElementById('cx-npc-background')?.value.trim() || '',
+            alignment: document.getElementById('cx-npc-alignment')?.value.trim() || '',
+            faith: document.getElementById('cx-npc-faith')?.value.trim() || '',
+            gender: document.getElementById('cx-npc-gender')?.value.trim() || '',
+            age: document.getElementById('cx-npc-age')?.value.trim() || '',
+            size: document.getElementById('cx-npc-size')?.value.trim() || '',
+            height: document.getElementById('cx-npc-height')?.value.trim() || '',
+            weight: document.getElementById('cx-npc-weight')?.value.trim() || '',
+            eyes: document.getElementById('cx-npc-eyes')?.value.trim() || '',
+            hair: document.getElementById('cx-npc-hair')?.value.trim() || '',
+            skin: document.getElementById('cx-npc-skin')?.value.trim() || '',
+            appearance: document.getElementById('cx-npc-appearance')?.value || '',
+            backstory: document.getElementById('cx-npc-backstory')?.value || '',
+            traits: document.getElementById('cx-npc-traits')?.value || '',
+            ideals: document.getElementById('cx-npc-ideals')?.value || '',
+            bonds: document.getElementById('cx-npc-bonds')?.value || '',
+            flaws: document.getElementById('cx-npc-flaws')?.value || '',
+            organizations: document.getElementById('cx-npc-organizations')?.value.trim() || '',
+            allies: document.getElementById('cx-npc-allies')?.value.trim() || '',
+            enemies: document.getElementById('cx-npc-enemies')?.value.trim() || ''
+        };
+    }
 
-    let updatedCamp = { ...camp, playerCharacters: newPCs, codex: updatedCodexArray };
-    updatedCamp = logPlayerActivity(updatedCamp, window.appData.currentUserUid, `imported a new hero: <span class="font-bold text-amber-700">${newPC.name}</span>.`, 'fa-file-import');
+    let locData = {};
+    if (typeVal === 'Location') {
+        locData = {
+            locationType: document.getElementById('cx-loc-scale')?.value || '',
+            region: document.getElementById('cx-loc-region')?.value.trim() || '',
+            population: document.getElementById('cx-loc-population')?.value.trim() || '',
+            government: document.getElementById('cx-loc-government')?.value.trim() || '',
+            economy: document.getElementById('cx-loc-economy')?.value.trim() || '',
+            defenses: document.getElementById('cx-loc-defenses')?.value.trim() || '',
+            pointsOfInterest: document.getElementById('cx-loc-poi')?.value || '',
+            secrets: document.getElementById('cx-loc-secrets')?.value || ''
+        };
+    }
+
+    const dmNotesEl = document.getElementById('cx-modal-dmnotes');
+    const dmNotesVal = dmNotesEl ? dmNotesEl.value : (existingEntry?.dmNotes || '');
+
+    const newEntry = {
+        id: id || generateId(),
+        name: name,
+        type: typeVal,
+        tags: document.getElementById('cx-modal-tags').value.split(',').map(t=>t.trim()).filter(t=>t),
+        desc: document.getElementById('cx-modal-desc').value,
+        image: document.getElementById('cx-modal-image').value.trim(),
+        authorId: isNew ? myUid : (existingEntry?.authorId || myUid),
+        visibility: existingEntry?.visibility || { mode: 'public' },
+        dmNotes: dmNotesVal,
+        ...npcData,
+        ...locData
+    };
+
+    const newCodexArray = isNew ? [...(camp.codex || []), newEntry] : camp.codex.map(c => c.id === id ? newEntry : c);
+    
+    let updatedCamp = { ...camp, codex: newCodexArray };
+
+    // Track Player Edits!
+    if (!camp._isDM) {
+        if (isNew) {
+            updatedCamp = logPlayerActivity(updatedCamp, myUid, `added a new Codex entry for <span class="font-bold text-amber-700">${name}</span>.`, 'fa-book-medical');
+        } else {
+            updatedCamp = logPlayerActivity(updatedCamp, myUid, `amended the Codex entry for <span class="font-bold text-amber-700">${name}</span>.`, 'fa-pen-to-square');
+        }
+    }
 
     await saveCampaign(updatedCamp);
-
     document.getElementById('global-popup-container').innerHTML = '';
-    window.appData.tempDdbImport = null;
-    notify("Hero imported successfully.", "success");
-    reRender(true);
+    notify("Codex updated.", "success");
 };
 
-export const quickSyncDDB = async (pcId) => {
+export const deleteCodexEntry = async (id) => {
+    if (!confirm("Destroy this Codex entry? Auto-links using this name will no longer function.")) return;
+    
     updateDerivedState();
     const camp = window.appData.activeCampaign;
     if (!camp) return;
 
-    let ddbIdToUse = "";
-    const isEditView = window.appData.currentView === 'pc-edit';
+    const entryToDelete = (camp.codex || []).find(c => c.id === id);
+    const name = entryToDelete ? entryToDelete.name : 'an unknown entry';
+
+    let updatedCamp = {
+        ...camp,
+        codex: (camp.codex || []).filter(c => c.id !== id)
+    };
+
+    // Track Player Edits!
+    if (!camp._isDM) {
+        const myUid = window.appData.currentUserUid;
+        updatedCamp = logPlayerActivity(updatedCamp, myUid, `erased the Codex entry for <span class="font-bold text-amber-700">${name}</span>.`, 'fa-eraser');
+    }
+
+    await saveCampaign(updatedCamp);
+    document.getElementById('global-popup-container').innerHTML = '';
+    notify("Entry destroyed.", "success");
+};
+
+// --- Journal Viewing ---
+export const openJournal = (scope, sessionId = null) => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    const adv = window.appData.activeAdventure;
+    if (!camp) return;
+
+    let md = '';
+    if (scope === 'session' && sessionId) {
+        window.appData.activeSessionId = sessionId;
+        updateDerivedState();
+        const session = window.appData.activeSession;
+        if (session) md = generateSessionMarkdown(session, camp);
+    } else if (scope === 'adventure' && adv) {
+        window.appData.activeSessionId = null;
+        md = generateAdventureMarkdown(adv, camp);
+    } else if (scope === 'campaign') {
+        window.appData.activeAdventureId = null;
+        window.appData.activeSessionId = null;
+        md = generateCampaignMarkdown(camp);
+    }
+
+    window.appData.currentMarkdown = md;
+    window.appActions.setView('journal');
+};
+
+export const closeJournal = () => {
+    if (window.appData.activeSessionId) {
+        window.appData.activeSessionId = null;
+        window.appActions.setView('adventure');
+    } else if (window.appData.activeAdventureId) {
+        window.appActions.setView('adventure');
+    } else {
+        window.appActions.setView('campaign');
+    }
+};
+
+export const copyJournal = () => {
+    const text = window.appData.currentMarkdown || '';
+    const btn = document.getElementById('journal-copy-btn');
+    const originalHtml = btn ? btn.innerHTML : '';
     
-    if (isEditView) {
-        const inputEl = document.getElementById('pc-edit-ddb-id');
-        if (inputEl && inputEl.value.trim()) {
-            ddbIdToUse = inputEl.value.trim();
+    const handleSuccess = () => {
+        if (btn) {
+            btn.innerHTML = `<i class="fa-solid fa-check mr-2"></i> Scribed!`;
+            btn.className = "flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider flex justify-center items-center transition shadow-md bg-emerald-700 text-white border border-emerald-900";
+            setTimeout(() => {
+                btn.innerHTML = originalHtml;
+                btn.className = "flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider flex justify-center items-center transition shadow-md bg-stone-700 text-amber-50 hover:bg-stone-600 border border-stone-500";
+            }, 2000);
         }
-    } 
-    
-    if (!ddbIdToUse) {
-        const pc = camp.playerCharacters?.find(p => p.id === pcId);
-        if (pc && pc.ddbId) {
-            ddbIdToUse = pc.ddbId;
+    };
+
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(handleSuccess);
+    } else {
+        let textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        textArea.style.top = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            handleSuccess();
+        } catch (err) {
+            console.error('Fallback: Oops, unable to copy', err);
         }
-    }
-
-    if (!ddbIdToUse) {
-        notify("No D&D Beyond ID or URL found for this hero. Enter one and try again.", "error");
-        return;
-    }
-
-    const match = ddbIdToUse.match(/\/characters?\/(\d+)/i) || ddbIdToUse.match(/^(\d+)$/);
-    if (!match) {
-        notify("Invalid D&D Beyond ID or URL format.", "error");
-        return;
-    }
-    const characterId = match[1];
-
-    notify("Syncing with D&D Beyond...", "info");
-
-    try {
-        const cacheBust = new Date().getTime();
-        const apiUrl = `https://character-service.dndbeyond.com/character/v5/character/${characterId}?cb=${cacheBust}`;
-        
-        // Execute the new Proxy Cascade!
-        const ddbData = await fetchWithProxyCascade(apiUrl);
-
-        if (!ddbData || !ddbData.success || !ddbData.data) {
-            throw new Error("D&D Beyond returned an unexpected data structure.");
-        }
-
-        const parsedData = parseDDBCharacter(ddbData.data);
-        parsedData.ddbId = characterId;
-
-        if (isEditView) {
-            const setVal = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined) el.value = val; };
-            
-            setVal('pc-edit-name', parsedData.name);
-            setVal('pc-edit-race', parsedData.race);
-            setVal('pc-edit-class', parsedData.classLevel);
-            setVal('pc-edit-background', parsedData.background);
-            setVal('pc-edit-alignment', parsedData.alignment);
-            setVal('pc-edit-faith', parsedData.faith);
-            setVal('pc-edit-gender', parsedData.gender);
-            setVal('pc-edit-age', parsedData.age);
-            setVal('pc-edit-size', parsedData.size);
-            setVal('pc-edit-height', parsedData.height);
-            setVal('pc-edit-weight', parsedData.weight);
-            setVal('pc-edit-eyes', parsedData.eyes);
-            setVal('pc-edit-hair', parsedData.hair);
-            setVal('pc-edit-skin', parsedData.skin);
-            
-            setVal('pc-edit-str', parsedData.str);
-            setVal('pc-edit-dex', parsedData.dex);
-            setVal('pc-edit-con', parsedData.con);
-            setVal('pc-edit-int', parsedData.int);
-            setVal('pc-edit-wis', parsedData.wis);
-            setVal('pc-edit-cha', parsedData.cha);
-            
-            setVal('pc-edit-saves', parsedData.saves);
-            setVal('pc-edit-skills', parsedData.skills);
-            setVal('pc-edit-proficiencies', parsedData.proficiencies);
-            setVal('pc-edit-wealth', parsedData.wealth);
-            
-            setVal('input-pc-edit-traits', parsedData.traits);
-            setVal('input-pc-edit-ideals', parsedData.ideals);
-            setVal('input-pc-edit-bonds', parsedData.bonds);
-            setVal('input-pc-edit-flaws', parsedData.flaws);
-            setVal('input-pc-edit-appearance', parsedData.appearance);
-            setVal('input-pc-edit-backstory', parsedData.backstory);
-            setVal('input-pc-edit-organizations', parsedData.organizations);
-            setVal('input-pc-edit-allies', parsedData.allies);
-            setVal('input-pc-edit-enemies', parsedData.enemies);
-            setVal('input-pc-edit-equipped', parsedData.equipped);
-            setVal('input-pc-edit-backpack', parsedData.backpack);
-            
-            notify("Fields populated! Click 'Inscribe' when ready to save.", "success");
-            
-            const zenDivs = ['traits', 'ideals', 'bonds', 'flaws', 'appearance', 'backstory', 'organizations', 'allies', 'enemies', 'equipped', 'backpack'];
-            zenDivs.forEach(z => {
-                const viewDiv = document.getElementById(`view-input-pc-edit-${z}`);
-                if (viewDiv) viewDiv.innerHTML = parsedData[z] ? window.appActions.parseSmartText(parsedData[z]) : '<span class="text-stone-400 italic">No entry provided...</span>';
-            });
-        } 
-        else {
-            const pc = camp.playerCharacters?.find(p => p.id === pcId);
-            if (!pc) return;
-
-            const mergedPC = {
-                ...pc,
-                ...parsedData,
-                image: pc.image || '', 
-                appearance: parsedData.appearance || pc.appearance || '',
-                backstory: parsedData.backstory || pc.backstory || '',
-            };
-
-            const updatedPCs = camp.playerCharacters.map(p => p.id === pcId ? mergedPC : p);
-            
-            let updatedCamp = { ...camp, playerCharacters: updatedPCs };
-            updatedCamp = logPlayerActivity(updatedCamp, window.appData.currentUserUid, `synced <span class="font-bold text-amber-700">${mergedPC.name}</span> with D&D Beyond.`, 'fa-cloud-arrow-down');
-
-            await saveCampaign(updatedCamp);
-            notify(`${mergedPC.name} synced perfectly.`, "success");
-            reRender(true);
-        }
-
-    } catch (e) {
-        console.error(e);
-        notify("Failed to sync: " + e.message, "error");
+        document.body.removeChild(textArea);
     }
 };
