@@ -681,6 +681,3 @@ if (typeof window !== 'undefined') {
     window.appActions.cancelSaleProposal = cancelSaleProposal;
     window.appActions.approveSaleProposal = approveSaleProposal;
 }
-```
-
-Once you save this, if `data-bazaar.js` fails to load, it will print exactly *why* in your browser console (usually `SyntaxError: expected expression, got ','` or similar) so you can track down the exact line that broke during the export!
