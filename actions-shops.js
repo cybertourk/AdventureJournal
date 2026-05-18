@@ -336,10 +336,45 @@ export const deleteShopItem = async (shopId, itemId) => {
 // --- SMART ROLL TABLES (Requires data-bazaar.js) ---
 // ============================================================================
 
-export const rollShopInventory = (shopId) => {
+export const rollShopInventory = async (shopId) => {
     const container = document.getElementById('global-popup-container');
     if (!container) return;
 
+    // Show a loading state in case the dynamic import takes a few milliseconds
+    container.innerHTML = `
+        <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[19000] backdrop-blur-sm animate-in">
+            <div class="text-amber-500 flex flex-col items-center">
+                <i class="fa-solid fa-circle-notch fa-spin text-4xl mb-4 text-emerald-500"></i>
+                <p class="font-bold tracking-widest uppercase">Consulting Inventory Ledgers...</p>
+            </div>
+        </div>
+    `;
+
+    // Dynamically load the massive database
+    let BAZAAR_ITEMS = [];
+    try {
+        const module = await import('./data-bazaar.js');
+        BAZAAR_ITEMS = module.BAZAAR_ITEMS || [];
+    } catch(e) {
+        console.error("Dynamic import error for data-bazaar.js:", e);
+        notify("Error loading data-bazaar.js. Check browser console.", "error");
+        container.innerHTML = '';
+        return;
+    }
+
+    // Extract all unique folders from the loaded items
+    const folders = new Set();
+    BAZAAR_ITEMS.forEach(item => {
+        if (item.folder && item.folder.trim() !== '') {
+            folders.add(item.folder.trim());
+        }
+    });
+    
+    // Sort them alphabetically to create clean dropdowns
+    const sortedFolders = Array.from(folders).sort((a,b) => a.localeCompare(b));
+    let folderOptions = sortedFolders.map(f => `<option value="folder:${f.replace(/"/g, '&quot;')}">📁 ${f}</option>`).join('');
+
+    // Re-render the modal now that we have the dynamic folder list
     container.innerHTML = `
         <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[19000] backdrop-blur-sm animate-in">
             <div class="bg-[#f4ebd8] rounded-sm w-full max-w-sm border border-[#d4c5a9] shadow-2xl relative flex flex-col">
@@ -356,12 +391,11 @@ export const rollShopInventory = (shopId) => {
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Shop Theme (Filter)</label>
                             <select id="roll-theme" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner">
-                                <option value="all">General Store (Anything)</option>
-                                <option value="weapons">Blacksmith (Weapons & Armor)</option>
-                                <option value="potions">Apothecary (Potions & Consumables)</option>
-                                <option value="tools">Hardware (Tools & Kits)</option>
-                                <option value="loot">Jeweler (Gems & Loot)</option>
+                                <option value="all">General Store (Everything)</option>
                                 <option value="magic">Arcane Shop (Magic Items Only)</option>
+                                <optgroup label="Foundry Folders">
+                                    ${folderOptions}
+                                </optgroup>
                             </select>
                         </div>
                         <div>
@@ -405,12 +439,11 @@ export const executeRollWares = async () => {
 
     let BAZAAR_ITEMS = [];
     try {
-        // Dynamically import the database so it doesn't crash the app if the user hasn't created the file yet!
         const module = await import('./data-bazaar.js');
         BAZAAR_ITEMS = module.BAZAAR_ITEMS || [];
     } catch(e) {
         console.error("Dynamic import error for data-bazaar.js:", e);
-        notify("Error loading data-bazaar.js: " + e.message + " (Check your browser console for syntax errors)", "error");
+        notify("Error loading data-bazaar.js: " + e.message, "error");
         return;
     }
 
@@ -422,27 +455,18 @@ export const executeRollWares = async () => {
     const rRank = { 'common': 1, 'uncommon': 2, 'rare': 3, 'veryrare': 4, 'legendary': 5 };
     const maxRank = rRank[maxRarity] || 1;
 
-    // Filter the master list
+    // --- SMART FOLDER AND TYPE FILTERING ---
     let pool = BAZAAR_ITEMS.filter(item => {
         const itemRarity = (item.rarity || 'common').toLowerCase().replace(/\s+/g, '');
         if ((rRank[itemRarity] || 1) > maxRank) return false;
 
-        if (theme === 'weapons') {
-            return item.type === 'weapon' || (item.type === 'equipment' && (item.name.toLowerCase().includes('armor') || item.name.toLowerCase().includes('shield') || item.name.toLowerCase().includes('mail') || item.name.toLowerCase().includes('plate')));
-        }
-        if (theme === 'potions') {
-            return item.type === 'consumable' || item.name.toLowerCase().includes('potion') || item.name.toLowerCase().includes('elixir');
-        }
-        if (theme === 'tools') {
-            return item.type === 'tool';
-        }
-        if (theme === 'loot') {
-            return item.type === 'loot';
-        }
         if (theme === 'magic') {
             return item.isMagic;
+        } else if (theme.startsWith('folder:')) {
+            const targetFolder = theme.substring(7); // Remove 'folder:' prefix
+            return item.folder === targetFolder;
         }
-        return true; 
+        return true; // 'all' (General Store)
     });
 
     if (pool.length === 0) {
