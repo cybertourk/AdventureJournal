@@ -43,6 +43,9 @@ import { openTrainingModal, updateTrainingMath, executeTraining } from './dt-tra
 import { openWorkModal, updateWorkMath, executeWork } from './dt-work.js';
 import { openAssignDowntimeModal, executeAssignDowntime } from './dt-assign.js';
 
+// --- NEW: SHOPS & BAZAAR IMPORTS ---
+import { openBazaar, openShopEditModal, saveShop, deleteShop, viewStorefront, viewBackroom, buyItem, addManualItem, updateItemPrice, deleteShopItem, rollShopInventory } from './actions-shops.js';
+
 // --- APP ACTIONS HUB --- 
 // We bind all our imported modular functions back to the global window.appActions 
 // object so that the UI's inline onclick handlers can still reach them! 
@@ -305,7 +308,20 @@ if (typeof window !== 'undefined') {
       executeWork,
 
       openAssignDowntimeModal,
-      executeAssignDowntime
+      executeAssignDowntime,
+
+      // Shops & Bazaar
+      openBazaar,
+      openShopEditModal,
+      saveShop,
+      deleteShop,
+      viewStorefront,
+      viewBackroom,
+      buyItem,
+      addManualItem,
+      updateItemPrice,
+      deleteShopItem,
+      rollShopInventory
     };
 }
 
@@ -332,9 +348,12 @@ if (typeof window !== 'undefined' && typeof history !== 'undefined') {
         // Execute the visual change first
         originalSetView(viewName);
         
-        // NEW: Atlas Init Hook - Mount the Leaflet map right after the DOM renders
+        // Map & Mermaid Init Hooks - Mount right after the DOM renders
         if (viewName === 'atlas') {
             setTimeout(() => window.appActions.initAtlas(), 50);
+        }
+        if (viewName === 'webs') {
+            setTimeout(() => window.appActions.renderMermaidWeb(), 50);
         }
         
         // Push the resulting state to the browser history
@@ -414,9 +433,12 @@ if (typeof window !== 'undefined' && typeof history !== 'undefined') {
             updateDerivedState();
             reRender();
 
-            // NEW: Atlas Re-Init Hook for Back/Forward navigation
+            // Map & Mermaid Re-Init Hook for Back/Forward navigation
             if (event.state.currentView === 'atlas') {
                 setTimeout(() => window.appActions.initAtlas(), 50);
+            }
+            if (event.state.currentView === 'webs') {
+                setTimeout(() => window.appActions.renderMermaidWeb(), 50);
             }
 
         } else {
