@@ -167,10 +167,10 @@ export function getStorefrontHTML(state) {
 
     const inventory = shop.inventory || [];
     
-    // Check if player can buy
+    // Check if player can buy/sell
     const myUid = state.currentUserUid;
     const pc = camp.playerCharacters?.find(p => p.playerId === myUid);
-    const canBuy = !!pc || camp._isDM;
+    const canInteract = !!pc || camp._isDM;
 
     let invHtml = '';
     if (inventory.length === 0) {
@@ -191,13 +191,49 @@ export function getStorefrontHTML(state) {
                             <span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded shadow-sm border border-amber-200"><i class="fa-solid fa-coins mr-1 text-amber-500"></i>${priceStr}</span>
                         </div>
                     </div>
-                    <button onclick="window.appActions.buyItem('${shop.id}', '${item.id}')" ${!canBuy ? 'disabled' : ''} class="shrink-0 px-4 py-2 bg-stone-800 text-amber-50 hover:bg-emerald-700 rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button onclick="window.appActions.buyItem('${shop.id}', '${item.id}')" ${!canInteract ? 'disabled' : ''} class="shrink-0 px-4 py-2 bg-stone-800 text-amber-50 hover:bg-emerald-700 rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
                         Buy
                     </button>
                 </div>
             `;
         });
         invHtml += `</div>`;
+    }
+
+    // Sell Items / Proposal HTML
+    let buysHtml = '';
+    if (shop.buysItems) {
+        buysHtml = `
+        <div class="mt-6 bg-emerald-50 border border-emerald-200 p-4 rounded-sm shadow-sm">
+            <div class="flex items-start gap-3">
+                <i class="fa-solid fa-scale-balanced text-emerald-600 mt-1 text-lg"></i>
+                <div>
+                    <h4 class="text-xs text-emerald-900 font-bold uppercase tracking-widest mb-1">Purchasing Wares</h4>
+                    <p class="text-xs text-emerald-800 leading-snug mb-3">This merchant is currently accepting offers for items. Submit a proposal, and the DM will review it.</p>
+                    <button onclick="window.appActions.openProposeSaleModal('${shop.id}')" ${!canInteract ? 'disabled title="Enroll a hero first"' : ''} class="px-4 py-2 bg-emerald-700 text-amber-50 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm"><i class="fa-solid fa-hand-holding-dollar mr-1.5"></i> Make an Offer</button>
+                </div>
+            </div>
+        </div>
+        `;
+    }
+
+    // Add pending sales visible to the current player
+    const myPending = (shop.pendingSales || []).filter(p => p.playerId === myUid);
+    if (myPending.length > 0) {
+        buysHtml += `<div class="mt-4 space-y-2">`;
+        buysHtml += `<h4 class="text-[10px] uppercase font-bold text-stone-500 tracking-widest border-b border-[#d4c5a9] pb-1 mb-2">My Pending Offers</h4>`;
+        myPending.forEach(p => {
+            buysHtml += `
+            <div class="bg-white border border-[#d4c5a9] p-2 sm:p-3 rounded-sm shadow-sm flex justify-between items-center group">
+                <div>
+                    <span class="block text-xs font-bold text-stone-800">${escapeHTML(p.itemName)}</span>
+                    <span class="text-[9px] text-stone-500 font-bold uppercase tracking-widest">Asking: <span class="text-amber-600">${p.askingPrice.toLocaleString()} gp</span></span>
+                </div>
+                <button onclick="window.appActions.cancelSaleProposal('${shop.id}', '${p.id}')" class="text-[9px] px-3 py-1.5 text-red-700 hover:text-white hover:bg-red-700 border border-red-200 rounded-sm transition uppercase font-bold tracking-wider shadow-sm opacity-50 group-hover:opacity-100">Cancel</button>
+            </div>
+            `;
+        });
+        buysHtml += `</div>`;
     }
 
     return `
@@ -225,12 +261,7 @@ export function getStorefrontHTML(state) {
                     </div>
                     <div class="text-sm font-serif text-stone-800 leading-relaxed">${safeDesc || '<i class="text-stone-400">No public description provided.</i>'}</div>
                     
-                    ${shop.buysItems ? `
-                    <div class="mt-6 bg-emerald-50 border border-emerald-200 p-3 rounded-sm shadow-sm flex items-start gap-2">
-                        <i class="fa-solid fa-scale-balanced text-emerald-600 mt-0.5"></i>
-                        <p class="text-xs text-emerald-900 font-bold leading-snug">This merchant is currently purchasing wares from adventurers.</p>
-                    </div>
-                    ` : ''}
+                    ${buysHtml}
                 </div>
             </div>
 
@@ -238,7 +269,7 @@ export function getStorefrontHTML(state) {
             <div class="w-full md:w-2/3 bg-[#fdfbf7] p-5 sm:p-6 lg:p-8">
                 <div class="flex justify-between items-end mb-4 border-b border-[#d4c5a9] pb-2">
                     <h3 class="text-lg font-serif font-bold text-stone-900 flex items-center"><i class="fa-solid fa-boxes-stacked mr-2 text-amber-700"></i> Wares & Inventory</h3>
-                    ${!canBuy ? `<span class="text-[9px] uppercase font-bold text-red-600 bg-red-50 px-2 py-1 rounded border border-red-200 shadow-sm"><i class="fa-solid fa-circle-exclamation mr-1"></i> Enroll Hero to Buy</span>` : ''}
+                    ${!canInteract ? `<span class="text-[9px] uppercase font-bold text-red-600 bg-red-50 px-2 py-1 rounded border border-red-200 shadow-sm"><i class="fa-solid fa-circle-exclamation mr-1"></i> Enroll Hero to Interact</span>` : ''}
                 </div>
                 ${invHtml}
             </div>
@@ -259,6 +290,35 @@ export function getShopBackroomHTML(state) {
     const safeName = escapeHTML(shop.name);
     const inventory = shop.inventory || [];
     const ledger = shop.ledger || [];
+    const pendingSales = shop.pendingSales || [];
+
+    // --- PENDING SALES TRAY (DM) ---
+    let proposalsHtml = '';
+    if (pendingSales.length > 0) {
+        proposalsHtml = `
+        <div class="bg-blue-50 border border-blue-200 p-4 sm:p-5 rounded-sm shadow-sm mb-8 animate-in slide-in-from-top-4">
+            <h3 class="text-lg font-serif font-bold text-blue-900 flex items-center mb-4 border-b border-blue-200 pb-2"><i class="fa-solid fa-inbox mr-2"></i> Pending Player Offers</h3>
+            <div class="space-y-3">
+        `;
+        pendingSales.forEach(p => {
+            proposalsHtml += `
+            <div class="bg-white p-3 border border-blue-200 rounded-sm shadow-sm flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                <div>
+                    <span class="block text-sm font-bold text-stone-900">${escapeHTML(p.itemName)}</span>
+                    <div class="text-[10px] uppercase font-bold tracking-widest mt-1 flex flex-wrap items-center gap-2">
+                        <span class="text-stone-500"><i class="fa-solid fa-user mr-1"></i> ${escapeHTML(p.playerName)}</span>
+                        <span class="text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 shadow-sm">Asking: ${p.askingPrice.toLocaleString()} gp</span>
+                    </div>
+                </div>
+                <div class="flex gap-2 shrink-0">
+                    <button onclick="window.appActions.cancelSaleProposal('${shop.id}', '${p.id}', true)" class="px-4 py-2 bg-white text-red-700 border border-red-200 hover:bg-red-50 rounded-sm transition text-[10px] font-bold uppercase tracking-wider shadow-sm">Decline</button>
+                    <button onclick="window.appActions.approveSaleProposal('${shop.id}', '${p.id}')" class="px-4 py-2 bg-emerald-700 text-white hover:bg-emerald-600 rounded-sm transition text-[10px] font-bold uppercase tracking-wider shadow-md flex items-center"><i class="fa-solid fa-check mr-1.5"></i> Approve</button>
+                </div>
+            </div>
+            `;
+        });
+        proposalsHtml += `</div></div>`;
+    }
 
     let invHtml = '';
     if (inventory.length === 0) {
@@ -348,6 +408,9 @@ export function getShopBackroomHTML(state) {
                     <span class="text-sm font-black text-stone-800">${ledger.length}</span>
                 </div>
             </div>
+
+            <!-- PROPOSALS TRAY INJECTION -->
+            ${proposalsHtml}
 
             <!-- Inventory Manager -->
             <div class="bg-[#f4ebd8] p-4 sm:p-5 border border-[#d4c5a9] rounded-sm shadow-inner">
