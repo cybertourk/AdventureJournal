@@ -2,6 +2,8 @@ import { generateId, updateDerivedState, reRender } from './state.js';
 import { saveCampaign, notify } from './firebase-manager.js';
 import { logPlayerActivity } from './actions-campaign.js';
 
+let LOCAL_BAZAAR_DB = null;
+
 // ============================================================================
 // --- BAZAAR & SHOP MANAGEMENT ---
 // ============================================================================
@@ -176,7 +178,7 @@ export const saveShop = async () => {
             image: newShop.image,
             dmNotes: newShop.dmNotes,
             authorId: camp.dmId,
-            visibility: { mode: 'public' } // Shops are public by default so their names link!
+            visibility: { mode: 'public' } 
         });
     }
 
@@ -204,7 +206,9 @@ export const deleteShop = async (shopId) => {
     reRender();
 };
 
+// ============================================================================
 // --- INVENTORY & BUYING LOGIC ---
+// ============================================================================
 
 export const buyItem = async (shopId, itemId) => {
     updateDerivedState();
@@ -230,8 +234,13 @@ export const buyItem = async (shopId, itemId) => {
 
     if (!confirm(`Buy '${item.name}' for ${item.price.toLocaleString()} gp? This will generate a task to deduct the gold from your character sheet.`)) return;
 
-    // 1. Remove Item from Inventory
-    const newInventory = shop.inventory.filter(i => i.id !== itemId);
+    // 1. Remove Item or Decrement Quantity
+    let newInventory = [...shop.inventory];
+    if (item.quantity && item.quantity > 1) {
+        newInventory[itemIndex] = { ...item, quantity: item.quantity - 1 };
+    } else {
+        newInventory = shop.inventory.filter(i => i.id !== itemId);
+    }
 
     // 2. Add to Ledger
     const timestampStr = new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -266,32 +275,192 @@ export const buyItem = async (shopId, itemId) => {
     reRender();
 };
 
-export const addManualItem = async (shopId) => {
+export const openManualItemModal = async (shopId) => {
+    const container = document.getElementById('global-popup-container');
+    if (!container) return;
+
+    // Show loading state while importing the massive JSON database
+    container.innerHTML = `
+        <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[19000] backdrop-blur-sm animate-in">
+            <div class="text-amber-500 flex flex-col items-center">
+                <i class="fa-solid fa-circle-notch fa-spin text-4xl mb-4 text-emerald-500"></i>
+                <p class="font-bold tracking-widest uppercase">Consulting Logistics...</p>
+            </div>
+        </div>
+    `;
+
+    if (!LOCAL_BAZAAR_DB) {
+        try {
+            const module = await import('./data-bazaar.js');
+            LOCAL_BAZAAR_DB = module.BAZAAR_ITEMS || [];
+        } catch(e) {
+            console.error("Dynamic import error for data-bazaar.js:", e);
+            notify("Error loading data-bazaar.js. Ensure the file has no syntax errors.", "error");
+            container.innerHTML = '';
+            return;
+        }
+    }
+
+    container.innerHTML = `
+        <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[19000] backdrop-blur-sm animate-in">
+            <div class="bg-[#f4ebd8] rounded-sm w-full max-w-2xl border border-[#d4c5a9] shadow-2xl relative flex flex-col max-h-[90vh]">
+                
+                <div class="bg-stone-900 p-4 border-b-4 border-emerald-600 shadow-md shrink-0 flex justify-between items-center text-amber-50">
+                    <h2 class="text-lg font-serif font-bold flex items-center"><i class="fa-solid fa-box-open mr-2 text-emerald-400"></i> Add Wares to Shop</h2>
+                    <button onclick="document.getElementById('global-popup-container').innerHTML = ''; window.appActions.reRender();" class="text-stone-400 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+                </div>
+
+                <div class="p-5 sm:p-6 bg-[#fdfbf7] flex-grow overflow-y-auto custom-scrollbar flex flex-col gap-6">
+                    
+                    <!-- Search Database Panel -->
+                    <div class="bg-emerald-50 p-4 border border-emerald-200 rounded-sm shadow-sm">
+                        <h3 class="text-[10px] font-bold uppercase tracking-widest text-emerald-900 mb-2 border-b border-emerald-200 pb-1"><i class="fa-solid fa-magnifying-glass mr-1 text-emerald-700"></i> Search Master Database</h3>
+                        <p class="text-[9px] italic text-emerald-800 mb-3">Search thousands of pre-configured items. Clicking an item adds it directly to the shop's shelves.</p>
+                        
+                        <div class="relative">
+                            <input type="text" id="manual-item-search" oninput="window.appActions.searchBazaarDatabase('${shopId}', this.value)" placeholder="Search items, weapons, potions..." class="w-full p-2 border border-emerald-300 rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner" autocomplete="off">
+                            <div id="manual-item-results" class="absolute z-10 w-full bg-white border border-[#d4c5a9] rounded-b-sm shadow-xl max-h-48 overflow-y-auto hidden top-[38px] custom-scrollbar text-xs"></div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-4 opacity-50">
+                        <div class="h-px bg-[#d4c5a9] flex-grow"></div>
+                        <span class="text-[10px] font-bold uppercase tracking-widest text-stone-500">OR</span>
+                        <div class="h-px bg-[#d4c5a9] flex-grow"></div>
+                    </div>
+
+                    <!-- Custom Item Panel -->
+                    <div class="bg-white p-4 border border-[#d4c5a9] rounded-sm shadow-sm">
+                        <h3 class="text-[10px] font-bold uppercase tracking-widest text-stone-600 mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-hammer mr-1 text-stone-400"></i> Forge Custom Item</h3>
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                            <div class="sm:col-span-2">
+                                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Item Name</label>
+                                <input type="text" id="custom-item-name" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-stone-50 shadow-inner" placeholder="e.g. Glowing Sword of Doom">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Price (gp)</label>
+                                <input type="number" id="custom-item-price" min="0" value="0" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-stone-50 shadow-inner">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Rarity</label>
+                                <select id="custom-item-rarity" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-stone-50 shadow-inner">
+                                    <option value="common">Common</option>
+                                    <option value="uncommon">Uncommon</option>
+                                    <option value="rare">Rare</option>
+                                    <option value="veryrare">Very Rare</option>
+                                    <option value="legendary">Legendary</option>
+                                    <option value="custom">Custom / Homebrew</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center pt-2 border-t border-stone-100">
+                            <label class="flex items-center gap-2 cursor-pointer group">
+                                <input type="checkbox" id="custom-item-magic" class="w-4 h-4 text-emerald-600 rounded-sm cursor-pointer shadow-sm border-stone-400">
+                                <span class="text-[10px] font-bold uppercase tracking-widest text-stone-700 group-hover:text-emerald-700 transition">Is Magical?</span>
+                            </label>
+                            <button onclick="window.appActions.submitCustomItem('${shopId}')" class="px-4 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] shadow-sm flex items-center"><i class="fa-solid fa-plus mr-1.5"></i> Add Custom</button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    `;
+};
+
+export const searchBazaarDatabase = (shopId, query) => {
+    const resultsDiv = document.getElementById('manual-item-results');
+    if (!resultsDiv || !LOCAL_BAZAAR_DB) return;
+
+    if (!query || query.length < 2) {
+        resultsDiv.innerHTML = '';
+        resultsDiv.classList.add('hidden');
+        return;
+    }
+
+    const lowerQ = query.toLowerCase();
+    const matches = LOCAL_BAZAAR_DB.filter(i => i.name.toLowerCase().includes(lowerQ)).slice(0, 50); // Limit to 50 for performance
+    
+    if (matches.length === 0) {
+        resultsDiv.innerHTML = '<div class="p-3 text-stone-500 text-xs italic text-center">No matching items found in the master database.</div>';
+    } else {
+        resultsDiv.innerHTML = matches.map(m => {
+            const safeName = m.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const safeRarity = (m.rarity || 'common').replace(/'/g, "\\'");
+            return `
+            <div class="p-2.5 border-b border-stone-200 hover:bg-emerald-50 cursor-pointer flex justify-between items-center group transition-colors" onclick="window.appActions.addBazaarItemToShop('${shopId}', '${safeName}', ${m.price || 0}, '${safeRarity}', ${m.isMagic || false})">
+                <div class="min-w-0 pr-2">
+                    <span class="font-bold text-stone-800 text-sm block truncate group-hover:text-emerald-700 transition-colors">${m.name}</span>
+                    <span class="text-[9px] uppercase font-bold tracking-widest text-stone-500">${m.rarity || 'common'} ${m.isMagic ? '<i class="fa-solid fa-sparkles text-amber-500 ml-1"></i>' : ''}</span>
+                </div>
+                <span class="text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-2 py-1 rounded-sm shadow-sm whitespace-nowrap shrink-0 group-hover:bg-amber-200 transition-colors">${m.price || 0} gp</span>
+            </div>`;
+        }).join('');
+    }
+    resultsDiv.classList.remove('hidden');
+};
+
+export const addBazaarItemToShop = async (shopId, name, price, rarity, isMagic) => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
     if (!camp || !camp._isDM) return;
 
-    const name = prompt("Enter the item name:");
-    if (!name) return;
-    
-    const priceStr = prompt("Enter the price in gold pieces:");
-    const price = parseInt(priceStr) || 0;
-
     const shopIndex = camp.shops.findIndex(s => s.id === shopId);
     if (shopIndex === -1) return;
 
-    const newItem = {
-        id: generateId(),
-        name: name.trim(),
-        price: price,
-        rarity: 'custom',
-        isMagic: false
-    };
+    let currentInventory = [...(camp.shops[shopIndex].inventory || [])];
+    const existingIndex = currentInventory.findIndex(item => item.name === name);
 
-    camp.shops[shopIndex].inventory.push(newItem);
+    if (existingIndex > -1) {
+        currentInventory[existingIndex] = {
+            ...currentInventory[existingIndex],
+            quantity: (currentInventory[existingIndex].quantity || 1) + 1
+        };
+    } else {
+        currentInventory.push({
+            id: generateId(),
+            name: name,
+            price: price,
+            rarity: rarity,
+            isMagic: isMagic,
+            quantity: 1
+        });
+    }
+
+    camp.shops[shopIndex].inventory = currentInventory;
     await saveCampaign(camp);
-    notify("Item added to shelves.", "success");
-    reRender();
+    notify(`Added ${name} to shop inventory.`, "success");
+
+    // Clear search so they can keep adding more
+    const searchInput = document.getElementById('manual-item-search');
+    const resultsDiv = document.getElementById('manual-item-results');
+    if (searchInput) searchInput.value = '';
+    if (resultsDiv) {
+        resultsDiv.innerHTML = '';
+        resultsDiv.classList.add('hidden');
+    }
+    
+    // We intentionally do NOT call reRender() here because it would destroy the modal and force them out.
+    // The DM can rapidly click items to add them, and when they close the modal, the background updates.
+};
+
+export const submitCustomItem = async (shopId) => {
+    const name = document.getElementById('custom-item-name').value.trim();
+    if (!name) {
+        notify("Custom item must have a name.", "error");
+        return;
+    }
+    
+    const price = parseInt(document.getElementById('custom-item-price').value) || 0;
+    const rarity = document.getElementById('custom-item-rarity').value;
+    const isMagic = document.getElementById('custom-item-magic').checked;
+
+    await addBazaarItemToShop(shopId, name, price, rarity, isMagic);
+    
+    // Clear inputs
+    document.getElementById('custom-item-name').value = '';
+    document.getElementById('custom-item-price').value = '0';
 };
 
 export const updateItemPrice = async (shopId, itemId) => {
@@ -321,7 +490,7 @@ export const deleteShopItem = async (shopId, itemId) => {
     const camp = window.appData.activeCampaign;
     if (!camp || !camp._isDM) return;
 
-    if (!confirm("Remove this item from the shop's inventory?")) return;
+    if (!confirm("Remove this item stack from the shop's inventory?")) return;
 
     const shopIndex = camp.shops.findIndex(s => s.id === shopId);
     if (shopIndex === -1) return;
@@ -333,7 +502,7 @@ export const deleteShopItem = async (shopId, itemId) => {
 };
 
 // ============================================================================
-// --- SMART ROLL TABLES (Requires data-bazaar.js) ---
+// --- SMART ROLL TABLES ---
 // ============================================================================
 
 export const rollShopInventory = async (shopId) => {
@@ -350,21 +519,22 @@ export const rollShopInventory = async (shopId) => {
         </div>
     `;
 
-    // Dynamically load the massive database
-    let BAZAAR_ITEMS = [];
-    try {
-        const module = await import('./data-bazaar.js');
-        BAZAAR_ITEMS = module.BAZAAR_ITEMS || [];
-    } catch(e) {
-        console.error("Dynamic import error for data-bazaar.js:", e);
-        notify("Error loading data-bazaar.js. Check browser console.", "error");
-        container.innerHTML = '';
-        return;
+    // Dynamically load the massive database if not already loaded
+    if (!LOCAL_BAZAAR_DB) {
+        try {
+            const module = await import('./data-bazaar.js');
+            LOCAL_BAZAAR_DB = module.BAZAAR_ITEMS || [];
+        } catch(e) {
+            console.error("Dynamic import error for data-bazaar.js:", e);
+            notify(`Error loading data-bazaar.js: ${e.message}`, "error");
+            container.innerHTML = '';
+            return;
+        }
     }
 
     // Extract all unique folders from the loaded items
     const folders = new Set();
-    BAZAAR_ITEMS.forEach(item => {
+    LOCAL_BAZAAR_DB.forEach(item => {
         if (item.folder && item.folder.trim() !== '') {
             folders.add(item.folder.trim());
         }
@@ -384,7 +554,7 @@ export const rollShopInventory = async (shopId) => {
                 </div>
                 
                 <div class="p-5 bg-[#fdfbf7] flex-grow overflow-y-auto">
-                    <p class="text-xs text-stone-600 italic mb-4 leading-snug">Generate random items from your Foundry VTT compendium database.</p>
+                    <p class="text-xs text-stone-600 italic mb-4 leading-snug">Generate random items from your Foundry VTT compendium database. Duplicates will automatically stack their quantities.</p>
                     <input type="hidden" id="roll-shop-id" value="${shopId}">
                     
                     <div class="space-y-4">
@@ -437,18 +607,8 @@ export const executeRollWares = async () => {
     const shopIndex = camp.shops.findIndex(s => s.id === shopId);
     if (shopIndex === -1) return;
 
-    let BAZAAR_ITEMS = [];
-    try {
-        const module = await import('./data-bazaar.js');
-        BAZAAR_ITEMS = module.BAZAAR_ITEMS || [];
-    } catch(e) {
-        console.error("Dynamic import error for data-bazaar.js:", e);
-        notify("Error loading data-bazaar.js: " + e.message, "error");
-        return;
-    }
-
-    if (BAZAAR_ITEMS.length === 0) {
-        notify("data-bazaar.js is empty.", "error");
+    if (!LOCAL_BAZAAR_DB || LOCAL_BAZAAR_DB.length === 0) {
+        notify("Master database is empty or failed to load.", "error");
         return;
     }
 
@@ -456,7 +616,7 @@ export const executeRollWares = async () => {
     const maxRank = rRank[maxRarity] || 1;
 
     // --- SMART FOLDER AND TYPE FILTERING ---
-    let pool = BAZAAR_ITEMS.filter(item => {
+    let pool = LOCAL_BAZAAR_DB.filter(item => {
         const itemRarity = (item.rarity || 'common').toLowerCase().replace(/\s+/g, '');
         if ((rRank[itemRarity] || 1) > maxRank) return false;
 
@@ -474,25 +634,37 @@ export const executeRollWares = async () => {
         return;
     }
 
-    // Pick random items
-    const newItems = [];
+    // Pick random items and aggressively stack duplicates
+    let currentInventory = [...(camp.shops[shopIndex].inventory || [])];
+    
     for(let i=0; i<qty; i++) {
         const rnd = pool[Math.floor(Math.random() * pool.length)];
-        newItems.push({
-            id: generateId(),
-            name: rnd.name,
-            price: rnd.price || 0,
-            rarity: rnd.rarity || 'common',
-            isMagic: rnd.isMagic || false
-        });
+        
+        const existingIndex = currentInventory.findIndex(item => item.name === rnd.name);
+        
+        if (existingIndex > -1) {
+            currentInventory[existingIndex] = {
+                ...currentInventory[existingIndex],
+                quantity: (currentInventory[existingIndex].quantity || 1) + 1
+            };
+        } else {
+            currentInventory.push({
+                id: generateId(),
+                name: rnd.name,
+                price: rnd.price || 0,
+                rarity: rnd.rarity || 'common',
+                isMagic: rnd.isMagic || false,
+                quantity: 1
+            });
+        }
     }
 
     // Append to shop
-    camp.shops[shopIndex].inventory = [...(camp.shops[shopIndex].inventory || []), ...newItems];
+    camp.shops[shopIndex].inventory = currentInventory;
 
     await saveCampaign(camp);
     document.getElementById('global-popup-container').innerHTML = '';
-    notify(`Shelves stocked with ${qty} items!`, "success");
+    notify(`Shelves stocked with ${qty} item(s)!`, "success");
     reRender();
 };
 
@@ -525,10 +697,17 @@ export const openProposeSaleModal = (shopId) => {
                         <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Item to Sell</label>
                         <input type="text" id="sale-item-name" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner" placeholder="e.g. Goblin Scimitar">
                     </div>
-                    <div class="mb-2">
-                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Asking Price (gp)</label>
-                        <input type="number" id="sale-item-price" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner" placeholder="e.g. 25" min="0">
+                    <div class="grid grid-cols-2 gap-3 mb-2">
+                        <div>
+                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Asking Price (gp)</label>
+                            <input type="number" id="sale-item-price" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner" placeholder="e.g. 25" min="0">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Quantity</label>
+                            <input type="number" id="sale-item-qty" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner" value="1" min="1">
+                        </div>
                     </div>
+                    <p class="text-[9px] text-stone-400 italic">Asking price is for the ENTIRE stack combined.</p>
                 </div>
                 <div class="bg-[#e8dec7] p-4 border-t border-[#d4c5a9] flex justify-end gap-2 shrink-0 z-10 shadow-sm">
                     <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="px-4 py-2 text-stone-600 border border-stone-400 rounded-sm hover:bg-stone-300 transition font-bold uppercase tracking-wider text-[10px]">Cancel</button>
@@ -543,6 +722,7 @@ export const submitSaleProposal = async () => {
     const shopId = document.getElementById('sale-shop-id').value;
     const itemName = document.getElementById('sale-item-name').value.trim();
     const askingPrice = parseInt(document.getElementById('sale-item-price').value) || 0;
+    const qty = parseInt(document.getElementById('sale-item-qty').value) || 1;
 
     if (!itemName) {
         notify("Please enter the name of the item you wish to sell.", "error");
@@ -569,6 +749,7 @@ export const submitSaleProposal = async () => {
         playerName: pc ? pc.name : "The Dungeon Master",
         itemName: itemName,
         askingPrice: askingPrice,
+        quantity: qty,
         timestamp: Date.now()
     };
 
@@ -578,7 +759,8 @@ export const submitSaleProposal = async () => {
     camp.shops[shopIndex] = { ...shop, pendingSales };
 
     if (!camp._isDM) {
-        camp = logPlayerActivity(camp, myUid, `offered to sell **${itemName}** to ${shop.name}.`, 'fa-hand-holding-dollar');
+        const qtyStr = qty > 1 ? ` (x${qty})` : '';
+        camp = logPlayerActivity(camp, myUid, `offered to sell **${itemName}${qtyStr}** to ${shop.name}.`, 'fa-hand-holding-dollar');
     }
 
     await saveCampaign(camp);
@@ -626,26 +808,43 @@ export const approveSaleProposal = async (shopId, proposalId) => {
     const pendingSales = shop.pendingSales.filter(p => p.id !== proposalId);
 
     // 2. Add to inventory (Standard merchant markup rules: sell for 2x what they buy for)
-    const newItem = {
-        id: generateId(),
-        name: proposal.itemName,
-        price: proposal.askingPrice * 2, 
-        rarity: 'custom',
-        isMagic: false
-    };
-    const inventory = [...(shop.inventory || []), newItem];
+    // We also handle quantity stacking securely here!
+    let currentInventory = [...(shop.inventory || [])];
+    const existingIndex = currentInventory.findIndex(item => item.name === proposal.itemName);
+    const inQty = proposal.quantity || 1;
+    
+    // Per-item price on the shelf is the asking price divided by quantity, then marked up 2x
+    const perItemBuyPrice = proposal.askingPrice / inQty;
+    const shelfPrice = Math.ceil(perItemBuyPrice * 2);
+
+    if (existingIndex > -1) {
+        currentInventory[existingIndex] = {
+            ...currentInventory[existingIndex],
+            quantity: (currentInventory[existingIndex].quantity || 1) + inQty
+        };
+    } else {
+        currentInventory.push({
+            id: generateId(),
+            name: proposal.itemName,
+            price: shelfPrice, 
+            rarity: 'custom',
+            isMagic: false,
+            quantity: inQty
+        });
+    }
 
     // 3. Add to ledger
+    const qtyStr = inQty > 1 ? ` (x${inQty})` : '';
     const timestampStr = new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const ledgerEntry = {
         id: generateId(),
-        text: `Purchased **${proposal.itemName}** from **${proposal.playerName}** for **${proposal.askingPrice.toLocaleString()} gp**.`,
+        text: `Purchased **${proposal.itemName}${qtyStr}** from **${proposal.playerName}** for **${proposal.askingPrice.toLocaleString()} gp**.`,
         timestamp: Date.now(),
         dateStr: timestampStr
     };
     const ledger = [ledgerEntry, ...(shop.ledger || [])];
 
-    camp.shops[shopIndex] = { ...shop, pendingSales, inventory, ledger };
+    camp.shops[shopIndex] = { ...shop, pendingSales, inventory: currentInventory, ledger };
 
     // 4. Generate Checklist Task for the Player
     if (proposal.playerId) {
@@ -653,7 +852,7 @@ export const approveSaleProposal = async (shopId, proposalId) => {
         if (pc) {
             const newTask = {
                 id: generateId(),
-                text: `D&D Beyond Sync (${proposal.playerName}): Add ${proposal.askingPrice.toLocaleString()} gp from selling '${proposal.itemName}' to ${shop.name}. Make sure to remove the item from your inventory!`,
+                text: `D&D Beyond Sync (${proposal.playerName}): Add ${proposal.askingPrice.toLocaleString()} gp from selling '${proposal.itemName}'${qtyStr} to ${shop.name}. Make sure to remove the item(s) from your inventory!`,
                 authorId: camp.dmId,
                 resolvedBy: [],
                 visibility: { mode: 'specific', visibleTo: [proposal.playerId] }, 
@@ -691,9 +890,14 @@ if (typeof window !== 'undefined') {
     window.appActions.viewStorefront = viewStorefront;
     window.appActions.viewBackroom = viewBackroom;
     window.appActions.buyItem = buyItem;
-    window.appActions.addManualItem = addManualItem;
     window.appActions.updateItemPrice = updateItemPrice;
     window.appActions.deleteShopItem = deleteShopItem;
+    
+    // Modal & Search Exports
+    window.appActions.openManualItemModal = openManualItemModal;
+    window.appActions.searchBazaarDatabase = searchBazaarDatabase;
+    window.appActions.addBazaarItemToShop = addBazaarItemToShop;
+    window.appActions.submitCustomItem = submitCustomItem;
     
     // Smart Roll Functions
     window.appActions.rollShopInventory = rollShopInventory;
