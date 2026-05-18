@@ -148,6 +148,11 @@ export function initAuthUI() {
             try {
                 await loginUser(emailInput.value, passwordInput.value);
                 passwordInput.value = '';
+                
+                // NEW: Automatically push the user into the app upon successful manual login
+                if (window.appActions && window.appActions.enterApp) {
+                    window.appActions.enterApp();
+                }
             } catch (error) {
                 // If login fails, let the user try again
                 submitBtn.textContent = originalText;
@@ -179,7 +184,11 @@ export function initAuthUI() {
                 const bDay = birthDayInput ? birthDayInput.value : null;
 
                 await registerUser(emailInput.value, passwordInput.value, displayNameInput.value, bMonth, bDay, 'user');
-                // On success, the auth state changes automatically
+                
+                // NEW: Automatically push the user into the app upon successful registration
+                if (window.appActions && window.appActions.enterApp) {
+                    window.appActions.enterApp();
+                }
             } catch (error) {
                 // If registration fails, reset the button
                 submitBtn.textContent = originalText;
