@@ -180,12 +180,13 @@ export function getStorefrontHTML(state) {
         inventory.forEach(item => {
             const rColor = getRarityColor(item.rarity);
             const safeItemName = escapeHTML(item.name);
+            const qtyStr = (item.quantity && item.quantity > 1) ? `<span class="text-amber-600 ml-1.5 font-black text-[10px]">x${item.quantity}</span>` : '';
             const priceStr = item.price > 0 ? `${item.price.toLocaleString()} gp` : `Free`;
             
             invHtml += `
                 <div class="bg-white border border-[#d4c5a9] rounded-sm p-3 shadow-sm flex justify-between items-center gap-2 hover:border-amber-300 transition-colors">
                     <div class="min-w-0 flex-grow pr-2">
-                        <span class="font-bold text-sm text-stone-900 block truncate" title="${safeItemName}">${safeItemName}</span>
+                        <span class="font-bold text-sm text-stone-900 block truncate" title="${safeItemName}">${safeItemName} ${qtyStr}</span>
                         <div class="flex items-center gap-2 mt-0.5">
                             <span class="text-[9px] uppercase font-bold tracking-widest ${rColor}">${item.rarity || 'Item'}</span>
                             <span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded shadow-sm border border-amber-200"><i class="fa-solid fa-coins mr-1 text-amber-500"></i>${priceStr}</span>
@@ -327,12 +328,13 @@ export function getShopBackroomHTML(state) {
         invHtml = `<div class="space-y-2">`;
         inventory.forEach(item => {
             const rColor = getRarityColor(item.rarity);
-            const safeItemName = escapeHTML(item.name);
+            const qtyStr = (item.quantity && item.quantity > 1) ? `<span class="text-amber-600 ml-1.5 font-black text-[10px]">x${item.quantity}</span>` : '';
+            const safeItemName = escapeHTML(item.name) + qtyStr;
             
             invHtml += `
                 <div class="bg-white border border-[#d4c5a9] rounded-sm p-2 sm:p-3 shadow-sm flex flex-col sm:flex-row justify-between sm:items-center gap-2 hover:border-amber-300 transition-colors group">
                     <div class="min-w-0 flex-grow pr-2">
-                        <span class="font-bold text-sm text-stone-900 block truncate" title="${safeItemName}">${safeItemName}</span>
+                        <span class="font-bold text-sm text-stone-900 block truncate" title="${escapeHTML(item.name)}">${safeItemName}</span>
                         <span class="text-[9px] uppercase font-bold tracking-widest ${rColor}">${item.rarity || 'Item'} ${item.isMagic ? '<i class="fa-solid fa-sparkles ml-1 text-amber-500" title="Magical"></i>' : ''}</span>
                     </div>
                     <div class="flex items-center gap-2 shrink-0 self-end sm:self-auto mt-2 sm:mt-0">
@@ -417,7 +419,7 @@ export function getShopBackroomHTML(state) {
                 <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3 mb-4 border-b border-[#d4c5a9] pb-3">
                     <h3 class="text-lg font-serif font-bold text-stone-900 flex items-center"><i class="fa-solid fa-boxes-stacked mr-2 text-stone-500"></i> Manage Inventory</h3>
                     <div class="flex gap-2">
-                        <button onclick="window.appActions.addManualItem('${shop.id}')" class="flex-1 sm:flex-none px-3 py-1.5 bg-white text-stone-700 hover:text-stone-900 border border-[#d4c5a9] rounded-sm transition text-[10px] font-bold uppercase tracking-wider shadow-sm whitespace-nowrap"><i class="fa-solid fa-plus mr-1"></i> Manual Item</button>
+                        <button onclick="window.appActions.openManualItemModal('${shop.id}')" class="flex-1 sm:flex-none px-3 py-1.5 bg-white text-stone-700 hover:text-stone-900 border border-[#d4c5a9] rounded-sm transition text-[10px] font-bold uppercase tracking-wider shadow-sm whitespace-nowrap"><i class="fa-solid fa-plus mr-1"></i> Add Item</button>
                         <button onclick="window.appActions.rollShopInventory('${shop.id}')" class="flex-1 sm:flex-none px-3 py-1.5 bg-stone-900 text-amber-50 hover:bg-stone-800 border border-stone-950 rounded-sm transition text-[10px] font-bold uppercase tracking-wider shadow-md whitespace-nowrap"><i class="fa-solid fa-dice-d20 mr-1"></i> Roll Themed Wares</button>
                     </div>
                 </div>
