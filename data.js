@@ -51,6 +51,8 @@ import { openBazaar, openShopEditModal, saveShop, deleteShop, viewStorefront, vi
 // object so that the UI's inline onclick handlers can still reach them! 
 if (typeof window !== 'undefined') {
     window.appActions = { 
+      reRender, // Fix for the Manual Item Modal closing bug!
+      
       // Navigation & UI Core
       navigateBack,
       toggleActionMenu,
