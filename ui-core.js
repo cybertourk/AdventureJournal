@@ -5,7 +5,7 @@ import { getCodexHTML, getJournalHTML } from './ui-codex.js';
 import { getCalendarHTML } from './ui-calendar.js';
 import { getRulesHTML } from './ui-rules.js';
 import { getAtlasHTML } from './ui-atlas.js';
-import { getWebsHTML } from './ui-webs.js'; // NEW: Import Webs UI
+import { getWebsHTML } from './ui-webs.js';
 
 // --- CONSTANTS & HELPERS ---
 export const BUDGET_BY_LEVEL = { 
@@ -125,7 +125,7 @@ export function updateHeaderUI(state) {
         case 'pc-edit': breadcrumbText = state.activePcId ? 'Edit Hero' : 'New Hero'; showBack = true; break;
         case 'codex': breadcrumbText = 'Library • Codex'; showBack = true; break;
         case 'rules': breadcrumbText = 'Library • Rules'; showBack = true; break;
-        case 'webs': breadcrumbText = 'Library • Webs'; showBack = true; break; // NEW
+        case 'webs': breadcrumbText = 'Library • Webs'; showBack = true; break;
         case 'atlas': breadcrumbText = 'Library • Atlas'; showBack = true; break;
         case 'calendar': breadcrumbText = 'Chronicle Timeline'; showBack = true; break;
         case 'journal': 
@@ -186,7 +186,7 @@ export const navigateBack = () => {
         case 'pc-manager':
         case 'codex':
         case 'rules': 
-        case 'webs': // NEW
+        case 'webs':
         case 'calendar':
             window.appActions.setView('home'); 
             break;
@@ -327,7 +327,7 @@ export function updateChecklistUI(state) {
 
     // Filter for this user
     const visibleUpdates = updates.filter(item => {
-        if (isDM) return true;
+        if (isDM || item.authorId === myUid) return true; // DM & Author always see it
         const vis = item.visibility || { mode: 'public' };
         if (vis.mode === 'public') return true;
         if (vis.mode === 'specific' && vis.visibleTo?.includes(myUid)) return true;
@@ -364,18 +364,33 @@ export function updateChecklistUI(state) {
     });
 
     let listHtml = '';
-    if (sorted.length === 0 && isDM) {
-        listHtml = `<div class="text-xs text-stone-500 italic mb-2 text-center py-6">No active tasks assigned to the party.</div>`;
+    if (sorted.length === 0) {
+        listHtml = `<div class="text-xs text-stone-500 italic mb-2 text-center py-6">No active tasks or reminders.</div>`;
     } else {
         sorted.forEach(item => {
             const isResolvedByMe = (item.resolvedBy || []).includes(myUid);
+            const isAuthor = item.authorId === myUid;
+            const canEdit = isDM || isAuthor;
+
             const statusIcon = isResolvedByMe 
                 ? '<i class="fa-solid fa-circle-check text-emerald-600"></i>' 
                 : '<i class="fa-regular fa-circle text-stone-400"></i>';
             const statusTextClass = isResolvedByMe ? 'text-stone-400 line-through' : 'text-stone-800 font-bold';
-            
-            let dmControls = '';
-            if (isDM) {
+
+            let authorTag = '';
+            if (item.authorId && item.authorId !== camp.dmId) {
+                const aName = camp.playerNames[item.authorId] || 'Player';
+                authorTag = `<span class="text-[8px] uppercase tracking-widest text-stone-400 font-bold ml-2 border border-stone-200 px-1 rounded-sm shadow-sm align-middle whitespace-nowrap">From: ${aName}</span>`;
+            }
+
+            const resolveBtn = `
+                <button type="button" onclick="window.appActions.toggleSheetUpdateResolved('${item.id}')" class="text-[10px] font-bold uppercase tracking-wider border px-3 py-1.5 rounded-sm transition shadow-sm whitespace-nowrap ${isResolvedByMe ? 'bg-emerald-100 border-emerald-300 text-emerald-800 hover:bg-emerald-200' : 'bg-white border-amber-300/50 text-stone-600 hover:bg-stone-100 hover:text-stone-900'}">
+                    ${isResolvedByMe ? '<i class="fa-solid fa-check mr-1"></i> Completed' : 'Mark Complete'}
+                </button>
+            `;
+
+            let controlsHtml = '';
+            if (canEdit) {
                 const vis = item.visibility || { mode: 'public' };
                 let eyeIcon = 'fa-eye text-emerald-600';
                 let visLabel = 'Public';
@@ -390,21 +405,20 @@ export function updateChecklistUI(state) {
                     ? `<span class="text-[9px] text-emerald-700 font-bold bg-emerald-100 px-1.5 py-0.5 rounded mr-auto truncate max-w-[140px] sm:max-w-[200px]" title="Completed by: ${resolvedNames}"><i class="fa-solid fa-check-double mr-1"></i> ${resolvedNames}</span>` 
                     : `<span class="text-[9px] text-stone-400 italic mr-auto">No completions yet</span>`;
 
-                dmControls = `
+                controlsHtml = `
                     ${resolvedText}
-                    <div class="flex items-center gap-1">
+                    <div class="flex items-center gap-1 ml-auto">
+                        ${resolveBtn}
+                        <div class="w-px h-4 bg-stone-300 mx-1"></div>
                         <button type="button" onclick="window.appActions.openVisibilityMenu(this, 'checklist', '${item.id}')" class="text-[10px] flex items-center justify-center hover:bg-stone-200 px-2 py-1 rounded transition text-stone-600 font-bold uppercase tracking-widest border border-transparent hover:border-stone-300" title="Visibility Settings"><i class="fa-solid ${eyeIcon} sm:mr-1"></i> <span class="hidden sm:inline">${visLabel}</span></button>
                         <button type="button" onclick="window.appActions.deleteSheetUpdate('${item.id}')" class="text-[10px] w-6 h-6 flex items-center justify-center text-stone-400 hover:text-red-700 hover:bg-red-50 rounded transition" title="Delete Task"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 `;
-            }
-
-            let playerControls = '';
-            if (!isDM) {
-                playerControls = `
-                    <button type="button" onclick="window.appActions.toggleSheetUpdateResolved('${item.id}')" class="text-[10px] font-bold uppercase tracking-wider border px-3 py-1.5 rounded-sm transition shadow-sm whitespace-nowrap ml-auto ${isResolvedByMe ? 'bg-emerald-100 border-emerald-300 text-emerald-800 hover:bg-emerald-200' : 'bg-white border-amber-300/50 text-stone-600 hover:bg-stone-100 hover:text-stone-900'}">
-                        ${isResolvedByMe ? '<i class="fa-solid fa-check mr-1"></i> Added' : 'Mark as Added'}
-                    </button>
+            } else {
+                controlsHtml = `
+                    <div class="flex items-center justify-end w-full">
+                        ${resolveBtn}
+                    </div>
                 `;
             }
 
@@ -414,25 +428,22 @@ export function updateChecklistUI(state) {
             <div class="flex flex-col bg-[#fdfbf7] p-3 border border-amber-600/20 rounded-sm shadow-sm gap-2 mb-3 hover:border-amber-400/50 transition-colors">
                 <div class="flex items-start sm:items-center gap-3">
                     <div class="flex-shrink-0 text-base mt-0.5 sm:mt-0">${statusIcon}</div>
-                    <span class="text-sm ${statusTextClass} break-words">${safeText}</span>
+                    <span class="text-sm ${statusTextClass} break-words leading-tight">${safeText} ${authorTag}</span>
                 </div>
                 <div class="flex items-center justify-between w-full pt-2 border-t border-stone-200 mt-1 min-h-[28px]">
-                    ${isDM ? dmControls : playerControls}
+                    ${controlsHtml}
                 </div>
             </div>
             `;
         });
     }
 
-    let addHtml = '';
-    if (isDM) {
-        addHtml = `
-        <div class="flex gap-2 mt-4 pt-4 border-t border-amber-700/20 sticky bottom-0 bg-[#f4ebd8] pb-2 z-10">
-            <input type="text" id="new-sheet-update-text" class="flex-grow p-2 border border-amber-600/30 rounded-sm text-xs sm:text-sm focus:border-red-900 outline-none shadow-inner bg-white font-sans placeholder:text-stone-400 placeholder:italic" placeholder="Assign a task (e.g. Add 50gp)..." onkeydown="if(event.key === 'Enter') { event.preventDefault(); window.appActions.addSheetUpdate(); }">
-            <button type="button" onclick="window.appActions.addSheetUpdate()" class="px-4 py-2 bg-amber-700 text-amber-50 text-[10px] sm:text-xs font-bold uppercase tracking-wider rounded-sm shadow-md hover:bg-amber-600 transition whitespace-nowrap"><i class="fa-solid fa-plus sm:mr-1"></i> <span class="hidden sm:inline">Assign</span></button>
-        </div>
-        `;
-    }
+    const addHtml = `
+    <div class="flex gap-2 mt-4 pt-4 border-t border-amber-700/20 sticky bottom-0 bg-[#f4ebd8] pb-2 z-10">
+        <input type="text" id="new-sheet-update-text" class="flex-grow p-2 border border-amber-600/30 rounded-sm text-xs sm:text-sm focus:border-red-900 outline-none shadow-inner bg-white font-sans placeholder:text-stone-400 placeholder:italic" placeholder="Add a task or reminder..." onkeydown="if(event.key === 'Enter') { event.preventDefault(); window.appActions.addSheetUpdate(); }">
+        <button type="button" onclick="window.appActions.addSheetUpdate()" class="px-4 py-2 bg-amber-700 text-amber-50 text-[10px] sm:text-xs font-bold uppercase tracking-wider rounded-sm shadow-md hover:bg-amber-600 transition whitespace-nowrap"><i class="fa-solid fa-plus sm:mr-1"></i> <span class="hidden sm:inline">Add</span></button>
+    </div>
+    `;
 
     container.innerHTML = listHtml + addHtml;
 }
@@ -475,7 +486,7 @@ export function renderApp(state) {
         case 'codex': html = getCodexHTML(state); break;
         case 'calendar': html = getCalendarHTML(state); break;
         case 'rules': html = getRulesHTML(state); break;
-        case 'webs': html = getWebsHTML(state); break; // NEW: Call the Webs renderer
+        case 'webs': html = getWebsHTML(state); break; 
         case 'atlas': html = getAtlasHTML(state); break; 
         case 'activity-log': html = getActivityLogHTML(state); break;
         default: html = `<div class="text-center text-red-500">Unknown View: ${state.currentView}</div>`;
