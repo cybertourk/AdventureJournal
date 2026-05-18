@@ -32,7 +32,7 @@ export function getBazaarHTML(state) {
     // Players only see Open shops
     const visibleShops = isDM ? allShops : allShops.filter(s => s.isOpen);
     
-    // Sort alphabetically
+    // Sort alphabetically by name first to ensure predictable ordering within groups
     const sortedShops = [...visibleShops].sort((a,b) => a.name.localeCompare(b.name));
 
     let listHtml = '';
@@ -46,42 +46,84 @@ export function getBazaarHTML(state) {
             </div>
         `;
     } else {
-        listHtml = `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">`;
-        
+        // --- GROUPING ENGINE ---
+        const groupedShops = {};
+        const travelingShops = [];
+
         sortedShops.forEach(shop => {
-            const safeName = escapeHTML(shop.name);
-            const safeType = escapeHTML(shop.shopType || 'Merchant');
-            const safeLoc = escapeHTML(shop.location || 'Unknown Location');
-            const itemCount = (shop.inventory || []).length;
-            
-            const statusBadge = shop.isOpen 
-                ? `<span class="absolute top-2 right-2 text-[9px] bg-emerald-100 text-emerald-800 border border-emerald-300 uppercase font-bold px-2 py-0.5 rounded-sm shadow-sm z-10"><i class="fa-solid fa-door-open mr-1"></i> Open</span>`
-                : `<span class="absolute top-2 right-2 text-[9px] bg-red-100 text-red-800 border border-red-300 uppercase font-bold px-2 py-0.5 rounded-sm shadow-sm z-10"><i class="fa-solid fa-door-closed mr-1"></i> Closed</span>`;
+            if (shop.isTraveling) {
+                travelingShops.push(shop);
+            } else {
+                const loc = shop.location ? shop.location.trim() : 'Unknown Location';
+                if (!groupedShops[loc]) groupedShops[loc] = [];
+                groupedShops[loc].push(shop);
+            }
+        });
 
-            const imgHtml = shop.image 
-                ? `<div class="w-full h-32 bg-stone-900 overflow-hidden relative shrink-0"><img src="${shop.image}" class="w-full h-full object-cover object-center opacity-80 group-hover:opacity-100 transition-opacity" alt="${safeName}"></div>`
-                : `<div class="w-full h-12 bg-stone-200 border-b border-[#d4c5a9] shrink-0"></div>`;
+        const sortedLocations = Object.keys(groupedShops).sort((a, b) => a.localeCompare(b));
 
-            const onClickAction = isDM ? `window.appActions.viewBackroom('${shop.id}')` : `window.appActions.viewStorefront('${shop.id}')`;
+        const renderShopGrid = (shops) => {
+            let gridHtml = `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8">`;
             
-            listHtml += `
-            <div class="bg-white rounded-sm border border-[#d4c5a9] shadow-sm flex flex-col group relative overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition duration-200 cursor-pointer" onclick="${onClickAction}">
-                <div class="absolute top-0 left-0 w-1 h-full bg-emerald-700 group-hover:bg-emerald-500 transition-colors z-20"></div>
-                ${isDM ? statusBadge : ''}
-                ${imgHtml}
-                <div class="p-4 flex flex-col flex-grow relative z-10">
-                    <h3 class="font-serif font-bold text-lg text-emerald-900 leading-tight mb-1 truncate pr-8">${safeName}</h3>
-                    <p class="text-[10px] uppercase font-bold text-stone-500 tracking-widest mb-3 truncate"><i class="fa-solid fa-map-pin mr-1"></i> ${safeLoc}</p>
-                    
-                    <div class="mt-auto flex justify-between items-center pt-3 border-t border-stone-100">
-                        <span class="text-xs font-bold text-stone-700"><i class="fa-solid fa-tag text-amber-600 mr-1.5"></i> ${itemCount} Wares</span>
-                        <span class="text-[10px] uppercase font-bold text-stone-400 bg-stone-100 px-2 py-1 rounded-sm">${safeType}</span>
+            shops.forEach(shop => {
+                const safeName = escapeHTML(shop.name);
+                const safeType = escapeHTML(shop.shopType || 'Merchant');
+                const safeLoc = escapeHTML(shop.location || 'Unknown Location');
+                const itemCount = (shop.inventory || []).length;
+                
+                const statusBadge = shop.isOpen 
+                    ? `<span class="absolute top-2 right-2 text-[9px] bg-emerald-100 text-emerald-800 border border-emerald-300 uppercase font-bold px-2 py-0.5 rounded-sm shadow-sm z-10"><i class="fa-solid fa-door-open mr-1"></i> Open</span>`
+                    : `<span class="absolute top-2 right-2 text-[9px] bg-red-100 text-red-800 border border-red-300 uppercase font-bold px-2 py-0.5 rounded-sm shadow-sm z-10"><i class="fa-solid fa-door-closed mr-1"></i> Closed</span>`;
+
+                const imgHtml = shop.image 
+                    ? `<div class="w-full h-32 bg-stone-900 overflow-hidden relative shrink-0"><img src="${shop.image}" class="w-full h-full object-cover object-center opacity-80 group-hover:opacity-100 transition-opacity" alt="${safeName}"></div>`
+                    : `<div class="w-full h-12 bg-stone-200 border-b border-[#d4c5a9] shrink-0"></div>`;
+
+                const onClickAction = isDM ? `window.appActions.viewBackroom('${shop.id}')` : `window.appActions.viewStorefront('${shop.id}')`;
+                
+                gridHtml += `
+                <div class="bg-white rounded-sm border border-[#d4c5a9] shadow-sm flex flex-col group relative overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition duration-200 cursor-pointer" onclick="${onClickAction}">
+                    <div class="absolute top-0 left-0 w-1 h-full bg-emerald-700 group-hover:bg-emerald-500 transition-colors z-20"></div>
+                    ${isDM ? statusBadge : ''}
+                    ${imgHtml}
+                    <div class="p-4 flex flex-col flex-grow relative z-10">
+                        <h3 class="font-serif font-bold text-lg text-emerald-900 leading-tight mb-1 truncate pr-8">${safeName}</h3>
+                        ${shop.isTraveling ? `<p class="text-[10px] uppercase font-bold text-amber-700 tracking-widest mb-3 truncate"><i class="fa-solid fa-caravan mr-1"></i> Spotted near ${safeLoc}</p>` : `<p class="text-[10px] uppercase font-bold text-stone-500 tracking-widest mb-3 truncate"><i class="fa-solid fa-map-pin mr-1"></i> ${safeLoc}</p>`}
+                        
+                        <div class="mt-auto flex justify-between items-center pt-3 border-t border-stone-100">
+                            <span class="text-xs font-bold text-stone-700"><i class="fa-solid fa-tag text-amber-600 mr-1.5"></i> ${itemCount} Wares</span>
+                            <span class="text-[10px] uppercase font-bold text-stone-400 bg-stone-100 px-2 py-1 rounded-sm">${safeType}</span>
+                        </div>
                     </div>
                 </div>
-            </div>
+                `;
+            });
+            
+            gridHtml += `</div>`;
+            return gridHtml;
+        };
+
+        // Render standard locations first
+        sortedLocations.forEach(loc => {
+            listHtml += `
+                <h3 class="text-lg font-serif font-bold text-stone-800 mb-4 flex items-center border-b-2 border-stone-300 pb-2">
+                    <i class="fa-solid fa-map-location-dot mr-2 text-stone-400"></i> ${escapeHTML(loc)}
+                </h3>
             `;
+            listHtml += renderShopGrid(groupedShops[loc]);
         });
-        listHtml += `</div>`;
+
+        // Render traveling merchants in their own block at the bottom
+        if (travelingShops.length > 0) {
+            listHtml += `
+                <div class="mt-8">
+                    <h3 class="text-lg font-serif font-bold text-emerald-900 mb-4 flex items-center border-b-2 border-emerald-300 pb-2">
+                        <i class="fa-solid fa-caravan mr-2 text-emerald-600"></i> Traveling Merchants
+                    </h3>
+                    ${renderShopGrid(travelingShops)}
+                </div>
+            `;
+        }
     }
 
     return `
@@ -178,6 +220,7 @@ export function getStorefrontHTML(state) {
                     <h3 class="font-serif font-bold text-lg text-emerald-900 mb-1">${safeOwner}</h3>
                     <div class="flex flex-wrap gap-2 mb-4">
                         <span class="text-[9px] uppercase font-bold text-stone-500 bg-white px-2 py-0.5 rounded shadow-sm border border-[#d4c5a9]">${safeType}</span>
+                        ${shop.isTraveling ? `<span class="text-[9px] uppercase font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded shadow-sm border border-amber-200"><i class="fa-solid fa-caravan mr-1"></i>Traveling</span>` : ''}
                         <span class="text-[9px] uppercase font-bold text-stone-500 bg-white px-2 py-0.5 rounded shadow-sm border border-[#d4c5a9]"><i class="fa-solid fa-map-pin mr-1"></i>${safeLoc}</span>
                     </div>
                     <div class="text-sm font-serif text-stone-800 leading-relaxed">${safeDesc || '<i class="text-stone-400">No public description provided.</i>'}</div>
