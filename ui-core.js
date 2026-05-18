@@ -6,6 +6,7 @@ import { getCalendarHTML } from './ui-calendar.js';
 import { getRulesHTML } from './ui-rules.js';
 import { getAtlasHTML } from './ui-atlas.js';
 import { getWebsHTML } from './ui-webs.js';
+import { getBazaarHTML, getStorefrontHTML, getShopBackroomHTML } from './ui-shops.js';
 
 // --- CONSTANTS & HELPERS ---
 export const BUDGET_BY_LEVEL = { 
@@ -61,12 +62,16 @@ export function getLibraryTabsHTML(activeTab) {
     const isCodex = activeTab === 'codex';
     const isRules = activeTab === 'rules';
     const isWebs = activeTab === 'webs';
+    const isBazaar = activeTab === 'bazaar';
     const isTome = activeTab === 'tome';
 
     return `
-    <div class="flex bg-stone-200 p-1 sm:p-1.5 rounded-sm border border-[#d4c5a9] shadow-inner mb-6 w-full max-w-4xl mx-auto shrink-0 overflow-x-auto hide-scrollbar">
+    <div class="flex bg-stone-200 p-1 sm:p-1.5 rounded-sm border border-[#d4c5a9] shadow-inner mb-6 w-full max-w-5xl mx-auto shrink-0 overflow-x-auto hide-scrollbar">
         <button onclick="window.appActions.setView('codex')" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isCodex ? 'bg-white shadow-sm text-red-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
             <i class="fa-solid fa-book-journal-whills text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Codex</span>
+        </button>
+        <button onclick="window.appActions.openBazaar()" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isBazaar ? 'bg-white shadow-sm text-emerald-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
+            <i class="fa-solid fa-store text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Bazaar</span>
         </button>
         <button onclick="window.appActions.openRulesGlossary()" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isRules ? 'bg-white shadow-sm text-amber-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
             <i class="fa-solid fa-scale-balanced text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Rules</span>
@@ -124,6 +129,9 @@ export function updateHeaderUI(state) {
         case 'pc-manager': breadcrumbText = 'Party Manifest'; showBack = true; break;
         case 'pc-edit': breadcrumbText = state.activePcId ? 'Edit Hero' : 'New Hero'; showBack = true; break;
         case 'codex': breadcrumbText = 'Library • Codex'; showBack = true; break;
+        case 'bazaar': breadcrumbText = 'Library • Bazaar'; showBack = true; break;
+        case 'storefront': breadcrumbText = 'Bazaar • Storefront'; showBack = true; break;
+        case 'shop-backroom': breadcrumbText = 'Bazaar • DM Backroom'; showBack = true; break;
         case 'rules': breadcrumbText = 'Library • Rules'; showBack = true; break;
         case 'webs': breadcrumbText = 'Library • Webs'; showBack = true; break;
         case 'atlas': breadcrumbText = 'Library • Atlas'; showBack = true; break;
@@ -162,7 +170,7 @@ export function updateDockUI(state) {
     let activeTab = 'campaign';
     if (['calendar'].includes(state.currentView)) activeTab = 'calendar';
     if (['pc-manager', 'pc-edit'].includes(state.currentView)) activeTab = 'pc-manager';
-    if (['codex', 'rules', 'atlas', 'webs'].includes(state.currentView)) activeTab = 'codex'; // Library items group here
+    if (['codex', 'rules', 'atlas', 'webs', 'bazaar', 'storefront', 'shop-backroom'].includes(state.currentView)) activeTab = 'codex'; // Library items group here
     
     // The Grand Tome is now officially part of the Library Hub, so keep the Library dock icon highlighted
     if (state.currentView === 'journal' && !state.activeAdventureId && !state.activeSessionId) {
@@ -185,10 +193,15 @@ export const navigateBack = () => {
         case 'campaign': 
         case 'pc-manager':
         case 'codex':
+        case 'bazaar':
         case 'rules': 
         case 'webs':
         case 'calendar':
             window.appActions.setView('home'); 
+            break;
+        case 'storefront':
+        case 'shop-backroom':
+            window.appActions.setView('bazaar'); 
             break;
         case 'atlas': window.appActions.setView('campaign'); break; // Back from Atlas goes to Campaign
         case 'adventure': window.appActions.setView('campaign'); break;
@@ -491,6 +504,9 @@ export function renderApp(state) {
         case 'session-edit': html = getSessionEditHTML(state); break;
         case 'journal': html = getJournalHTML(state); break;
         case 'codex': html = getCodexHTML(state); break;
+        case 'bazaar': html = getBazaarHTML(state); break;
+        case 'storefront': html = getStorefrontHTML(state); break;
+        case 'shop-backroom': html = getShopBackroomHTML(state); break;
         case 'calendar': html = getCalendarHTML(state); break;
         case 'rules': html = getRulesHTML(state); break;
         case 'webs': html = getWebsHTML(state); break; 
