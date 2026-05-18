@@ -43,8 +43,8 @@ import { openTrainingModal, updateTrainingMath, executeTraining } from './dt-tra
 import { openWorkModal, updateWorkMath, executeWork } from './dt-work.js';
 import { openAssignDowntimeModal, executeAssignDowntime } from './dt-assign.js';
 
-// --- NEW: SHOPS & BAZAAR IMPORTS ---
-import { openBazaar, openShopEditModal, saveShop, deleteShop, viewStorefront, viewBackroom, buyItem, addManualItem, updateItemPrice, deleteShopItem, rollShopInventory, executeRollWares, openProposeSaleModal, submitSaleProposal, cancelSaleProposal, approveSaleProposal } from './actions-shops.js';
+// --- SHOPS & BAZAAR IMPORTS ---
+import { openBazaar, openShopEditModal, saveShop, deleteShop, viewStorefront, viewBackroom, buyItem, openManualItemModal, searchBazaarDatabase, addBazaarItemToShop, submitCustomItem, updateItemPrice, deleteShopItem, rollShopInventory, executeRollWares, openProposeSaleModal, submitSaleProposal, cancelSaleProposal, approveSaleProposal } from './actions-shops.js';
 
 // --- APP ACTIONS HUB --- 
 // We bind all our imported modular functions back to the global window.appActions 
@@ -318,7 +318,10 @@ if (typeof window !== 'undefined') {
       viewStorefront,
       viewBackroom,
       buyItem,
-      addManualItem,
+      openManualItemModal,
+      searchBazaarDatabase,
+      addBazaarItemToShop,
+      submitCustomItem,
       updateItemPrice,
       deleteShopItem,
       rollShopInventory,
