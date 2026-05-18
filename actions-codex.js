@@ -207,7 +207,7 @@ export const defineEntryFromSelection = async (textareaId) => {
     }
 
     // 2. Auto-save mechanisms for Modals that share the global-popup-container to prevent data loss
-    if (textareaId === 'cx-modal-desc') {
+    if (textareaId === 'cx-modal-desc' || textareaId === 'cx-modal-dmnotes') {
         const nameInput = document.getElementById('cx-modal-name');
         if (!nameInput || !nameInput.value.trim()) {
             notify("Please name this entry before defining links inside it.", "error");
@@ -319,7 +319,9 @@ export const _openCodexModal = (entry) => {
 
     const isCharacter = type === 'PC' || type === 'NPC';
     const isLocation = type === 'Location';
-    const dataSrc = linkedPC ? linkedPC : ((isCharacter || isLocation) ? entry : null);
+    
+    // Universally bind dataSrc so ALL entries (Lore, Factions, Items, etc.) can display DM Notes
+    const dataSrc = linkedPC ? linkedPC : entry;
 
     if (isCharacter && dataSrc) {
         const parsedApp = dataSrc.appearance ? window.appActions.parseSmartText(dataSrc.appearance, id) : '<span class="text-stone-400 italic">No appearance recorded...</span>';
@@ -436,7 +438,7 @@ export const _openCodexModal = (entry) => {
     const extendedEditHtml = `
     <div id="npc-edit-fields" class="${type === 'NPC' && !linkedPC ? '' : 'hidden'} mt-6 pt-6 border-t-2 border-stone-300">
         <div class="bg-blue-900/10 border-l-4 border-blue-600 p-3 rounded-sm text-xs text-stone-800 italic mb-6">
-            <i class="fa-solid fa-circle-info text-blue-600 mr-1"></i> <strong>NPC Details:</strong> Characteristics and Appearance are Public. Backstory, Traits, and Notes remain Private (visible to the author and DM).
+            <i class="fa-solid fa-circle-info text-blue-600 mr-1"></i> <strong>NPC Details:</strong> Characteristics and Appearance are Public. Backstory and Traits remain Private (visible to the author and DM).
         </div>
         
         <h4 class="text-[10px] font-bold text-red-900 uppercase tracking-widest mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-clipboard-user mr-1"></i> Characteristics (Public)</h4>
@@ -491,11 +493,6 @@ export const _openCodexModal = (entry) => {
             <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Organizations</label><input type="text" id="cx-npc-organizations" value="${(entry.organizations || '').replace(/"/g, '&quot;')}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs bg-white outline-none focus:border-red-900 shadow-inner"></div>
             <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Allies</label><input type="text" id="cx-npc-allies" value="${(entry.allies || '').replace(/"/g, '&quot;')}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs bg-white outline-none focus:border-red-900 shadow-inner"></div>
             <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Enemies</label><input type="text" id="cx-npc-enemies" value="${(entry.enemies || '').replace(/"/g, '&quot;')}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs bg-white outline-none focus:border-red-900 shadow-inner"></div>
-        </div>
-
-        <div class="mb-2">
-            <label class="block text-[9px] uppercase text-red-800 font-bold mb-1"><i class="fa-solid fa-eye mr-1"></i> Secret Notes (DM Only)</label>
-            <textarea id="cx-npc-dmnotes" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif bg-stone-200 text-stone-900 h-24 custom-scrollbar border-l-4 border-l-red-900 outline-none focus:border-red-900 shadow-inner placeholder:italic" placeholder="DM specific notes, stat blocks, or hooks...">${(entry.dmNotes || '').replace(/"/g, '&quot;')}</textarea>
         </div>
     </div>
     
@@ -637,6 +634,26 @@ export const _openCodexModal = (entry) => {
                         </div>
                         <textarea id="cx-modal-desc" class="w-full h-40 bg-white border border-[#d4c5a9] text-stone-900 p-3 text-sm focus:border-red-900 outline-none resize-none rounded-sm shadow-inner custom-scrollbar" placeholder="${descPlaceholder}">${desc}</textarea>
                     </div>
+                    
+                    ${isDM ? `
+                    <div class="mb-4 mt-4">
+                        <div class="flex justify-between items-end mb-1">
+                            <label class="block text-[10px] uppercase text-red-800 font-bold tracking-widest"><i class="fa-solid fa-eye mr-1"></i> Secret Notes (DM Only)</label>
+                            <div class="flex gap-1 bg-stone-200 p-1 rounded-sm border border-[#d4c5a9] overflow-x-auto hide-scrollbar">
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-dmnotes', 'bold')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bold"><i class="fa-solid fa-bold"></i></button>
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-dmnotes', 'italic')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Italic"><i class="fa-solid fa-italic"></i></button>
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-dmnotes', 'underline')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Underline"><i class="fa-solid fa-underline"></i></button>
+                                <div class="w-px bg-[#d4c5a9] mx-1 shrink-0"></div>
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-dmnotes', 'h1')" class="w-6 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Heading 1">H1</button>
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-dmnotes', 'h2')" class="w-6 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Heading 2">H2</button>
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-dmnotes', 'list')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
+                                <div class="w-px bg-[#d4c5a9] mx-1 shrink-0"></div>
+                                <button type="button" onclick="window.appActions.defineEntryFromSelection('cx-modal-dmnotes')" class="px-2 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-amber-700 hover:text-amber-900 hover:bg-[#d4c5a9] rounded-sm transition uppercase tracking-wider" title="Define Highlighted Text"><i class="fa-solid fa-book-medical mr-1"></i> Define</button>
+                            </div>
+                        </div>
+                        <textarea id="cx-modal-dmnotes" class="w-full h-32 bg-stone-200 border border-[#d4c5a9] border-l-4 border-l-red-900 text-stone-900 p-3 text-sm focus:border-red-900 outline-none resize-none rounded-sm shadow-inner custom-scrollbar" placeholder="True motives, hidden stats, traps, or DM-only details... Codex names link automatically.">${(entry.dmNotes || '').replace(/"/g, '&quot;')}</textarea>
+                    </div>
+                    ` : ''}
 
                     ${extendedEditHtml}
 
@@ -708,8 +725,7 @@ export const saveCodexEntry = async () => {
             flaws: document.getElementById('cx-npc-flaws')?.value || '',
             organizations: document.getElementById('cx-npc-organizations')?.value.trim() || '',
             allies: document.getElementById('cx-npc-allies')?.value.trim() || '',
-            enemies: document.getElementById('cx-npc-enemies')?.value.trim() || '',
-            dmNotes: document.getElementById('cx-npc-dmnotes')?.value || ''
+            enemies: document.getElementById('cx-npc-enemies')?.value.trim() || ''
         };
     }
 
@@ -727,6 +743,9 @@ export const saveCodexEntry = async () => {
         };
     }
 
+    const dmNotesEl = document.getElementById('cx-modal-dmnotes');
+    const dmNotesVal = dmNotesEl ? dmNotesEl.value : (existingEntry?.dmNotes || '');
+
     const newEntry = {
         id: id || generateId(),
         name: name,
@@ -736,6 +755,7 @@ export const saveCodexEntry = async () => {
         image: document.getElementById('cx-modal-image').value.trim(),
         authorId: isNew ? myUid : (existingEntry?.authorId || myUid),
         visibility: existingEntry?.visibility || { mode: 'public' },
+        dmNotes: dmNotesVal,
         ...npcData,
         ...locData
     };
