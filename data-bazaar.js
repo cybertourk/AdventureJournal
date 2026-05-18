@@ -15463,5 +15463,4 @@ export const BAZAAR_ITEMS = [
     "rarity": "common",
     "isMagic": false
   }
-]
 ];
