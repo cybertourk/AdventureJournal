@@ -440,7 +440,7 @@ export const saveNewCarouseContact = async () => {
 
     const typeDisplay = type === 'ally' ? 'Allied Contact' : 'Hostile Contact';
     const classDisplay = socialClass.charAt(0).toUpperCase() + socialClass.slice(1);
-    const logAddition = `\n\n---\n\n**Logged on ${new Date().toLocaleDateString()}**\n**Downtime: Contact Scribed**\n*Hero:* ${pc.name}\n\nDefined a new **${classDisplay} ${typeDisplay}**: **${name}**${location ? ` (in ${location})` : ''}.\n> *"${desc}"*`;
+    const logAddition = `\n\n---\n\n**Logged on ${new Date().toLocaleDateString()}**\n**Downtime: Carousing**\n*Hero:* ${pc.name}\n\n**Action:** Contact Scribed\nDefined a new **${classDisplay} ${typeDisplay}**: **${name}**${location ? ` (in ${location})` : ''}.\n> *"${desc}"*`;
 
     const updatedPCs = camp.playerCharacters.map(p => {
         if (p.id === pcId) {
