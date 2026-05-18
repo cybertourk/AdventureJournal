@@ -4,6 +4,18 @@ import { logPlayerActivity } from './actions-campaign.js';
 
 let LOCAL_BAZAAR_DB = null;
 
+const SHOP_THEMES = {
+    "Blacksmith & Armory": ["melee", "armor", "shield", "weapon", "smith"],
+    "Bowyer / Fletcher": ["ranged", "ammunition", "bow", "arrow", "bolt"],
+    "Apothecary / Alchemist": ["potion", "poison", "herbalist", "alchem", "elixir"],
+    "Arcane Mystic": ["scroll", "wand", "rod", "ring", "wonderous", "wondrous", "arcane", "magic", "focus", "staff"],
+    "General Store / Provisioner": ["adventuring", "pack", "tool", "clothing", "container", "standard", "gear", "ration", "pouch", "bag"],
+    "Jeweler / Gem Merchant": ["gem", "ring", "jewelry", "art object", "crystal", "gemstone"],
+    "Stablemaster": ["mount", "vehicle", "livestock", "animal", "saddle"],
+    "Raw Materials": ["ore", "metal", "lumber", "log", "woven", "bone", "carpentry", "material", "leather"],
+    "Tavern / Innkeeper": ["food", "tavern", "gaming", "musical", "drink", "ale", "wine", "goods"]
+};
+
 // ============================================================================
 // --- BAZAAR & SHOP MANAGEMENT ---
 // ============================================================================
@@ -544,6 +556,12 @@ export const rollShopInventory = async (shopId) => {
     const sortedFolders = Array.from(folders).sort((a,b) => a.localeCompare(b));
     let folderOptions = sortedFolders.map(f => `<option value="folder:${f.replace(/"/g, '&quot;')}">📁 ${f}</option>`).join('');
 
+    // Generate the hybrid Broad Themes
+    let themeOptions = '';
+    for (const theme of Object.keys(SHOP_THEMES)) {
+        themeOptions += `<option value="theme:${theme}">${theme}</option>`;
+    }
+
     // Re-render the modal now that we have the dynamic folder list
     container.innerHTML = `
         <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[19000] backdrop-blur-sm animate-in">
@@ -563,6 +581,9 @@ export const rollShopInventory = async (shopId) => {
                             <select id="roll-theme" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner">
                                 <option value="all">General Store (Everything)</option>
                                 <option value="magic">Arcane Shop (Magic Items Only)</option>
+                                <optgroup label="Broad Themes">
+                                    ${themeOptions}
+                                </optgroup>
                                 <optgroup label="Foundry Folders">
                                     ${folderOptions}
                                 </optgroup>
@@ -615,6 +636,9 @@ export const executeRollWares = async () => {
     const rRank = { 'common': 1, 'uncommon': 2, 'rare': 3, 'veryrare': 4, 'legendary': 5 };
     const maxRank = rRank[maxRarity] || 1;
 
+    // Weights for the lottery system
+    const rWeight = { 'common': 100, 'uncommon': 40, 'rare': 10, 'veryrare': 2, 'legendary': 1, 'custom': 10 };
+
     // --- SMART FOLDER AND TYPE FILTERING ---
     let pool = LOCAL_BAZAAR_DB.filter(item => {
         const itemRarity = (item.rarity || 'common').toLowerCase().replace(/\s+/g, '');
@@ -625,6 +649,16 @@ export const executeRollWares = async () => {
         } else if (theme.startsWith('folder:')) {
             const targetFolder = theme.substring(7); // Remove 'folder:' prefix
             return item.folder === targetFolder;
+        } else if (theme.startsWith('theme:')) {
+            const themeName = theme.substring(6); // Remove 'theme:' prefix
+            const keywords = SHOP_THEMES[themeName] || [];
+            
+            const folderStr = (item.folder || "").toLowerCase();
+            const typeStr = (item.type || "").toLowerCase();
+            const nameStr = (item.name || "").toLowerCase();
+            
+            // Check if ANY of the theme keywords are found in the item's folder, type, or name
+            return keywords.some(kw => folderStr.includes(kw) || typeStr.includes(kw) || nameStr.includes(kw));
         }
         return true; // 'all' (General Store)
     });
@@ -634,13 +668,34 @@ export const executeRollWares = async () => {
         return;
     }
 
-    // Pick random items and aggressively stack duplicates
+    // Assign weights and calculate total weight for the lottery
+    let totalWeight = 0;
+    pool.forEach(item => {
+        const itemRarity = (item.rarity || 'common').toLowerCase().replace(/\s+/g, '');
+        item.selectionWeight = rWeight[itemRarity] || 100; // Default to common weight if invalid
+        totalWeight += item.selectionWeight;
+    });
+
+    // Pick random items using the weighted lottery and aggressively stack duplicates
     let currentInventory = [...(camp.shops[shopIndex].inventory || [])];
     
     for(let i=0; i<qty; i++) {
-        const rnd = pool[Math.floor(Math.random() * pool.length)];
+        let randomNum = Math.floor(Math.random() * totalWeight);
+        let selectedItem = null;
+
+        // Draw from the hat
+        for (const item of pool) {
+            randomNum -= item.selectionWeight;
+            if (randomNum < 0) {
+                selectedItem = item;
+                break;
+            }
+        }
         
-        const existingIndex = currentInventory.findIndex(item => item.name === rnd.name);
+        // Safety fallback
+        if (!selectedItem) selectedItem = pool[pool.length - 1];
+        
+        const existingIndex = currentInventory.findIndex(item => item.name === selectedItem.name);
         
         if (existingIndex > -1) {
             currentInventory[existingIndex] = {
@@ -650,10 +705,10 @@ export const executeRollWares = async () => {
         } else {
             currentInventory.push({
                 id: generateId(),
-                name: rnd.name,
-                price: rnd.price || 0,
-                rarity: rnd.rarity || 'common',
-                isMagic: rnd.isMagic || false,
+                name: selectedItem.name,
+                price: selectedItem.price || 0,
+                rarity: selectedItem.rarity || 'common',
+                isMagic: selectedItem.isMagic || false,
                 quantity: 1
             });
         }
