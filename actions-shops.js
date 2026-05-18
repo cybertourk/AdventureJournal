@@ -22,6 +22,7 @@ export const openShopEditModal = (shopId = null) => {
         image: '',
         shopType: 'General Store',
         location: '',
+        isTraveling: false,
         ownerName: '',
         isOpen: false,
         buysItems: false,
@@ -50,15 +51,20 @@ export const openShopEditModal = (shopId = null) => {
                 <div class="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-grow bg-[#fdfbf7]">
                     <input type="hidden" id="shop-edit-id" value="${shop.id}">
                     
-                    <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-sm shadow-inner flex gap-4 items-center mb-5">
+                    <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-sm shadow-inner flex flex-wrap gap-4 items-center mb-5">
                         <label class="flex items-center gap-2 cursor-pointer group">
                             <input type="checkbox" id="shop-edit-isopen" ${shop.isOpen ? 'checked' : ''} class="w-4 h-4 text-emerald-600 rounded-sm cursor-pointer shadow-sm border-stone-400">
-                            <span class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-emerald-900 group-hover:text-emerald-700 transition">Shop is Open to Party</span>
+                            <span class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-emerald-900 group-hover:text-emerald-700 transition">Open to Party</span>
                         </label>
-                        <div class="w-px h-4 bg-emerald-300"></div>
+                        <div class="w-px h-4 bg-emerald-300 hidden sm:block"></div>
                         <label class="flex items-center gap-2 cursor-pointer group">
                             <input type="checkbox" id="shop-edit-buys" ${shop.buysItems ? 'checked' : ''} class="w-4 h-4 text-emerald-600 rounded-sm cursor-pointer shadow-sm border-stone-400">
-                            <span class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-emerald-900 group-hover:text-emerald-700 transition">Will Buy Items from Party</span>
+                            <span class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-emerald-900 group-hover:text-emerald-700 transition">Will Buy Items</span>
+                        </label>
+                        <div class="w-px h-4 bg-emerald-300 hidden sm:block"></div>
+                        <label class="flex items-center gap-2 cursor-pointer group">
+                            <input type="checkbox" id="shop-edit-istraveling" ${shop.isTraveling ? 'checked' : ''} class="w-4 h-4 text-amber-600 rounded-sm cursor-pointer shadow-sm border-stone-400">
+                            <span class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-amber-900 group-hover:text-amber-700 transition"><i class="fa-solid fa-caravan mr-1"></i> Traveling Merchant</span>
                         </label>
                     </div>
 
@@ -131,6 +137,7 @@ export const saveShop = async () => {
         image: document.getElementById('shop-edit-image').value.trim(),
         shopType: document.getElementById('shop-edit-type').value.trim(),
         location: document.getElementById('shop-edit-loc').value.trim(),
+        isTraveling: document.getElementById('shop-edit-istraveling').checked,
         ownerName: document.getElementById('shop-edit-owner').value.trim(),
         isOpen: document.getElementById('shop-edit-isopen').checked,
         buysItems: document.getElementById('shop-edit-buys').checked,
@@ -199,7 +206,7 @@ export const deleteShop = async (shopId) => {
 
 export const buyItem = async (shopId, itemId) => {
     updateDerivedState();
-    const camp = window.appData.activeCampaign;
+    let camp = window.appData.activeCampaign;
     const myUid = window.appData.currentUserUid;
     if (!camp) return;
 
