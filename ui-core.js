@@ -405,12 +405,19 @@ export function updateChecklistUI(state) {
                     ? `<span class="text-[9px] text-emerald-700 font-bold bg-emerald-100 px-1.5 py-0.5 rounded mr-auto truncate max-w-[140px] sm:max-w-[200px]" title="Completed by: ${resolvedNames}"><i class="fa-solid fa-check-double mr-1"></i> ${resolvedNames}</span>` 
                     : `<span class="text-[9px] text-stone-400 italic mr-auto">No completions yet</span>`;
 
+                let visBtnHtml = '';
+                if (isDM) {
+                    visBtnHtml = `<button type="button" onclick="window.appActions.openVisibilityMenu(this, 'checklist', '${item.id}')" class="text-[10px] flex items-center justify-center hover:bg-stone-200 px-2 py-1 rounded transition text-stone-600 font-bold uppercase tracking-widest border border-transparent hover:border-stone-300" title="Visibility Settings"><i class="fa-solid ${eyeIcon} sm:mr-1"></i> <span class="hidden sm:inline">${visLabel}</span></button>`;
+                } else {
+                    visBtnHtml = `<span class="text-[10px] flex items-center justify-center px-2 py-1 rounded text-red-800/60 font-bold uppercase tracking-widest border border-transparent" title="Private task (DM & You)"><i class="fa-solid fa-user-secret sm:mr-1"></i> <span class="hidden sm:inline">Private</span></span>`;
+                }
+
                 controlsHtml = `
                     ${resolvedText}
                     <div class="flex items-center gap-1 ml-auto">
                         ${resolveBtn}
                         <div class="w-px h-4 bg-stone-300 mx-1"></div>
-                        <button type="button" onclick="window.appActions.openVisibilityMenu(this, 'checklist', '${item.id}')" class="text-[10px] flex items-center justify-center hover:bg-stone-200 px-2 py-1 rounded transition text-stone-600 font-bold uppercase tracking-widest border border-transparent hover:border-stone-300" title="Visibility Settings"><i class="fa-solid ${eyeIcon} sm:mr-1"></i> <span class="hidden sm:inline">${visLabel}</span></button>
+                        ${visBtnHtml}
                         <button type="button" onclick="window.appActions.deleteSheetUpdate('${item.id}')" class="text-[10px] w-6 h-6 flex items-center justify-center text-stone-400 hover:text-red-700 hover:bg-red-50 rounded transition" title="Delete Task"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 `;
