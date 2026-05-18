@@ -28,7 +28,8 @@ export const openShopEditModal = (shopId = null) => {
         buysItems: false,
         dmNotes: '',
         inventory: [],
-        ledger: []
+        ledger: [],
+        pendingSales: []
     };
 
     const isNew = !shopId;
@@ -143,7 +144,8 @@ export const saveShop = async () => {
         buysItems: document.getElementById('shop-edit-buys').checked,
         dmNotes: document.getElementById('shop-edit-notes').value.trim(),
         inventory: existingShop ? existingShop.inventory : [],
-        ledger: existingShop ? existingShop.ledger : []
+        ledger: existingShop ? existingShop.ledger : [],
+        pendingSales: existingShop ? (existingShop.pendingSales || []) : []
     };
 
     const newShops = isNew 
@@ -336,6 +338,178 @@ export const rollShopInventory = async (shopId) => {
 };
 
 // ============================================================================
+// --- PLAYER PROPOSE SALE TO SHOP ---
+// ============================================================================
+
+export const openProposeSaleModal = (shopId) => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    if (!camp) return;
+
+    const shop = camp.shops?.find(s => s.id === shopId);
+    if (!shop || !shop.buysItems) return;
+
+    const container = document.getElementById('global-popup-container');
+    if (!container) return;
+
+    container.innerHTML = `
+        <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[18000] backdrop-blur-sm animate-in">
+            <div class="bg-[#f4ebd8] rounded-sm w-full max-w-sm border border-[#d4c5a9] shadow-2xl relative flex flex-col max-h-[90vh]">
+                <div class="bg-stone-900 p-4 border-b-4 border-emerald-600 shadow-md shrink-0 flex justify-between items-center text-amber-50">
+                    <h2 class="text-lg font-serif font-bold flex items-center"><i class="fa-solid fa-hand-holding-dollar mr-2 text-emerald-400"></i> Propose Sale</h2>
+                    <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="text-stone-400 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+                </div>
+                <div class="p-5 bg-[#fdfbf7] flex-grow overflow-y-auto custom-scrollbar">
+                    <p class="text-xs text-stone-600 italic mb-4">Offer an item from your inventory to the merchant. The DM will review your asking price before finalizing the transaction.</p>
+                    <input type="hidden" id="sale-shop-id" value="${shopId}">
+                    <div class="mb-4">
+                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Item to Sell</label>
+                        <input type="text" id="sale-item-name" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner" placeholder="e.g. Goblin Scimitar">
+                    </div>
+                    <div class="mb-2">
+                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Asking Price (gp)</label>
+                        <input type="number" id="sale-item-price" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner" placeholder="e.g. 25" min="0">
+                    </div>
+                </div>
+                <div class="bg-[#e8dec7] p-4 border-t border-[#d4c5a9] flex justify-end gap-2 shrink-0 z-10 shadow-sm">
+                    <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="px-4 py-2 text-stone-600 border border-stone-400 rounded-sm hover:bg-stone-300 transition font-bold uppercase tracking-wider text-[10px]">Cancel</button>
+                    <button onclick="window.appActions.submitSaleProposal()" class="px-5 py-2 bg-emerald-700 text-amber-50 rounded-sm hover:bg-emerald-600 transition font-bold uppercase tracking-wider text-[10px] shadow-md"><i class="fa-solid fa-paper-plane mr-1.5"></i> Send Offer</button>
+                </div>
+            </div>
+        </div>
+    `;
+};
+
+export const submitSaleProposal = async () => {
+    const shopId = document.getElementById('sale-shop-id').value;
+    const itemName = document.getElementById('sale-item-name').value.trim();
+    const askingPrice = parseInt(document.getElementById('sale-item-price').value) || 0;
+
+    if (!itemName) {
+        notify("Please enter the name of the item you wish to sell.", "error");
+        return;
+    }
+
+    updateDerivedState();
+    let camp = window.appData.activeCampaign;
+    const myUid = window.appData.currentUserUid;
+    if (!camp) return;
+
+    const shopIndex = camp.shops.findIndex(s => s.id === shopId);
+    if (shopIndex === -1) return;
+
+    const pc = camp.playerCharacters?.find(p => p.playerId === myUid);
+    if (!pc && !camp._isDM) {
+        notify("You must enroll a hero to sell items.", "error");
+        return;
+    }
+
+    const proposal = {
+        id: generateId(),
+        playerId: myUid,
+        playerName: pc ? pc.name : "The Dungeon Master",
+        itemName: itemName,
+        askingPrice: askingPrice,
+        timestamp: Date.now()
+    };
+
+    const shop = camp.shops[shopIndex];
+    const pendingSales = [...(shop.pendingSales || []), proposal];
+    
+    camp.shops[shopIndex] = { ...shop, pendingSales };
+
+    if (!camp._isDM) {
+        camp = logPlayerActivity(camp, myUid, `offered to sell **${itemName}** to ${shop.name}.`, 'fa-hand-holding-dollar');
+    }
+
+    await saveCampaign(camp);
+    document.getElementById('global-popup-container').innerHTML = '';
+    notify(`Offer sent to ${shop.name}! Awaiting DM approval.`, "success");
+    reRender();
+};
+
+export const cancelSaleProposal = async (shopId, proposalId, isDMDeclining = false) => {
+    if (!isDMDeclining && !confirm("Cancel this sale offer?")) return;
+    if (isDMDeclining && !confirm("Decline this player's offer?")) return;
+
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    if (!camp) return;
+
+    const shopIndex = camp.shops.findIndex(s => s.id === shopId);
+    if (shopIndex === -1) return;
+
+    const shop = camp.shops[shopIndex];
+    const pendingSales = (shop.pendingSales || []).filter(p => p.id !== proposalId);
+
+    camp.shops[shopIndex] = { ...shop, pendingSales };
+
+    await saveCampaign(camp);
+    notify(isDMDeclining ? "Offer declined." : "Offer canceled.", "success");
+    reRender();
+};
+
+export const approveSaleProposal = async (shopId, proposalId) => {
+    if (!confirm("Approve this sale? This will add the item to the shop's inventory, log it in the ledger, and generate a task for the player to collect their gold.")) return;
+
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    if (!camp || !camp._isDM) return;
+
+    const shopIndex = camp.shops.findIndex(s => s.id === shopId);
+    if (shopIndex === -1) return;
+
+    const shop = camp.shops[shopIndex];
+    const proposal = (shop.pendingSales || []).find(p => p.id === proposalId);
+    if (!proposal) return;
+
+    // 1. Remove from pending
+    const pendingSales = shop.pendingSales.filter(p => p.id !== proposalId);
+
+    // 2. Add to inventory (Standard merchant markup rules: sell for 2x what they buy for)
+    const newItem = {
+        id: generateId(),
+        name: proposal.itemName,
+        price: proposal.askingPrice * 2, 
+        rarity: 'custom',
+        isMagic: false
+    };
+    const inventory = [...(shop.inventory || []), newItem];
+
+    // 3. Add to ledger
+    const timestampStr = new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const ledgerEntry = {
+        id: generateId(),
+        text: `Purchased **${proposal.itemName}** from **${proposal.playerName}** for **${proposal.askingPrice.toLocaleString()} gp**.`,
+        timestamp: Date.now(),
+        dateStr: timestampStr
+    };
+    const ledger = [ledgerEntry, ...(shop.ledger || [])];
+
+    camp.shops[shopIndex] = { ...shop, pendingSales, inventory, ledger };
+
+    // 4. Generate Checklist Task for the Player
+    if (proposal.playerId) {
+        const pc = camp.playerCharacters?.find(p => p.playerId === proposal.playerId);
+        if (pc) {
+            const newTask = {
+                id: generateId(),
+                text: `D&D Beyond Sync (${proposal.playerName}): Add ${proposal.askingPrice.toLocaleString()} gp from selling '${proposal.itemName}' to ${shop.name}. Make sure to remove the item from your inventory!`,
+                authorId: camp.dmId,
+                resolvedBy: [],
+                visibility: { mode: 'specific', visibleTo: [proposal.playerId] }, 
+                timestamp: Date.now()
+            };
+            camp.sheetUpdates = [...(camp.sheetUpdates || []), newTask];
+        }
+    }
+
+    await saveCampaign(camp);
+    notify(`Purchased ${proposal.itemName} from ${proposal.playerName}.`, "success");
+    reRender();
+};
+
+// ============================================================================
 // --- VIEW ROUTING BINDINGS ---
 // ============================================================================
 
@@ -362,4 +536,10 @@ if (typeof window !== 'undefined') {
     window.appActions.updateItemPrice = updateItemPrice;
     window.appActions.deleteShopItem = deleteShopItem;
     window.appActions.rollShopInventory = rollShopInventory;
+    
+    // Proposal Handlers
+    window.appActions.openProposeSaleModal = openProposeSaleModal;
+    window.appActions.submitSaleProposal = submitSaleProposal;
+    window.appActions.cancelSaleProposal = cancelSaleProposal;
+    window.appActions.approveSaleProposal = approveSaleProposal;
 }
