@@ -78,6 +78,8 @@ export const setView = (viewName) => {
 
 export const openCampaign = (id) => {
   window.appData.activeCampaignId = id;
+  // NEW: Save the last accessed campaign to local storage for the auto-router!
+  localStorage.setItem('lastAccessedCampaignId', id);
   window.appActions.setView('campaign');
 };
 
