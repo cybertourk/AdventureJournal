@@ -22,6 +22,27 @@ if (!window.appData) {
     };
 }
 
+// Bind entry router globally
+if (typeof window !== 'undefined') {
+    window.appActions = window.appActions || {};
+    
+    window.appActions.enterApp = () => {
+        const authScreen = document.getElementById('auth-screen');
+        const appScreen = document.getElementById('app-screen');
+        
+        if (authScreen) authScreen.classList.add('hidden');
+        if (appScreen) appScreen.classList.remove('hidden');
+
+        // Check local storage for auto-routing
+        const lastCampId = localStorage.getItem('lastAccessedCampaignId');
+        if (lastCampId) {
+            window.appActions.openCampaign(lastCampId);
+        } else {
+            window.appActions.setView('home');
+        }
+    };
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // Initialize the Login/Register forms
     initAuthUI();
@@ -115,15 +136,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // Listen for authentication state changes
     onAuthStateChanged(auth, (user) => {
         if (user) {
-            // User is signed in.
-            if (authScreen) authScreen.classList.add('hidden');
-            if (appScreen) appScreen.classList.remove('hidden');
-            if (authStatusText) authStatusText.textContent = "Welcome to the Archives";
+            // User is signed in. We NO LONGER hide the auth screen automatically here!
+            if (authStatusText) authStatusText.textContent = "Identity Confirmed";
 
             window.appData.currentUserUid = user.uid;
-            window.appData.currentView = 'home';
 
-            // Show the loading spinner while fetching
+            // Trigger the UI change in ui-auth.js to morph the login form into an "Enter" button
+            if (window.appActions && window.appActions.showAuthenticatedReadyState) {
+                window.appActions.showAuthenticatedReadyState(user);
+            }
+
+            // Show the loading spinner in the background app-container
             const container = document.getElementById('app-container');
             if (container) {
                  container.innerHTML = `
@@ -160,6 +183,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (authScreen) authScreen.classList.remove('hidden');
             if (appScreen) appScreen.classList.add('hidden');
             if (authStatusText) authStatusText.textContent = "Identify Yourself";
+            
+            // Revert UI to standard login
+            if (window.appActions && window.appActions.resetAuthUI) {
+                window.appActions.resetAuthUI();
+            }
             
             // Clear local state
             window.appData.campaigns = [];
@@ -205,7 +233,7 @@ if (typeof window !== 'undefined' && typeof history !== 'undefined') {
         // Execute the visual change first
         originalSetView(viewName);
         
-        // NEW: Map & Mermaid Init Hooks - Mount right after the DOM renders
+        // Map & Mermaid Init Hooks - Mount right after the DOM renders
         if (viewName === 'atlas') {
             setTimeout(() => window.appActions.initAtlas(), 50);
         }
@@ -290,7 +318,7 @@ if (typeof window !== 'undefined' && typeof history !== 'undefined') {
             updateDerivedState();
             reRender();
 
-            // NEW: Map & Mermaid Re-Init Hook for Back/Forward navigation
+            // Map & Mermaid Re-Init Hook for Back/Forward navigation
             if (event.state.currentView === 'atlas') {
                 setTimeout(() => window.appActions.initAtlas(), 50);
             }
