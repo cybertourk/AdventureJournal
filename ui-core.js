@@ -227,16 +227,19 @@ export const toggleActionMenu = () => {
     const overlay = document.getElementById('action-overlay');
     const icon = document.getElementById('center-action-icon');
     const dmAssignBtn = document.getElementById('dm-assign-downtime-btn');
+    const dmNpcGenBtn = document.getElementById('dm-npc-gen-btn');
     
     if (!sheet || !overlay || !icon) return;
     
-    // Unhide the DM Assign Downtime button if the user is the DM
+    // Unhide DM-Only buttons if the user is the DM
     const camp = window.appData?.activeCampaign;
-    if (dmAssignBtn) {
+    if (dmAssignBtn && dmNpcGenBtn) {
         if (camp && camp._isDM) {
             dmAssignBtn.classList.remove('hidden');
+            dmNpcGenBtn.classList.remove('hidden');
         } else {
             dmAssignBtn.classList.add('hidden');
+            dmNpcGenBtn.classList.add('hidden');
         }
     }
     
