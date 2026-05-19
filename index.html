@@ -261,6 +261,12 @@
                     <div class="w-10 h-10 rounded-full bg-amber-500 text-stone-900 flex items-center justify-center text-lg shadow-inner"><i class="fa-solid fa-calendar-plus"></i></div>
                     <span class="text-[10px] font-bold uppercase tracking-widest text-amber-50">Assign Downtime (DM)</span>
                 </button>
+
+                <!-- New NPC Generator Button -->
+                <button id="dm-npc-gen-btn" onclick="window.appActions.toggleActionMenu(); window.appActions.openNpcGeneratorUI();" class="hidden col-span-2 bg-stone-900 p-3 rounded-xl shadow-sm border border-fuchsia-600 flex flex-col items-center gap-2 active:scale-95 transition-transform">
+                    <div class="w-10 h-10 rounded-full bg-fuchsia-500 text-stone-900 flex items-center justify-center text-lg shadow-inner"><i class="fa-solid fa-user-plus"></i></div>
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-fuchsia-50">NPC Generator (DM)</span>
+                </button>
             </div>
         </div>
     </div>
@@ -381,16 +387,16 @@
             </div>
         </div>
         <!-- Format Toolbar -->
-        <div class="flex gap-1 sm:gap-2 bg-[#e8dec7] p-2 border-b border-[#d4c5a9] justify-center sm:justify-start overflow-x-auto shadow-sm hide-scrollbar shrink-0">
+        <div class="flex gap-1 sm:gap-2 bg-[#e8dec7] p-2 border-b border-[#d4c5a9] justify-center sm:justify-start overflow-x-auto hide-scrollbar shrink-0">
             <button type="button" onclick="window.appActions.formatText('ue-textarea', 'bold')" class="w-8 h-8 flex flex-shrink-0 items-center justify-center text-sm text-stone-700 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bold"><i class="fa-solid fa-bold"></i></button>
             <button type="button" onclick="window.appActions.formatText('ue-textarea', 'italic')" class="w-8 h-8 flex flex-shrink-0 items-center justify-center text-sm text-stone-700 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Italic"><i class="fa-solid fa-italic"></i></button>
             <button type="button" onclick="window.appActions.formatText('ue-textarea', 'underline')" class="w-8 h-8 flex flex-shrink-0 items-center justify-center text-sm text-stone-700 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Underline"><i class="fa-solid fa-underline"></i></button>
             <div class="w-px h-6 bg-[#c2b59b] mx-1 sm:mx-2 self-center"></div>
-            <button type="button" onclick="window.appActions.formatText('ue-textarea', 'h1')" class="w-8 h-8 flex flex-shrink-0 items-center justify-center text-sm text-stone-700 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition font-serif font-bold" title="Heading 1">H1</button>
-            <button type="button" onclick="window.appActions.formatText('ue-textarea', 'h2')" class="w-8 h-8 flex flex-shrink-0 items-center justify-center text-sm text-stone-700 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition font-serif font-bold" title="Heading 2">H2</button>
-            <button type="button" onclick="window.appActions.formatText('ue-textarea', 'h3')" class="w-8 h-8 flex flex-shrink-0 items-center justify-center text-sm text-stone-700 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition font-serif font-bold" title="Heading 3">H3</button>
+            <button type="button" onclick="window.appActions.formatText('ue-textarea', 'h1')" class="w-8 h-8 flex flex-shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition font-serif font-bold" title="Heading 1">H1</button>
+            <button type="button" onclick="window.appActions.formatText('ue-textarea', 'h2')" class="w-8 h-8 flex flex-shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition font-serif font-bold" title="Heading 2">H2</button>
+            <button type="button" onclick="window.appActions.formatText('ue-textarea', 'h3')" class="w-8 h-8 flex flex-shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition font-serif font-bold" title="Heading 3">H3</button>
             <div class="w-px h-6 bg-[#c2b59b] mx-1 sm:mx-2 self-center"></div>
-            <button type="button" onclick="window.appActions.formatText('ue-textarea', 'list')" class="w-8 h-8 flex flex-shrink-0 items-center justify-center text-sm text-stone-700 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
+            <button type="button" onclick="window.appActions.formatText('ue-textarea', 'list')" class="w-8 h-8 flex flex-shrink-0 items-center justify-center text-sm text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
             <div class="w-px h-6 bg-[#c2b59b] mx-1 sm:mx-2 self-center"></div>
             <button type="button" onclick="window.appActions.defineEntryFromSelection('ue-textarea')" class="px-2 h-8 flex flex-shrink-0 items-center justify-center text-[10px] sm:text-xs font-bold text-amber-700 hover:text-amber-900 hover:bg-[#d4c5a9] rounded-sm transition uppercase tracking-wider" title="Define Highlighted Text"><i class="fa-solid fa-book-medical mr-1 sm:mr-2"></i> Define</button>
         </div>
