@@ -240,6 +240,26 @@ export const defineEntryFromSelection = async (textareaId) => {
     window.appActions._openCodexModal({ isNew: true, name: selectedText });
 };
 
+// --- DYNAMIC LOCATION FIELDS TOGGLE ---
+export const updateLocEditFields = () => {
+    const scale = document.getElementById('cx-loc-scale')?.value;
+    if (!scale) return;
+
+    const pop = document.getElementById('loc-pop-wrap');
+    const gov = document.getElementById('loc-gov-wrap');
+    const eco = document.getElementById('loc-eco-wrap');
+    const def = document.getElementById('loc-def-wrap');
+
+    const hidePopGov = ['Building / Establishment', 'Dungeon / Ruin', 'Geographical Feature'].includes(scale);
+    const hideEco = ['Dungeon / Ruin', 'Geographical Feature'].includes(scale);
+    const hideDef = ['Geographical Feature'].includes(scale);
+
+    if (pop) pop.style.display = hidePopGov ? 'none' : 'block';
+    if (gov) gov.style.display = hidePopGov ? 'none' : 'block';
+    if (eco) eco.style.display = hideEco ? 'none' : 'block';
+    if (def) def.style.display = hideDef ? 'none' : 'block';
+};
+
 export const viewCodex = (id) => {
     // SECURITY CHECK: Final hard block if someone explicitly triggers viewCodex on a hidden ID
     if (!_canViewCodex(id)) {
@@ -351,23 +371,32 @@ export const _openCodexModal = (entry) => {
     }
 
     if (isLocation && dataSrc) {
-        const parsedPOI = dataSrc.pointsOfInterest ? window.appActions.parseSmartText(dataSrc.pointsOfInterest, id) : '<span class="text-stone-400 italic">No points of interest recorded...</span>';
+        const parsedPOI = dataSrc.pointsOfInterest ? window.appActions.parseSmartText(dataSrc.pointsOfInterest, id) : '';
         
-        locationDataHTML = `
-        <div class="mb-6 bg-white border border-[#d4c5a9] p-4 rounded-sm shadow-inner text-sm">
-            <h4 class="font-bold text-emerald-900 border-b border-[#d4c5a9] pb-1 mb-3"><i class="fa-solid fa-map-location-dot mr-1"></i> Location Details</h4>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-stone-700 mb-4">
-                <div><span class="font-bold text-stone-900 block">Scale / Type</span> ${dataSrc.locationType || '--'}</div>
-                <div><span class="font-bold text-stone-900 block">Region / Territory</span> ${dataSrc.region || '--'}</div>
-                <div><span class="font-bold text-stone-900 block">Population</span> ${dataSrc.population || '--'}</div>
-                <div><span class="font-bold text-stone-900 block">Government / Ruler</span> ${dataSrc.government || '--'}</div>
-                <div><span class="font-bold text-stone-900 block">Economy / Trade</span> ${dataSrc.economy || '--'}</div>
-                <div class="col-span-1 sm:col-span-2"><span class="font-bold text-stone-900 block">Defenses</span> ${dataSrc.defenses || '--'}</div>
+        let locDetails = '';
+        if (dataSrc.locationType) locDetails += `<div><span class="font-bold text-stone-900 block">Scale / Type</span> ${dataSrc.locationType}</div>`;
+        if (dataSrc.region) locDetails += `<div><span class="font-bold text-stone-900 block">Region / Territory</span> ${dataSrc.region}</div>`;
+        if (dataSrc.population) locDetails += `<div><span class="font-bold text-stone-900 block">Population</span> ${dataSrc.population}</div>`;
+        if (dataSrc.government) locDetails += `<div><span class="font-bold text-stone-900 block">Government / Ruler</span> ${dataSrc.government}</div>`;
+        if (dataSrc.economy) locDetails += `<div><span class="font-bold text-stone-900 block">Economy / Trade</span> ${dataSrc.economy}</div>`;
+        if (dataSrc.defenses) locDetails += `<div class="col-span-1 sm:col-span-2"><span class="font-bold text-stone-900 block">Defenses / Hazards</span> ${dataSrc.defenses}</div>`;
+
+        if (locDetails) {
+            locDetails = `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-stone-700 mb-4">${locDetails}</div>`;
+        }
+
+        if (locDetails || parsedPOI) {
+            locationDataHTML = `
+            <div class="mb-6 bg-white border border-[#d4c5a9] p-4 rounded-sm shadow-inner text-sm">
+                <h4 class="font-bold text-emerald-900 border-b border-[#d4c5a9] pb-1 mb-3"><i class="fa-solid fa-map-location-dot mr-1"></i> Location Details</h4>
+                ${locDetails}
+                ${parsedPOI ? `
+                <h4 class="font-bold text-emerald-900 border-b border-[#d4c5a9] pb-1 mb-2"><i class="fa-solid fa-location-dot mr-1"></i> Points of Interest</h4>
+                <div class="text-stone-800 text-sm leading-relaxed font-serif">${parsedPOI}</div>
+                ` : ''}
             </div>
-            <h4 class="font-bold text-emerald-900 border-b border-[#d4c5a9] pb-1 mb-2"><i class="fa-solid fa-location-dot mr-1"></i> Points of Interest</h4>
-            <div class="text-stone-800 text-sm leading-relaxed font-serif">${parsedPOI}</div>
-        </div>
-        `;
+            `;
+        }
     }
 
     // Render Private Info for Authorized Users
@@ -505,7 +534,7 @@ export const _openCodexModal = (entry) => {
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
             <div>
                 <label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Scale / Type</label>
-                <select id="cx-loc-scale" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm font-bold">
+                <select id="cx-loc-scale" onchange="if(window.appActions.updateLocEditFields) window.appActions.updateLocEditFields();" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm font-bold">
                     <option value="" ${!entry.locationType ? 'selected' : ''}>-- Select Scale --</option>
                     <option value="Realm / Plane" ${entry.locationType === 'Realm / Plane' ? 'selected' : ''}>Realm / Plane</option>
                     <option value="Continent" ${entry.locationType === 'Continent' ? 'selected' : ''}>Continent</option>
@@ -518,10 +547,11 @@ export const _openCodexModal = (entry) => {
                 </select>
             </div>
             <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Region / Territory</label><input type="text" id="cx-loc-region" value="${entry.region || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm" placeholder="e.g. Sword Coast"></div>
-            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Population</label><input type="text" id="cx-loc-population" value="${entry.population || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm" placeholder="e.g. ~130,000 (Diverse)"></div>
-            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Government / Ruler</label><input type="text" id="cx-loc-government" value="${entry.government || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm" placeholder="e.g. Masked Lords"></div>
-            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Economy / Trade</label><input type="text" id="cx-loc-economy" value="${entry.economy || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm" placeholder="e.g. Trade Hub, Fishing"></div>
-            <div class="sm:col-span-2"><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Defenses</label><input type="text" id="cx-loc-defenses" value="${entry.defenses || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm" placeholder="e.g. City Guard, High Walls"></div>
+            
+            <div id="loc-pop-wrap"><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Population</label><input type="text" id="cx-loc-population" value="${entry.population || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm" placeholder="e.g. ~130,000 (Diverse)"></div>
+            <div id="loc-gov-wrap"><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Government / Ruler</label><input type="text" id="cx-loc-government" value="${entry.government || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm" placeholder="e.g. Masked Lords"></div>
+            <div id="loc-eco-wrap"><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Economy / Trade</label><input type="text" id="cx-loc-economy" value="${entry.economy || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm" placeholder="e.g. Trade Hub, Fishing"></div>
+            <div id="loc-def-wrap" class="sm:col-span-2"><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Defenses / Hazards</label><input type="text" id="cx-loc-defenses" value="${entry.defenses || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm" placeholder="e.g. City Guard, High Walls, Traps"></div>
         </div>
 
         <div class="mb-6">
@@ -678,9 +708,16 @@ export const _openCodexModal = (entry) => {
                 document.getElementById('cx-view-mode').classList.add('hidden');
                 document.getElementById('cx-edit-mode').classList.remove('hidden');
                 document.getElementById('cx-edit-actions').classList.remove('hidden');
+                // Ensure dynamic fields are synced when entering edit mode
+                if (window.appActions.updateLocEditFields) window.appActions.updateLocEditFields();
             };
         }
     }
+
+    // Force an initial update of the location fields
+    setTimeout(() => {
+        if (window.appActions.updateLocEditFields) window.appActions.updateLocEditFields();
+    }, 50);
 };
 
 export const saveCodexEntry = async () => {
@@ -731,8 +768,9 @@ export const saveCodexEntry = async () => {
 
     let locData = {};
     if (typeVal === 'Location') {
+        const scale = document.getElementById('cx-loc-scale')?.value || '';
         locData = {
-            locationType: document.getElementById('cx-loc-scale')?.value || '',
+            locationType: scale,
             region: document.getElementById('cx-loc-region')?.value.trim() || '',
             population: document.getElementById('cx-loc-population')?.value.trim() || '',
             government: document.getElementById('cx-loc-government')?.value.trim() || '',
@@ -741,6 +779,15 @@ export const saveCodexEntry = async () => {
             pointsOfInterest: document.getElementById('cx-loc-poi')?.value || '',
             secrets: document.getElementById('cx-loc-secrets')?.value || ''
         };
+
+        // Enforce cleanup on save so hidden fields don't retain ghost data in the database
+        const hidePopGov = ['Building / Establishment', 'Dungeon / Ruin', 'Geographical Feature'].includes(scale);
+        const hideEco = ['Dungeon / Ruin', 'Geographical Feature'].includes(scale);
+        const hideDef = ['Geographical Feature'].includes(scale);
+
+        if (hidePopGov) { locData.population = ''; locData.government = ''; }
+        if (hideEco) { locData.economy = ''; }
+        if (hideDef) { locData.defenses = ''; }
     }
 
     const dmNotesEl = document.getElementById('cx-modal-dmnotes');
@@ -877,3 +924,8 @@ export const copyJournal = () => {
         document.body.removeChild(textArea);
     }
 };
+
+if (typeof window !== 'undefined') {
+    window.appActions = window.appActions || {};
+    window.appActions.updateLocEditFields = updateLocEditFields;
+}
