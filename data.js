@@ -10,7 +10,7 @@ import { setView, openCampaign, openAdventure, toggleNewCampaignForm, createCamp
 import { openSessionEdit, switchSessionTab, updateSessionBudget, _readDynamicList, _gatherSessionDraft, updateSessionPreview, saveSession, deleteSession, addLogScene, addLogClue, submitSessionClue, deleteSessionClue, openVisibilityMenu, toggleVisSpecificList, saveVisibility, _saveCampaignHelper, openUniversalEditor, closeUniversalEditor, saveUniversalEditor, formatText, addChronicleEntry, editChronicleEntry, cancelChronicleEdit, deleteChronicleEntry, syncSessionDates } from './actions-session.js'; 
 
 // Import Codex, Smart-Text, & Journal Functionality 
-import { _canViewCodex, parseSmartText, handleSmartInput, _showSuggestions, viewCodex, _openCodexModal, saveCodexEntry, deleteCodexEntry, openJournal, closeJournal, copyJournal, defineEntryFromSelection } from './actions-codex.js'; 
+import { _canViewCodex, parseSmartText, handleSmartInput, _showSuggestions, viewCodex, _openCodexModal, saveCodexEntry, deleteCodexEntry, openJournal, closeJournal, copyJournal, defineEntryFromSelection, updateLocEditFields } from './actions-codex.js'; 
 
 // Import Calendar Functionality
 import { openCalendar, navCalendarMonth, jumpToCurrentDate, jumpToSpecificDate, openCalendarLore, closeCalendarLore, openMonthInfo, closeMonthInfo, openCalendarDay, closeCalendarDay, setCurrentCampaignDate, syncCalendarNoteDates, saveCalendarNote, editCalendarNote, deleteCalendarNote, openCalendarSettings, closeCalendarSettings, addCalendarMonthRow, saveCalendarSettings, resetCalendarToDefault, importFoundryCalendarNotes } from './actions-calendar.js';
@@ -146,6 +146,7 @@ if (typeof window !== 'undefined') {
       closeJournal, 
       copyJournal,
       defineEntryFromSelection,
+      updateLocEditFields, // <-- ADDED HERE TO ENABLE DYNAMIC LOCATION FIELDS
 
       // Calendar System
       openCalendar,
