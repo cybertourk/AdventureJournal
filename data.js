@@ -46,6 +46,10 @@ import { openAssignDowntimeModal, executeAssignDowntime } from './dt-assign.js';
 // --- SHOPS & BAZAAR IMPORTS ---
 import { openBazaar, openShopEditModal, saveShop, deleteShop, viewStorefront, viewBackroom, buyItem, openManualItemModal, searchBazaarDatabase, addBazaarItemToShop, submitCustomItem, updateItemPrice, deleteShopItem, rollShopInventory, executeRollWares, openProposeSaleModal, submitSaleProposal, cancelSaleProposal, approveSaleProposal } from './actions-shops.js';
 
+// --- NPC GENERATOR IMPORTS ---
+import { openNpcGeneratorUI, updateNpcSubraceDropdown } from './ui-npc.js';
+import { executeNpcGeneration } from './actions-npc.js';
+
 // --- APP ACTIONS HUB --- 
 // We bind all our imported modular functions back to the global window.appActions 
 // object so that the UI's inline onclick handlers can still reach them! 
@@ -332,7 +336,12 @@ if (typeof window !== 'undefined') {
       openProposeSaleModal,
       submitSaleProposal,
       cancelSaleProposal,
-      approveSaleProposal
+      approveSaleProposal,
+
+      // NPC Generator
+      openNpcGeneratorUI,
+      updateNpcSubraceDropdown,
+      executeNpcGeneration
     };
 }
 
