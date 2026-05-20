@@ -219,6 +219,64 @@ export const deleteShop = async (shopId) => {
 };
 
 // ============================================================================
+// --- FOLDER & BULK TOGGLE LOGIC ---
+// ============================================================================
+
+export const toggleBazaarLocation = (location) => {
+    const state = window.appData;
+    if (!state.bazaarCollapsedLocs) state.bazaarCollapsedLocs = [];
+    
+    if (state.bazaarCollapsedLocs.includes(location)) {
+        state.bazaarCollapsedLocs = state.bazaarCollapsedLocs.filter(l => l !== location);
+    } else {
+        state.bazaarCollapsedLocs.push(location);
+    }
+    
+    if (window.appActions.reRender) window.appActions.reRender();
+};
+
+export const toggleAllShops = async (location, isOpen) => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    if (!camp || !camp.shops) return;
+
+    let changed = false;
+    camp.shops.forEach(shop => {
+        // Match the location string exactly and ensure it is not a traveling shop
+        if (!shop.isTraveling && shop.location === location && shop.isOpen !== isOpen) {
+            shop.isOpen = isOpen;
+            changed = true;
+        }
+    });
+
+    if (changed) {
+        await saveCampaign(camp);
+        notify(`Successfully ${isOpen ? 'opened' : 'closed'} all shops in ${location}.`, "success");
+        if (window.appActions.reRender) window.appActions.reRender();
+    }
+};
+
+export const toggleAllTravelingShops = async (isOpen) => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    if (!camp || !camp.shops) return;
+
+    let changed = false;
+    camp.shops.forEach(shop => {
+        if (shop.isTraveling && shop.isOpen !== isOpen) {
+            shop.isOpen = isOpen;
+            changed = true;
+        }
+    });
+
+    if (changed) {
+        await saveCampaign(camp);
+        notify(`Successfully ${isOpen ? 'opened' : 'closed'} all traveling merchants.`, "success");
+        if (window.appActions.reRender) window.appActions.reRender();
+    }
+};
+
+// ============================================================================
 // --- INVENTORY & BUYING LOGIC ---
 // ============================================================================
 
