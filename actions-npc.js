@@ -3,46 +3,47 @@ import { saveCampaign, notify } from './firebase-manager.js';
 import { NPC_TABLES } from './data-npc.js';
 
 // --- FAERÛN REGION TO ARCHETYPE MAPPING ---
+// Updated to exactly match the new Roll Table syntax (e.g. "Forest & Wildland")
 const REGION_ARCHETYPE_MAP = {
-    "Aglarond": "forest-and-wildland", "Alaron": "coastal-and-swamp", "Amn": "metropolis-and-urban",
-    "Amphail": "rural-and-village", "Athalantar": "rural-and-village", "Baldur's Gate": "metropolis-and-urban",
-    "Berdusk": "town-and-keep", "Besilmer": "mountain-and-underdark", "Beyond the Trackless Sea": "exotic-and-planar",
-    "Blingdenstone": "mountain-and-underdark", "Boareskyr Bridge": "town-and-keep", "Calimshan": "desert-and-arid",
-    "Candlekeep": "town-and-keep", "Chessenta": "metropolis-and-urban", "Chult": "forest-and-wildland",
-    "Citadel Adbar": "mountain-and-underdark", "Citadel Felbarr": "mountain-and-underdark", "The Cold Lands": "arctic-and-tundra",
-    "Cormyr": "metropolis-and-urban", "Daggerford": "town-and-keep", "The Dalelands": "rural-and-village",
-    "Damara": "arctic-and-tundra", "Dambrath": "rural-and-village", "Darkhold": "town-and-keep",
-    "Delzoun": "mountain-and-underdark", "Dragonspear Castle": "town-and-keep", "Eaerlann": "forest-and-wildland",
-    "Elfharrow": "desert-and-arid", "Elturgard": "metropolis-and-urban", "Elturel": "metropolis-and-urban",
-    "Evereska": "forest-and-wildland", "Evermeet": "exotic-and-planar", "Fields of the Dead": "rural-and-village",
-    "Forest of Wyrms": "mountain-and-underdark", "Fort Tamal": "town-and-keep", "Gauntlgrym": "mountain-and-underdark",
-    "Gharraghaur": "mountain-and-underdark", "Gracklstugh": "mountain-and-underdark", "Gundarlun": "coastal-and-swamp",
-    "Gwynneth": "coastal-and-swamp", "Halruaa": "metropolis-and-urban", "Hardbuckler": "rural-and-village",
-    "Hartsvale": "mountain-and-underdark", "Haungdannar": "coastal-and-swamp", "Helm's Hold": "town-and-keep",
-    "High Forest": "forest-and-wildland", "High Moor": "rural-and-village", "The Hordelands": "desert-and-arid",
-    "Icewind Dale": "arctic-and-tundra", "Illefarn": "forest-and-wildland", "Impiltur": "metropolis-and-urban",
-    "Ironmaster": "mountain-and-underdark", "Kara-Tur": "exotic-and-planar", "Kingdom of Man": "rural-and-village",
-    "Korinn Archipelago": "coastal-and-swamp", "The Lake of Steam": "coastal-and-swamp", "Lantan": "coastal-and-swamp",
-    "Longsaddle": "rural-and-village", "The Lords' Alliance": "generic", "Luiren": "rural-and-village",
-    "Luskan": "metropolis-and-urban", "Mantol-Derith": "mountain-and-underdark", "Marsh of Chelimber": "coastal-and-swamp",
-    "Menzoberranzan": "mountain-and-underdark", "Mintarn": "coastal-and-swamp", "Mirabar": "mountain-and-underdark",
-    "Mithral Hall": "mountain-and-underdark", "The Moonsea": "metropolis-and-urban", "The Moonshaes": "forest-and-wildland",
-    "Moray": "coastal-and-swamp", "Mulhorand": "desert-and-arid", "Najara": "coastal-and-swamp",
-    "Narfell": "arctic-and-tundra", "Nelanther Isles": "coastal-and-swamp", "Netheril": "desert-and-arid",
-    "Neverwinter": "metropolis-and-urban", "Nimbral": "exotic-and-planar", "Norland": "coastal-and-swamp",
-    "Northlander Isles": "arctic-and-tundra", "Oman's Isle": "coastal-and-swamp", "Orlumbor": "coastal-and-swamp",
-    "Phalorm": "rural-and-village", "Purple Rocks": "coastal-and-swamp", "Rashemen": "arctic-and-tundra",
-    "Rhymanthiin": "forest-and-wildland", "Ruathym": "arctic-and-tundra", "Scornubel": "town-and-keep",
-    "Secomber": "rural-and-village", "Sembia": "metropolis-and-urban", "Serpent Hills": "rural-and-village",
-    "Silverymoon": "metropolis-and-urban", "Skadaurak": "coastal-and-swamp", "Snowdown": "coastal-and-swamp",
-    "Sossal": "arctic-and-tundra", "Soubar": "town-and-keep", "Sundabar": "mountain-and-underdark",
-    "Ten-Towns": "arctic-and-tundra", "Tethyr": "metropolis-and-urban", "Thay": "metropolis-and-urban",
-    "The Halfway Inn": "rural-and-village", "The Underdark": "mountain-and-underdark", "The Whalebones": "arctic-and-tundra",
-    "Thornhold": "town-and-keep", "Trielta Hills": "rural-and-village", "Trollclaws": "mountain-and-underdark",
-    "Tuern": "coastal-and-swamp", "Tymanther": "metropolis-and-urban", "Unther": "desert-and-arid",
-    "Uthgardt Lands": "forest-and-wildland", "Vaasa": "arctic-and-tundra", "Warlock's Crypt": "exotic-and-planar",
-    "Waterdeep": "metropolis-and-urban", "Westgate": "metropolis-and-urban", "Yartar": "town-and-keep",
-    "Zakhara": "exotic-and-planar"
+    "Aglarond": "Forest & Wildland", "Alaron": "Coastal & Swamp", "Amn": "Metropolis & Urban",
+    "Amphail": "Rural & Village", "Athalantar": "Rural & Village", "Baldur's Gate": "Metropolis & Urban",
+    "Berdusk": "Town & Keep", "Besilmer": "Mountain & Underdark", "Beyond the Trackless Sea": "Exotic & Planar",
+    "Blingdenstone": "Mountain & Underdark", "Boareskyr Bridge": "Town & Keep", "Calimshan": "Desert & Arid",
+    "Candlekeep": "Town & Keep", "Chessenta": "Metropolis & Urban", "Chult": "Forest & Wildland",
+    "Citadel Adbar": "Mountain & Underdark", "Citadel Felbarr": "Mountain & Underdark", "The Cold Lands": "Arctic & Tundra",
+    "Cormyr": "Metropolis & Urban", "Daggerford": "Town & Keep", "The Dalelands": "Rural & Village",
+    "Damara": "Arctic & Tundra", "Dambrath": "Rural & Village", "Darkhold": "Town & Keep",
+    "Delzoun": "Mountain & Underdark", "Dragonspear Castle": "Town & Keep", "Eaerlann": "Forest & Wildland",
+    "Elfharrow": "Desert & Arid", "Elturgard": "Metropolis & Urban", "Elturel": "Metropolis & Urban",
+    "Evereska": "Forest & Wildland", "Evermeet": "Exotic & Planar", "Fields of the Dead": "Rural & Village",
+    "Forest of Wyrms": "Mountain & Underdark", "Fort Tamal": "Town & Keep", "Gauntlgrym": "Mountain & Underdark",
+    "Gharraghaur": "Mountain & Underdark", "Gracklstugh": "Mountain & Underdark", "Gundarlun": "Coastal & Swamp",
+    "Gwynneth": "Coastal & Swamp", "Halruaa": "Metropolis & Urban", "Hardbuckler": "Rural & Village",
+    "Hartsvale": "Mountain & Underdark", "Haungdannar": "Coastal & Swamp", "Helm's Hold": "Town & Keep",
+    "High Forest": "Forest & Wildland", "High Moor": "Rural & Village", "The Hordelands": "Desert & Arid",
+    "Icewind Dale": "Arctic & Tundra", "Illefarn": "Forest & Wildland", "Impiltur": "Metropolis & Urban",
+    "Ironmaster": "Mountain & Underdark", "Kara-Tur": "Exotic & Planar", "Kingdom of Man": "Rural & Village",
+    "Korinn Archipelago": "Coastal & Swamp", "The Lake of Steam": "Coastal & Swamp", "Lantan": "Coastal & Swamp",
+    "Longsaddle": "Rural & Village", "The Lords' Alliance": "Generic Fallback", "Luiren": "Rural & Village",
+    "Luskan": "Metropolis & Urban", "Mantol-Derith": "Mountain & Underdark", "Marsh of Chelimber": "Coastal & Swamp",
+    "Menzoberranzan": "Mountain & Underdark", "Mintarn": "Coastal & Swamp", "Mirabar": "Mountain & Underdark",
+    "Mithral Hall": "Mountain & Underdark", "The Moonsea": "Metropolis & Urban", "The Moonshaes": "Forest & Wildland",
+    "Moray": "Coastal & Swamp", "Mulhorand": "Desert & Arid", "Najara": "Coastal & Swamp",
+    "Narfell": "Arctic & Tundra", "Nelanther Isles": "Coastal & Swamp", "Netheril": "Desert & Arid",
+    "Neverwinter": "Metropolis & Urban", "Nimbral": "Exotic & Planar", "Norland": "Coastal & Swamp",
+    "Northlander Isles": "Arctic & Tundra", "Oman's Isle": "Coastal & Swamp", "Orlumbor": "Coastal & Swamp",
+    "Phalorm": "Rural & Village", "Purple Rocks": "Coastal & Swamp", "Rashemen": "Arctic & Tundra",
+    "Rhymanthiin": "Forest & Wildland", "Ruathym": "Arctic & Tundra", "Scornubel": "Town & Keep",
+    "Secomber": "Rural & Village", "Sembia": "Metropolis & Urban", "Serpent Hills": "Rural & Village",
+    "Silverymoon": "Metropolis & Urban", "Skadaurak": "Coastal & Swamp", "Snowdown": "Coastal & Swamp",
+    "Sossal": "Arctic & Tundra", "Soubar": "Town & Keep", "Sundabar": "Mountain & Underdark",
+    "Ten-Towns": "Arctic & Tundra", "Tethyr": "Metropolis & Urban", "Thay": "Metropolis & Urban",
+    "The Halfway Inn": "Rural & Village", "The Underdark": "Mountain & Underdark", "The Whalebones": "Arctic & Tundra",
+    "Thornhold": "Town & Keep", "Trielta Hills": "Rural & Village", "Trollclaws": "Mountain & Underdark",
+    "Tuern": "Coastal & Swamp", "Tymanther": "Metropolis & Urban", "Unther": "Desert & Arid",
+    "Uthgardt Lands": "Forest & Wildland", "Vaasa": "Arctic & Tundra", "Warlock's Crypt": "Exotic & Planar",
+    "Waterdeep": "Metropolis & Urban", "Westgate": "Metropolis & Urban", "Yartar": "Town & Keep",
+    "Zakhara": "Exotic & Planar"
 };
 
 // --- HELPER FUNCTIONS ---
@@ -51,22 +52,18 @@ const isAlignmentCompatible = (npcAlignment, deityAlignment) => {
     if (!npcAlignment || !deityAlignment) return true;
     const alignMap = { "Lawful Good": "LG", "Neutral Good": "NG", "Chaotic Good": "CG", "Lawful Neutral": "LN", "True Neutral": "N", "Chaotic Neutral": "CN", "Lawful Evil": "LE", "Neutral Evil": "NE", "Chaotic Evil": "CE" };
     
-    // Normalize string (e.g. "lawful good" -> "Lawful Good")
     const normalizedNpcAlignment = npcAlignment.toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
     const npcAbbr = alignMap[normalizedNpcAlignment];
     if (!npcAbbr) return false; 
     
     const normalizedDeityAlignment = deityAlignment.toUpperCase();
     
-    // Ethos (Law/Chaos) distance
     const npcEthos = npcAbbr.includes('L') ? -1 : npcAbbr.includes('C') ? 1 : 0;
     const deityEthos = normalizedDeityAlignment.includes('L') ? -1 : normalizedDeityAlignment.includes('C') ? 1 : 0;
     
-    // Morals (Good/Evil) distance
     const npcMorals = npcAbbr.includes('G') ? -1 : npcAbbr.includes('E') ? 1 : 0;
     const deityMorals = normalizedDeityAlignment.includes('G') ? -1 : normalizedDeityAlignment.includes('E') ? 1 : 0;
     
-    // Must be within 1 step on the alignment grid
     return Math.abs(npcEthos - deityEthos) <= 1 && Math.abs(npcMorals - deityMorals) <= 1;
 };
 
@@ -85,7 +82,7 @@ const rollTable = (tableName, filterFn = null) => {
             if (roll < 0) {
                 if (filterFn) {
                     if (filterFn(res)) return res.text;
-                    break; // break inner loop, try again
+                    break; 
                 } else {
                     return res.text;
                 }
@@ -96,24 +93,18 @@ const rollTable = (tableName, filterFn = null) => {
     return filterFn ? "Unaligned" : table.results[0].text;
 };
 
-// A smart resolver that tries to find the most specific table possible
-const smartRoll = (traitName, race, subrace) => {
-    let result = null;
-    // 1. Try Sub-Race specific
-    if (subrace) result = rollTable(`${traitName} (${subrace})`);
-    // 2. Try Race specific
-    if (!result && race) result = rollTable(`${traitName} (${race})`);
-    // 3. Try Generic fallback
-    if (!result) result = rollTable(traitName);
-    return result;
+// A highly robust cascade resolver that tries multiple naming variations found in your JSON
+const cascadeRoll = (patterns) => {
+    const validPatterns = patterns.filter(Boolean);
+    for (const p of validPatterns) {
+        const result = rollTable(p);
+        if (result) return result;
+    }
+    return null;
 };
 
 // --- CORE GENERATOR ENGINE ---
 
-/**
- * Generates all data for an NPC based on optional locks.
- * Exported so it can be called programmatically (e.g. by Carousing) without UI interaction.
- */
 export const generateNpcData = (locks = {}) => {
     // 1. Core Identity
     const race = locks.race && locks.race !== 'random' ? locks.race : (rollTable("NPC Race") || "Human");
@@ -129,61 +120,78 @@ export const generateNpcData = (locks = {}) => {
     const alignment = locks.alignment && locks.alignment !== 'random' ? locks.alignment : (rollTable("Alignment") || "True Neutral");
 
     // 2. Faith (Filtered by Alignment)
-    const faithTable = `Faith (${subrace})` in NPC_TABLES ? `Faith (${subrace})` : (`Faith (${race})` in NPC_TABLES ? `Faith (${race})` : "Faith");
-    const faithFilter = (res) => {
-        let deityAlignment = null;
-        const match = (res.text || "").match(/\(\s*(LG|NG|CG|LN|CN|LE|NE|CE|N)/i);
-        if (match && match[1]) deityAlignment = match[1].toUpperCase();
-        return isAlignmentCompatible(alignment, deityAlignment);
-    };
-    let faith = rollTable(faithTable, faithFilter);
-    if (faith && faith !== "Unaligned") {
-        // Strip out the alignment tags from the final string
-        faith = faith.replace(/\s*\(\s*(LG|NG|CG|LN|CN|LE|NE|CE|N).*/i, '').trim();
+    let faithTableToUse = null;
+    const faithTables = [`Faith (${subrace})`, `Faith (${race})`, `Faith (Default ${race})`, `Faith (Master List)`].filter(Boolean);
+    for (const t of faithTables) {
+        if (NPC_TABLES[t]) { faithTableToUse = t; break; }
+    }
+
+    let faith = null;
+    if (faithTableToUse) {
+        const faithFilter = (res) => {
+            let deityAlignment = null;
+            const match = (res.text || "").match(/\(\s*(LG|NG|CG|LN|CN|LE|NE|CE|N)/i);
+            if (match && match[1]) deityAlignment = match[1].toUpperCase();
+            return isAlignmentCompatible(alignment, deityAlignment);
+        };
+        faith = rollTable(faithTableToUse, faithFilter);
+        if (faith && faith !== "Unaligned") {
+            faith = faith.replace(/\s*\(\s*(LG|NG|CG|LN|CN|LE|NE|CE|N).*/i, '').trim();
+        } else {
+            faith = "Unaligned";
+        }
     } else {
         faith = "Unaligned";
     }
 
     // 3. Birthplace Archetype Routing
-    const birthRegion = smartRoll("Birth Region", race, subrace) || rollTable("Birth Region (Master)");
-    let birthplace = null;
+    const birthRegion = cascadeRoll([`Birth Region (${subrace})`, `Birth Region (Human - ${subrace})`, `Birth Region (${race})`, `Birth Region (Master)`]);
+    let birthplace = cascadeRoll([`Birthplace (${subrace})`, `Birthplace (${race})`]);
     
-    // Check for a specific birthplace table first
-    let specificBirthplaceTable = `Birthplace (${subrace})`;
-    if (!NPC_TABLES[specificBirthplaceTable]) specificBirthplaceTable = `Birthplace (${race})`;
-
-    if (NPC_TABLES[specificBirthplaceTable]) {
-        birthplace = rollTable(specificBirthplaceTable);
-    } else if (birthRegion) {
-        // Map region to archetype
-        const archetype = REGION_ARCHETYPE_MAP[birthRegion.trim()] || "generic";
-        birthplace = rollTable(`Birthplace Archetype (${archetype})`) || rollTable(`Birthplace Archetype (generic)`);
+    if (!birthplace && birthRegion) {
+        const archetype = REGION_ARCHETYPE_MAP[birthRegion.trim()] || "Generic Fallback";
+        birthplace = cascadeRoll([`Birthplace (${archetype})`, `Birthplace (Default)`]);
     }
 
-    // 4. Physical Traits
-    const age = smartRoll("Age", race, subrace);
-    const height = smartRoll("Height", race, subrace);
-    const weight = smartRoll("Weight", race, subrace);
-    const hair = smartRoll("Hair Color", race, subrace);
-    const eyes = smartRoll("Eye Color", race, subrace);
-    const skin = smartRoll("Skin Tone", race, subrace);
-    const build = smartRoll("Build", race, subrace);
-    const feature = smartRoll("Distinguishing Feature", race, subrace);
+    // 4. Physical Traits (Using the robust cascade resolver)
+    const age = cascadeRoll([`Age (${subrace})`, `Physical - Age (${subrace})`, `${subrace} Age`, `Age (${race})`, `Physical - Age (${race})`, `${race} Age`, `${race} Age (Default)`, `Age (Default ${race})`, `Age (Default)`]);
+    const height = cascadeRoll([`Height (${subrace})`, `Physical - Height (${subrace})`, `${subrace} Height`, `Height (${race})`, `Physical - Height (${race})`, `${race} Height (Default)`, `Height (Default ${race})`, `Height (Default)`]);
+    const weight = cascadeRoll([`Weight (${subrace})`, `Physical - Weight (${subrace})`, `${subrace} Weight`, `Weight (${race})`, `Physical - Weight (${race})`, `${race} Weight (Default)`, `Weight (Default ${race})`, `Weight (Default)`]);
+    const hair = cascadeRoll([`Hair Color (${subrace})`, `Hair (${subrace})`, `Physical - Hair Color (${subrace})`, `${subrace} Hair Color`, `Hair Color (${race})`, `Hair (${race})`, `Physical - Hair Color (${race})`, `${race} Hair Color (Default)`, `Hair Color (Default ${race})`, `Hair (Default)`]);
+    const eyes = cascadeRoll([`Eye Color (${subrace})`, `Physical - Eye Color (${subrace})`, `${subrace} Eye Color`, `Eye Color (${race})`, `Physical - Eye Color (${race})`, `${race} Eye Color (Default)`, `Eye Color (Default ${race})`, `Eye Color (Default)`]);
+    const skin = cascadeRoll([`Skin Tone (${subrace})`, `Physical - Skin Tone (${subrace})`, `${subrace} Skin Tone`, `Skin Tone (${race})`, `Physical - Skin Tone (${race})`, `${race} Skin Tone (Default)`, `Skin Tone (Default ${race})`, `Skin Tone (Default)`]);
+    const build = cascadeRoll([`Build (${subrace})`, `Build (${race})`, `Build (Default ${race})`, `Build (Default)`]);
+    const feature = cascadeRoll([`Feature (${subrace})`, `Feature (${race})`, `Feature (Default ${race})`, `Distinguishing Feature (Default)`, `Feature (Default)`]);
 
     // 5. Names
-    let nameTableName = `Names, ${gender} (${race})`;
-    if (!NPC_TABLES[nameTableName]) nameTableName = `First Names, ${gender} (${race})`; // Try alternate phrasing
-    if (!NPC_TABLES[nameTableName]) nameTableName = `Names (${race})`;
+    const firstNameBase = gender === 'Male' ? 'Male Name' : 'Female Name';
+    const altNameBase = gender === 'Male' ? 'Male' : 'Female';
     
-    let firstName = rollTable(nameTableName);
-    let lastName = smartRoll("Last Names", race, subrace) || smartRoll("Clan Names", race, subrace) || smartRoll("Surnames", race, subrace);
+    let firstName = cascadeRoll([
+        `${firstNameBase} (${subrace})`,
+        `Names (${altNameBase}, ${subrace})`,
+        `${subrace} First Name - ${gender}`,
+        `${firstNameBase} (${race})`,
+        `Names (${altNameBase}, ${race})`,
+        `${firstNameBase} (Default ${race})`
+    ]);
+
+    let lastName = cascadeRoll([
+        `Last Name (${subrace})`,
+        `Names (Last, ${subrace})`,
+        `Names (Tribe, ${subrace})`,
+        `${subrace} Last Name`,
+        `Last Name (${race})`,
+        `Names (Last, ${race})`,
+        `Last Name (Default ${race})`
+    ]);
     
     let fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
     if (!fullName) fullName = `Unidentified ${race}`;
 
     // Assemble the Markdown Biography for the final Codex Entry
     let desc = `**Gender:** ${gender} | **Age:** ${age || '?'} | **Alignment:** ${alignment}\n`;
-    desc += `**Profession:** ${profession} | **Faith:** ${faith}\n\n`;
+    desc += `**Profession:** ${profession} | **Faith:** ${faith || 'Unaligned'}\n\n`;
     
     desc += `### Appearance\n`;
     desc += `**Height:** ${height || '?'} | **Weight:** ${weight || '?'} | **Build:** ${build || 'Average'}\n`;
@@ -222,7 +230,7 @@ const renderNpcPreviewModal = (data) => {
     const container = document.getElementById('global-popup-container');
     if (!container) return;
 
-    // Filter and map the physical and background traits to match the Foundry preview exactly
+    // Filter and map the physical and background traits
     const listItems = [
         { label: "Race", val: data.race },
         { label: "Gender", val: data.gender },
@@ -296,7 +304,6 @@ export const executeNpcGeneration = () => {
 };
 
 export const regenerateNpc = () => {
-    // Use the saved locks to re-roll
     const locks = window.appData.tempNpcLocks || {};
     const npcData = generateNpcData(locks);
     window.appData.tempNpcData = npcData;
@@ -328,18 +335,15 @@ export const confirmNpcGeneration = async () => {
     // Append to Codex
     camp.codex = [...(camp.codex || []), newEntry];
     
-    // Save to Firestore
     await saveCampaign(camp);
     
     document.getElementById('global-popup-container').innerHTML = '';
     
-    // Clean up temp state
     window.appData.tempNpcData = null;
     window.appData.tempNpcLocks = null;
 
     notify(`${npcData.name} successfully added to the Codex.`, "success");
     
-    // Force a re-render so the new NPC appears in the library instantly
     if (window.appActions.reRender) window.appActions.reRender(true);
 };
 
