@@ -61,9 +61,10 @@ export function getBazaarHTML(state) {
         });
 
         const sortedLocations = Object.keys(groupedShops).sort((a, b) => a.localeCompare(b));
+        const collapsedLocs = state.bazaarCollapsedLocs || [];
 
         const renderShopGrid = (shops) => {
-            let gridHtml = `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8">`;
+            let gridHtml = `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">`;
             
             shops.forEach(shop => {
                 const safeName = escapeHTML(shop.name);
@@ -103,25 +104,60 @@ export function getBazaarHTML(state) {
             return gridHtml;
         };
 
-        // Render standard locations first
+        // Render standard locations first as collapsible folders
         sortedLocations.forEach(loc => {
+            const isCollapsed = collapsedLocs.includes(loc);
+            const safeLoc = escapeHTML(loc);
+            const escapedLocParam = safeLoc.replace(/'/g, "\\'");
+            const shopCount = groupedShops[loc].length;
+
             listHtml += `
-                <h3 class="text-lg font-serif font-bold text-stone-800 mb-4 flex items-center border-b-2 border-stone-300 pb-2">
-                    <i class="fa-solid fa-map-location-dot mr-2 text-stone-400"></i> ${escapeHTML(loc)}
-                </h3>
+            <div class="mb-4 bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm shadow-sm overflow-hidden">
+                <div class="bg-stone-900 p-3 sm:p-4 flex items-center justify-between transition-colors border-b ${isCollapsed ? 'border-transparent' : 'border-stone-700'}">
+                    <button class="flex-grow flex items-center text-amber-500 hover:bg-stone-800 transition-colors text-left focus:outline-none -m-3 sm:-m-4 p-3 sm:p-4" onclick="window.appActions.toggleBazaarLocation('${escapedLocParam}')">
+                        <i class="fa-solid fa-map-location-dot mr-3 text-stone-400 text-lg"></i>
+                        <span class="font-serif font-bold text-base sm:text-lg tracking-wide">${safeLoc}</span>
+                        <span class="bg-stone-800 text-stone-400 text-[10px] px-2 py-0.5 rounded-full ml-3 border border-stone-700 font-sans">${shopCount}</span>
+                        <i class="fa-solid fa-chevron-down ml-auto transition-transform duration-200 ${isCollapsed ? '' : 'rotate-180'} text-stone-500"></i>
+                    </button>
+                    ${isDM ? `
+                    <div class="flex gap-2 ml-4 shrink-0 relative z-10">
+                        <button onclick="window.appActions.toggleAllShops('${escapedLocParam}', true)" class="px-2 py-1.5 bg-emerald-900/40 hover:bg-emerald-800 text-emerald-400 border border-emerald-700/50 rounded-sm transition text-[9px] font-bold uppercase tracking-wider shadow-sm" title="Open all shops here"><i class="fa-solid fa-door-open sm:mr-1"></i><span class="hidden sm:inline"> Open All</span></button>
+                        <button onclick="window.appActions.toggleAllShops('${escapedLocParam}', false)" class="px-2 py-1.5 bg-red-900/40 hover:bg-red-800 text-red-400 border border-red-700/50 rounded-sm transition text-[9px] font-bold uppercase tracking-wider shadow-sm" title="Close all shops here"><i class="fa-solid fa-door-closed sm:mr-1"></i><span class="hidden sm:inline"> Close All</span></button>
+                    </div>
+                    ` : ''}
+                </div>
+                
+                <div class="${isCollapsed ? 'hidden' : 'p-4 sm:p-6'} bg-[#fdfbf7]">
+                    ${renderShopGrid(groupedShops[loc])}
+                </div>
+            </div>
             `;
-            listHtml += renderShopGrid(groupedShops[loc]);
         });
 
         // Render traveling merchants in their own block at the bottom
         if (travelingShops.length > 0) {
+            const isCollapsed = collapsedLocs.includes('Traveling Merchants');
             listHtml += `
-                <div class="mt-8">
-                    <h3 class="text-lg font-serif font-bold text-emerald-900 mb-4 flex items-center border-b-2 border-emerald-300 pb-2">
-                        <i class="fa-solid fa-caravan mr-2 text-emerald-600"></i> Traveling Merchants
-                    </h3>
+            <div class="mt-6 mb-4 bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm shadow-sm overflow-hidden">
+                <div class="bg-stone-900 p-3 sm:p-4 flex items-center justify-between transition-colors border-b ${isCollapsed ? 'border-transparent' : 'border-stone-700'}">
+                    <button class="flex-grow flex items-center text-emerald-500 hover:bg-stone-800 transition-colors text-left focus:outline-none -m-3 sm:-m-4 p-3 sm:p-4" onclick="window.appActions.toggleBazaarLocation('Traveling Merchants')">
+                        <i class="fa-solid fa-caravan mr-3 text-emerald-600 text-lg"></i>
+                        <span class="font-serif font-bold text-base sm:text-lg tracking-wide">Traveling Merchants</span>
+                        <span class="bg-stone-800 text-stone-400 text-[10px] px-2 py-0.5 rounded-full ml-3 border border-stone-700 font-sans">${travelingShops.length}</span>
+                        <i class="fa-solid fa-chevron-down ml-auto transition-transform duration-200 ${isCollapsed ? '' : 'rotate-180'} text-stone-500"></i>
+                    </button>
+                    ${isDM ? `
+                    <div class="flex gap-2 ml-4 shrink-0 relative z-10">
+                        <button onclick="window.appActions.toggleAllTravelingShops(true)" class="px-2 py-1.5 bg-emerald-900/40 hover:bg-emerald-800 text-emerald-400 border border-emerald-700/50 rounded-sm transition text-[9px] font-bold uppercase tracking-wider shadow-sm" title="Open all traveling shops"><i class="fa-solid fa-door-open sm:mr-1"></i><span class="hidden sm:inline"> Open All</span></button>
+                        <button onclick="window.appActions.toggleAllTravelingShops(false)" class="px-2 py-1.5 bg-red-900/40 hover:bg-red-800 text-red-400 border border-red-700/50 rounded-sm transition text-[9px] font-bold uppercase tracking-wider shadow-sm" title="Close all traveling shops"><i class="fa-solid fa-door-closed sm:mr-1"></i><span class="hidden sm:inline"> Close All</span></button>
+                    </div>
+                    ` : ''}
+                </div>
+                <div class="${isCollapsed ? 'hidden' : 'p-4 sm:p-6'} bg-[#fdfbf7]">
                     ${renderShopGrid(travelingShops)}
                 </div>
+            </div>
             `;
         }
     }
