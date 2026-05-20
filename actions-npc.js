@@ -79,6 +79,29 @@ const cascadeRoll = (patterns) => {
     return null;
 };
 
+const isAlignmentCompatible = (npcAlignment, deityAlignment) => {
+    if (!npcAlignment || !deityAlignment) return true;
+    
+    const alignMap = { 
+        "Lawful Good": "LG", "Neutral Good": "NG", "Chaotic Good": "CG", 
+        "Lawful Neutral": "LN", "True Neutral": "N", "Neutral": "N", "Chaotic Neutral": "CN", 
+        "Lawful Evil": "LE", "Neutral Evil": "NE", "Chaotic Evil": "CE", "Unaligned": "N"
+    };
+    
+    const normalizedNpcAlignment = npcAlignment.toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
+    const npcAbbr = alignMap[normalizedNpcAlignment] || "N"; 
+    
+    const normalizedDeityAlignment = deityAlignment.toUpperCase();
+    
+    const npcEthos = npcAbbr.includes('L') ? -1 : npcAbbr.includes('C') ? 1 : 0;
+    const deityEthos = normalizedDeityAlignment.includes('L') ? -1 : normalizedDeityAlignment.includes('C') ? 1 : 0;
+    
+    const npcMorals = npcAbbr.includes('G') ? -1 : npcAbbr.includes('E') ? 1 : 0;
+    const deityMorals = normalizedDeityAlignment.includes('G') ? -1 : normalizedDeityAlignment.includes('E') ? 1 : 0;
+    
+    return Math.abs(npcEthos - deityEthos) <= 1 && Math.abs(npcMorals - deityMorals) <= 1;
+};
+
 // --- CORE GENERATOR ENGINE ---
 
 export const generateNpcData = (locks = {}) => {
@@ -94,7 +117,14 @@ export const generateNpcData = (locks = {}) => {
     const finalRaceStr = subrace ? `${race} (${subrace})` : race;
     const gender = locks.gender && locks.gender !== 'random' ? locks.gender : (rollTable("Gender") || "Female");
     const profession = locks.profession && locks.profession !== 'random' ? locks.profession : (rollTable("Profession") || "Commoner");
-    const alignment = locks.alignment && locks.alignment !== 'random' ? locks.alignment : (rollTable("Alignment") || "True Neutral");
+    
+    const alignment = locks.alignment && locks.alignment !== 'random' ? locks.alignment : (cascadeRoll([
+        `Alignment (${subrace})`,
+        `Alignment (${subrace} ${race})`,
+        `Alignment (${race})`,
+        `Alignment (Default ${race})`,
+        `Alignment`
+    ]) || "True Neutral");
 
     // 2. Birth Region & Birthplace
     const birthRegion = cascadeRoll([
@@ -114,7 +144,35 @@ export const generateNpcData = (locks = {}) => {
         birthplace = cascadeRoll([`Birthplace (${archetype})`, `Birthplace (Default)`]);
     }
 
-    // 3. Physical Traits (Restored Massive Resolver Arrays)
+    // 3. Faith (Filtered by Alignment)
+    const faithTableToUse = [
+        `Faith (${subrace})`, 
+        `Faith (${subrace} ${race})`, 
+        `Faith (${race})`, 
+        `Faith (Default ${race})`, 
+        `Faith (Master List)`
+    ].find(t => t && NPC_TABLES[t]);
+
+    let faith = null;
+    if (faithTableToUse) {
+        const faithFilter = (res) => {
+            let deityAlignment = null;
+            const match = (res.text || "").match(/\(\s*(LG|NG|CG|LN|CN|LE|NE|CE|N)\b/i);
+            if (match && match[1]) deityAlignment = match[1].toUpperCase();
+            return isAlignmentCompatible(alignment, deityAlignment);
+        };
+        faith = rollTable(faithTableToUse, faithFilter);
+        if (faith && faith !== "Unaligned") {
+            // Strip out the alignment tags from the final string
+            faith = faith.replace(/\s*\(\s*(LG|NG|CG|LN|CN|LE|NE|CE|N)\b.*/i, '').trim();
+        } else {
+            faith = "Unaligned";
+        }
+    } else {
+        faith = "Unaligned";
+    }
+
+    // 4. Physical Traits (Restored Massive Resolver Arrays)
     const age = cascadeRoll([
         `Age (${subrace})`, `Physical - Age (${subrace})`, `${subrace} Age`, 
         `Age (${race})`, `Physical - Age (${race})`, `${race} Age`, `${race} Age (Default)`, 
@@ -160,7 +218,7 @@ export const generateNpcData = (locks = {}) => {
         `Feature (Default ${race})`, `Distinguishing Feature (Default)`, `Feature (Default)`
     ]);
 
-    // 4. Name Generation
+    // 5. Name Generation
     const firstNameBase = gender === 'Male' ? 'Male Name' : 'Female Name';
     const altGender = gender === 'Male' ? 'Male' : 'Female';
     
@@ -195,7 +253,7 @@ export const generateNpcData = (locks = {}) => {
     let fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
     if (!fullName) fullName = `Unidentified ${race}`;
 
-    // 5. Assemble specific Codex Fields
+    // 6. Assemble specific Codex Fields
     let appearanceText = "";
     if (build) appearanceText += `**Build:** ${build}\n`;
     if (feature) appearanceText += `**Distinguishing Feature:** ${feature}\n`;
@@ -227,6 +285,7 @@ export const generateNpcData = (locks = {}) => {
         build: build,
         feature: feature,
         profession: profession,
+        faith: faith,
         classLevel: profession, // Map profession to classLevel for Codex display
         birthplace: birthplace,
         birthRegion: birthRegion,
@@ -259,6 +318,7 @@ const renderNpcPreviewModal = (data) => {
         { label: "Build", val: data.build },
         { label: "Feature", val: data.feature },
         { label: "Profession", val: data.profession },
+        { label: "Faith", val: data.faith },
         { label: "Birthplace", val: data.birthplace },
         { label: "Birth Region", val: data.birthRegion }
     ].filter(item => item.val).map(item => `<li class="pb-1"><strong class="text-stone-900">${item.label}:</strong> <span class="text-stone-700">${item.val}</span></li>`).join('');
@@ -346,6 +406,7 @@ export const confirmNpcGeneration = async () => {
         race: npcData.race,
         classLevel: npcData.classLevel, 
         alignment: npcData.alignment,
+        faith: npcData.faith, // Explicitly save faith so it renders in the UI
         gender: npcData.gender,
         age: npcData.age,
         height: npcData.height,
