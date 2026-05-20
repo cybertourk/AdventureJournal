@@ -21,9 +21,10 @@ export function openNpcGeneratorUI() {
         return html;
     };
 
-    const raceOptions = getOptionsHtml("Race (Primary)");
+    // FIXED: Now pointing directly to your specific table names!
+    const raceOptions = getOptionsHtml("NPC Race");
     const genderOptions = getOptionsHtml("Gender");
-    const professionOptions = getOptionsHtml("Professions / Occupation");
+    const professionOptions = getOptionsHtml("Profession");
 
     container.innerHTML = `
         <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[18000] backdrop-blur-sm animate-in">
