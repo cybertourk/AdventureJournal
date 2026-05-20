@@ -33,25 +33,28 @@ export const executeNpcGeneration = async () => {
         return table.results[0].text;
     };
 
-    // Determine final values
-    const finalRace = race === 'random' ? rollTable("Race (Primary)") : race;
+    // Determine final values (Targeting your specific table names!)
+    const finalRace = race === 'random' ? rollTable("NPC Race") : race;
     const finalGender = gender === 'random' ? rollTable("Gender") : gender;
-    const finalProf = profession === 'random' ? rollTable("Professions / Occupation") : profession;
+    const finalProf = profession === 'random' ? rollTable("Profession") : profession;
     
     // Sub-race selection
     let finalSubrace = "";
     if (subrace !== 'random' && subrace !== 'None Available') {
         finalSubrace = subrace;
     } else {
-        // Try to roll for it
+        // Try to roll for it if a table exists
         const subtableName = `Sub-Race (${finalRace})`;
         if (NPC_TABLES[subtableName]) {
             finalSubrace = rollTable(subtableName);
         }
     }
 
-    // Name generation
-    const name = rollTable(`Names (${finalRace})`);
+    // Name generation (Fallback if a specific name table isn't found)
+    let name = rollTable(`Names (${finalRace})`);
+    if (name === "Unknown") {
+        name = `Unidentified ${finalRace}`; 
+    }
     
     const newEntry = {
         id: generateId(),
