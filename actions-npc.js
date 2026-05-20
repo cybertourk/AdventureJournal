@@ -195,22 +195,26 @@ export const generateNpcData = (locks = {}) => {
     let fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
     if (!fullName) fullName = `Unidentified ${race}`;
 
-    // 5. Assemble the Markdown Biography for the Codex Entry
-    let desc = `**Gender:** ${gender} | **Age:** ${age || '?'} | **Alignment:** ${alignment}\n`;
-    desc += `**Profession:** ${profession} | **Faith:** Unaligned\n\n`;
-    
-    desc += `### Appearance\n`;
-    desc += `**Height:** ${height || '?'} | **Weight:** ${weight || '?'} | **Build:** ${build || 'Average'}\n`;
-    desc += `**Hair:** ${hair || '?'} | **Eyes:** ${eyes || '?'} | **Skin:** ${skin || '?'}\n`;
-    if (feature) desc += `**Distinguishing Feature:** ${feature}\n`;
-    
-    desc += `\n### Background\n`;
-    if (birthRegion) desc += `**Birth Region:** ${birthRegion}\n`;
-    if (birthplace) desc += `**Birthplace:** ${birthplace}\n`;
+    // 5. Assemble specific Codex Fields
+    let appearanceText = "";
+    if (build) appearanceText += `**Build:** ${build}\n`;
+    if (feature) appearanceText += `**Distinguishing Feature:** ${feature}\n`;
+
+    let backstoryText = "";
+    if (birthRegion || birthplace) {
+        backstoryText += `**Origin:** `;
+        if (birthplace) backstoryText += `Born in ${birthplace}`;
+        if (birthplace && birthRegion) backstoryText += ` in the `;
+        if (!birthplace && birthRegion) backstoryText += `Hails from the `;
+        if (birthRegion) backstoryText += `${birthRegion}`;
+        backstoryText += `.\n`;
+    }
+
+    let publicDesc = `A ${gender.toLowerCase()} ${finalRaceStr} working as a ${profession.toLowerCase()}.`;
 
     return {
         name: fullName,
-        desc: desc,
+        desc: publicDesc, // Short public knowledge
         race: finalRaceStr,
         gender: gender,
         alignment: alignment,
@@ -223,9 +227,12 @@ export const generateNpcData = (locks = {}) => {
         build: build,
         feature: feature,
         profession: profession,
+        classLevel: profession, // Map profession to classLevel for Codex display
         birthplace: birthplace,
         birthRegion: birthRegion,
-        tags: ['Generated', finalRaceStr, profession].filter(Boolean)
+        appearance: appearanceText.trim(),
+        backstory: backstoryText.trim(),
+        tags: [finalRaceStr, profession].filter(Boolean) // Purged the "Generated" tag
     };
 };
 
@@ -325,17 +332,29 @@ export const confirmNpcGeneration = async () => {
     const camp = window.appData.activeCampaign;
     if (!camp) return;
 
+    // Map all generated data to the correct Codex fields!
     const newEntry = {
         id: generateId(),
         name: npcData.name,
         type: 'NPC',
         tags: npcData.tags,
-        desc: npcData.desc,
+        desc: npcData.desc, // Rumors/Public Knowledge
         authorId: window.appData.currentUserUid,
         visibility: { mode: 'public' },
+        
+        // Exact Codex Field Mapping
         race: npcData.race,
+        classLevel: npcData.classLevel, 
+        alignment: npcData.alignment,
         gender: npcData.gender,
-        profession: npcData.profession
+        age: npcData.age,
+        height: npcData.height,
+        weight: npcData.weight,
+        eyes: npcData.eyes,
+        hair: npcData.hair,
+        skin: npcData.skin,
+        appearance: npcData.appearance,
+        backstory: npcData.backstory
     };
 
     camp.codex = [...(camp.codex || []), newEntry];
