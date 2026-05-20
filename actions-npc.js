@@ -115,8 +115,6 @@ const smartRoll = (traitName, race, subrace) => {
  * Exported so it can be called programmatically (e.g. by Carousing) without UI interaction.
  */
 export const generateNpcData = (locks = {}) => {
-    const generated = {};
-
     // 1. Core Identity
     const race = locks.race && locks.race !== 'random' ? locks.race : (rollTable("NPC Race") || "Human");
     let subrace = locks.subrace && locks.subrace !== 'random' ? locks.subrace : "";
@@ -183,7 +181,7 @@ export const generateNpcData = (locks = {}) => {
     let fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
     if (!fullName) fullName = `Unidentified ${race}`;
 
-    // Assemble the Markdown Biography
+    // Assemble the Markdown Biography for the final Codex Entry
     let desc = `**Gender:** ${gender} | **Age:** ${age || '?'} | **Alignment:** ${alignment}\n`;
     desc += `**Profession:** ${profession} | **Faith:** ${faith}\n\n`;
     
@@ -201,30 +199,118 @@ export const generateNpcData = (locks = {}) => {
         desc: desc,
         race: finalRaceStr,
         gender: gender,
+        alignment: alignment,
+        age: age,
+        height: height,
+        weight: weight,
+        hair: hair,
+        eyes: eyes,
+        skin: skin,
+        build: build,
+        feature: feature,
         profession: profession,
+        faith: faith,
+        birthplace: birthplace,
+        birthRegion: birthRegion,
         tags: ['Generated', finalRaceStr, profession].filter(Boolean)
     };
 };
 
-// --- UI EVENT HANDLER ---
+// --- UI EVENT HANDLERS ---
 
-export const executeNpcGeneration = async () => {
+const renderNpcPreviewModal = (data) => {
+    const container = document.getElementById('global-popup-container');
+    if (!container) return;
+
+    // Filter and map the physical and background traits to match the Foundry preview exactly
+    const listItems = [
+        { label: "Race", val: data.race },
+        { label: "Gender", val: data.gender },
+        { label: "Alignment", val: data.alignment },
+        { label: "Age", val: data.age },
+        { label: "Height", val: data.height },
+        { label: "Weight", val: data.weight },
+        { label: "Hair", val: data.hair },
+        { label: "Eyes", val: data.eyes },
+        { label: "Skin", val: data.skin },
+        { label: "Build", val: data.build },
+        { label: "Feature", val: data.feature },
+        { label: "Profession", val: data.profession },
+        { label: "Faith", val: data.faith },
+        { label: "Birthplace", val: data.birthplace },
+        { label: "Birth Region", val: data.birthRegion }
+    ].filter(item => item.val).map(item => `<li class="pb-1"><strong class="text-stone-900">${item.label}:</strong> <span class="text-stone-700">${item.val}</span></li>`).join('');
+
+    container.innerHTML = `
+        <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[18000] backdrop-blur-sm animate-in">
+            <div class="bg-[#f4ebd8] rounded-sm w-full max-w-md border border-[#d4c5a9] shadow-2xl relative flex flex-col max-h-[90vh]">
+                
+                <div class="bg-stone-900 p-4 border-b-4 border-fuchsia-600 shadow-md flex justify-between items-center text-amber-50 shrink-0">
+                    <h2 class="text-lg font-serif font-bold flex items-center"><i class="fa-solid fa-clipboard-user mr-2 text-fuchsia-400"></i> NPC Preview</h2>
+                    <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="text-stone-400 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+                </div>
+                
+                <div class="p-5 sm:p-6 bg-[#fdfbf7] overflow-y-auto custom-scrollbar flex-grow">
+                    <p class="text-sm text-stone-700 italic mb-4 border-b border-[#d4c5a9] pb-4">The following NPC has been generated. How would you like to proceed?</p>
+                    
+                    <h3 class="text-xl font-serif font-bold text-red-900 mb-3 border-b border-[#d4c5a9] pb-1">${data.name}</h3>
+                    
+                    <ul class="text-sm space-y-1 ml-4 list-disc marker:text-stone-400 font-serif leading-snug">
+                        ${listItems}
+                    </ul>
+                </div>
+                
+                <div class="bg-[#e8dec7] p-4 border-t border-[#d4c5a9] flex flex-wrap sm:flex-nowrap justify-between gap-3 shrink-0 z-10 shadow-[0_-4px_10px_rgba(0,0,0,0.1)]">
+                    <button onclick="window.appActions.regenerateNpc()" class="w-full sm:w-auto px-4 py-2 bg-white text-stone-700 border border-stone-400 rounded-sm hover:bg-stone-100 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-sm flex justify-center items-center"><i class="fa-solid fa-dice mr-2"></i> Re-Generate</button>
+                    
+                    <div class="flex gap-2 w-full sm:w-auto justify-end">
+                        <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="px-4 py-2 text-stone-600 border border-stone-400 rounded-sm hover:bg-stone-300 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs">Cancel</button>
+                        <button onclick="window.appActions.confirmNpcGeneration()" class="px-5 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs flex items-center shadow-md"><i class="fa-solid fa-user-plus mr-2"></i> Create NPC</button>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+    `;
+};
+
+export const executeNpcGeneration = () => {
+    // Gather locks from the DOM if triggered from the main UI
+    const race = document.getElementById('npc-gen-race')?.value;
+    const subrace = document.getElementById('npc-gen-subrace')?.value;
+    const gender = document.getElementById('npc-gen-gender')?.value;
+    const profession = document.getElementById('npc-gen-prof')?.value;
+
+    const locks = {};
+    if (race && race !== 'random') locks.race = race;
+    if (subrace && subrace !== 'random' && subrace !== 'None Available') locks.subrace = subrace;
+    if (gender && gender !== 'random') locks.gender = gender;
+    if (profession && profession !== 'random') locks.profession = profession;
+
+    window.appData.tempNpcLocks = locks;
+    
+    const npcData = generateNpcData(locks);
+    window.appData.tempNpcData = npcData;
+
+    renderNpcPreviewModal(npcData);
+};
+
+export const regenerateNpc = () => {
+    // Use the saved locks to re-roll
+    const locks = window.appData.tempNpcLocks || {};
+    const npcData = generateNpcData(locks);
+    window.appData.tempNpcData = npcData;
+    
+    renderNpcPreviewModal(npcData);
+};
+
+export const confirmNpcGeneration = async () => {
+    const npcData = window.appData.tempNpcData;
+    if (!npcData) return;
+
     updateDerivedState();
     const camp = window.appData.activeCampaign;
     if (!camp) return;
-
-    const race = document.getElementById('npc-gen-race').value;
-    const subrace = document.getElementById('npc-gen-subrace').value;
-    const gender = document.getElementById('npc-gen-gender').value;
-    const profession = document.getElementById('npc-gen-prof').value;
-
-    const locks = {};
-    if (race !== 'random') locks.race = race;
-    if (subrace !== 'random' && subrace !== 'None Available') locks.subrace = subrace;
-    if (gender !== 'random') locks.gender = gender;
-    if (profession !== 'random') locks.profession = profession;
-
-    const npcData = generateNpcData(locks);
 
     const newEntry = {
         id: generateId(),
@@ -233,7 +319,10 @@ export const executeNpcGeneration = async () => {
         tags: npcData.tags,
         desc: npcData.desc,
         authorId: window.appData.currentUserUid,
-        visibility: { mode: 'public' }
+        visibility: { mode: 'public' },
+        race: npcData.race,
+        gender: npcData.gender,
+        profession: npcData.profession
     };
 
     // Append to Codex
@@ -243,6 +332,11 @@ export const executeNpcGeneration = async () => {
     await saveCampaign(camp);
     
     document.getElementById('global-popup-container').innerHTML = '';
+    
+    // Clean up temp state
+    window.appData.tempNpcData = null;
+    window.appData.tempNpcLocks = null;
+
     notify(`${npcData.name} successfully added to the Codex.`, "success");
     
     // Force a re-render so the new NPC appears in the library instantly
@@ -252,4 +346,6 @@ export const executeNpcGeneration = async () => {
 if (typeof window !== 'undefined') {
     window.appActions = window.appActions || {};
     window.appActions.executeNpcGeneration = executeNpcGeneration;
+    window.appActions.regenerateNpc = regenerateNpc;
+    window.appActions.confirmNpcGeneration = confirmNpcGeneration;
 }
