@@ -176,7 +176,7 @@ export function getBazaarHTML(state) {
             
             ${isDM ? `
             <div class="flex flex-wrap gap-2 w-full md:w-auto">
-                <button onclick="window.appActions.openShopEditModal()" class="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-emerald-800 text-amber-50 border border-emerald-900 rounded-sm hover:bg-emerald-700 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-sm active:scale-95">
+                <button onclick="window.appActions.openShopEditModal()" class="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-emerald-800 text-amber-50 border border-emerald-900 rounded-sm hover:bg-emerald-700 transition font-bold uppercase tracking-wider text-[10px] shadow-sm active:scale-95">
                     <i class="fa-solid fa-plus mr-1.5"></i> Establish Shop
                 </button>
             </div>
@@ -203,9 +203,12 @@ export function getStorefrontHTML(state) {
 
     const inventory = shop.inventory || [];
     
-    // Check if player can buy/sell
+    // UNIFIED MULTIPLE CHARACTERS RESOLUTION: Find the player's active character in the current adventure arc
     const myUid = state.currentUserUid;
-    const pc = camp.playerCharacters?.find(p => p.playerId === myUid);
+    const adv = state.activeAdventure || window.appData?.activeAdventure;
+    const activePcIds = adv?.activePcIds || [];
+    const pc = camp.playerCharacters?.find(p => p.playerId === myUid && activePcIds.includes(p.id)) 
+             || camp.playerCharacters?.find(p => p.playerId === myUid);
     const canInteract = !!pc || camp._isDM;
 
     let invHtml = '';
@@ -337,8 +340,7 @@ export function getShopBackroomHTML(state) {
             <h3 class="text-lg font-serif font-bold text-blue-900 flex items-center mb-4 border-b border-blue-200 pb-2"><i class="fa-solid fa-inbox mr-2"></i> Pending Player Offers</h3>
             <div class="space-y-3">
         `;
-        pendingSales.forEach(p => {
-            proposalsHtml += `
+        proposalsHtml += pendingSales.map(p => `
             <div class="bg-white p-3 border border-blue-200 rounded-sm shadow-sm flex flex-col sm:flex-row justify-between sm:items-center gap-3">
                 <div>
                     <span class="block text-sm font-bold text-stone-900">${escapeHTML(p.itemName)}</span>
@@ -352,8 +354,7 @@ export function getShopBackroomHTML(state) {
                     <button onclick="window.appActions.approveSaleProposal('${shop.id}', '${p.id}')" class="px-4 py-2 bg-emerald-700 text-white hover:bg-emerald-600 rounded-sm transition text-[10px] font-bold uppercase tracking-wider shadow-md flex items-center"><i class="fa-solid fa-check mr-1.5"></i> Approve</button>
                 </div>
             </div>
-            `;
-        });
+        `).join('');
         proposalsHtml += `</div></div>`;
     }
 
@@ -432,7 +433,7 @@ export function getShopBackroomHTML(state) {
                 <div class="bg-white border border-[#d4c5a9] p-3 rounded-sm shadow-sm text-center">
                     <span class="block text-[9px] uppercase font-bold text-stone-500 tracking-widest mb-1">Status</span>
                     ${shop.isOpen ? `<span class="text-sm font-black text-emerald-600"><i class="fa-solid fa-door-open mr-1"></i> Open to Party</span>` : `<span class="text-sm font-black text-red-600"><i class="fa-solid fa-door-closed mr-1"></i> Closed</span>`}
-                </div>
+                    </div>
                 <div class="bg-white border border-[#d4c5a9] p-3 rounded-sm shadow-sm text-center">
                     <span class="block text-[9px] uppercase font-bold text-stone-500 tracking-widest mb-1">Buying</span>
                     ${shop.buysItems ? `<span class="text-sm font-black text-blue-600"><i class="fa-solid fa-scale-balanced mr-1"></i> Active</span>` : `<span class="text-sm font-black text-stone-400"><i class="fa-solid fa-ban mr-1"></i> Refusing</span>`}
