@@ -914,7 +914,7 @@ export const approveSaleProposal = async (shopId, proposalId) => {
     if (shopIndex === -1) return;
 
     const shop = camp.shops[shopIndex];
-    const proposal = (shop.pendingSales || []).find(p => p.id === proposalId);
+    const proposal = (shop.pendingSales || []).find(p => p.id !== proposalId);
     if (!proposal) return;
 
     // 1. Remove from pending
@@ -1005,6 +1005,11 @@ if (typeof window !== 'undefined') {
     window.appActions.buyItem = buyItem;
     window.appActions.updateItemPrice = updateItemPrice;
     window.appActions.deleteShopItem = deleteShopItem;
+    
+    // Collapsible & Bulk
+    window.appActions.toggleBazaarLocation = toggleBazaarLocation;
+    window.appActions.toggleAllShops = toggleAllShops;
+    window.appActions.toggleAllTravelingShops = toggleAllTravelingShops;
     
     // Modal & Search Exports
     window.appActions.openManualItemModal = openManualItemModal;
