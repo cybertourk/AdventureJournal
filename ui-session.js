@@ -130,12 +130,27 @@ function renderChronicleLog(session, camp, myUid) {
     }
     html += '</div>';
 
-    // Add Input Area (Updated for Edit Support)
+    // Add Input Area (Updated for Edit Support and Toolbar Integration)
     html += `
     <div class="bg-stone-100 border border-stone-300 rounded-sm p-3 shadow-inner relative" id="chronicle-input-container">
         <input type="hidden" id="edit-chronicle-id" value="">
-        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5"><i class="fa-solid fa-comment-dots mr-1"></i> Contribute to Chronicle</label>
-        <textarea id="new-chronicle-input" class="w-full p-3 bg-white border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 resize-none min-h-[80px] custom-scrollbar shadow-inner" placeholder="Add your perspective, a quote, or a session event... Codex names link automatically."></textarea>
+        
+        <div class="flex flex-wrap justify-between items-end mb-1 gap-2">
+            <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest"><i class="fa-solid fa-comment-dots mr-1"></i> Contribute to Chronicle</label>
+            <div class="flex gap-1 bg-stone-200 p-1 rounded-sm border border-[#d4c5a9] shadow-sm ml-auto overflow-x-auto hide-scrollbar">
+                <button type="button" onclick="window.appActions.formatText('new-chronicle-input', 'bold')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bold"><i class="fa-solid fa-bold"></i></button>
+                <button type="button" onclick="window.appActions.formatText('new-chronicle-input', 'italic')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Italic"><i class="fa-solid fa-italic"></i></button>
+                <button type="button" onclick="window.appActions.formatText('new-chronicle-input', 'underline')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Underline"><i class="fa-solid fa-underline"></i></button>
+                <div class="w-px bg-[#d4c5a9] mx-0.5 sm:mx-1 shrink-0"></div>
+                <button type="button" onclick="window.appActions.formatText('new-chronicle-input', 'h1')" class="w-6 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Heading 1">H1</button>
+                <button type="button" onclick="window.appActions.formatText('new-chronicle-input', 'h2')" class="w-6 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Heading 2">H2</button>
+                <button type="button" onclick="window.appActions.formatText('new-chronicle-input', 'list')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
+                <div class="w-px bg-[#d4c5a9] mx-0.5 sm:mx-1 shrink-0"></div>
+                <button type="button" onclick="window.appActions.defineEntryFromSelection('new-chronicle-input')" class="px-2 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-amber-700 hover:text-amber-900 hover:bg-[#d4c5a9] rounded-sm transition uppercase tracking-wider" title="Define Highlighted Text"><i class="fa-solid fa-book-medical mr-1"></i> Define</button>
+            </div>
+        </div>
+        
+        <textarea id="new-chronicle-input" oninput="window.appActions.handleSmartInput(this)" class="w-full p-3 bg-white border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 resize-none min-h-[80px] custom-scrollbar shadow-inner" placeholder="Add your perspective, a quote, or a session event... Codex names link automatically."></textarea>
         
         <div class="flex justify-between items-center mt-2">
             <span id="edit-chronicle-label" class="hidden text-[10px] text-amber-600 font-bold uppercase tracking-wider animate-pulse flex items-center"><i class="fa-solid fa-pen-nib mr-1.5"></i> Editing Entry</span>
