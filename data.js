@@ -44,7 +44,7 @@ import { openWorkModal, updateWorkMath, executeWork } from './dt-work.js';
 import { openAssignDowntimeModal, executeAssignDowntime } from './dt-assign.js';
 
 // --- SHOPS & BAZAAR IMPORTS ---
-import { openBazaar, openShopEditModal, saveShop, deleteShop, viewStorefront, viewBackroom, buyItem, openManualItemModal, searchBazaarDatabase, addBazaarItemToShop, submitCustomItem, updateItemPrice, deleteShopItem, rollShopInventory, executeRollWares, openProposeSaleModal, submitSaleProposal, cancelSaleProposal, approveSaleProposal } from './actions-shops.js';
+import { openBazaar, openShopEditModal, saveShop, deleteShop, viewStorefront, viewBackroom, buyItem, openManualItemModal, searchBazaarDatabase, addBazaarItemToShop, submitCustomItem, updateItemPrice, deleteShopItem, rollShopInventory, executeRollWares, openProposeSaleModal, submitSaleProposal, cancelSaleProposal, approveSaleProposal, toggleBazaarLocation, toggleAllShops, toggleAllTravelingShops } from './actions-shops.js';
 
 // --- NPC GENERATOR IMPORTS ---
 import { openNpcGeneratorUI, updateNpcSubraceDropdown } from './ui-npc.js';
@@ -337,6 +337,9 @@ if (typeof window !== 'undefined') {
       submitSaleProposal,
       cancelSaleProposal,
       approveSaleProposal,
+      toggleBazaarLocation,
+      toggleAllShops,
+      toggleAllTravelingShops,
 
       // NPC Generator
       openNpcGeneratorUI,
