@@ -59,26 +59,26 @@ export const openShopEditModal = (shopId = null) => {
             <div class="bg-[#f4ebd8] rounded-sm w-full max-w-2xl border border-[#d4c5a9] shadow-2xl relative flex flex-col max-h-[90vh]">
                 
                 <div class="bg-stone-900 p-4 border-b-4 border-emerald-600 shadow-md shrink-0 flex justify-between items-center text-amber-50">
-                    <h2 class="text-lg font-serif font-bold flex items-center"><i class="fa-solid fa-store mr-2 text-emerald-400"></i> ${isNew ? 'Establish New Shop' : 'Edit Shop Details'}</h2>
+                    <h2 class="text-lg font-serif font-bold flex items-center"><i class="fa-solid fa-store mr-2 text-emerald-400"></i> \${isNew ? 'Establish New Shop' : 'Edit Shop Details'}</h2>
                     <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="text-stone-400 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
                 </div>
 
                 <div class="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-grow bg-[#fdfbf7]">
-                    <input type="hidden" id="shop-edit-id" value="${shop.id}">
+                    <input type="hidden" id="shop-edit-id" value="\${shop.id}">
                     
                     <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-sm shadow-inner flex flex-wrap gap-4 items-center mb-5">
                         <label class="flex items-center gap-2 cursor-pointer group">
-                            <input type="checkbox" id="shop-edit-isopen" ${shop.isOpen ? 'checked' : ''} class="w-4 h-4 text-emerald-600 rounded-sm cursor-pointer shadow-sm border-stone-400">
+                            <input type="checkbox" id="shop-edit-isopen" \${shop.isOpen ? 'checked' : ''} class="w-4 h-4 text-emerald-600 rounded-sm cursor-pointer shadow-sm border-stone-400">
                             <span class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-emerald-900 group-hover:text-emerald-700 transition">Open to Party</span>
                         </label>
                         <div class="w-px h-4 bg-emerald-300 hidden sm:block"></div>
                         <label class="flex items-center gap-2 cursor-pointer group">
-                            <input type="checkbox" id="shop-edit-buys" ${shop.buysItems ? 'checked' : ''} class="w-4 h-4 text-emerald-600 rounded-sm cursor-pointer shadow-sm border-stone-400">
+                            <input type="checkbox" id="shop-edit-buys" \${shop.buysItems ? 'checked' : ''} class="w-4 h-4 text-emerald-600 rounded-sm cursor-pointer shadow-sm border-stone-400">
                             <span class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-emerald-900 group-hover:text-emerald-700 transition">Will Buy Items</span>
                         </label>
                         <div class="w-px h-4 bg-emerald-300 hidden sm:block"></div>
                         <label class="flex items-center gap-2 cursor-pointer group">
-                            <input type="checkbox" id="shop-edit-istraveling" ${shop.isTraveling ? 'checked' : ''} class="w-4 h-4 text-amber-600 rounded-sm cursor-pointer shadow-sm border-stone-400">
+                            <input type="checkbox" id="shop-edit-istraveling" \${shop.isTraveling ? 'checked' : ''} class="w-4 h-4 text-amber-600 rounded-sm cursor-pointer shadow-sm border-stone-400">
                             <span class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-amber-900 group-hover:text-amber-700 transition"><i class="fa-solid fa-caravan mr-1"></i> Traveling Merchant</span>
                         </label>
                     </div>
@@ -86,39 +86,39 @@ export const openShopEditModal = (shopId = null) => {
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                         <div class="sm:col-span-2">
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Shop Name</label>
-                            <input type="text" id="shop-edit-name" value="${shop.name.replace(/"/g, '&quot;')}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner" placeholder="e.g. Gilmore's Wonders">
+                            <input type="text" id="shop-edit-name" value="\${shop.name.replace(/"/g, '&quot;')}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner" placeholder="e.g. Gilmore's Wonders">
                         </div>
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Shop Type</label>
-                            <input type="text" id="shop-edit-type" value="${shop.shopType.replace(/"/g, '&quot;')}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner" placeholder="e.g. Apothecary, Blacksmith">
+                            <input type="text" id="shop-edit-type" value="\${shop.shopType.replace(/"/g, '&quot;')}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner" placeholder="e.g. Apothecary, Blacksmith">
                         </div>
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Location</label>
-                            <input type="text" id="shop-edit-loc" value="${shop.location.replace(/"/g, '&quot;')}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner" placeholder="e.g. Waterdeep">
+                            <input type="text" id="shop-edit-loc" value="\${shop.location.replace(/"/g, '&quot;')}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner" placeholder="e.g. Waterdeep">
                         </div>
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Owner / Proprietor</label>
-                            <input type="text" id="shop-edit-owner" value="${shop.ownerName.replace(/"/g, '&quot;')}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner" placeholder="e.g. Shaun Gilmore">
+                            <input type="text" id="shop-edit-owner" value="\${shop.ownerName.replace(/"/g, '&quot;')}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner" placeholder="e.g. Shaun Gilmore">
                         </div>
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Portrait Image URL</label>
-                            <input type="text" id="shop-edit-image" value="${shop.image.replace(/"/g, '&quot;')}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner" placeholder="https://...">
+                            <input type="text" id="shop-edit-image" value="\${shop.image.replace(/"/g, '&quot;')}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none focus:border-emerald-600 bg-white shadow-inner" placeholder="https://...">
                         </div>
                     </div>
 
                     <div class="mb-4">
                         <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Public Description (Atmosphere & Wares)</label>
-                        <textarea id="shop-edit-desc" class="w-full p-3 h-24 border border-[#d4c5a9] rounded-sm text-sm text-stone-900 font-serif outline-none focus:border-emerald-600 bg-white shadow-inner custom-scrollbar resize-y">${shop.desc.replace(/"/g, '&quot;')}</textarea>
+                        <textarea id="shop-edit-desc" class="w-full p-3 h-24 border border-[#d4c5a9] rounded-sm text-sm text-stone-900 font-serif outline-none focus:border-emerald-600 bg-white shadow-inner custom-scrollbar resize-y">\${shop.desc.replace(/"/g, '&quot;')}</textarea>
                     </div>
 
                     <div class="mb-2">
                         <label class="block text-[10px] uppercase text-red-800 font-bold mb-1 tracking-widest"><i class="fa-solid fa-eye mr-1"></i> DM Secrets & Notes</label>
-                        <textarea id="shop-edit-notes" class="w-full p-3 h-24 border border-[#d4c5a9] rounded-sm text-sm text-stone-900 font-serif outline-none focus:border-emerald-600 bg-stone-200 border-l-4 border-l-red-800 shadow-inner custom-scrollbar resize-y" placeholder="Hidden motives, true identity of owner, security measures...">${shop.dmNotes.replace(/"/g, '&quot;')}</textarea>
+                        <textarea id="shop-edit-notes" class="w-full p-3 h-24 border border-[#d4c5a9] rounded-sm text-sm text-stone-900 font-serif outline-none focus:border-emerald-600 bg-stone-200 border-l-4 border-l-red-800 shadow-inner custom-scrollbar resize-y" placeholder="Hidden motives, true identity of owner, security measures...">\${shop.dmNotes.replace(/"/g, '&quot;')}</textarea>
                     </div>
                 </div>
 
                 <div class="bg-[#e8dec7] p-4 border-t border-[#d4c5a9] flex justify-between items-center shrink-0 z-10 shadow-[0_-4px_10px_rgba(0,0,0,0.1)]">
-                    ${!isNew ? `<button onclick="window.appActions.deleteShop('${shop.id}')" class="px-3 py-2 text-stone-500 hover:text-red-700 hover:bg-red-50 transition rounded-sm text-[10px] font-bold uppercase tracking-wider flex items-center"><i class="fa-solid fa-trash mr-1.5"></i> Demolish</button>` : `<div></div>`}
+                    \${!isNew ? \`<button onclick="window.appActions.deleteShop('\${shop.id}')" class="px-3 py-2 text-stone-500 hover:text-red-700 hover:bg-red-50 transition rounded-sm text-[10px] font-bold uppercase tracking-wider flex items-center"><i class="fa-solid fa-trash mr-1.5"></i> Demolish</button>\` : \`<div></div>\`}
                     <div class="flex gap-2">
                         <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="px-4 py-2 text-stone-600 border border-stone-400 rounded-sm hover:bg-stone-300 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs">Cancel</button>
                         <button onclick="window.appActions.saveShop()" class="px-5 py-2 bg-emerald-700 text-amber-50 rounded-sm hover:bg-emerald-600 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md"><i class="fa-solid fa-floppy-disk mr-1.5"></i> Save Shop</button>
@@ -170,7 +170,7 @@ export const saveShop = async () => {
     let updatedCodex = camp.codex || [];
     const codexEntryIndex = updatedCodex.findIndex(c => c.id === id);
     
-    const codexDesc = `**Proprietor:** ${newShop.ownerName}\n**Location:** ${newShop.location}\n**Type:** ${newShop.shopType}\n\n${newShop.desc}`;
+    const codexDesc = `**Proprietor:** \${newShop.ownerName}\\n**Location:** \${newShop.location}\\n**Type:** \${newShop.shopType}\\n\\n\${newShop.desc}`;
 
     if (codexEntryIndex > -1) {
         updatedCodex[codexEntryIndex] = {
@@ -250,7 +250,7 @@ export const toggleAllShops = async (location, isOpen) => {
 
     if (changed) {
         await saveCampaign(camp);
-        notify(`Successfully ${isOpen ? 'opened' : 'closed'} all shops in ${location}.`, "success");
+        notify(`Successfully \${isOpen ? 'opened' : 'closed'} all shops in \${location}.`, "success");
         reRender();
     }
 };
@@ -270,7 +270,7 @@ export const toggleAllTravelingShops = async (isOpen) => {
 
     if (changed) {
         await saveCampaign(camp);
-        notify(`Successfully ${isOpen ? 'opened' : 'closed'} all traveling merchants.`, "success");
+        notify(`Successfully \${isOpen ? 'opened' : 'closed'} all traveling merchants.`, "success");
         reRender();
     }
 };
@@ -293,7 +293,12 @@ export const buyItem = async (shopId, itemId) => {
     if (itemIndex === -1) return;
     const item = shop.inventory[itemIndex];
 
-    const pc = camp.playerCharacters?.find(p => p.playerId === myUid);
+    // UNIFIED MULTIPLE CHARACTERS RESOLUTION: Look for the PC in the active adventure first!
+    const adv = window.appData.activeAdventure;
+    const activePcIds = adv?.activePcIds || [];
+    const pc = camp.playerCharacters?.find(p => p.playerId === myUid && activePcIds.includes(p.id)) 
+             || camp.playerCharacters?.find(p => p.playerId === myUid);
+
     if (!pc && !camp._isDM) {
         notify("You must enroll a hero to make purchases.", "error");
         return;
@@ -301,7 +306,7 @@ export const buyItem = async (shopId, itemId) => {
     
     const buyerName = camp._isDM ? "The Dungeon Master" : pc.name;
 
-    if (!confirm(`Buy '${item.name}' for ${item.price.toLocaleString()} gp? This will generate a task to deduct the gold from your character sheet.`)) return;
+    if (!confirm(`Buy '\${item.name}' for \${item.price.toLocaleString()} gp? This will generate a task to deduct the gold from your character sheet.`)) return;
 
     // 1. Remove Item or Decrement Quantity
     let newInventory = [...shop.inventory];
@@ -315,7 +320,7 @@ export const buyItem = async (shopId, itemId) => {
     const timestampStr = new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const ledgerEntry = {
         id: generateId(),
-        text: `**${buyerName}** purchased **${item.name}** for **${item.price.toLocaleString()} gp**.`,
+        text: `**\${buyerName}** purchased **\${item.name}** for **\${item.price.toLocaleString()} gp**.`,
         timestamp: Date.now(),
         dateStr: timestampStr
     };
@@ -327,7 +332,7 @@ export const buyItem = async (shopId, itemId) => {
     if (!camp._isDM && pc) {
         const newTask = {
             id: generateId(),
-            text: `D&D Beyond Sync (${pc.name}): Deduct ${item.price.toLocaleString()} gp and add '${item.name}' to inventory. (Purchased at ${shop.name})`,
+            text: `D&D Beyond Sync (\${pc.name}): Deduct \${item.price.toLocaleString()} gp and add '\${item.name}' to inventory. (Purchased at \${shop.name})`,
             authorId: myUid,
             resolvedBy: [],
             visibility: { mode: 'specific', visibleTo: [myUid] }, 
@@ -336,11 +341,11 @@ export const buyItem = async (shopId, itemId) => {
         camp.sheetUpdates = [...(camp.sheetUpdates || []), newTask];
         
         // Log Activity
-        camp = logPlayerActivity(camp, myUid, `purchased **${item.name}** at ${shop.name}.`, 'fa-coins');
+        camp = logPlayerActivity(camp, myUid, `purchased **\${item.name}** at \${shop.name}.`, 'fa-coins');
     }
 
     await saveCampaign(camp);
-    notify(`Purchased ${item.name}! Check your Tasks to sync your sheet.`, "success");
+    notify(`Purchased \${item.name}! Check your Tasks to sync your sheet.`, "success");
     reRender();
 };
 
@@ -387,7 +392,7 @@ export const openManualItemModal = async (shopId) => {
                         <p class="text-[9px] italic text-emerald-800 mb-3">Search thousands of pre-configured items. Clicking an item adds it directly to the shop's shelves.</p>
                         
                         <div class="relative">
-                            <input type="text" id="manual-item-search" oninput="window.appActions.searchBazaarDatabase('${shopId}', this.value)" placeholder="Search items, weapons, potions..." class="w-full p-2 border border-emerald-300 rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner" autocomplete="off">
+                            <input type="text" id="manual-item-search" oninput="window.appActions.searchBazaarDatabase('\${shopId}', this.value)" placeholder="Search items, weapons, potions..." class="w-full p-2 border border-emerald-300 rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner" autocomplete="off">
                             <div id="manual-item-results" class="absolute z-10 w-full bg-white border border-[#d4c5a9] rounded-b-sm shadow-xl max-h-48 overflow-y-auto hidden top-[38px] custom-scrollbar text-xs"></div>
                         </div>
                     </div>
@@ -428,7 +433,7 @@ export const openManualItemModal = async (shopId) => {
                                 <input type="checkbox" id="custom-item-magic" class="w-4 h-4 text-emerald-600 rounded-sm cursor-pointer shadow-sm border-stone-400">
                                 <span class="text-[10px] font-bold uppercase tracking-widest text-stone-700 group-hover:text-emerald-700 transition">Is Magical?</span>
                             </label>
-                            <button onclick="window.appActions.submitCustomItem('${shopId}')" class="px-4 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] shadow-sm flex items-center"><i class="fa-solid fa-plus mr-1.5"></i> Add Custom</button>
+                            <button onclick="window.appActions.submitCustomItem('\${shopId}')" class="px-4 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] shadow-sm flex items-center"><i class="fa-solid fa-plus mr-1.5"></i> Add Custom</button>
                         </div>
                     </div>
 
@@ -458,12 +463,12 @@ export const searchBazaarDatabase = (shopId, query) => {
             const safeName = m.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
             const safeRarity = (m.rarity || 'common').replace(/'/g, "\\'");
             return `
-            <div class="p-2.5 border-b border-stone-200 hover:bg-emerald-50 cursor-pointer flex justify-between items-center group transition-colors" onclick="window.appActions.addBazaarItemToShop('${shopId}', '${safeName}', ${m.price || 0}, '${safeRarity}', ${m.isMagic || false})">
+            <div class="p-2.5 border-b border-stone-200 hover:bg-emerald-50 cursor-pointer flex justify-between items-center group transition-colors" onclick="window.appActions.addBazaarItemToShop('\${shopId}', '\${safeName}', \dots, '\${safeRarity}', \${m.isMagic || false})">
                 <div class="min-w-0 pr-2">
-                    <span class="font-bold text-stone-800 text-sm block truncate group-hover:text-emerald-700 transition-colors">${m.name}</span>
-                    <span class="text-[9px] uppercase font-bold tracking-widest text-stone-500">${m.rarity || 'common'} ${m.isMagic ? '<i class="fa-solid fa-sparkles text-amber-500 ml-1"></i>' : ''}</span>
+                    <span class="font-bold text-stone-800 text-sm block truncate group-hover:text-emerald-700 transition-colors">\${m.name}</span>
+                    <span class="text-[9px] uppercase font-bold tracking-widest text-stone-500">\${m.rarity || 'common'} \dots</span>
                 </div>
-                <span class="text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-2 py-1 rounded-sm shadow-sm whitespace-nowrap shrink-0 group-hover:bg-amber-200 transition-colors">${m.price || 0} gp</span>
+                <span class="text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-2 py-1 rounded-sm shadow-sm whitespace-nowrap shrink-0 group-hover:bg-amber-200 transition-colors">\${m.price || 0} gp</span>
             </div>`;
         }).join('');
     }
@@ -499,9 +504,8 @@ export const addBazaarItemToShop = async (shopId, name, price, rarity, isMagic) 
 
     camp.shops[shopIndex].inventory = currentInventory;
     await saveCampaign(camp);
-    notify(`Added ${name} to shop inventory.`, "success");
+    notify(`Added \${name} to shop inventory.`, "success");
 
-    // Clear search so they can keep adding more
     const searchInput = document.getElementById('manual-item-search');
     const resultsDiv = document.getElementById('manual-item-results');
     if (searchInput) searchInput.value = '';
@@ -509,9 +513,6 @@ export const addBazaarItemToShop = async (shopId, name, price, rarity, isMagic) 
         resultsDiv.innerHTML = '';
         resultsDiv.classList.add('hidden');
     }
-    
-    // We intentionally do NOT call reRender() here because it would destroy the modal and force them out.
-    // The DM can rapidly click items to add them, and when they close the modal, the background updates.
 };
 
 export const submitCustomItem = async (shopId) => {
@@ -527,7 +528,6 @@ export const submitCustomItem = async (shopId) => {
 
     await addBazaarItemToShop(shopId, name, price, rarity, isMagic);
     
-    // Clear inputs
     document.getElementById('custom-item-name').value = '';
     document.getElementById('custom-item-price').value = '0';
 };
@@ -578,7 +578,6 @@ export const rollShopInventory = async (shopId) => {
     const container = document.getElementById('global-popup-container');
     if (!container) return;
 
-    // Show a loading state in case the dynamic import takes a few milliseconds
     container.innerHTML = `
         <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[19000] backdrop-blur-sm animate-in">
             <div class="text-amber-500 flex flex-col items-center">
@@ -588,20 +587,18 @@ export const rollShopInventory = async (shopId) => {
         </div>
     `;
 
-    // Dynamically load the massive database if not already loaded
     if (!LOCAL_BAZAAR_DB) {
         try {
             const module = await import('./data-bazaar.js');
             LOCAL_BAZAAR_DB = module.BAZAAR_ITEMS || [];
         } catch(e) {
             console.error("Dynamic import error for data-bazaar.js:", e);
-            notify(`Error loading data-bazaar.js: ${e.message}`, "error");
+            notify(\`Error loading data-bazaar.js: \${e.message}\`, "error");
             container.innerHTML = '';
             return;
         }
     }
 
-    // Extract all unique folders from the loaded items
     const folders = new Set();
     LOCAL_BAZAAR_DB.forEach(item => {
         if (item.folder && item.folder.trim() !== '') {
@@ -609,17 +606,14 @@ export const rollShopInventory = async (shopId) => {
         }
     });
     
-    // Sort them alphabetically to create clean dropdowns
     const sortedFolders = Array.from(folders).sort((a,b) => a.localeCompare(b));
-    let folderOptions = sortedFolders.map(f => `<option value="folder:${f.replace(/"/g, '&quot;')}">📁 ${f}</option>`).join('');
+    let folderOptions = sortedFolders.map(f => \`<option value="folder:\${f.replace(/"/g, '&quot;')}">📁 \${f}</option>\`).join('');
 
-    // Generate the hybrid Broad Themes
     let themeOptions = '';
     for (const theme of Object.keys(SHOP_THEMES)) {
-        themeOptions += `<option value="theme:${theme}">${theme}</option>`;
+        themeOptions += \`<option value="theme:\${theme}">\${theme}</option>\`;
     }
 
-    // Re-render the modal now that we have the dynamic folder list
     container.innerHTML = `
         <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[19000] backdrop-blur-sm animate-in">
             <div class="bg-[#f4ebd8] rounded-sm w-full max-w-sm border border-[#d4c5a9] shadow-2xl relative flex flex-col">
@@ -630,7 +624,7 @@ export const rollShopInventory = async (shopId) => {
                 
                 <div class="p-5 bg-[#fdfbf7] flex-grow overflow-y-auto">
                     <p class="text-xs text-stone-600 italic mb-4 leading-snug">Generate random items from your Foundry VTT compendium database. Duplicates will automatically stack their quantities.</p>
-                    <input type="hidden" id="roll-shop-id" value="${shopId}">
+                    <input type="hidden" id="roll-shop-id" value="\${shopId}">
                     
                     <div class="space-y-4">
                         <div>
@@ -639,10 +633,10 @@ export const rollShopInventory = async (shopId) => {
                                 <option value="all">General Store (Everything)</option>
                                 <option value="magic">Arcane Shop (Magic Items Only)</option>
                                 <optgroup label="Broad Themes">
-                                    ${themeOptions}
+                                    \${themeOptions}
                                 </optgroup>
                                 <optgroup label="Foundry Folders">
-                                    ${folderOptions}
+                                    \${folderOptions}
                                 </optgroup>
                             </select>
                         </div>
@@ -653,7 +647,6 @@ export const rollShopInventory = async (shopId) => {
                                 <option value="uncommon" selected>Up to Uncommon</option>
                                 <option value="rare">Up to Rare</option>
                                 <option value="veryrare">Up to Very Rare</option>
-                                <option value="legendary">Up to Legendary</option>
                             </select>
                         </div>
                         <div>
@@ -776,7 +769,7 @@ export const executeRollWares = async () => {
 
     await saveCampaign(camp);
     document.getElementById('global-popup-container').innerHTML = '';
-    notify(`Shelves stocked with ${qty} item(s)!`, "success");
+    notify(\`Shelves stocked with \${qty} item(s)!\`, "success");
     reRender();
 };
 
@@ -804,7 +797,7 @@ export const openProposeSaleModal = (shopId) => {
                 </div>
                 <div class="p-5 bg-[#fdfbf7] flex-grow overflow-y-auto custom-scrollbar">
                     <p class="text-xs text-stone-600 italic mb-4">Offer an item from your inventory to the merchant. The DM will review your asking price before finalizing the transaction.</p>
-                    <input type="hidden" id="sale-shop-id" value="${shopId}">
+                    <input type="hidden" id="sale-shop-id" value="\${shopId}">
                     <div class="mb-4">
                         <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Item to Sell</label>
                         <input type="text" id="sale-item-name" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner" placeholder="e.g. Goblin Scimitar">
@@ -849,7 +842,12 @@ export const submitSaleProposal = async () => {
     const shopIndex = camp.shops.findIndex(s => s.id === shopId);
     if (shopIndex === -1) return;
 
-    const pc = camp.playerCharacters?.find(p => p.playerId === myUid);
+    // UNIFIED MULTIPLE CHARACTERS RESOLUTION: Look for the PC in the active adventure first!
+    const adv = window.appData.activeAdventure;
+    const activePcIds = adv?.activePcIds || [];
+    const pc = camp.playerCharacters?.find(p => p.playerId === myUid && activePcIds.includes(p.id)) 
+             || camp.playerCharacters?.find(p => p.playerId === myUid);
+
     if (!pc && !camp._isDM) {
         notify("You must enroll a hero to sell items.", "error");
         return;
@@ -871,13 +869,13 @@ export const submitSaleProposal = async () => {
     camp.shops[shopIndex] = { ...shop, pendingSales };
 
     if (!camp._isDM) {
-        const qtyStr = qty > 1 ? ` (x${qty})` : '';
-        camp = logPlayerActivity(camp, myUid, `offered to sell **${itemName}${qtyStr}** to ${shop.name}.`, 'fa-hand-holding-dollar');
+        const qtyStr = qty > 1 ? \` (x\${qty})\` : '';
+        camp = logPlayerActivity(camp, myUid, \`offered to sell **\${itemName}\${qtyStr}** to \${shop.name}.\`, 'fa-hand-holding-dollar');
     }
 
     await saveCampaign(camp);
     document.getElementById('global-popup-container').innerHTML = '';
-    notify(`Offer sent to ${shop.name}! Awaiting DM approval.`, "success");
+    notify(\`Offer sent to \${shop.name}! Awaiting DM approval.\`, "success");
     reRender();
 };
 
@@ -946,11 +944,11 @@ export const approveSaleProposal = async (shopId, proposalId) => {
     }
 
     // 3. Add to ledger
-    const qtyStr = inQty > 1 ? ` (x${inQty})` : '';
+    const qtyStr = inQty > 1 ? \` (x\${inQty})\` : '';
     const timestampStr = new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const ledgerEntry = {
         id: generateId(),
-        text: `Purchased **${proposal.itemName}${qtyStr}** from **${proposal.playerName}** for **${proposal.askingPrice.toLocaleString()} gp**.`,
+        text: \`Purchased **\${proposal.itemName}\${qtyStr}** from **\${proposal.playerName}** for **\${proposal.askingPrice.toLocaleString()} gp**.\`,
         timestamp: Date.now(),
         dateStr: timestampStr
     };
@@ -960,11 +958,16 @@ export const approveSaleProposal = async (shopId, proposalId) => {
 
     // 4. Generate Checklist Task for the Player
     if (proposal.playerId) {
-        const pc = camp.playerCharacters?.find(p => p.id === proposal.playerId);
+        // UNIFIED MULTIPLE CHARACTERS RESOLUTION: Find the player's active character in the current adventure arc
+        const adv = window.appData.activeAdventure;
+        const activePcIds = adv?.activePcIds || [];
+        const pc = camp.playerCharacters?.find(p => p.playerId === proposal.playerId && activePcIds.includes(p.id)) 
+                 || camp.playerCharacters?.find(p => p.playerId === proposal.playerId);
+
         if (pc) {
             const newTask = {
                 id: generateId(),
-                text: `D&D Beyond Sync (${proposal.playerName}): Add ${proposal.askingPrice.toLocaleString()} gp from selling '${proposal.itemName}'${qtyStr} to ${shop.name}. Make sure to remove the item(s) from your inventory!`,
+                text: \`D&D Beyond Sync (\${pc.name}): Add \${proposal.askingPrice.toLocaleString()} gp from selling '\${proposal.itemName}'\${qtyStr} to \${shop.name}. Make sure to remove the item(s) from your inventory!\`,
                 authorId: camp.dmId,
                 resolvedBy: [],
                 visibility: { mode: 'specific', visibleTo: [proposal.playerId] }, 
@@ -975,7 +978,7 @@ export const approveSaleProposal = async (shopId, proposalId) => {
     }
 
     await saveCampaign(camp);
-    notify(`Purchased ${proposal.itemName} from ${proposal.playerName}.`, "success");
+    notify(\`Purchased \${proposal.itemName} from \${proposal.playerName}.\`, "success");
     reRender();
 };
 
