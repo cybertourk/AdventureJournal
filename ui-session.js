@@ -68,7 +68,7 @@ function renderSmartFieldWithVis(id, labelHtml, value, visObj, placeholderText, 
 }
 
 // Helper to render the new Collaborative Chronicle Log
-function renderChronicleLog(session, camp, myUid) {
+function renderChronicleLog(session, camp, myUid, adv) {
     const entries = session.chronicle || [];
     const isDM = camp._isDM;
     const playerNames = camp.playerNames || {};
@@ -85,8 +85,10 @@ function renderChronicleLog(session, camp, myUid) {
             const authorName = isAuthorDM ? 'Dungeon Master' : (playerNames[entry.authorId] || 'Unknown Player');
             const authorIcon = isAuthorDM ? '<i class="fa-solid fa-crown text-amber-500"></i>' : '<i class="fa-solid fa-feather-pointed text-stone-500"></i>';
             
-            // Look up the Hero owned by this author
-            const authorPc = camp.playerCharacters?.find(p => p.playerId === entry.authorId);
+            // Look up the Hero owned by this author, filtering by the active adventure's roster first!
+            const activePcIds = adv?.activePcIds || [];
+            const authorPc = camp.playerCharacters?.find(p => p.playerId === entry.authorId && activePcIds.includes(p.id))
+                          || camp.playerCharacters?.find(p => p.playerId === entry.authorId);
             
             // Build the immersive Display Name
             let displayNameHtml = `<span class="text-stone-900">${authorName}</span>`;
@@ -296,7 +298,7 @@ export function getSessionEditHTML(state) {
                     <div class="mb-10 mt-8 border-t-2 border-stone-300 pt-6">
                         <h4 class="font-serif font-bold text-lg text-stone-900 border-b border-[#d4c5a9] pb-1 mb-3"><i class="fa-solid fa-users text-amber-600 mr-2"></i> Collaborative Chronicle</h4>
                         <p class="text-stone-500 text-[10px] uppercase tracking-widest font-bold mb-4">A shared record of events, quotes, and memories.</p>
-                        ${renderChronicleLog(session, camp, myUid)}
+                        ${renderChronicleLog(session, camp, myUid, adv)}
                     </div>
 
                     <!-- Personal Notes -->
@@ -550,7 +552,7 @@ export function getSessionEditHTML(state) {
                 <div class="mb-8 mt-6 border-t-2 border-stone-300 pt-6">
                     <h3 class="text-sm font-bold text-stone-800 uppercase tracking-widest flex items-center border-b border-stone-300 w-full pb-1 mb-3"><i class="fa-solid fa-users mr-2 text-stone-500"></i> Collaborative Chronicle</h3>
                     <p class="text-stone-500 text-[10px] uppercase tracking-widest font-bold mb-4">A shared record of events, quotes, and memories.</p>
-                    ${renderChronicleLog(session, camp, myUid)}
+                    ${renderChronicleLog(session, camp, myUid, adv)}
                 </div>
 
                 <!-- DM's Personal Notes Section -->
