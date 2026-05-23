@@ -4,58 +4,280 @@ import { setCampaignsData, updateDerivedState, reRender } from './state.js';
 import { navigateBack, toggleActionMenu } from './ui-core.js';
 
 // Import Campaign & Hero Management 
-import { setView, openCampaign, openAdventure, toggleNewCampaignForm, createCampaign, deleteCampaignAction, copyCampaignId, toggleJoinCampaignForm, joinCampaignAction, toggleNewAdventureForm, createAdventure, deleteAdventure, openEditAdventureModal, saveEditAdventure, refreshPartyBoons, openAdvRoster, toggleAdvRosterPc, saveAdvRoster, openActivityLog, clearActivityLog, openPCEdit, calculateBirthdaysLive, savePCEdit, deletePC, kickPlayer, openChecklistMenu, closeChecklistMenu, addSheetUpdate, toggleSheetUpdateResolved, toggleSheetUpdateVis, deleteSheetUpdate, openDndBeyondImportModal, fetchAndAnalyzeDndBeyond, executeDndBeyondImport, quickSyncDDB } from './actions-campaign.js'; 
+import { 
+    setView, 
+    openCampaign, 
+    openAdventure, 
+    toggleNewCampaignForm, 
+    createCampaign, 
+    deleteCampaignAction, 
+    copyCampaignId, 
+    toggleJoinCampaignForm, 
+    joinCampaignAction, 
+    toggleNewAdventureForm, 
+    createAdventure, 
+    deleteAdventure, 
+    openEditAdventureModal, 
+    saveEditAdventure, 
+    refreshPartyBoons, 
+    openAdvRoster, 
+    toggleAdvRosterPc, 
+    saveAdvRoster, 
+    openActivityLog, 
+    clearActivityLog, 
+    openPCEdit, 
+    calculateBirthdaysLive, 
+    savePCEdit, 
+    deletePC, 
+    kickPlayer, 
+    openChecklistMenu, 
+    closeChecklistMenu, 
+    addSheetUpdate, 
+    toggleSheetUpdateResolved, 
+    toggleSheetUpdateVis, 
+    deleteSheetUpdate, 
+    openDndBeyondImportModal, 
+    fetchAndAnalyzeDndBeyond, 
+    executeDndBeyondImport, 
+    quickSyncDDB 
+} from './actions-campaign.js'; 
 
 // Import Session, Narrative, & Visibility Controls 
-import { openSessionEdit, switchSessionTab, updateSessionBudget, _readDynamicList, _gatherSessionDraft, updateSessionPreview, saveSession, deleteSession, addLogScene, addLogClue, submitSessionClue, deleteSessionClue, openVisibilityMenu, toggleVisSpecificList, saveVisibility, _saveCampaignHelper, openUniversalEditor, closeUniversalEditor, saveUniversalEditor, formatText, addChronicleEntry, editChronicleEntry, cancelChronicleEdit, deleteChronicleEntry, syncSessionDates } from './actions-session.js'; 
+import { 
+    openSessionEdit, 
+    switchSessionTab, 
+    updateSessionBudget, 
+    _readDynamicList, 
+    _gatherSessionDraft, 
+    updateSessionPreview, 
+    saveSession, 
+    deleteSession, 
+    addLogScene, 
+    addLogClue, 
+    submitSessionClue, 
+    deleteSessionClue, 
+    openVisibilityMenu, 
+    toggleVisSpecificList, 
+    saveVisibility, 
+    _saveCampaignHelper, 
+    openUniversalEditor, 
+    closeUniversalEditor, 
+    saveUniversalEditor, 
+    formatText, 
+    addChronicleEntry, 
+    editChronicleEntry, 
+    cancelChronicleEdit, 
+    deleteChronicleEntry, 
+    syncSessionDates 
+} from './actions-session.js'; 
 
 // Import Codex, Smart-Text, & Journal Functionality 
-import { _canViewCodex, parseSmartText, handleSmartInput, _showSuggestions, viewCodex, _openCodexModal, saveCodexEntry, deleteCodexEntry, openJournal, closeJournal, copyJournal, defineEntryFromSelection, updateLocEditFields } from './actions-codex.js'; 
+import { 
+    _canViewCodex, 
+    parseSmartText, 
+    handleSmartInput, 
+    _showSuggestions, 
+    viewCodex, 
+    _openCodexModal, 
+    saveCodexEntry, 
+    deleteCodexEntry, 
+    openJournal, 
+    closeJournal, 
+    copyJournal, 
+    defineEntryFromSelection, 
+    updateLocEditFields 
+} from './actions-codex.js'; 
 
 // Import Calendar Functionality
-import { openCalendar, navCalendarMonth, jumpToCurrentDate, jumpToSpecificDate, openCalendarLore, closeCalendarLore, openMonthInfo, closeMonthInfo, openCalendarDay, closeCalendarDay, setCurrentCampaignDate, syncCalendarNoteDates, saveCalendarNote, editCalendarNote, deleteCalendarNote, openCalendarSettings, closeCalendarSettings, addCalendarMonthRow, saveCalendarSettings, resetCalendarToDefault, importFoundryCalendarNotes } from './actions-calendar.js';
+import { 
+    openCalendar, 
+    navCalendarMonth, 
+    jumpToCurrentDate, 
+    jumpToSpecificDate, 
+    openCalendarLore, 
+    closeCalendarLore, 
+    openMonthInfo, 
+    closeMonthInfo, 
+    openCalendarDay, 
+    closeCalendarDay, 
+    setCurrentCampaignDate, 
+    syncCalendarNoteDates, 
+    saveCalendarNote, 
+    editCalendarNote, 
+    deleteCalendarNote, 
+    openCalendarSettings, 
+    closeCalendarSettings, 
+    addCalendarMonthRow, 
+    saveCalendarSettings, 
+    resetCalendarToDefault, 
+    importFoundryCalendarNotes 
+} from './actions-calendar.js';
 
 // Import Rules Glossary Functionality
-import { openRulesGlossary, viewRule, openRuleModal, saveRule, deleteRule, updateTravelPresets, calculateTravel, calculateEncumbrance, calculateJump } from './actions-rules.js';
+import { 
+    openRulesGlossary, 
+    viewRule, 
+    openRuleModal, 
+    saveRule, 
+    deleteRule, 
+    updateTravelPresets, 
+    calculateTravel, 
+    calculateEncumbrance, 
+    calculateJump 
+} from './actions-rules.js';
 
 // Import Atlas & Map Functionality
-import { initAtlas, setAtlasMode, updateAtlasGridAndScale, updateAtlasDistanceCalc, atlasUndoLastPoint, atlasFinishDrawing, confirmAtlasPin, confirmAtlasRoute, deleteAtlasPin, deleteAtlasRoute, toggleAtlasSettings, saveAtlasSettings, searchAtlasCodex, selectAtlasCodexEntry, viewOnMap, toggleAtlasLayers, toggleAtlasRouteVis, refreshAtlasEntities, toggleAtlasFullScreen, calculateAtlasRouteLive, addAtlasRouteStop, atlasMarkLastPointAsStop } from './actions-atlas.js';
+import { 
+    initAtlas, 
+    setAtlasMode, 
+    updateAtlasGridAndScale, 
+    updateAtlasDistanceCalc, 
+    atlasUndoLastPoint, 
+    atlasFinishDrawing, 
+    confirmAtlasPin, 
+    confirmAtlasRoute, 
+    deleteAtlasPin, 
+    deleteAtlasRoute, 
+    toggleAtlasSettings, 
+    saveAtlasSettings, 
+    searchAtlasCodex, 
+    selectAtlasCodexEntry, 
+    viewOnMap, 
+    toggleAtlasLayers, 
+    toggleAtlasRouteVis, 
+    refreshAtlasEntities, 
+    toggleAtlasFullScreen, 
+    calculateAtlasRouteLive, 
+    addAtlasRouteStop, 
+    atlasMarkLastPointAsStop 
+} from './actions-atlas.js';
 
 // Import Relationship Web Functionality
-import { createNewWeb, deleteCurrentWeb, switchWeb, toggleWebGroup, openWebEditModal, openWebMoveModal, saveWebMove, saveWebEdit, addWebNode, addWebConnection, removeWebNode, removeWebConnection, toggleWebVisibility, cleanupWebOrphans, syncWebWithCodex, searchWebCodex, selectWebCodexEntry, setWebZoom, renderMermaidWeb } from './actions-webs.js';
+import { 
+    createNewWeb, 
+    deleteCurrentWeb, 
+    switchWeb, 
+    toggleWebGroup, 
+    openWebEditModal, 
+    openWebMoveModal, 
+    saveWebMove, 
+    saveWebEdit, 
+    addWebNode, 
+    addWebConnection, 
+    removeWebNode, 
+    removeWebConnection, 
+    toggleWebVisibility, 
+    cleanupWebOrphans, 
+    syncWebWithCodex, 
+    searchWebCodex, 
+    selectWebCodexEntry, 
+    setWebZoom, 
+    renderMermaidWeb 
+} from './actions-webs.js';
 
 // Import Downtime Menu Hub
 import { openDowntimeMenu } from './actions-downtime.js';
 
 // --- MODULAR DOWNTIME IMPORTS ---
 import { openBuyMagicItemModal, updateBuyMagicItemMath, executeBuyMagicItem } from './dt-buy-magic-item.js';
-import { openCarousingModal, updateCarousingMath, executeCarousing, attemptDisguiseCheck, openCarouseContacts, closeCarouseContacts, prepDefineContact, renderCarouseContactsList, saveNewCarouseContact, markCarouseContactUsed, reactivateCarouseContact, deleteCarouseContact, deleteBankedContact } from './dt-carousing.js';
-import { openCraftingModal, updateCraftingMath, executeCrafting, abandonCraftingProject, openRecipeBrowser, closeRecipeBrowser, filterRecipes, selectRecipe } from './dt-crafting.js';
+import { 
+    openCarousingModal, 
+    updateCarousingMath, 
+    executeCarousing, 
+    attemptDisguiseCheck, 
+    openCarouseContacts, 
+    closeCarouseContacts, 
+    prepDefineContact, 
+    renderCarouseContactsList, 
+    saveNewCarouseContact, 
+    markCarouseContactUsed, 
+    reactivateCarouseContact, 
+    deleteCarouseContact, 
+    deleteBankedContact 
+} from './dt-carousing.js';
+import { 
+    openCraftingModal, 
+    updateCraftingMath, 
+    executeCrafting, 
+    abandonCraftingProject, 
+    openRecipeBrowser, 
+    closeRecipeBrowser, 
+    filterRecipes, 
+    selectRecipe 
+} from './dt-crafting.js';
 import { openCrimeModal, updateCrimeMath, executeCrime, clearCrimeRecord } from './dt-crime.js';
 import { openGamblingModal, updateGamblingMath, executeGambling } from './dt-gambling.js';
 import { openPitFightingModal, updatePitFightingMath, executePitFighting, searchPitLocation, selectPitLocation } from './dt-pit-fighting.js';
 import { openRelaxationModal, updateRelaxationMath, executeRelaxation } from './dt-relaxation.js';
 import { openReligiousServiceModal, updateReligiousServiceMath, executeReligiousService } from './dt-religious-service.js';
 import { openResearchModal, updateResearchMath, executeResearch } from './dt-research.js';
-import { openScribingModal, updateScribingMath, executeScribing, abandonScribingProject, openSpellBrowser, closeSpellBrowser, filterSpells, selectSpell } from './dt-scribing.js';
-import { openSellingModal, updateSellingMath, seekBuyer, finalizeSale, openSellItemBrowser, closeSellItemBrowser, filterSellItems, selectSellItem } from './dt-selling.js';
+import { 
+    openScribingModal, 
+    updateScribingMath, 
+    executeScribing, 
+    abandonScribingProject, 
+    openSpellBrowser, 
+    closeSpellBrowser, 
+    filterSpells, 
+    selectSpell 
+} from './dt-scribing.js';
+import { 
+    openSellingModal, 
+    updateSellingMath, 
+    seekBuyer, 
+    finalizeSale, 
+    openSellItemBrowser, 
+    closeSellItemBrowser, 
+    filterSellItems, 
+    selectSellItem 
+} from './dt-selling.js';
 import { openTrainingModal, updateTrainingMath, executeTraining } from './dt-training.js';
 import { openWorkModal, updateWorkMath, executeWork } from './dt-work.js';
 import { openAssignDowntimeModal, executeAssignDowntime } from './dt-assign.js';
 
 // --- SHOPS & BAZAAR IMPORTS ---
-import { openBazaar, openShopEditModal, saveShop, deleteShop, viewStorefront, viewBackroom, buyItem, openManualItemModal, searchBazaarDatabase, addBazaarItemToShop, submitCustomItem, updateItemPrice, deleteShopItem, rollShopInventory, executeRollWares, openProposeSaleModal, submitSaleProposal, cancelSaleProposal, approveSaleProposal, toggleBazaarLocation, toggleAllShops, toggleAllTravelingShops } from './actions-shops.js';
+import { 
+    openBazaar, 
+    openShopEditModal, 
+    saveShop, 
+    deleteShop, 
+    viewStorefront, 
+    viewBackroom, 
+    buyItem, 
+    openManualItemModal, 
+    searchBazaarDatabase, 
+    addBazaarItemToShop, 
+    submitCustomItem, 
+    updateItemPrice, 
+    deleteShopItem, 
+    rollShopInventory, 
+    executeRollWares, 
+    openProposeSaleModal, 
+    submitSaleProposal, 
+    cancelSaleProposal, 
+    approveSaleProposal, 
+    toggleBazaarLocation, 
+    toggleAllShops, 
+    toggleAllTravelingShops 
+} from './actions-shops.js';
 
 // --- NPC GENERATOR IMPORTS ---
 import { openNpcGeneratorUI, updateNpcSubraceDropdown } from './ui-npc.js';
 import { executeNpcGeneration } from './actions-npc.js';
 
+// --- CUSTOM SMART ROLL TABLE IMPORTS ---
+import {
+    saveRollTable,
+    deleteRollTable,
+    importFoundryTable,
+    rollOnTable,
+    resolveTableResult
+} from './actions-tables.js';
+
 // --- APP ACTIONS HUB --- 
-// We bind all our imported modular functions back to the global window.appActions 
-// object so that the UI's inline onclick handlers can still reach them! 
 if (typeof window !== 'undefined') {
     window.appActions = { 
-      reRender, // Fix for the Manual Item Modal closing bug!
+      reRender, 
       
       // Navigation & UI Core
       navigateBack,
@@ -150,7 +372,7 @@ if (typeof window !== 'undefined') {
       closeJournal, 
       copyJournal,
       defineEntryFromSelection,
-      updateLocEditFields, // <-- ADDED HERE TO ENABLE DYNAMIC LOCATION FIELDS
+      updateLocEditFields,
 
       // Calendar System
       openCalendar,
@@ -344,7 +566,14 @@ if (typeof window !== 'undefined') {
       // NPC Generator
       openNpcGeneratorUI,
       updateNpcSubraceDropdown,
-      executeNpcGeneration
+      executeNpcGeneration,
+
+      // Custom Smart Roll Tables
+      saveRollTable,
+      deleteRollTable,
+      importFoundryTable,
+      rollOnTable,
+      resolveTableResult
     };
 }
 
@@ -352,7 +581,7 @@ if (typeof window !== 'undefined') {
 // ============================================================================
 
 if (typeof window !== 'undefined' && typeof history !== 'undefined') {
-    // 1. Set the initial anchor state so the browser knows where "Home" is
+    // Set the initial anchor state so the browser knows where "Home" is
     history.replaceState({
         currentView: 'home',
         activeCampaignId: null,
@@ -360,7 +589,7 @@ if (typeof window !== 'undefined' && typeof history !== 'undefined') {
         activeSessionId: null
     }, "", "#home");
 
-    // 2. Intercept our internal navigation router to push states automatically
+    // Intercept our internal navigation router to push states automatically
     const originalSetView = window.appActions.setView;
     window.appActions.setView = function(viewName, skipHistory = false) {
         // If we are leaving the Atlas, automatically compress it out of Full Screen mode
@@ -391,15 +620,15 @@ if (typeof window !== 'undefined' && typeof history !== 'undefined') {
         }
     };
 
-    // 3. Override the visual App Header Back Arrow to use the browser history
+    // Override the visual App Header Back Arrow to use the browser history
     window.appActions.navigateBack = function() {
         history.back(); // This naturally triggers the popstate listener below!
     };
 
-    // 4. Listen for the Phone's physical Back Button or Swipe gestures
+    // Listen for the Phone's physical Back Button or Swipe gestures
     window.addEventListener('popstate', (event) => {
         
-        // A. Soft-Close open modals instead of navigating away!
+        // Soft-Close open modals instead of navigating away!
         const popupContainer = document.getElementById('global-popup-container');
         const actionSheet = document.getElementById('action-sheet');
         const checklist = document.getElementById('checklist-modal');
@@ -446,7 +675,7 @@ if (typeof window !== 'undefined' && typeof history !== 'undefined') {
             return;
         }
 
-        // B. Perform actual deep navigation back through the app history
+        // Perform actual deep navigation back through the app history
         if (event.state && window.appData) {
             window.appData.currentView = event.state.currentView;
             window.appData.activeCampaignId = event.state.activeCampaignId;
