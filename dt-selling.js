@@ -1,12 +1,9 @@
-import { generateId, updateDerivedState, reRender } from './state.js';
+/* STREAMING_CHUNK: Importing state management and firebase sync engines... */
+import { generateId, updateDerivedState, reRender, getUnifiedCatalog } from './state.js';
 import { saveCampaign, notify } from './firebase-manager.js';
 import { logPlayerActivity } from './actions-campaign.js';
-import { MAGIC_ITEM_TABLES } from './data-roll-tables.js';
 
-// ============================================================================
-// --- 11. SELLING A MAGIC ITEM ---
-// ============================================================================
-
+// --- CUSTOM ANCHOR PRICING FALLBACKS ---
 const BASE_PRICES_BY_RARITY = {
     "common": 100,
     "uncommon": 400,
@@ -15,47 +12,43 @@ const BASE_PRICES_BY_RARITY = {
     "legendary": 200000
 };
 
-// --- ITEM BROWSER ENGINE ---
+// --- ITEM BROWSER ENGINE (DYNAMIZED WITH UNIFIED CATALOG) ---
 let ITEM_CACHE = [];
 
-const buildItemCache = () => {
+/* STREAMING_CHUNK: Compiling the local item cache from the Unified Catalog... */
+const buildItemCache = async () => {
     if (ITEM_CACHE.length > 0) return;
-    const itemMap = new Map();
     
-    const getTableRarity = (tableLetter) => {
-        switch(tableLetter) {
-            case 'A': return 'common';
-            case 'B': case 'F': return 'uncommon';
-            case 'C': case 'G': return 'rare';
-            case 'D': case 'H': return 'veryRare'; // Maps to our dropdown values
-            case 'E': case 'I': return 'legendary';
-            default: return 'uncommon';
-        }
-    };
-
-    const isConsumable = (itemName) => {
-        const n = itemName.toLowerCase();
-        return n.includes("potion") || n.includes("scroll") || n.includes("ammunition") || 
-               n.includes("arrow") || n.includes("bolt") || n.includes("dart") || 
-               n.includes("bullet") || n.includes("needle") || n.includes("elixir") || 
-               n.includes("oil") || n.includes("dust") || n.includes("solvent") || 
-               n.includes("glue") || n.includes("ointment") || n.includes("feather token") || 
-               n.includes("bean") || n.includes("bead");
-    };
-
-    // Scrape every item from the massive Xanathar's roll tables
-    for (const [tableLetter, items] of Object.entries(MAGIC_ITEM_TABLES)) {
-        const rarity = getTableRarity(tableLetter);
-        items.forEach(row => {
-            const itemName = row[2];
-            if (!itemMap.has(itemName)) {
-                itemMap.set(itemName, { name: itemName, rarity, consumable: isConsumable(itemName) });
-            }
-        });
+    try {
+        // Query our Unified Catalog (merges static bazaar with homebrew and overrides)
+        const catalog = await getUnifiedCatalog();
+        
+        // Filter the catalog down to magic items to display in the Selling browser
+        ITEM_CACHE = catalog
+            .filter(item => item.isMagic)
+            .map(item => {
+                let cleanRarity = (item.rarity || 'common').toLowerCase().trim();
+                if (cleanRarity === 'very rare' || cleanRarity === 'very-rare') {
+                    cleanRarity = 'veryRare';
+                }
+                
+                return {
+                    name: item.name,
+                    rarity: cleanRarity,
+                    price: item.price || 0,
+                    // Auto-detect consumable status
+                    consumable: item.type === 'consumable' || 
+                                item.name.toLowerCase().includes("potion") || 
+                                item.name.toLowerCase().includes("scroll") || 
+                                item.name.toLowerCase().includes("ammunition")
+                };
+            })
+            .sort((a, b) => a.name.localeCompare(b.name));
+            
+    } catch (e) {
+        console.error("Failed to compile Unified Selling Catalog:", e);
+        ITEM_CACHE = [];
     }
-    
-    // Sort alphabetically for the UI
-    ITEM_CACHE = Array.from(itemMap.values()).sort((a, b) => a.name.localeCompare(b.name));
 };
 
 export const openSellingModal = () => {
@@ -245,8 +238,9 @@ export const openSellingModal = () => {
     }, 50);
 };
 
-export const openSellItemBrowser = () => {
-    buildItemCache();
+export const openSellItemBrowser = async () => {
+    /* STREAMING_CHUNK: Loading the dynamically populated Item cache... */
+    await buildItemCache();
     const modal = document.getElementById('dt-sell-item-modal');
     if (modal) {
         modal.classList.remove('hidden');
@@ -288,7 +282,6 @@ export const filterSellItems = () => {
     filtered.forEach(r => {
         const rarityColor = r.rarity === 'legendary' ? 'text-orange-600' : (r.rarity === 'veryRare' ? 'text-purple-600' : (r.rarity === 'rare' ? 'text-blue-600' : (r.rarity === 'uncommon' ? 'text-emerald-600' : 'text-stone-600')));
         
-        // Escape apostrophes
         const safeName = r.name.replace(/'/g, "\\'");
         let displayRarity = r.rarity;
         if (displayRarity === 'veryRare') displayRarity = 'Very Rare';
@@ -331,14 +324,19 @@ export const selectSellItem = (name, rarity, isConsumable) => {
         consEl.disabled = true;
     }
 
+    // Set custom price override automatically if a custom price exists for the selected item
+    const matchedItem = ITEM_CACHE.find(i => i.name === name);
     const priceEl = document.getElementById('dt-sell-custom-price');
-    if (priceEl) priceEl.value = ''; // Reset custom price
+    if (priceEl && matchedItem && matchedItem.price > 0) {
+        priceEl.value = matchedItem.price;
+    } else if (priceEl) {
+        priceEl.value = '';
+    }
 
     window.appActions.updateSellingMath('input');
 };
 
 export const updateSellingMath = (triggerSource = 'input') => {
-    // --- AUTO-CALCULATE MODIFIER ---
     if (triggerSource === 'pc' || triggerSource === 'init') {
         updateDerivedState();
         const camp = window.appData.activeCampaign;
@@ -369,7 +367,6 @@ export const updateSellingMath = (triggerSource = 'input') => {
         }
     }
 
-    // UNLOCK RECIPE FIELDS IF SWITCHING HEROES OR MANUALLY STARTING OVER
     if (triggerSource === 'init' || triggerSource === 'pc') {
         const nameEl = document.getElementById('dt-sell-item-name');
         const rarityEl = document.getElementById('dt-sell-rarity');
@@ -418,7 +415,6 @@ export const updateSellingMath = (triggerSource = 'input') => {
     outGreat.textContent = `${offerGreat.toLocaleString()} gp`;
 };
 
-// --- STEP 1: ROLL THE CHECK AND SHOW THE OFFER ---
 export const seekBuyer = () => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
@@ -444,7 +440,6 @@ export const seekBuyer = () => {
     const customPrice = parseInt(document.getElementById('dt-sell-custom-price').value) || 0;
     const isConsumable = document.getElementById('dt-sell-consumable').checked;
 
-    // --- MATH EXECUTION ---
     let basePrice = customPrice > 0 ? customPrice : (BASE_PRICES_BY_RARITY[rarity] || 0);
     if (isConsumable) basePrice = Math.floor(basePrice / 2);
 
@@ -484,7 +479,6 @@ export const seekBuyer = () => {
     document.getElementById('dt-sell-res-quality').value = offerQuality;
 };
 
-// --- STEP 2: LOG THE ACCEPTANCE OR DECLINE ---
 export const finalizeSale = async (isAccepted) => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
@@ -594,10 +588,6 @@ export const finalizeSale = async (isAccepted) => {
     reRender();
 };
 
-// ============================================================================
-// --- GLOBAL EXPORTS BINDING ---
-// ============================================================================
-
 if (typeof window !== 'undefined') {
     window.appActions = window.appActions || {};
     window.appActions.openSellingModal = openSellingModal;
@@ -605,7 +595,6 @@ if (typeof window !== 'undefined') {
     window.appActions.seekBuyer = seekBuyer;
     window.appActions.finalizeSale = finalizeSale;
     
-    // Bind Browser Functions
     window.appActions.openSellItemBrowser = openSellItemBrowser;
     window.appActions.closeSellItemBrowser = closeSellItemBrowser;
     window.appActions.filterSellItems = filterSellItems;
