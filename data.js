@@ -1,4 +1,4 @@
-/* STREAMING_CHUNK: Importing core state modules and actions... */
+/* STREAMING_CHUNK: Importing core state and navigation modules... */
 import { setCampaignsData, updateDerivedState, reRender } from './state.js'; 
 
 // Import UI Core Navigation & Layout Controls
@@ -43,7 +43,7 @@ import {
     quickSyncDDB 
 } from './actions-campaign.js'; 
 
-// Import Session, Narrative, & Visibility Controls 
+/* STREAMING_CHUNK: Importing session and visibility controls... */
 import { 
     openSessionEdit, 
     switchSessionTab, 
@@ -89,7 +89,7 @@ import {
     updateLocEditFields 
 } from './actions-codex.js'; 
 
-// Import Calendar Functionality
+/* STREAMING_CHUNK: Importing calendar and rules glossary systems... */
 import { 
     openCalendar, 
     navCalendarMonth, 
@@ -127,7 +127,7 @@ import {
     calculateJump 
 } from './actions-rules.js';
 
-// Import Atlas & Map Functionality
+/* STREAMING_CHUNK: Importing interactive map atlas and relationship webs... */
 import { 
     initAtlas, 
     setAtlasMode, 
@@ -176,7 +176,7 @@ import {
     renderMermaidWeb 
 } from './actions-webs.js';
 
-// Import Downtime Menu Hub
+/* STREAMING_CHUNK: Importing modular downtime activities... */
 import { openDowntimeMenu } from './actions-downtime.js';
 
 // --- MODULAR DOWNTIME IMPORTS ---
@@ -275,7 +275,7 @@ import {
     resolveTableResult
 } from './actions-tables.js';
 
-// --- ROLL TABLE UI ACTIONS IMPORTS ---
+/* STREAMING_CHUNK: Importing and exposing file-picker select engines... */
 import {
     filterRollTables,
     openTableImporter,
@@ -286,7 +286,8 @@ import {
     simulateTableRoll,
     addNewTableResult,
     deleteTableResult,
-    updateTableResultWeight
+    updateTableResultWeight,
+    handleFoundryFileSelect
 } from './ui-tables.js';
 
 // --- APP ACTIONS HUB --- 
@@ -599,7 +600,10 @@ if (typeof window !== 'undefined') {
       simulateTableRoll,
       addNewTableResult,
       deleteTableResult,
-      updateTableResultWeight
+      updateTableResultWeight,
+      
+      /* STREAMING_CHUNK: Registering the local file reader handle... */
+      handleFoundryFileSelect
     };
 
     // Bind the table search filter directly to window as expected by the inline HTML oninput handler
@@ -610,7 +614,7 @@ if (typeof window !== 'undefined') {
 // ============================================================================
 
 if (typeof window !== 'undefined' && typeof history !== 'undefined') {
-    // Set the initial anchor state so the browser knows where "Home" is
+    /* STREAMING_CHUNK: Routing dynamic state history... */
     history.replaceState({
         currentView: 'home',
         activeCampaignId: null,
