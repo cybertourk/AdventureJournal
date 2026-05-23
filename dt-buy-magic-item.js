@@ -1,4 +1,5 @@
-import { generateId, updateDerivedState, reRender } from './state.js';
+/* STREAMING_CHUNK: Importing core state, database, and rolling table definitions... */
+import { generateId, updateDerivedState, reRender, getUnifiedCatalog } from './state.js';
 import { saveCampaign, notify } from './firebase-manager.js';
 import { logPlayerActivity } from './actions-campaign.js';
 
@@ -15,13 +16,13 @@ import {
     FEATHER_TOKEN_TABLE 
 } from './data-roll-tables.js';
 
-// --- CUSTOM CAMPAIGN PRICING ENGINE ---
+/* STREAMING_CHUNK: Configuring custom fallback pricing and utility math... */
 const CUSTOM_PRICING = {
     "common": 50,
     "uncommon": 500,
     "rare": 5000,
     "very-rare": 50000,
-    "legendary": 500000 // Assumed 10x scaling based on prior tiers
+    "legendary": 500000
 };
 
 const getArmorBaseCost = (itemName) => {
@@ -70,10 +71,37 @@ const calculateCustomPrice = (itemName, rarity) => {
     return base;
 };
 
+// --- DYNAMIC ITEM BROWSER CACHE ---
+let MAGIC_ITEMS_CACHE = [];
+
+/* STREAMING_CHUNK: Resolving magic items from the Unified Catalog... */
+const buildMagicItemsCache = async () => {
+    if (MAGIC_ITEMS_CACHE.length > 0) return;
+    try {
+        const catalog = await getUnifiedCatalog();
+        MAGIC_ITEMS_CACHE = catalog
+            .filter(item => item.isMagic)
+            .map(item => {
+                let r = (item.rarity || 'common').toLowerCase().trim();
+                if (r === 'veryrare' || r === 'very rare') r = 'very-rare';
+                return {
+                    name: item.name,
+                    rarity: r,
+                    price: item.price || 0
+                };
+            })
+            .sort((a, b) => a.name.localeCompare(b.name));
+    } catch (e) {
+        console.error("Failed to build Magic Items Cache for buying:", e);
+        MAGIC_ITEMS_CACHE = [];
+    }
+};
+
 // ============================================================================
 // --- 1. BUYING A MAGIC ITEM ---
 // ============================================================================
 
+/* STREAMING_CHUNK: Opening the main Scribing and Buying UI modal... */
 export const openBuyMagicItemModal = () => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
@@ -159,13 +187,16 @@ export const openBuyMagicItemModal = () => {
 
                     <div class="mb-5 bg-stone-50 p-4 border border-[#d4c5a9] rounded-sm shadow-inner">
                         <div class="flex items-center gap-2 mb-3">
-                            <input type="checkbox" id="dt-buy-specific-toggle" onchange="const g = document.getElementById('dt-buy-specific-group'); g.classList.toggle('opacity-50'); g.classList.toggle('pointer-events-none');" class="w-4 h-4 text-blue-600 rounded-sm cursor-pointer shadow-sm border-stone-400">
+                            <input type="checkbox" id="dt-buy-specific-toggle" onchange="const g = document.getElementById('dt-buy-specific-group'); g.classList.toggle('opacity-50'); g.classList.toggle('pointer-events-none'); window.appActions.updateBuyMagicItemMath();" class="w-4 h-4 text-blue-600 rounded-sm cursor-pointer shadow-sm border-stone-400">
                             <label class="text-xs font-bold uppercase tracking-widest text-stone-800 cursor-pointer" for="dt-buy-specific-toggle">Seeking a Specific Item?</label>
                         </div>
-                        <div id="dt-buy-specific-group" class="grid grid-cols-1 sm:grid-cols-2 gap-4 opacity-50 pointer-events-none transition-opacity">
+                        <div id="dt-buy-specific-group" class="grid grid-cols-1 sm:grid-cols-2 gap-4 opacity-50 pointer-events-none transition-opacity relative">
                             <div>
-                                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Item Name</label>
-                                <input type="text" id="dt-buy-item-name" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-white shadow-sm" placeholder="e.g. Flame Tongue">
+                                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Item Name (Search)</label>
+                                <div class="relative">
+                                    <input type="text" id="dt-buy-item-name" oninput="window.appActions.searchBuyMagicItems(this.value)" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-blue-600 bg-white shadow-sm" placeholder="Search item...">
+                                    <div id="dt-buy-item-search-results" class="absolute z-[19000] w-full bg-white border border-[#d4c5a9] rounded-b-sm shadow-xl max-h-40 overflow-y-auto hidden top-[38px] custom-scrollbar text-xs"></div>
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Rarity DC</label>
@@ -231,8 +262,57 @@ export const openBuyMagicItemModal = () => {
     setTimeout(() => { window.appActions.updateBuyMagicItemMath('init'); }, 50);
 };
 
+/* STREAMING_CHUNK: Processing live autocomplete searches inside the specific item finder... */
+if (typeof window !== 'undefined') {
+    window.appActions = window.appActions || {};
+
+    window.appActions.searchBuyMagicItems = async (query) => {
+        const resultsDiv = document.getElementById('dt-buy-item-search-results');
+        if (!resultsDiv) return;
+
+        if (!query || query.trim().length < 2) {
+            resultsDiv.innerHTML = '';
+            resultsDiv.classList.add('hidden');
+            return;
+        }
+
+        await buildMagicItemsCache();
+        const lowerQ = query.toLowerCase().trim();
+        const matches = MAGIC_ITEMS_CACHE.filter(item => item.name.toLowerCase().includes(lowerQ)).slice(0, 20);
+
+        if (matches.length === 0) {
+            resultsDiv.innerHTML = `<div class="p-3 text-stone-500 text-xs italic text-center">No matching magic items found.</div>`;
+        } else {
+            resultsDiv.innerHTML = matches.map(m => {
+                const safeName = m.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                const rarityLabel = m.rarity.replace('-', ' ');
+                return `
+                <div class="p-2 border-b border-stone-200 hover:bg-blue-50 cursor-pointer transition-colors flex justify-between items-center" 
+                     onmousedown="event.preventDefault(); window.appActions.selectBuyMagicItem('${safeName}', '${m.rarity}')">
+                    <span class="font-bold text-stone-800">${m.name}</span>
+                    <span class="text-[8px] uppercase tracking-widest font-bold text-stone-500 bg-stone-100 px-1.5 py-0.5 border border-stone-200 rounded-sm">${rarityLabel}</span>
+                </div>`;
+            }).join('');
+        }
+        resultsDiv.classList.remove('hidden');
+    };
+
+    window.appActions.selectBuyMagicItem = (name, rarity) => {
+        const nameInput = document.getElementById('dt-buy-item-name');
+        const raritySelect = document.getElementById('dt-buy-rarity');
+        const resultsDiv = document.getElementById('dt-buy-item-search-results');
+
+        if (nameInput) nameInput.value = name;
+        if (raritySelect) raritySelect.value = rarity;
+        if (resultsDiv) {
+            resultsDiv.innerHTML = '';
+            resultsDiv.classList.add('hidden');
+        }
+    };
+}
+
+/* STREAMING_CHUNK: Recalculating combined modifiers and caps on the fly... */
 export const updateBuyMagicItemMath = (triggerSource = 'input') => {
-    // --- AUTO-CALCULATE MODIFIER ---
     if (triggerSource === 'pc' || triggerSource === 'init') {
         const pcId = document.getElementById('dt-buy-pc')?.value;
         const camp = window.appData?.activeCampaign;
@@ -292,11 +372,10 @@ export const updateBuyMagicItemMath = (triggerSource = 'input') => {
     
     const getGoldBonus = (g) => Math.max(0, Math.floor((g - 100) / 100));
 
-    // 1. Force cap if current selection exceeds 10 (e.g., from toggling Harper Network on)
+    // Force cap if current selection exceeds 10 (Time + Money cap = +10)
     let wasAdjusted = false;
     while (getDaysBonus(currentDays) + getGoldBonus(currentGold) > 10) {
         wasAdjusted = true;
-        // Step down Gold first, as it is the more liquid resource
         if (currentGold > 100) {
             currentGold -= 100;
         } else if (currentDays > 5) {
@@ -313,7 +392,6 @@ export const updateBuyMagicItemMath = (triggerSource = 'input') => {
     const currentGoldBonus = getGoldBonus(currentGold);
     const combinedEffortBonus = currentDaysBonus + currentGoldBonus;
 
-    // 2. Display appropriate warning message
     if (capWarning && capText) {
         if (wasAdjusted) {
             capWarning.classList.remove('hidden');
@@ -326,7 +404,7 @@ export const updateBuyMagicItemMath = (triggerSource = 'input') => {
         }
     }
 
-    // 3. Disable options in the dropdowns that would illegally exceed the +10 cap
+    // Disable choices in selection dropdowns that would exceed the +10 cap
     Array.from(goldSelect.options).forEach(opt => {
         const g = parseInt(opt.value);
         opt.disabled = (getGoldBonus(g) + currentDaysBonus > 10);
@@ -337,7 +415,6 @@ export const updateBuyMagicItemMath = (triggerSource = 'input') => {
         opt.disabled = (getDaysBonus(d) + currentGoldBonus > 10);
     });
 
-    // 4. Resolve final math
     let magicBonus = 0;
     if (magicLvl === 'low') magicBonus = -10;
     if (magicLvl === 'high') magicBonus = 10;
@@ -350,6 +427,7 @@ export const updateBuyMagicItemMath = (triggerSource = 'input') => {
     daysOut.textContent = `${totalDays} Day${totalDays !== 1 ? 's' : ''}`;
 };
 
+/* STREAMING_CHUNK: Rolling the d20 and generating the DM Sync Tasks... */
 export const executeBuyMagicItem = async () => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
@@ -374,7 +452,6 @@ export const executeBuyMagicItem = async () => {
     if (isSpecific && !itemName) { notify("Please enter the specific item name you are searching for.", "error"); return; }
     if (isHarper && !harperLoc) { notify("Please enter the Harper Safe House location.", "error"); return; }
 
-    // DOWNTIME DAYS CHECK
     if ((parseInt(pc.availableDowntime) || 0) < totalDays) {
         notify(`Not enough downtime days. ${pc.name} only has ${parseInt(pc.availableDowntime) || 0} days available.`, "error");
         return;
@@ -384,8 +461,6 @@ export const executeBuyMagicItem = async () => {
     if (isHarper) wBonus *= 2; 
 
     const goldBonus = Math.max(0, Math.floor((gold - 100) / 100));
-    
-    // Xanathar's Rule: Time and Money combined max at +10
     const combinedEffortBonus = Math.min(10, wBonus + goldBonus);
     
     const magicLvl = document.getElementById('dt-buy-magic-lvl').value;
@@ -398,7 +473,7 @@ export const executeBuyMagicItem = async () => {
     const d20 = Math.floor(Math.random() * 20) + 1;
     const checkTotal = d20 + totalBonus;
     
-    // XGtE Complication Roll (10% flat chance)
+    // Flat 10% chance of complication
     const d100 = Math.floor(Math.random() * 100) + 1;
     const hasComplication = d100 <= 10;
     
@@ -426,9 +501,8 @@ export const executeBuyMagicItem = async () => {
 
     let resultHeader = "";
     let resultBody = "";
-
-    // --- NEW: Generate D&D Beyond Sync Tasks ---
     let newTasks = [];
+
     if (gold > 0) {
         newTasks.push({
             id: generateId(),
@@ -445,10 +519,17 @@ export const executeBuyMagicItem = async () => {
         const dc = dcMap[itemRarity];
         
         if (checkTotal >= dc) {
-            const finalPrice = calculateCustomPrice(itemName, itemRarity);
+            // Check if the item has a custom override or static price mapped in our state
+            let finalPrice = calculateCustomPrice(itemName, itemRarity);
+            
+            await buildMagicItemsCache();
+            const matchedItem = MAGIC_ITEMS_CACHE.find(i => i.name.toLowerCase().trim() === itemName.toLowerCase().trim());
+            if (matchedItem && matchedItem.price > 0) {
+                finalPrice = matchedItem.price;
+            }
+
             resultBody = `✅ **Success!** You found a seller for the **${itemName}** (DC ${dc}).\n> Asking Price: **${finalPrice.toLocaleString()} gp**`;
             
-            // Add purchase task
             newTasks.push({
                 id: generateId(),
                 text: `D&D Beyond Sync (${pc.name}): If purchased, deduct ${finalPrice.toLocaleString()} gp and add '${itemName}' to inventory.`,
@@ -488,7 +569,7 @@ export const executeBuyMagicItem = async () => {
                     }
                 }
                 
-                // --- SUB-ROLL EVALUATION ---
+                // Sub-roll resolvers
                 if (found === "Spell scroll (cantrip)" && SCROLL_TABLES['cantrip']) {
                     const spell = SCROLL_TABLES['cantrip'][Math.floor(Math.random() * SCROLL_TABLES['cantrip'].length)];
                     found = `Spell scroll (${spell})`;
@@ -551,14 +632,22 @@ export const executeBuyMagicItem = async () => {
             
             let itemsStr = "";
             const baseRarity = getTableRarity(tableLetter);
+            
+            await buildMagicItemsCache();
+            
             Object.keys(counts).forEach(k => {
-                const price = calculateCustomPrice(k, baseRarity);
+                let price = calculateCustomPrice(k, baseRarity);
+                // Overwrite with custom catalog price if found
+                const matchItem = MAGIC_ITEMS_CACHE.find(i => i.name.toLowerCase().trim() === k.toLowerCase().trim());
+                if (matchItem && matchItem.price > 0) {
+                    price = matchItem.price;
+                }
+                
                 itemsStr += `\n> • **${k}**` + (counts[k] > 1 ? ` (x${counts[k]})` : '') + ` - *Asking Price: ${price.toLocaleString()} gp*`;
             });
             
             resultBody = `✅ **Success!** You found a seller offering the following items (Table ${tableLetter}):${itemsStr}`;
             
-            // Add general purchase task
             newTasks.push({
                 id: generateId(),
                 text: `D&D Beyond Sync (${pc.name}): Review search results. Deduct gold and add any purchased magic items to your inventory.`,
