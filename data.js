@@ -114,7 +114,7 @@ import {
     importFoundryCalendarNotes 
 } from './actions-calendar.js';
 
-// Import Rules Glossary Functionality
+// Import Rules Glossary Content
 import { 
     openRulesGlossary, 
     viewRule, 
@@ -275,7 +275,7 @@ import {
     resolveTableResult
 } from './actions-tables.js';
 
-// --- ROLL TABLE UI ACTIONS IMPORTS ---
+/* STREAMING_CHUNK: Importing roll table settings modal controls... */
 import {
     filterRollTables,
     openTableImporter,
@@ -288,7 +288,9 @@ import {
     deleteTableResult,
     updateTableResultWeight,
     toggleTableFolder,
-    handleFoundryFileSelect
+    handleFoundryFileSelect,
+    openTableSettingsModal,
+    saveTableSettings
 } from './ui-tables.js';
 
 // --- APP ACTIONS HUB --- 
@@ -382,7 +384,8 @@ if (typeof window !== 'undefined') {
       handleSmartInput, 
       _showSuggestions, 
       viewCodex, 
-      _openCodexModal, saveCodexEntry, 
+      _openCodexModal, 
+      saveCodexEntry, 
       deleteCodexEntry, 
       openJournal, 
       closeJournal, 
@@ -602,9 +605,12 @@ if (typeof window !== 'undefined') {
       deleteTableResult,
       updateTableResultWeight,
       
-      // Expose folder toggling globally
       toggleTableFolder,
-      handleFoundryFileSelect
+      handleFoundryFileSelect,
+      
+      /* STREAMING_CHUNK: Registering Settings Modal handlers... */
+      openTableSettingsModal,
+      saveTableSettings
     };
 
     // Bind the table search filter directly to window as expected by the inline HTML oninput handler
@@ -650,8 +656,6 @@ if (typeof window !== 'undefined' && typeof history !== 'undefined') {
                 activeAdventureId: window.appData?.activeAdventureId || null,
                 activeSessionId: window.appData?.activeSessionId || null
             };
-            
-            // Standard string concatenation avoids compile glitches with nested backticks
             history.pushState(stateObj, "", '#' + viewName);
         }
     };
@@ -707,8 +711,6 @@ if (typeof window !== 'undefined' && typeof history !== 'undefined') {
                 activeAdventureId: window.appData?.activeAdventureId || null,
                 activeSessionId: window.appData?.activeSessionId || null
             };
-            
-            // Standard string concatenation avoids compile glitches with nested backticks
             history.pushState(recoveredState, "", '#' + (window.appData?.currentView || 'home'));
             return;
         }
