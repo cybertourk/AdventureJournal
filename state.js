@@ -1,6 +1,8 @@
 import { renderApp } from './ui-core.js';
 
 // --- GLOBAL STATE DEFAULTS ---
+// This registers the foundational data structure for the entire Adventure Journal.
+// We are extending this schema to support custom item templates, modifications, and dynamic roll tables.
 if (!window.appData) {
     window.appData = {
         campaigns: [],
@@ -10,13 +12,18 @@ if (!window.appData) {
         activeSessionId: null,
         activePcId: null,
         activeCalendarDate: null, // Tracks the currently clicked { year, monthIndex, day }
-        activeWebId: null, // NEW: Tracks the currently active Relationship Web map
+        activeWebId: null, // Tracks the currently active Relationship Web map
         
+        // --- NEW: DYNAMIC CATALOG & ROLL TABLE SCHEMAS ---
+        customItems: [],       // New items created inside the app (e.g. Homebrew, specialized gear)
+        itemOverrides: [],     // Price/stat modifications to existing static items
+        rollTables: [],        // Custom, editable, and weighted roll tables (including Foundry imports)
+
         // Derived Active Entities
         activeCampaign: null,
         activeAdventure: null,
         activeSession: null,
-        activeWeb: null, // NEW: The specific Relationship Web object
+        activeWeb: null, // The specific Relationship Web object
 
         // Codex & Smart Text State
         codexCache: [], // Array of objects { text: "Alias/Name", id: "TargetID" }
@@ -30,16 +37,20 @@ if (!window.appData) {
 
         // --- UI Protection Flags ---
         isEditing: false, // Locks the renderer when a user is actively typing
-        hasPendingUpdate: false // Flags that new data arrived while locked
+        hasPendingUpdate: false, // Flags that new data arrived while locked
+        
+        // Static Cache for the 16k bazaar database to avoid reloading it
+        staticCatalog: null
     };
 }
 
-// --- UTILITY FUNCTIONS ---
-
+// Generates secure, lightweight unique identifiers for custom database entries.
 export function generateId() {
     return Math.random().toString(36).substring(2, 11);
 }
 
+// Parses arbitrary raw strings for currency patterns (e.g., "50 gp", "3,500 gold pieces") 
+// and returns their total worth converted into Gold Pieces (gp).
 export function calculateLootValue(text) {
     if (!text) return 0;
     
@@ -51,7 +62,7 @@ export function calculateLootValue(text) {
       .replace(/\bsilver(?: pieces?| coins?)?\b/g, 'sp')
       .replace(/\bcopper(?: pieces?| coins?)?\b/g, 'cp');
     
-    // Regex explicitly supports commas in base number, floating points, AND an optional multiplier (e.g. "x 10" or "* 20")
+    // Regex supports commas in base numbers, decimals, and multiplier groups (e.g. "x 10" or "* 20")
     const currencyRegex = /((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)\s*(pp|gp|ep|sp|cp)\b(?:\s*[*x]\s*((?:\d{1,3}(?:,\d{3})+|\d+)))?/g;
     const conversion = { pp: 10, gp: 1, ep: 0.5, sp: 0.1, cp: 0.01 };
     let totalGP = 0;
@@ -61,7 +72,6 @@ export function calculateLootValue(text) {
       const baseValue = parseFloat(cleanNumberStr);
       const coinValue = conversion[match[2]] || 0;
       
-      // If there is a multiplier (match[3]), strip its commas and parse it, otherwise default to 1
       const multiplierStr = match[3] ? match[3].replace(/,/g, '') : '1';
       const multiplier = parseInt(multiplierStr);
       
@@ -70,54 +80,97 @@ export function calculateLootValue(text) {
     return totalGP;
 }
 
-// --- STATE MANAGEMENT ---
-
+// Locks the renderer to protect active forms while the user is typing,
+// preventing incoming Firestore real-time snapshots from destroying input states.
 export function setEditingState(isEditing) {
     window.appData.isEditing = isEditing;
-    // If the user just stopped editing (e.g., closed a modal or saved), and data arrived while they were locked, render it now!
     if (!isEditing && window.appData.hasPendingUpdate) {
         window.appData.hasPendingUpdate = false;
         reRender(true);
     }
 }
 
-// Ensures derived state is accurate before rendering
+// THE UNIFIED CATALOG ENGINE (Asynchronous Resolver)
+// This memory-efficient compiler combines our static 16,000-item library (data-bazaar.js) 
+// with Firestore customItems and applies itemOverrides dynamically on-the-fly.
+export async function getUnifiedCatalog() {
+    // 1. Lazy-load data-bazaar.js only when needed to optimize startup speeds
+    if (!window.appData.staticCatalog) {
+        try {
+            const module = await import('./data-bazaar.js');
+            window.appData.staticCatalog = module.BAZAAR_ITEMS || [];
+        } catch (e) {
+            console.error("Static catalog load failed; starting with empty fallback.", e);
+            window.appData.staticCatalog = [];
+        }
+    }
+    
+    const staticCatalog = window.appData.staticCatalog;
+    
+    // 2. Fetch the dynamic layers bound to the active campaign tome
+    const customItems = window.appData.activeCampaign?.customItems || [];
+    const itemOverrides = window.appData.activeCampaign?.itemOverrides || [];
+    
+    // 3. Map overrides by name for fast O(1) lookups
+    const overrideMap = new Map(itemOverrides.map(o => [o.name.toLowerCase().trim(), o]));
+    
+    // 4. Apply custom overrides to static item templates
+    const catalog = staticCatalog.map(item => {
+        const override = overrideMap.get(item.name.toLowerCase().trim());
+        if (override) {
+            return { ...item, ...override };
+        }
+        return item;
+    });
+    
+    // 5. Append completely new custom items (ensuring no duplicate entries)
+    const staticNames = new Set(staticCatalog.map(i => i.name.toLowerCase().trim()));
+    customItems.forEach(item => {
+        const itemKey = item.name.toLowerCase().trim();
+        if (!staticNames.has(itemKey)) {
+            catalog.push(item);
+        }
+    });
+    
+    return catalog;
+}
+
+// Derived states evaluate on-the-fly variables, caches aliases, and resolves active campaign paths.
 export function updateDerivedState() {
     window.appData.activeCampaign = window.appData.campaigns.find(c => c.id === window.appData.activeCampaignId) || null;
     
     if (window.appData.activeCampaign) {
-        // Ensure arrays exist
+        // Guarantee sub-arrays exist on the campaign document
         if (!window.appData.activeCampaign.codex) window.appData.activeCampaign.codex = [];
         if (!window.appData.activeCampaign.rulesGlossary) window.appData.activeCampaign.rulesGlossary = [];
-        if (!window.appData.activeCampaign.webs) window.appData.activeCampaign.webs = []; // NEW: Relationship Webs
+        if (!window.appData.activeCampaign.webs) window.appData.activeCampaign.webs = [];
+        if (!window.appData.activeCampaign.customItems) window.appData.activeCampaign.customItems = [];
+        if (!window.appData.activeCampaign.itemOverrides) window.appData.activeCampaign.itemOverrides = [];
+        if (!window.appData.activeCampaign.rollTables) window.appData.activeCampaign.rollTables = [];
         
-        // Build Autocomplete Cache: Combine Codex entries, Heroes, and Rules Glossary!
+        // Build Autocomplete Cache: Combine Codex entries, Heroes, and Rules Glossary
         const aliasMap = new Map();
         const stopWords = ['the', 'a', 'an', 'and', 'of', 'in', 'to', 'for', 'with', 'on', 'at', 'by', 'from', 'is', 'it', 'that', 'this'];
         
-        // NEW: Added type parameter to selectively generate short-aliases
         const addAlias = (name, id, type) => {
-            if(!name) return;
+            if (!name) return;
             const cleanName = name.trim();
             
-            // Always store the full exact name
-            if(!aliasMap.has(cleanName.toLowerCase())) {
+            if (!aliasMap.has(cleanName.toLowerCase())) {
                 aliasMap.set(cleanName.toLowerCase(), { text: cleanName, id: id });
             }
             
-            // SMART HERO ALIASING: Only generate short-word aliases for PCs and NPCs
+            // Generate short single-word aliases exclusively for characters
             if (type === 'PC' || type === 'NPC') {
                 let words = cleanName.split(/\s+/);
                 let targetShortWord = words[0];
                 
-                // If the first word is an article/stopword, grab the second word instead
                 if (words.length > 1 && stopWords.includes(words[0].toLowerCase())) {
                     targetShortWord = words[1];
                 }
                 
-                // Ensure the short word is meaningful
-                if(targetShortWord && targetShortWord.length > 2 && targetShortWord !== cleanName && !stopWords.includes(targetShortWord.toLowerCase())) {
-                    if(!aliasMap.has(targetShortWord.toLowerCase())) {
+                if (targetShortWord && targetShortWord.length > 2 && targetShortWord !== cleanName && !stopWords.includes(targetShortWord.toLowerCase())) {
+                    if (!aliasMap.has(targetShortWord.toLowerCase())) {
                         aliasMap.set(targetShortWord.toLowerCase(), { text: targetShortWord, id: id });
                     }
                 }
@@ -156,8 +209,6 @@ export function updateDerivedState() {
 }
 
 export function reRender(force = false) {
-    // --- DATA PROTECTION ENGINE ---
-    // Prevent background database syncs from wiping out unsaved forms or active modals!
     const isFormView = ['session-edit', 'pc-edit'].includes(window.appData.currentView);
     const popupContainer = document.getElementById('global-popup-container');
     const ueModal = document.getElementById('universal-editor-modal');
@@ -165,10 +216,9 @@ export function reRender(force = false) {
     const hasOpenModal = (popupContainer && popupContainer.innerHTML.trim() !== '') || 
                          (ueModal && !ueModal.classList.contains('hidden'));
 
-    // If we are actively editing a form or have a modal open, queue the background update and abort the render
     if ((isFormView || hasOpenModal) && !force) {
         window.appData.hasPendingUpdate = true;
-        console.log("Real-time update intercepted to protect unsaved form data.");
+        console.log("Real-time update intercepted to protect active forms.");
         return;
     }
 
@@ -177,10 +227,9 @@ export function reRender(force = false) {
     renderApp(window.appData);
 }
 
-// Global initialization entry point called from main.js
 export function setCampaignsData(campaignsArray) {
     window.appData.campaigns = campaignsArray;
-    reRender(); // The initial load can safely force a render
+    reRender();
 }
 
 // --- DEFAULT CALENDAR SYSTEM (Harptos) ---
