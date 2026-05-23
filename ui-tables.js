@@ -1,6 +1,6 @@
-/* STREAMING_CHUNK: Importing core layout and state resolvers... */
+/* STREAMING_CHUNK: Importing core layout and state resolvers with derived state tracking... */
 import { getLibraryTabsHTML } from './ui-core.js';
-import { getUnifiedCatalog } from './state.js';
+import { getUnifiedCatalog, updateDerivedState } from './state.js';
 import { notify } from './firebase-manager.js';
 
 // --- SEARCH FILTERING HELPER ---
@@ -67,7 +67,7 @@ export const closeTableDetails = () => {
     window.appActions.reRender(true);
 };
 
-/* STREAMING_CHUNK: Declaring file select named exports... */
+/* STREAMING_CHUNK: Handling file selection and parsing... */
 export const handleFoundryFileSelect = (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -95,7 +95,7 @@ export const handleFoundryFileSelect = (event) => {
     event.target.value = '';
 };
 
-/* STREAMING_CHUNK: Declaring roll simulator named exports... */
+/* STREAMING_CHUNK: Running the roll simulation and rendering popup details... */
 export const simulateTableRoll = async (tableId) => {
     const container = document.getElementById('global-popup-container');
     if (!container) return;
@@ -183,7 +183,7 @@ export const simulateTableRoll = async (tableId) => {
     }
 };
 
-/* STREAMING_CHUNK: Declaring named exports for administrative modifiers... */
+/* STREAMING_CHUNK: Managing specific table results and relative weighting options... */
 export const addNewTableResult = async (tableId) => {
     const name = prompt("Enter the Name of the item or entity to add to the table:");
     if (!name || !name.trim()) return;
