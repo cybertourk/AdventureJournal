@@ -1,224 +1,213 @@
-/* STREAMING_CHUNK: Importing core layout and state resolvers... */
 import { getLibraryTabsHTML } from './ui-core.js';
 import { getUnifiedCatalog } from './state.js';
 import { notify } from './firebase-manager.js';
 
 // --- SEARCH FILTERING HELPER ---
-if (typeof window !== 'undefined') {
-    window.filterRollTables = function(query) {
-        const lower = query.toLowerCase().trim();
-        const cards = document.querySelectorAll('.table-item-card');
-        cards.forEach(card => {
-            const name = card.getAttribute('data-search-name') || '';
-            if (name.includes(lower)) {
-                card.style.display = '';
-            } else {
-                card.style.display = 'none';
-            }
-        });
-    };
+export function filterRollTables(query) {
+    const lower = query.toLowerCase().trim();
+    const cards = document.querySelectorAll('.table-item-card');
+    cards.forEach(card => {
+        const name = card.getAttribute('data-search-name') || '';
+        if (name.includes(lower)) {
+            card.style.display = '';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+
+// --- TABLE SIMULATOR ACTIONS ---
+export const openTableImporter = () => {
+    window.appData.showFoundryImportModal = true;
+    window.appActions.reRender(true);
+};
+
+export const closeTableImporter = () => {
+    window.appData.showFoundryImportModal = false;
+    window.appActions.reRender(true);
+};
+
+export const executeFoundryImport = async () => {
+    const jsonText = document.getElementById('foundry-table-json-input')?.value || '';
+    if (!jsonText.trim()) {
+        notify("Please paste a valid Foundry VTT Roll Table JSON.", "error");
+        return;
+    }
     
-    // --- BIND WINDOW HOOKS FOR LIVE SIMULATOR ROLLING ---
-    window.appActions = window.appActions || {};
-    
-    window.appActions.openTableImporter = () => {
-        window.appData.showFoundryImportModal = true;
-        window.appActions.reRender(true);
-    };
-    
-    window.appActions.closeTableImporter = () => {
+    const originalBtn = document.getElementById('foundry-import-submit-btn');
+    const originalText = originalBtn ? originalBtn.innerHTML : '';
+    if (originalBtn) {
+        originalBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Importing...';
+        originalBtn.disabled = true;
+    }
+
+    try {
+        await window.appActions.importFoundryTable(jsonText);
         window.appData.showFoundryImportModal = false;
         window.appActions.reRender(true);
-    };
-    
-    window.appActions.executeFoundryImport = async () => {
-        const jsonText = document.getElementById('foundry-table-json-input')?.value || '';
-        if (!jsonText.trim()) {
-            notify("Please paste a valid Foundry VTT Roll Table JSON.", "error");
+    } catch (e) {
+        console.error("Import error:", e);
+        notify("Import failed. Check console for details.", "error");
+    } finally {
+        if (originalBtn) {
+            originalBtn.innerHTML = originalText;
+            originalBtn.disabled = false;
+        }
+    }
+};
+
+export const viewTableDetails = (tableId) => {
+    window.appData.activeTableId = tableId;
+    window.appActions.reRender(true);
+};
+
+export const closeTableDetails = () => {
+    window.appData.activeTableId = null;
+    window.appActions.reRender(true);
+};
+
+export const simulateTableRoll = async (tableId) => {
+    const container = document.getElementById('global-popup-container');
+    if (!container) return;
+
+    container.innerHTML = `
+        <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[19000] backdrop-blur-sm animate-in">
+            <div class="text-amber-500 flex flex-col items-center">
+                <i class="fa-solid fa-dice-d20 fa-spin text-5xl mb-4 text-amber-500 animate-bounce"></i>
+                <p class="font-serif font-bold tracking-widest uppercase text-lg">Consulting Fate's Ledger...</p>
+            </div>
+        </div>
+    `;
+
+    try {
+        const rollResult = await window.appActions.rollOnTable(tableId);
+        if (!rollResult) {
+            container.innerHTML = '';
             return;
         }
+
+        const { rolledValue, totalWeight, formulaUsed, result } = rollResult;
         
-        const originalBtn = document.getElementById('foundry-import-submit-btn');
-        const originalText = originalBtn ? originalBtn.innerHTML : '';
-        if (originalBtn) {
-            originalBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Importing...';
-            originalBtn.disabled = true;
-        }
+        const rColor = result.rarity === 'legendary' ? 'text-orange-600 bg-orange-50 border-orange-200' : 
+                       (result.rarity === 'veryrare' || result.rarity === 'very-rare' ? 'text-purple-600 bg-purple-50 border-purple-200' : 
+                       (result.rarity === 'rare' ? 'text-blue-600 bg-blue-50 border-blue-200' : 
+                       (result.rarity === 'uncommon' ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 
+                       'text-stone-500 bg-stone-100 border-stone-200')));
 
-        try {
-            await window.appActions.importFoundryTable(jsonText);
-            window.appData.showFoundryImportModal = false;
-            window.appActions.reRender(true);
-        } catch (e) {
-            console.error("Import error:", e);
-            notify("Import failed. Check console for details.", "error");
-        } finally {
-            if (originalBtn) {
-                originalBtn.innerHTML = originalText;
-                originalBtn.disabled = false;
-            }
-        }
-    };
+        const iconMap = {
+            item: 'fa-gem text-amber-500',
+            codex: 'fa-book-journal-whills text-red-500',
+            character: 'fa-user-shield text-blue-500',
+            text: 'fa-align-left text-stone-500'
+        };
 
-    window.appActions.viewTableDetails = (tableId) => {
-        window.appData.activeTableId = tableId;
-        window.appActions.reRender(true);
-    };
+        const parsedDesc = result.description ? window.appActions.parseSmartText(result.description) : '<p class="italic text-stone-400">No descriptive text is recorded for this entry.</p>';
+        
+        const portraitHtml = result.image ? `
+            <div class="w-full h-36 bg-stone-900 border border-[#d4c5a9] rounded-sm overflow-hidden mb-4 shadow-inner flex justify-center">
+                <img src="${result.image}" class="w-full h-full object-contain" alt="${result.name}" onerror="this.style.display='none'">
+            </div>
+        ` : '';
 
-    window.appActions.closeTableDetails = () => {
-        window.appData.activeTableId = null;
-        window.appActions.reRender(true);
-    };
-
-    window.appActions.simulateTableRoll = async (tableId) => {
-        const container = document.getElementById('global-popup-container');
-        if (!container) return;
-
-        // Show quick rolling visualizer
         container.innerHTML = `
             <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[19000] backdrop-blur-sm animate-in">
-                <div class="text-amber-500 flex flex-col items-center">
-                    <i class="fa-solid fa-dice-d20 fa-spin text-5xl mb-4 text-amber-500 animate-bounce"></i>
-                    <p class="font-serif font-bold tracking-widest uppercase text-lg">Consulting Fate's Ledger...</p>
+                <div class="bg-[#f4ebd8] rounded-sm w-full max-w-sm border-2 border-stone-800 shadow-2xl relative overflow-hidden flex flex-col max-h-[85vh] border-t-4 border-t-amber-700">
+                    <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="absolute top-4 right-4 text-stone-400 hover:text-red-900 transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+                    
+                    <div class="p-6 overflow-y-auto custom-scrollbar flex-grow">
+                        <div class="bg-stone-900 text-stone-400 p-2.5 rounded-sm flex justify-between items-center text-[10px] uppercase font-bold tracking-widest mb-4 shadow-inner border border-stone-700">
+                            <span>Dice Roll: <b class="text-white">${formulaUsed}</b></span>
+                            <span>Result: <b class="text-emerald-400">${rolledValue} / ${totalWeight}</b></span>
+                        </div>
+
+                        ${portraitHtml}
+
+                        <div class="mb-4">
+                            <h3 class="text-xl font-serif font-bold text-stone-900 leading-snug flex items-start gap-2">
+                                <i class="fa-solid ${iconMap[result.resolvedType || 'text']} text-sm mt-1 shrink-0"></i>
+                                <span>${result.name}</span>
+                            </h3>
+                            <div class="flex flex-wrap gap-2 mt-2 text-[9px] font-bold uppercase tracking-wider">
+                                <span class="px-2 py-0.5 rounded border ${rColor}">${result.rarity || 'common'}</span>
+                                ${result.price ? `<span class="bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded shadow-sm"><i class="fa-solid fa-coins mr-1"></i>${result.price.toLocaleString()} gp</span>` : ''}
+                                ${result.resolvedType && result.resolvedType !== 'text' ? `<span class="bg-blue-50 text-blue-800 border border-blue-200 px-2 py-0.5 rounded shadow-sm">${result.resolvedType}</span>` : ''}
+                            </div>
+                        </div>
+
+                        <div class="bg-white border border-[#d4c5a9] p-3 rounded-sm shadow-inner text-xs sm:text-sm font-serif leading-relaxed text-stone-700 max-h-48 overflow-y-auto custom-scrollbar">
+                            ${parsedDesc}
+                        </div>
+                    </div>
+
+                    <div class="bg-[#e8dec7] p-4 border-t border-[#d4c5a9] flex justify-end gap-2 shrink-0 shadow-inner">
+                        ${result.codexId ? `<button onclick="document.getElementById('global-popup-container').innerHTML = ''; window.appActions.viewCodex('${result.codexId}')" class="px-4 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] shadow-md flex items-center gap-1.5"><i class="fa-solid fa-book-open"></i> Open Codex</button>` : ''}
+                        <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="px-5 py-2 bg-stone-200 text-stone-700 border border-stone-400 rounded-sm hover:bg-stone-300 transition font-bold uppercase tracking-wider text-[10px] shadow-sm">Dismiss</button>
+                    </div>
                 </div>
             </div>
         `;
+    } catch (err) {
+        console.error(err);
+        notify("Rolling execution encountered a memory fault.", "error");
+        container.innerHTML = '';
+    }
+};
 
-        try {
-            const rollResult = await window.appActions.rollOnTable(tableId);
-            if (!rollResult) {
-                container.innerHTML = '';
-                return;
-            }
+export const addNewTableResult = async (tableId) => {
+    const name = prompt("Enter the Name of the item or entity to add to the table:");
+    if (!name || !name.trim()) return;
 
-            const { rolledValue, totalWeight, formulaUsed, result } = rollResult;
-            
-            // Build visual card details based on resolved type
-            const rColor = result.rarity === 'legendary' ? 'text-orange-600 bg-orange-50 border-orange-200' : 
-                           (result.rarity === 'veryrare' || result.rarity === 'very-rare' ? 'text-purple-600 bg-purple-50 border-purple-200' : 
-                           (result.rarity === 'rare' ? 'text-blue-600 bg-blue-50 border-blue-200' : 
-                           (result.rarity === 'uncommon' ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 
-                           'text-stone-500 bg-stone-100 border-stone-200')));
+    const weightStr = prompt("Enter relative Weight (higher = more common):", "1");
+    const weight = parseInt(weightStr, 10) || 1;
 
-            const iconMap = {
-                item: 'fa-gem text-amber-500',
-                codex: 'fa-book-journal-whills text-red-500',
-                character: 'fa-user-shield text-blue-500',
-                text: 'fa-align-left text-stone-500'
-            };
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    const table = camp?.rollTables?.find(t => t.id === tableId);
+    if (!table) return;
 
-            const parsedDesc = result.description ? window.appActions.parseSmartText(result.description) : '<p class="italic text-stone-400">No descriptive text is recorded for this entry.</p>';
-            
-            const portraitHtml = result.image ? `
-                <div class="w-full h-36 bg-stone-900 border border-[#d4c5a9] rounded-sm overflow-hidden mb-4 shadow-inner flex justify-center">
-                    <img src="${result.image}" class="w-full h-full object-contain" alt="${result.name}" onerror="this.style.display='none'">
-                </div>
-            ` : '';
-
-            container.innerHTML = `
-                <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[19000] backdrop-blur-sm animate-in">
-                    <div class="bg-[#f4ebd8] rounded-sm w-full max-w-sm border-2 border-stone-800 shadow-2xl relative overflow-hidden flex flex-col max-h-[85vh] border-t-4 border-t-amber-700">
-                        <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="absolute top-4 right-4 text-stone-400 hover:text-red-900 transition"><i class="fa-solid fa-xmark text-xl"></i></button>
-                        
-                        <div class="p-6 overflow-y-auto custom-scrollbar flex-grow">
-                            <!-- Roll Metadata -->
-                            <div class="bg-stone-900 text-stone-400 p-2.5 rounded-sm flex justify-between items-center text-[10px] uppercase font-bold tracking-widest mb-4 shadow-inner border border-stone-700">
-                                <span>Dice Roll: <b class="text-white">${formulaUsed}</b></span>
-                                <span>Result: <b class="text-emerald-400">${rolledValue} / ${totalWeight}</b></span>
-                            </div>
-
-                            ${portraitHtml}
-
-                            <!-- Resolved Card Header -->
-                            <div class="mb-4">
-                                <h3 class="text-xl font-serif font-bold text-stone-900 leading-snug flex items-start gap-2">
-                                    <i class="fa-solid ${iconMap[result.resolvedType || 'text']} text-sm mt-1 shrink-0"></i>
-                                    <span>${result.name}</span>
-                                </h3>
-                                <div class="flex flex-wrap gap-2 mt-2 text-[9px] font-bold uppercase tracking-wider">
-                                    <span class="px-2 py-0.5 rounded border ${rColor}">${result.rarity || 'common'}</span>
-                                    ${result.price ? `<span class="bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded shadow-sm"><i class="fa-solid fa-coins mr-1"></i>${result.price.toLocaleString()} gp</span>` : ''}
-                                    ${result.resolvedType && result.resolvedType !== 'text' ? `<span class="bg-blue-50 text-blue-800 border border-blue-200 px-2 py-0.5 rounded shadow-sm">${result.resolvedType}</span>` : ''}
-                                </div>
-                            </div>
-
-                            <!-- Content Description -->
-                            <div class="bg-white border border-[#d4c5a9] p-3 rounded-sm shadow-inner text-xs sm:text-sm font-serif leading-relaxed text-stone-700 max-h-48 overflow-y-auto custom-scrollbar">
-                                ${parsedDesc}
-                            </div>
-                        </div>
-
-                        <!-- Action Controls -->
-                        <div class="bg-[#e8dec7] p-4 border-t border-[#d4c5a9] flex justify-end gap-2 shrink-0 shadow-inner">
-                            ${result.codexId ? `<button onclick="document.getElementById('global-popup-container').innerHTML = ''; window.appActions.viewCodex('${result.codexId}')" class="px-4 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] shadow-md flex items-center gap-1.5"><i class="fa-solid fa-book-open"></i> Open Codex</button>` : ''}
-                            <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="px-5 py-2 bg-stone-200 text-stone-700 border border-stone-400 rounded-sm hover:bg-stone-300 transition font-bold uppercase tracking-wider text-[10px] shadow-sm">Dismiss</button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        } catch (err) {
-            console.error(err);
-            notify("Rolling execution encountered a memory fault.", "error");
-            container.innerHTML = '';
-        }
+    const newResult = {
+        id: 'res_' + Math.random().toString(36).substr(2, 5),
+        name: name.trim(),
+        weight: weight,
+        range: [1, 1],
+        type: "text",
+        image: "",
+        description: ""
     };
 
-    window.appActions.addNewTableResult = async (tableId) => {
-        const name = prompt("Enter the Name of the item or entity to add to the table:");
-        if (!name || !name.trim()) return;
+    table.results = [...(table.results || []), newResult];
+    await window.appActions.saveRollTable(table);
+    notify("Entry added to roll table.", "success");
+};
 
-        const weightStr = prompt("Enter relative Weight (higher = more common):", "1");
-        const weight = parseInt(weightStr, 10) || 1;
+export const deleteTableResult = async (tableId, resultId) => {
+    if (!confirm("Are you sure you want to remove this entry from the table?")) return;
 
-        updateDerivedState();
-        const camp = window.appData.activeCampaign;
-        const table = camp?.rollTables?.find(t => t.id === tableId);
-        if (!table) return;
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    const table = camp?.rollTables?.find(t => t.id === tableId);
+    if (!table) return;
 
-        const newResult = {
-            id: 'res_' + Math.random().toString(36).substr(2, 5),
-            name: name.trim(),
-            weight: weight,
-            range: [1, 1], // Ranges will be auto-calculated on roll compilation
-            type: "text",
-            image: "",
-            description: ""
-        };
+    table.results = (table.results || []).filter(r => r.id !== resultId);
+    await window.appActions.saveRollTable(table);
+    notify("Entry removed from roll table.", "success");
+};
 
-        table.results = [...(table.results || []), newResult];
-        await window.appActions.saveRollTable(table);
-        notify("Entry added to roll table.", "success");
-    };
+export const updateTableResultWeight = async (tableId, resultId, currentWeight) => {
+    const weightStr = prompt("Enter new relative weight:", currentWeight);
+    if (weightStr === null) return;
 
-    window.appActions.deleteTableResult = async (tableId, resultId) => {
-        if (!confirm("Are you sure you want to remove this entry from the table?")) return;
+    const weight = parseInt(weightStr, 10) || 1;
 
-        updateDerivedState();
-        const camp = window.appData.activeCampaign;
-        const table = camp?.rollTables?.find(t => t.id === tableId);
-        if (!table) return;
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    const table = camp?.rollTables?.find(t => t.id === tableId);
+    if (!table) return;
 
-        table.results = (table.results || []).filter(r => r.id !== resultId);
-        await window.appActions.saveRollTable(table);
-        notify("Entry removed from roll table.", "success");
-    };
-
-    window.appActions.updateTableResultWeight = async (tableId, resultId, currentWeight) => {
-        const weightStr = prompt("Enter new relative weight:", currentWeight);
-        if (weightStr === null) return;
-
-        const weight = parseInt(weightStr, 10) || 1;
-
-        updateDerivedState();
-        const camp = window.appData.activeCampaign;
-        const table = camp?.rollTables?.find(t => t.id === tableId);
-        if (!table) return;
-
-        table.results = (table.results || []).map(r => r.id === resultId ? { ...r, weight } : r);
-        await window.appActions.saveRollTable(table);
-        notify("Entry weight updated.", "success");
-    };
-}
+    table.results = (table.results || []).map(r => r.id === resultId ? { ...r, weight } : r);
+    await window.appActions.saveRollTable(table);
+    notify("Entry weight updated.", "success");
+};
 
 // --- CORE LAYOUT GENERATOR ---
 export function getTablesHTML(state) {
@@ -234,13 +223,11 @@ export function getTablesHTML(state) {
         ${getLibraryTabsHTML('tables')}
     `;
 
-    // --- STEP A: SINGLE TABLE INSPECTOR VIEW ---
     if (activeTableId) {
         const table = tables.find(t => t.id === activeTableId);
         if (!table) return `<div class="text-center text-red-500 p-8 font-serif">Table not found.</div>`;
 
         const totalWeight = (table.results || []).reduce((sum, r) => sum + (parseInt(r.weight) || 1), 0);
-        let cumulative = 0;
 
         let resultsListHtml = '';
         if (!table.results || table.results.length === 0) {
@@ -295,7 +282,6 @@ export function getTablesHTML(state) {
 
         html += `
         <div class="bg-[#fdfbf7] rounded-sm border-2 sm:border-4 border-stone-800 shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col flex-grow">
-            <!-- Header -->
             <div class="bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-stone-900 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center text-amber-500 shrink-0 border-b-2 sm:border-b-4 border-amber-700 gap-4 sm:gap-0 shadow-md">
                 <div>
                     <h2 class="text-xl sm:text-2xl font-serif font-bold text-amber-50 leading-tight">${table.name}</h2>
@@ -310,23 +296,15 @@ export function getTablesHTML(state) {
                     </button>
                 </div>
             </div>
-
-            <!-- Content Details -->
             <div class="p-5 sm:p-8 flex-grow">
                 <div class="mb-6">
-                    <h3 class="text-xs uppercase text-stone-500 font-bold tracking-widest mb-1.5 border-b border-stone-200 pb-1">Table Description</h3>
+                    <h3 class="text-xs uppercase text-stone-500 font-bold tracking-widest mb-1.5 border-b border-[#d4c5a9] pb-1">Table Description</h3>
                     <p class="text-sm text-stone-700 font-serif leading-relaxed italic">"${table.desc || 'A random catalog of items and events.'}"</p>
                 </div>
-
                 <div class="mb-6 flex justify-between items-end shrink-0">
-                    <h3 class="text-xs uppercase text-stone-500 font-bold tracking-widest border-b border-stone-200 pb-1">Table Entries</h3>
-                    ${isDM ? `
-                        <button onclick="window.appActions.addNewTableResult('${table.id}')" class="text-[10px] font-bold uppercase tracking-wider text-blue-700 hover:text-blue-900 flex items-center gap-1">
-                            <i class="fa-solid fa-plus-circle"></i> Add Entry
-                        </button>
-                    ` : ''}
+                    <h3 class="text-xs uppercase text-stone-500 font-bold tracking-widest border-b border-[#d4c5a9] pb-1">Table Entries</h3>
+                    ${isDM ? `<button onclick="window.appActions.addNewTableResult('${table.id}')" class="text-[10px] font-bold uppercase tracking-wider text-blue-700 hover:text-blue-900 flex items-center gap-1"><i class="fa-solid fa-plus-circle"></i> Add Entry</button>` : ''}
                 </div>
-
                 ${resultsListHtml}
             </div>
         </div>
@@ -334,26 +312,24 @@ export function getTablesHTML(state) {
         return html;
     }
 
-    // --- STEP B: TABLES DIRECTORY DASHBOARD VIEW ---
-    let tablesListHtml = '';
-    if (tables.length === 0) {
-        tablesListHtml = `
-            <div class="p-8 sm:p-12 text-center text-stone-500 bg-[#f4ebd8] rounded-sm border border-[#d4c5a9] shadow-sm">
-                <i class="fa-solid fa-table-list text-4xl sm:text-6xl mx-auto text-stone-400 mb-3 sm:mb-4 opacity-50"></i>
-                <p class="font-serif text-base sm:text-lg">No custom roll tables are configured for this campaign.</p>
-                ${isDM ? `<button onclick="window.appActions.openTableImporter()" class="mt-6 px-6 py-2 bg-stone-900 text-amber-50 font-bold uppercase tracking-wider text-xs rounded-sm hover:bg-stone-800 transition shadow-md"><i class="fa-solid fa-file-import mr-2"></i> Import Table JSON</button>` : ''}
-            </div>
-        `;
-    } else {
-        tablesListHtml = `
+    let tablesListHtml = `
         <div class="relative mb-6">
             <i class="fa-solid fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-stone-400 text-sm"></i>
             <input type="text" oninput="window.filterRollTables(this.value)" class="w-full pl-10 pr-4 py-3.5 bg-white border border-[#d4c5a9] text-stone-900 text-sm font-bold rounded-full focus:outline-none focus:border-amber-600 shadow-sm placeholder:font-normal placeholder:text-stone-400 transition-colors" placeholder="Search roll tables...">
         </div>
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        `;
+    `;
 
+    if (tables.length === 0) {
+        tablesListHtml = `
+            <div class="col-span-full p-8 sm:p-12 text-center text-stone-500 bg-[#f4ebd8] rounded-sm border border-[#d4c5a9] shadow-sm">
+                <i class="fa-solid fa-table-list text-4xl sm:text-6xl mx-auto text-stone-400 mb-3 sm:mb-4 opacity-50"></i>
+                <p class="font-serif text-base sm:text-lg">No custom roll tables are configured for this campaign.</p>
+                ${isDM ? `<button onclick="window.appActions.openTableImporter()" class="mt-6 px-6 py-2 bg-stone-900 text-amber-50 font-bold uppercase tracking-wider text-xs rounded-sm hover:bg-stone-800 transition shadow-md"><i class="fa-solid fa-file-import mr-2"></i> Import Table JSON</button>` : ''}
+            </div>
+        `;
+    } else {
         tables.forEach(table => {
             const entryCount = table.results ? table.results.length : 0;
             const tableImg = table.image || "https://assets.forge-vtt.com/bazaar/core/icons/environment/settlement/market-stall.webp";
@@ -362,11 +338,9 @@ export function getTablesHTML(state) {
             tablesListHtml += `
             <div class="table-item-card bg-[#fdfbf7] rounded-sm border border-[#d4c5a9] shadow-sm flex flex-col justify-between overflow-hidden group hover:border-amber-400 transition-all cursor-pointer" onclick="window.appActions.viewTableDetails('${table.id}')" data-search-name="${table.name.toLowerCase()}">
                 <div>
-                    ${tableImg ? `
-                        <div class="w-full h-32 bg-stone-900 overflow-hidden relative border-b border-[#d4c5a9]">
-                            <img src="${tableImg}" class="w-full h-full object-cover object-top" alt="${table.name}" onerror="this.style.display='none'">
-                        </div>
-                    ` : ''}
+                    <div class="w-full h-32 bg-stone-900 overflow-hidden relative border-b border-[#d4c5a9]">
+                        <img src="${tableImg}" class="w-full h-full object-cover object-top" alt="${table.name}" onerror="this.style.display='none'">
+                    </div>
                     <div class="p-4 sm:p-5 pl-5">
                         <h3 class="font-serif font-bold text-lg text-stone-900 leading-tight truncate group-hover:text-amber-800 transition-colors" title="${table.name}">${table.name}</h3>
                         <div class="flex flex-wrap gap-2 text-[10px] font-bold text-stone-500 uppercase tracking-wider mt-2">
@@ -391,12 +365,10 @@ export function getTablesHTML(state) {
             </div>
             `;
         });
-
         tablesListHtml += `</div>`;
     }
 
     html += `
-        <!-- Dashboard Header Actions -->
         ${isDM ? `
             <div class="flex justify-end gap-2 mb-6">
                 <button onclick="window.appActions.openTableImporter()" class="px-4 py-2 bg-emerald-700 text-amber-50 rounded-sm hover:bg-emerald-600 transition font-bold uppercase tracking-wider text-xs shadow-md">
@@ -408,7 +380,7 @@ export function getTablesHTML(state) {
         ${tablesListHtml}
     `;
 
-    // --- STEP C: FOUNDRY IMPORTER DIALOG (DM ONLY) ---
+    // --- FOUNDRY IMPORTER DIALOG (DM ONLY) ---
     if (isDM && state.showFoundryImportModal) {
         html += `
         <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[18000] backdrop-blur-sm animate-in">
@@ -432,7 +404,7 @@ export function getTablesHTML(state) {
 
                 <div class="bg-[#e8dec7] p-4 border-t border-[#d4c5a9] flex justify-end gap-2 shrink-0 z-10 shadow-sm">
                     <button onclick="window.appActions.closeTableImporter()" class="px-4 py-2 text-stone-600 border border-stone-400 rounded-sm hover:bg-stone-300 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs">Cancel</button>
-                    <button id="foundry-import-submit-btn" onclick="window.appActions.executeFoundryImport()" class="px-5 py-2 bg-emerald-700 text-amber-50 rounded-sm hover:bg-emerald-600 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md"><i class="fa-solid fa-file-import mr-1.5"></i> Parse & Save Table</button>
+                    <button id="foundry-import-submit-btn" onclick="window.appActions.executeFoundryImport()" class="px-5 py-2 bg-emerald-700 text-amber-50 rounded-sm hover:bg-emerald-600 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs flex items-center shadow-md"><i class="fa-solid fa-file-import mr-1.5"></i> Parse & Save Table</button>
                 </div>
             </div>
         </div>
