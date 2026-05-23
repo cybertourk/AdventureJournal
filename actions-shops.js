@@ -1,6 +1,10 @@
+/* STREAMING_CHUNK: Importing core state modules and actions... */
 import { generateId, updateDerivedState, reRender } from './state.js';
 import { saveCampaign, notify } from './firebase-manager.js';
 import { logPlayerActivity } from './actions-campaign.js';
+
+/* STREAMING_CHUNK: Importing our new roll table engine... */
+import { rollOnTable } from './actions-tables.js';
 
 let LOCAL_BAZAAR_DB = null;
 
@@ -571,7 +575,7 @@ export const deleteShopItem = async (shopId, itemId) => {
 };
 
 // ============================================================================
-// --- SMART ROLL TABLES ---
+// --- SMART ROLL TABLES INTEGRATION ---
 // ============================================================================
 
 export const rollShopInventory = async (shopId) => {
@@ -614,6 +618,19 @@ export const rollShopInventory = async (shopId) => {
         themeOptions += `<option value="theme:${theme}">${theme}</option>`;
     }
 
+    /* STREAMING_CHUNK: Fetching dynamically imported/custom roll tables... */
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    const campaignTables = camp?.rollTables || [];
+    let customTableOptions = '';
+    if (campaignTables.length > 0) {
+        customTableOptions += `<optgroup label="--- Custom Campaign Tables ---">`;
+        campaignTables.forEach(t => {
+            customTableOptions += `<option value="table:${t.id}">🎲 ${t.name}</option>`;
+        });
+        customTableOptions += `</optgroup>`;
+    }
+
     container.innerHTML = `
         <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[19000] backdrop-blur-sm animate-in">
             <div class="bg-[#f4ebd8] rounded-sm w-full max-w-sm border border-[#d4c5a9] shadow-2xl relative flex flex-col">
@@ -623,15 +640,16 @@ export const rollShopInventory = async (shopId) => {
                 </div>
                 
                 <div class="p-5 bg-[#fdfbf7] flex-grow overflow-y-auto">
-                    <p class="text-xs text-stone-600 italic mb-4 leading-snug">Generate random items from your Foundry VTT compendium database. Duplicates will automatically stack their quantities.</p>
+                    <p class="text-xs text-stone-600 italic mb-4 leading-snug">Stock this merchant's shelves with random items. You can choose a standard database theme, a folder, or roll directly on one of your custom-imported Foundry VTT tables!</p>
                     <input type="hidden" id="roll-shop-id" value="${shopId}">
                     
                     <div class="space-y-4">
                         <div>
-                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Shop Theme (Filter)</label>
-                            <select id="roll-theme" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner">
+                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Select Source / Theme</label>
+                            <select id="roll-theme" onchange="const r=document.getElementById('rarity-group'); if(this.value.startsWith('table:')) r.classList.add('hidden'); else r.classList.remove('hidden');" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner">
                                 <option value="all">General Store (Everything)</option>
                                 <option value="magic">Arcane Shop (Magic Items Only)</option>
+                                ${customTableOptions}
                                 <optgroup label="Broad Themes">
                                     ${themeOptions}
                                 </optgroup>
@@ -640,7 +658,7 @@ export const rollShopInventory = async (shopId) => {
                                 </optgroup>
                             </select>
                         </div>
-                        <div>
+                        <div id="rarity-group">
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Maximum Rarity Allowed</label>
                             <select id="roll-rarity" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner">
                                 <option value="common">Up to Common</option>
@@ -672,24 +690,76 @@ export const executeRollWares = async () => {
 
     const shopId = document.getElementById('roll-shop-id').value;
     const theme = document.getElementById('roll-theme').value;
-    const maxRarity = document.getElementById('roll-rarity').value;
     const qty = parseInt(document.getElementById('roll-qty').value) || 1;
 
     const shopIndex = camp.shops.findIndex(s => s.id === shopId);
     if (shopIndex === -1) return;
 
+    let currentInventory = [...(camp.shops[shopIndex].inventory || [])];
+
+    /* STREAMING_CHUNK: Detecting if rolling on custom tables... */
+    if (theme.startsWith('table:')) {
+        const tableId = theme.split(':')[1];
+        
+        let successfulRollsCount = 0;
+        for (let i = 0; i < qty; i++) {
+            try {
+                // Execute dynamic, weighted lottery on custom roll table
+                const rollData = await rollOnTable(tableId);
+                if (rollData && rollData.result) {
+                    const itemResult = rollData.result;
+                    
+                    const existingIndex = currentInventory.findIndex(item => item.name === itemResult.name);
+                    
+                    if (existingIndex > -1) {
+                        currentInventory[existingIndex] = {
+                            ...currentInventory[existingIndex],
+                            quantity: (currentInventory[existingIndex].quantity || 1) + 1
+                        };
+                    } else {
+                        currentInventory.push({
+                            id: generateId(),
+                            name: itemResult.name,
+                            price: itemResult.price || 0,
+                            rarity: itemResult.rarity || 'common',
+                            isMagic: itemResult.isMagic || false,
+                            quantity: 1
+                        });
+                    }
+                    successfulRollsCount++;
+                }
+            } catch (err) {
+                console.error("Custom Table rolling error:", err);
+            }
+        }
+
+        if (successfulRollsCount === 0) {
+            notify("Roll Table execution failed. Table is empty or invalid.", "error");
+            document.getElementById('global-popup-container').innerHTML = '';
+            return;
+        }
+
+        camp.shops[shopIndex].inventory = currentInventory;
+        await saveCampaign(camp);
+        document.getElementById('global-popup-container').innerHTML = '';
+        notify(`Shelves successfully stocked with ${successfulRollsCount} items from table!`, "success");
+        reRender();
+        return;
+    }
+
+    // --- STANDARD FALLBACK ROLLING ENGINE ---
     if (!LOCAL_BAZAAR_DB || LOCAL_BAZAAR_DB.length === 0) {
         notify("Master database is empty or failed to load.", "error");
         return;
     }
 
+    const maxRarity = document.getElementById('roll-rarity').value;
     const rRank = { 'common': 1, 'uncommon': 2, 'rare': 3, 'veryrare': 4, 'legendary': 5 };
     const maxRank = rRank[maxRarity] || 1;
 
     // Weights for the lottery system
     const rWeight = { 'common': 100, 'uncommon': 40, 'rare': 10, 'veryrare': 2, 'legendary': 1, 'custom': 10 };
 
-    // --- SMART FOLDER AND TYPE FILTERING ---
     let pool = LOCAL_BAZAAR_DB.filter(item => {
         const itemRarity = (item.rarity || 'common').toLowerCase().replace(/\s+/g, '');
         if ((rRank[itemRarity] || 1) > maxRank) return false;
@@ -707,7 +777,6 @@ export const executeRollWares = async () => {
             const typeStr = (item.type || "").toLowerCase();
             const nameStr = (item.name || "").toLowerCase();
             
-            // Check if ANY of the theme keywords are found in the item's folder, type, or name
             return keywords.some(kw => folderStr.includes(kw) || typeStr.includes(kw) || nameStr.includes(kw));
         }
         return true; // 'all' (General Store)
@@ -722,18 +791,14 @@ export const executeRollWares = async () => {
     let totalWeight = 0;
     pool.forEach(item => {
         const itemRarity = (item.rarity || 'common').toLowerCase().replace(/\s+/g, '');
-        item.selectionWeight = rWeight[itemRarity] || 100; // Default to common weight if invalid
+        item.selectionWeight = rWeight[itemRarity] || 100;
         totalWeight += item.selectionWeight;
     });
 
-    // Pick random items using the weighted lottery and aggressively stack duplicates
-    let currentInventory = [...(camp.shops[shopIndex].inventory || [])];
-    
     for(let i=0; i<qty; i++) {
         let randomNum = Math.floor(Math.random() * totalWeight);
         let selectedItem = null;
 
-        // Draw from the hat
         for (const item of pool) {
             randomNum -= item.selectionWeight;
             if (randomNum < 0) {
@@ -742,7 +807,6 @@ export const executeRollWares = async () => {
             }
         }
         
-        // Safety fallback
         if (!selectedItem) selectedItem = pool[pool.length - 1];
         
         const existingIndex = currentInventory.findIndex(item => item.name === selectedItem.name);
@@ -764,7 +828,6 @@ export const executeRollWares = async () => {
         }
     }
 
-    // Append to shop
     camp.shops[shopIndex].inventory = currentInventory;
 
     await saveCampaign(camp);
@@ -842,7 +905,6 @@ export const submitSaleProposal = async () => {
     const shopIndex = camp.shops.findIndex(s => s.id === shopId);
     if (shopIndex === -1) return;
 
-    // UNIFIED MULTIPLE CHARACTERS RESOLUTION: Look for the PC in the active adventure first!
     const adv = window.appData.activeAdventure;
     const activePcIds = adv?.activePcIds || [];
     const pc = camp.playerCharacters?.find(p => p.playerId === myUid && activePcIds.includes(p.id)) 
@@ -914,16 +976,12 @@ export const approveSaleProposal = async (shopId, proposalId) => {
     const proposal = (shop.pendingSales || []).find(p => p.id === proposalId);
     if (!proposal) return;
 
-    // 1. Remove from pending
     const pendingSales = shop.pendingSales.filter(p => p.id !== proposalId);
 
-    // 2. Add to inventory (Standard merchant markup rules: sell for 2x what they buy for)
-    // We also handle quantity stacking securely here!
     let currentInventory = [...(shop.inventory || [])];
     const existingIndex = currentInventory.findIndex(item => item.name === proposal.itemName);
     const inQty = proposal.quantity || 1;
     
-    // Per-item price on the shelf is the asking price divided by quantity, then marked up 2x
     const perItemBuyPrice = proposal.askingPrice / inQty;
     const shelfPrice = Math.ceil(perItemBuyPrice * 2);
 
@@ -943,7 +1001,6 @@ export const approveSaleProposal = async (shopId, proposalId) => {
         });
     }
 
-    // 3. Add to ledger
     const qtyStr = inQty > 1 ? ` (x${inQty})` : '';
     const timestampStr = new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const ledgerEntry = {
@@ -956,9 +1013,7 @@ export const approveSaleProposal = async (shopId, proposalId) => {
 
     camp.shops[shopIndex] = { ...shop, pendingSales, inventory: currentInventory, ledger };
 
-    // 4. Generate Checklist Task for the Player
     if (proposal.playerId) {
-        // UNIFIED MULTIPLE CHARACTERS RESOLUTION: Find the player's active character in the current adventure arc
         const adv = window.appData.activeAdventure;
         const activePcIds = adv?.activePcIds || [];
         const pc = camp.playerCharacters?.find(p => p.playerId === proposal.playerId && activePcIds.includes(p.id)) 
@@ -1008,22 +1063,18 @@ if (typeof window !== 'undefined') {
     window.appActions.updateItemPrice = updateItemPrice;
     window.appActions.deleteShopItem = deleteShopItem;
     
-    // Collapsible & Bulk
     window.appActions.toggleBazaarLocation = toggleBazaarLocation;
     window.appActions.toggleAllShops = toggleAllShops;
     window.appActions.toggleAllTravelingShops = toggleAllTravelingShops;
     
-    // Modal & Search Exports
     window.appActions.openManualItemModal = openManualItemModal;
     window.appActions.searchBazaarDatabase = searchBazaarDatabase;
     window.appActions.addBazaarItemToShop = addBazaarItemToShop;
     window.appActions.submitCustomItem = submitCustomItem;
     
-    // Smart Roll Functions
     window.appActions.rollShopInventory = rollShopInventory;
     window.appActions.executeRollWares = executeRollWares;
     
-    // Proposal Handlers
     window.appActions.openProposeSaleModal = openProposeSaleModal;
     window.appActions.submitSaleProposal = submitSaleProposal;
     window.appActions.cancelSaleProposal = cancelSaleProposal;
