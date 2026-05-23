@@ -89,7 +89,6 @@ export async function loginUser(email, password) {
         if (updatePromises.length > 0) {
             await Promise.all(updatePromises);
         }
-        // --- END NEW ---
 
         notify("Successfully accessed the archives.", "success");
     } catch (error) {
@@ -254,7 +253,10 @@ function getFullCampaign(id) {
         adventures: (c.adventures && c.adventures.length > 0) ? c.adventures : (c.base.adventures || []),
         codex: (c.codex && c.codex.length > 0) ? c.codex : (c.base.codex || []),
         sheetUpdates: (c.sheetUpdates && c.sheetUpdates.length > 0) ? c.sheetUpdates : (c.base.sheetUpdates || []),
-        webs: (c.webs && c.webs.length > 0) ? c.webs : (c.base.webs || []) // NEW: Web subcollection binding
+        webs: (c.webs && c.webs.length > 0) ? c.webs : (c.base.webs || []),
+        customItems: (c.customItems && c.customItems.length > 0) ? c.customItems : (c.base.customItems || []),
+        itemOverrides: (c.itemOverrides && c.itemOverrides.length > 0) ? c.itemOverrides : (c.base.itemOverrides || []),
+        rollTables: (c.rollTables && c.rollTables.length > 0) ? c.rollTables : (c.base.rollTables || [])
     };
 }
 
@@ -282,7 +284,10 @@ function setupSubListeners(campId) {
     attach('adventures', 'adventures');
     attach('codex', 'codex');
     attach('sheetUpdates', 'sheetUpdates');
-    attach('webs', 'webs'); // NEW: Synchronize Relationship Webs
+    attach('webs', 'webs');
+    attach('customItems', 'customItems');
+    attach('itemOverrides', 'itemOverrides');
+    attach('rollTables', 'rollTables');
 }
 
 function cleanupSubListeners(campId) {
@@ -317,7 +322,7 @@ export function subscribeToCampaigns(user, callback) {
             newIds.push(data.id);
 
             if (!campaignCache[data.id]) {
-                campaignCache[data.id] = { base: data, pcs: [], adventures: [], codex: [], sheetUpdates: [], webs: [] };
+                campaignCache[data.id] = { base: data, pcs: [], adventures: [], codex: [], sheetUpdates: [], webs: [], customItems: [], itemOverrides: [], rollTables: [] };
                 setupSubListeners(data.id);
             } else {
                 campaignCache[data.id].base = data;
@@ -363,7 +368,7 @@ export function subscribeToPlayerCampaigns(user, callback) {
             newIds.push(data.id);
 
             if (!campaignCache[data.id]) {
-                campaignCache[data.id] = { base: data, pcs: [], adventures: [], codex: [], sheetUpdates: [], webs: [] };
+                campaignCache[data.id] = { base: data, pcs: [], adventures: [], codex: [], sheetUpdates: [], webs: [], customItems: [], itemOverrides: [], rollTables: [] };
                 setupSubListeners(data.id);
             } else {
                 campaignCache[data.id].base = data;
@@ -521,6 +526,9 @@ export async function saveCampaign(campaignData) {
         const codex = cleanData.codex || [];
         const sheetUpdates = cleanData.sheetUpdates || [];
         const webs = cleanData.webs || [];
+        const customItems = cleanData.customItems || [];
+        const itemOverrides = cleanData.itemOverrides || [];
+        const rollTables = cleanData.rollTables || [];
 
         // Delete from the root document so they don't take up space in the 1MB limit
         delete cleanData.playerCharacters;
@@ -528,6 +536,9 @@ export async function saveCampaign(campaignData) {
         delete cleanData.codex;
         delete cleanData.sheetUpdates;
         delete cleanData.webs;
+        delete cleanData.customItems;
+        delete cleanData.itemOverrides;
+        delete cleanData.rollTables;
         
         // 1. Save Base Campaign Document
         const docRef = doc(db, 'artifacts', appId, 'campaigns', cleanData.id);
@@ -572,6 +583,9 @@ export async function saveCampaign(campaignData) {
         await syncSubcollection('codex', codex);
         await syncSubcollection('sheetUpdates', sheetUpdates);
         await syncSubcollection('webs', webs);
+        await syncSubcollection('customItems', customItems);
+        await syncSubcollection('itemOverrides', itemOverrides);
+        await syncSubcollection('rollTables', rollTables);
 
     } catch (error) {
         console.error("Error saving campaign:", error);
@@ -677,6 +691,9 @@ export async function deleteCampaign(campaignId) {
         await deleteSubcollection('codex');
         await deleteSubcollection('sheetUpdates');
         await deleteSubcollection('webs');
+        await deleteSubcollection('customItems');
+        await deleteSubcollection('itemOverrides');
+        await deleteSubcollection('rollTables');
 
         // Finally, delete the base Campaign Document
         const docRef = doc(db, 'artifacts', appId, 'campaigns', campaignId);
