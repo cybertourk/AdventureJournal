@@ -1,3 +1,4 @@
+/* STREAMING_CHUNK: Defining search filtering helper... */
 import { getLibraryTabsHTML } from './ui-core.js';
 
 // --- SEARCH FILTERING HELPER ---
@@ -38,6 +39,7 @@ const escapeHTML = (str) => {
         .replace(/'/g, '&#39;');
 };
 
+/* STREAMING_CHUNK: Building the Bazaars Location layout folders... */
 export function getBazaarHTML(state) {
     const camp = state.activeCampaign;
     if (!camp) return '';
@@ -212,6 +214,7 @@ export function getBazaarHTML(state) {
     return html;
 }
 
+/* STREAMING_CHUNK: Rendering the storefront view and item thumbnail images... */
 export function getStorefrontHTML(state) {
     const camp = state.activeCampaign;
     const shopId = state.activeShopId;
@@ -252,13 +255,21 @@ export function getStorefrontHTML(state) {
             const qtyStr = (item.quantity && item.quantity > 1) ? `<span class="text-amber-600 ml-1.5 font-black text-[10px]">x${item.quantity}</span>` : '';
             const priceStr = item.price > 0 ? `${item.price.toLocaleString()} gp` : `Free`;
             
+            // Premium layout integrating small thumbnails with a fallback icon
+            const itemImageHtml = item.image 
+                ? `<img src="${escapeHTML(item.image)}" class="w-10 h-10 object-contain shrink-0 border border-stone-200 bg-stone-100 rounded-sm p-1 shadow-inner" onerror="this.style.display='none'">` 
+                : `<div class="w-10 h-10 bg-stone-100 flex items-center justify-center shrink-0 border border-stone-200 rounded-sm text-stone-400 text-sm"><i class="fa-solid fa-box"></i></div>`;
+
             invHtml += `
-                <div data-search-name="${safeItemName.toLowerCase()}" class="bg-white border border-[#d4c5a9] rounded-sm p-3 shadow-sm flex justify-between items-center gap-2 hover:border-amber-300 transition-colors">
-                    <div class="min-w-0 flex-grow pr-2">
-                        <span class="font-bold text-sm text-stone-900 block truncate" title="${safeItemName}">${safeItemName} ${qtyStr}</span>
-                        <div class="flex items-center gap-2 mt-0.5">
-                            <span class="text-[9px] uppercase font-bold tracking-widest ${rColor}">${item.rarity || 'Item'}</span>
-                            <span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded shadow-sm border border-amber-200"><i class="fa-solid fa-coins mr-1 text-amber-500"></i>${priceStr}</span>
+                <div data-search-name="${safeItemName.toLowerCase()}" class="bg-white border border-[#d4c5a9] rounded-sm p-3 shadow-sm flex justify-between items-center gap-3 hover:border-amber-300 transition-colors">
+                    <div class="min-w-0 flex-grow pr-2 flex items-center gap-3">
+                        ${itemImageHtml}
+                        <div class="min-w-0">
+                            <span class="font-bold text-sm text-stone-900 block truncate" title="${safeItemName}">${safeItemName} ${qtyStr}</span>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] uppercase font-bold tracking-widest ${rColor}">${item.rarity || 'Item'}</span>
+                                <span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded shadow-sm border border-amber-200"><i class="fa-solid fa-coins mr-1 text-amber-500"></i>${priceStr}</span>
+                            </div>
                         </div>
                     </div>
                     <button onclick="window.appActions.buyItem('${shop.id}', '${item.id}')" ${!canInteract ? 'disabled' : ''} class="shrink-0 px-4 py-2 bg-stone-800 text-amber-50 hover:bg-emerald-700 rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
@@ -317,7 +328,7 @@ export function getStorefrontHTML(state) {
         <div class="bg-[#fdfbf7] rounded-sm border-2 sm:border-4 border-stone-800 shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col">
             
             <!-- Shop Banner/Header -->
-            <div class="bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-stone-900 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center text-amber-500 shrink-0 border-b-2 sm:border-b-4 border-emerald-700 gap-4 sm:gap-0 shadow-md animate-in">
+            <div class="bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-stone-900 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center text-amber-500 shrink-0 border-b-2 sm:border-b-4 border-emerald-700 gap-4 sm:gap-0 shadow-md">
                 <div>
                     <h2 class="text-xl sm:text-2xl font-serif font-bold text-amber-50 leading-tight">${safeName}</h2>
                     <div class="flex flex-wrap gap-2 text-[10px] font-bold text-stone-400 uppercase tracking-wider mt-1.5">
@@ -360,6 +371,7 @@ export function getStorefrontHTML(state) {
     return html;
 }
 
+/* STREAMING_CHUNK: Rendering the DM's backroom panel and listing item records... */
 export function getShopBackroomHTML(state) {
     const camp = state.activeCampaign;
     const shopId = state.activeShopId;
@@ -394,11 +406,19 @@ export function getShopBackroomHTML(state) {
             const qtyStr = (item.quantity && item.quantity > 1) ? `<span class="text-amber-600 ml-1.5 font-black text-[10px]">x${item.quantity}</span>` : '';
             const safeItemName = escapeHTML(item.name) + qtyStr;
             
+            // Dynamic image container for DM backroom inventory
+            const itemImageHtml = item.image 
+                ? `<img src="${escapeHTML(item.image)}" class="w-10 h-10 object-contain shrink-0 border border-stone-200 bg-stone-100 rounded-sm p-1 shadow-inner" onerror="this.style.display='none'">` 
+                : `<div class="w-10 h-10 bg-stone-100 flex items-center justify-center shrink-0 border border-stone-200 rounded-sm text-stone-400 text-sm"><i class="fa-solid fa-box"></i></div>`;
+
             invHtml += `
-                <div data-search-name="${escapeHTML(item.name).toLowerCase()}" class="bg-white border border-[#d4c5a9] rounded-sm p-2 sm:p-3 shadow-sm flex flex-col sm:flex-row justify-between sm:items-center gap-2 hover:border-amber-300 transition-colors group">
-                    <div class="min-w-0 flex-grow pr-2">
-                        <span class="font-bold text-sm text-stone-900 block truncate" title="${escapeHTML(item.name)}">${safeItemName}</span>
-                        <span class="text-[9px] uppercase font-bold tracking-widest ${rColor}">${item.rarity || 'Item'} ${item.isMagic ? '<i class="fa-solid fa-sparkles ml-1 text-amber-500" title="Magical"></i>' : ''}</span>
+                <div data-search-name="${escapeHTML(item.name).toLowerCase()}" class="bg-white border border-[#d4c5a9] rounded-sm p-2 sm:p-3 shadow-sm flex flex-col sm:flex-row justify-between sm:items-center gap-3 hover:border-amber-300 transition-colors group">
+                    <div class="min-w-0 flex-grow pr-2 flex items-center gap-3">
+                        ${itemImageHtml}
+                        <div class="min-w-0">
+                            <span class="font-bold text-sm text-stone-900 block truncate" title="${escapeHTML(item.name)}">${safeItemName}</span>
+                            <span class="text-[9px] uppercase font-bold tracking-widest ${rColor}">${item.rarity || 'Item'} ${item.isMagic ? '<i class="fa-solid fa-sparkles ml-1 text-amber-500" title="Magical"></i>' : ''}</span>
+                        </div>
                     </div>
                     <div class="flex items-center gap-2 shrink-0 self-end sm:self-auto mt-2 sm:mt-0">
                         <div class="flex items-center bg-stone-100 border border-stone-300 rounded shadow-inner overflow-hidden">
@@ -504,7 +524,7 @@ export function getShopBackroomHTML(state) {
                 <div class="space-y-6">
                     <!-- Offers review panel -->
                     <div class="bg-[#f4ebd8] p-4 border border-[#d4c5a9] rounded-sm shadow-sm">
-                        <h4 class="font-serif font-bold text-lg text-stone-900 mb-4 pb-2 border-b border-[#d4c5a9]"><i class="fa-solid fa-hand-holding-dollar mr-2 text-stone-600"></i> Player Proposals</h4>
+                        <h4 class="font-serif font-bold text-lg text-stone-900 mb-4 pb-2 border-b border-[#d4c5a9]"><i class="fa-solid fa-handholding-dollar mr-2 text-stone-600"></i> Player Proposals</h4>
                         ${pendingHtml}
                     </div>
 
