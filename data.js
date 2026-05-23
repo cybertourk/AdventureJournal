@@ -1,5 +1,3 @@
-data.js
-```javascript
 /* STREAMING_CHUNK: Importing core state modules and actions... */
 import { setCampaignsData, updateDerivedState, reRender } from './state.js'; 
 
@@ -384,8 +382,7 @@ if (typeof window !== 'undefined') {
       handleSmartInput, 
       _showSuggestions, 
       viewCodex, 
-      _openCodexModal, 
-      saveCodexEntry, 
+      _openCodexModal, saveCodexEntry, 
       deleteCodexEntry, 
       openJournal, 
       closeJournal, 
@@ -605,8 +602,9 @@ if (typeof window !== 'undefined') {
       deleteTableResult,
       updateTableResultWeight,
       
-      // Expose our new folder toggling action globally
-      toggleTableFolder
+      // Expose folder toggling globally
+      toggleTableFolder,
+      handleFoundryFileSelect
     };
 
     // Bind the table search filter directly to window as expected by the inline HTML oninput handler
@@ -652,7 +650,9 @@ if (typeof window !== 'undefined' && typeof history !== 'undefined') {
                 activeAdventureId: window.appData?.activeAdventureId || null,
                 activeSessionId: window.appData?.activeSessionId || null
             };
-            history.pushState(stateObj, "", `#${viewName}`);
+            
+            // Standard string concatenation avoids compile glitches with nested backticks
+            history.pushState(stateObj, "", '#' + viewName);
         }
     };
 
@@ -707,7 +707,9 @@ if (typeof window !== 'undefined' && typeof history !== 'undefined') {
                 activeAdventureId: window.appData?.activeAdventureId || null,
                 activeSessionId: window.appData?.activeSessionId || null
             };
-            history.pushState(recoveredState, "", `#${window.appData?.currentView || 'home'}`);
+            
+            // Standard string concatenation avoids compile glitches with nested backticks
+            history.pushState(recoveredState, "", '#' + (window.appData?.currentView || 'home'));
             return;
         }
 
