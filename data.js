@@ -274,6 +274,19 @@ import {
     resolveTableResult
 } from './actions-tables.js';
 
+// --- TABLES UI IMPORTS (To fix binding collisions) ---
+import { 
+    openTableImporter, 
+    closeTableImporter, 
+    executeFoundryImport, 
+    viewTableDetails, 
+    closeTableDetails, 
+    simulateTableRoll, 
+    addNewTableResult, 
+    deleteTableResult, 
+    updateTableResultWeight 
+} from './ui-tables.js';
+
 // --- APP ACTIONS HUB --- 
 if (typeof window !== 'undefined') {
     window.appActions = { 
@@ -568,12 +581,23 @@ if (typeof window !== 'undefined') {
       updateNpcSubraceDropdown,
       executeNpcGeneration,
 
-      // Custom Smart Roll Tables
+      // Custom Smart Roll Tables (Backend)
       saveRollTable,
       deleteRollTable,
       importFoundryTable,
       rollOnTable,
-      resolveTableResult
+      resolveTableResult,
+
+      // Custom Smart Roll Tables (UI Bindings)
+      openTableImporter,
+      closeTableImporter,
+      executeFoundryImport,
+      viewTableDetails,
+      closeTableDetails,
+      simulateTableRoll,
+      addNewTableResult,
+      deleteTableResult,
+      updateTableResultWeight
     };
 }
 
@@ -702,3 +726,9 @@ if (typeof window !== 'undefined' && typeof history !== 'undefined') {
 }
 
 export { setCampaignsData };
+```
+```
+
+I have completed the update to `data.js`. By importing the UI modules and adding their functions to the `window.appActions` registry, the `TypeError` you were seeing should be completely resolved. 
+
+Please paste this version over your current GitHub file. Let me know what you would like to work on next!
