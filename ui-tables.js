@@ -67,7 +67,20 @@ export const closeTableDetails = () => {
     window.appActions.reRender(true);
 };
 
-/* STREAMING_CHUNK: Handling file selection and parsing... */
+/* STREAMING_CHUNK: Managing folder collapsible states... */
+export const toggleTableFolder = (folderPath) => {
+    if (!window.appData.collapsedTableFolders) {
+        window.appData.collapsedTableFolders = [];
+    }
+    const idx = window.appData.collapsedTableFolders.indexOf(folderPath);
+    if (idx === -1) {
+        window.appData.collapsedTableFolders.push(folderPath);
+    } else {
+        window.appData.collapsedTableFolders.splice(idx, 1);
+    }
+    window.appActions.reRender(true);
+};
+
 export const handleFoundryFileSelect = (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -76,7 +89,6 @@ export const handleFoundryFileSelect = (event) => {
     reader.onload = (e) => {
         try {
             const parsed = JSON.parse(e.target.result);
-            // Beautify the parsed JSON for human-readable inspection
             const formatted = JSON.stringify(parsed, null, 2);
             
             const textarea = document.getElementById('foundry-table-json-input');
@@ -90,12 +102,9 @@ export const handleFoundryFileSelect = (event) => {
         }
     };
     reader.readAsText(file);
-    
-    // Reset element value to allow re-uploading the same file
     event.target.value = '';
 };
 
-/* STREAMING_CHUNK: Running the roll simulation and rendering popup details... */
 export const simulateTableRoll = async (tableId) => {
     const container = document.getElementById('global-popup-container');
     if (!container) return;
@@ -183,7 +192,6 @@ export const simulateTableRoll = async (tableId) => {
     }
 };
 
-/* STREAMING_CHUNK: Managing specific table results and relative weighting options... */
 export const addNewTableResult = async (tableId) => {
     const name = prompt("Enter the Name of the item or entity to add to the table:");
     if (!name || !name.trim()) return;
@@ -240,6 +248,35 @@ export const updateTableResultWeight = async (tableId, resultId, currentWeight) 
     notify("Entry weight updated.", "success");
 };
 
+// --- TREE COMPILER FOR NESTED DIRECTORIES ---
+const buildFolderTree = (tables) => {
+    const root = { name: "Root", path: "", subfolders: {}, tables: [] };
+    tables.forEach(table => {
+        const folderPath = table.folder || "";
+        if (!folderPath.trim()) {
+            root.tables.push(table);
+            return;
+        }
+        const parts = folderPath.split("/").map(p => p.trim()).filter(Boolean);
+        let current = root;
+        let currentPath = "";
+        parts.forEach(part => {
+            currentPath = currentPath ? `${currentPath}/${part}` : part;
+            if (!current.subfolders[part]) {
+                current.subfolders[part] = {
+                    name: part,
+                    path: currentPath,
+                    subfolders: {},
+                    tables: []
+                };
+            }
+            current = current.subfolders[part];
+        });
+        current.tables.push(table);
+    });
+    return root;
+};
+
 // --- CORE LAYOUT GENERATOR ---
 export function getTablesHTML(state) {
     const camp = state.activeCampaign;
@@ -248,6 +285,7 @@ export function getTablesHTML(state) {
     const isDM = camp._isDM;
     const tables = camp.rollTables || [];
     const activeTableId = state.activeTableId;
+    const collapsedFolders = state.collapsedTableFolders || [];
 
     let html = `
     <div class="animate-in fade-in duration-300 pb-12 max-w-7xl mx-auto">
@@ -344,63 +382,103 @@ export function getTablesHTML(state) {
         return html;
     }
 
-    let tablesListHtml = `
-        <div class="relative mb-6">
-            <i class="fa-solid fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-stone-400 text-sm"></i>
-            <input type="text" oninput="window.filterRollTables(this.value)" class="w-full pl-10 pr-4 py-3.5 bg-white border border-[#d4c5a9] text-stone-900 text-sm font-bold rounded-full focus:outline-none focus:border-amber-600 shadow-sm placeholder:font-normal placeholder:text-stone-400 transition-colors" placeholder="Search roll tables...">
-        </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-    `;
-
+    // --- STEP B: TABLES DIRECTORY DASHBOARD VIEW ---
+    let tablesListHtml = '';
     if (tables.length === 0) {
         tablesListHtml = `
-            <div class="col-span-full p-8 sm:p-12 text-center text-stone-500 bg-[#f4ebd8] rounded-sm border border-[#d4c5a9] shadow-sm">
+            <div class="p-8 sm:p-12 text-center text-stone-500 bg-[#f4ebd8] rounded-sm border border-[#d4c5a9] shadow-sm">
                 <i class="fa-solid fa-table-list text-4xl sm:text-6xl mx-auto text-stone-400 mb-3 sm:mb-4 opacity-50"></i>
                 <p class="font-serif text-base sm:text-lg">No custom roll tables are configured for this campaign.</p>
                 ${isDM ? `<button onclick="window.appActions.openTableImporter()" class="mt-6 px-6 py-2 bg-stone-900 text-amber-50 font-bold uppercase tracking-wider text-xs rounded-sm hover:bg-stone-800 transition shadow-md"><i class="fa-solid fa-file-import mr-2"></i> Import Table JSON</button>` : ''}
             </div>
         `;
     } else {
-        tables.forEach(table => {
-            const entryCount = table.results ? table.results.length : 0;
-            const tableImg = table.image || "https://assets.forge-vtt.com/bazaar/core/icons/environment/settlement/market-stall.webp";
-            const totalWeight = (table.results || []).reduce((sum, r) => sum + (parseInt(r.weight) || 1), 0);
+        // Build search bar
+        tablesListHtml = `
+        <div class="relative mb-6">
+            <i class="fa-solid fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-stone-400 text-sm"></i>
+            <input type="text" oninput="window.filterRollTables(this.value)" class="w-full pl-10 pr-4 py-3.5 bg-white border border-[#d4c5a9] text-stone-900 text-sm font-bold rounded-full focus:outline-none focus:border-amber-600 shadow-sm placeholder:font-normal placeholder:text-stone-400 transition-colors" placeholder="Search roll tables...">
+        </div>
+        `;
 
-            tablesListHtml += `
-            <div class="table-item-card bg-[#fdfbf7] rounded-sm border border-[#d4c5a9] shadow-sm flex flex-col justify-between overflow-hidden group hover:border-amber-400 transition-all cursor-pointer" onclick="window.appActions.viewTableDetails('${table.id}')" data-search-name="${table.name.toLowerCase()}">
-                <div>
-                    <div class="w-full h-32 bg-stone-900 overflow-hidden relative border-b border-[#d4c5a9]">
-                        <img src="${tableImg}" class="w-full h-full object-cover object-top" alt="${table.name}" onerror="this.style.display='none'">
-                    </div>
-                    <div class="p-4 sm:p-5 pl-5">
-                        <h3 class="font-serif font-bold text-lg text-stone-900 leading-tight truncate group-hover:text-amber-800 transition-colors" title="${table.name}">${table.name}</h3>
-                        <div class="flex flex-wrap gap-2 text-[10px] font-bold text-stone-500 uppercase tracking-wider mt-2">
-                            <span><i class="fa-solid fa-list mr-1"></i>${entryCount} Rows</span>
-                            <span>•</span>
-                            <span><i class="fa-solid fa-dice mr-1"></i>Formula: ${table.formula || `1d${totalWeight}`}</span>
-                        </div>
-                        <p class="text-xs text-stone-600 font-serif leading-relaxed line-clamp-3 italic mt-3">"${table.desc || 'Click to view entries and rolls...'}"</p>
-                    </div>
-                </div>
+        // Organize into tree
+        const tree = buildFolderTree(tables);
+
+        // Recursive renderer for folders and compact cards
+        const renderFolderNode = (node, depth = 0) => {
+            let nodeHtml = '';
+            
+            // Render this folder's header (unless root)
+            if (node.path) {
+                const isCollapsed = collapsedFolders.includes(node.path);
+                const indentClass = depth > 1 ? `ml-${(depth - 1) * 4}` : '';
+                const childCount = node.tables.length + Object.keys(node.subfolders).length;
                 
-                <div class="p-4 bg-stone-50 border-t border-[#d4c5a9] flex justify-between items-center shrink-0">
-                    <button class="px-3 py-1.5 bg-stone-850 text-amber-50 hover:bg-stone-700 rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm">
-                        View Table
+                nodeHtml += `
+                <div class="codex-folder bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm shadow-sm overflow-hidden mb-3 ${indentClass}">
+                    <button class="w-full flex items-center justify-between p-3 bg-stone-900 text-amber-500 hover:bg-stone-800 transition-colors border-b border-transparent" 
+                            onclick="window.appActions.toggleTableFolder('${node.path.replace(/'/g, "\\'")}')">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-folder-open text-base w-5 text-center"></i>
+                            <span class="font-serif font-bold text-xs sm:text-sm tracking-wide">${node.name}</span>
+                            <span class="bg-stone-800 text-stone-400 text-[9px] px-1.5 py-0.5 rounded-full ml-1 border border-stone-700 font-sans">${childCount}</span>
+                        </div>
+                        <i class="fa-solid fa-chevron-down folder-chevron transition-transform duration-200 text-stone-500 ${isCollapsed ? '' : 'rotate-180'}"></i>
                     </button>
-                    ${isDM ? `
-                        <button onclick="event.stopPropagation(); window.appActions.deleteRollTable('${table.id}')" class="text-stone-400 hover:text-red-700 p-1.5 transition" title="Delete Table">
-                            <i class="fa-solid fa-trash"></i>
-                        </button>
-                    ` : ''}
-                </div>
-            </div>
-            `;
-        });
+                    <div class="p-3 bg-[#fdfbf7] ${isCollapsed ? 'hidden' : ''}">
+                `;
+            }
+
+            // Render subfolders first (recursion)
+            Object.values(node.subfolders).sort((a, b) => a.name.localeCompare(b.name)).forEach(sub => {
+                nodeHtml += renderFolderNode(sub, depth + 1);
+            });
+
+            // Render highly compressed table cards in a dense list/grid
+            if (node.tables.length > 0) {
+                nodeHtml += `<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">`;
+                node.tables.forEach(table => {
+                    const entryCount = table.results ? table.results.length : 0;
+                    const totalWeight = (table.results || []).reduce((sum, r) => sum + (parseInt(r.weight) || 1), 0);
+                    
+                    nodeHtml += `
+                    <div class="table-item-card bg-white border border-[#d4c5a9] rounded-sm p-3 shadow-sm flex items-center justify-between gap-3 hover:border-amber-400 transition" data-search-name="${table.name.toLowerCase()}">
+                        <div class="min-w-0 flex-grow" onclick="window.appActions.viewTableDetails('${table.id}')">
+                            <span class="font-serif font-bold text-xs text-stone-900 truncate block leading-tight cursor-pointer hover:text-amber-800" title="${table.name}">${table.name}</span>
+                            <div class="flex items-center gap-2 mt-1 text-[8px] font-bold text-stone-400 uppercase tracking-wider">
+                                <span><i class="fa-solid fa-list mr-1"></i>${entryCount} Rows</span>
+                                <span>•</span>
+                                <span><i class="fa-solid fa-dice mr-1"></i>Formula: ${table.formula || `1d${totalWeight}`}</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            <button onclick="window.appActions.viewTableDetails('${table.id}')" class="px-2 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-sm text-[9px] font-bold uppercase tracking-wider border border-[#d4c5a9] shadow-sm">View</button>
+                            ${isDM ? `
+                                <button onclick="event.stopPropagation(); window.appActions.deleteRollTable('${table.id}')" class="text-stone-400 hover:text-red-700 p-1 rounded transition" title="Delete Table">
+                                    <i class="fa-solid fa-trash text-xs"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                    `;
+                });
+                nodeHtml += `</div>`;
+            }
+
+            if (node.path) {
+                nodeHtml += `</div></div>`; // Close collapsible container
+            }
+
+            return nodeHtml;
+        };
+
+        // Render from root
+        tablesListHtml += renderFolderNode(tree);
         tablesListHtml += `</div>`;
     }
 
     html += `
+        <!-- Dashboard Header Actions -->
         ${isDM ? `
             <div class="flex justify-end gap-2 mb-6">
                 <button onclick="window.appActions.openTableImporter()" class="px-4 py-2 bg-emerald-700 text-amber-50 rounded-sm hover:bg-emerald-600 transition font-bold uppercase tracking-wider text-xs shadow-md">
