@@ -1,3 +1,4 @@
+/* STREAMING_CHUNK: Importing core state modules and actions... */
 import { setCampaignsData, updateDerivedState, reRender } from './state.js'; 
 
 // Import UI Core Navigation & Layout Controls
@@ -274,6 +275,20 @@ import {
     resolveTableResult
 } from './actions-tables.js';
 
+// --- ROLL TABLE UI ACTIONS IMPORTS ---
+import {
+    filterRollTables,
+    openTableImporter,
+    closeTableImporter,
+    executeFoundryImport,
+    viewTableDetails,
+    closeTableDetails,
+    simulateTableRoll,
+    addNewTableResult,
+    deleteTableResult,
+    updateTableResultWeight
+} from './ui-tables.js';
+
 // --- APP ACTIONS HUB --- 
 if (typeof window !== 'undefined') {
     window.appActions = { 
@@ -339,7 +354,7 @@ if (typeof window !== 'undefined') {
       deleteSession, 
       addLogScene, 
       addLogClue, 
-      submitSessionClue,
+      submitSessionClue, 
       deleteSessionClue,
       addChronicleEntry,
       editChronicleEntry,
@@ -573,8 +588,22 @@ if (typeof window !== 'undefined') {
       deleteRollTable,
       importFoundryTable,
       rollOnTable,
-      resolveTableResult
+      resolveTableResult,
+
+      // Roll Table UI Interactivity
+      openTableImporter,
+      closeTableImporter,
+      executeFoundryImport,
+      viewTableDetails,
+      closeTableDetails,
+      simulateTableRoll,
+      addNewTableResult,
+      deleteTableResult,
+      updateTableResultWeight
     };
+
+    // Bind the table search filter directly to window as expected by the inline HTML oninput handler
+    window.filterRollTables = filterRollTables;
 }
 
 // --- HISTORY API INTERCEPTOR (Native Phone Back Button Support) ---
