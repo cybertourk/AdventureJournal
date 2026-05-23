@@ -1,4 +1,6 @@
-/* STREAMING_CHUNK: Importing core state and navigation modules... */
+data.js
+```javascript
+/* STREAMING_CHUNK: Importing core state modules and actions... */
 import { setCampaignsData, updateDerivedState, reRender } from './state.js'; 
 
 // Import UI Core Navigation & Layout Controls
@@ -43,7 +45,7 @@ import {
     quickSyncDDB 
 } from './actions-campaign.js'; 
 
-/* STREAMING_CHUNK: Importing session and visibility controls... */
+// Import Session, Narrative, & Visibility Controls 
 import { 
     openSessionEdit, 
     switchSessionTab, 
@@ -89,7 +91,7 @@ import {
     updateLocEditFields 
 } from './actions-codex.js'; 
 
-/* STREAMING_CHUNK: Importing calendar and rules glossary systems... */
+// Import Calendar Functionality
 import { 
     openCalendar, 
     navCalendarMonth, 
@@ -127,7 +129,7 @@ import {
     calculateJump 
 } from './actions-rules.js';
 
-/* STREAMING_CHUNK: Importing interactive map atlas and relationship webs... */
+// Import Atlas & Map Functionality
 import { 
     initAtlas, 
     setAtlasMode, 
@@ -176,7 +178,7 @@ import {
     renderMermaidWeb 
 } from './actions-webs.js';
 
-/* STREAMING_CHUNK: Importing modular downtime activities... */
+// Import Downtime Menu Hub
 import { openDowntimeMenu } from './actions-downtime.js';
 
 // --- MODULAR DOWNTIME IMPORTS ---
@@ -275,7 +277,7 @@ import {
     resolveTableResult
 } from './actions-tables.js';
 
-/* STREAMING_CHUNK: Importing and exposing file-picker select engines... */
+// --- ROLL TABLE UI ACTIONS IMPORTS ---
 import {
     filterRollTables,
     openTableImporter,
@@ -287,6 +289,7 @@ import {
     addNewTableResult,
     deleteTableResult,
     updateTableResultWeight,
+    toggleTableFolder,
     handleFoundryFileSelect
 } from './ui-tables.js';
 
@@ -602,8 +605,8 @@ if (typeof window !== 'undefined') {
       deleteTableResult,
       updateTableResultWeight,
       
-      /* STREAMING_CHUNK: Registering the local file reader handle... */
-      handleFoundryFileSelect
+      // Expose our new folder toggling action globally
+      toggleTableFolder
     };
 
     // Bind the table search filter directly to window as expected by the inline HTML oninput handler
@@ -614,7 +617,7 @@ if (typeof window !== 'undefined') {
 // ============================================================================
 
 if (typeof window !== 'undefined' && typeof history !== 'undefined') {
-    /* STREAMING_CHUNK: Routing dynamic state history... */
+    // Set the initial anchor state so the browser knows where "Home" is
     history.replaceState({
         currentView: 'home',
         activeCampaignId: null,
