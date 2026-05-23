@@ -1,9 +1,7 @@
-/* STREAMING_CHUNK: Importing core state modules and actions... */
-import { generateId, updateDerivedState, reRender } from './state.js';
+/* STREAMING_CHUNK: Importing state management, firebase sync, and table calculators... */
+import { generateId, updateDerivedState, reRender, getUnifiedCatalog } from './state.js';
 import { saveCampaign, notify } from './firebase-manager.js';
 import { logPlayerActivity } from './actions-campaign.js';
-
-/* STREAMING_CHUNK: Importing our new roll table engine... */
 import { rollOnTable } from './actions-tables.js';
 
 let LOCAL_BAZAAR_DB = null;
@@ -393,7 +391,7 @@ export const openManualItemModal = async (shopId) => {
                     <!-- Search Database Panel -->
                     <div class="bg-emerald-50 p-4 border border-emerald-200 rounded-sm shadow-sm">
                         <h3 class="text-[10px] font-bold uppercase tracking-widest text-emerald-900 mb-2 border-b border-emerald-200 pb-1"><i class="fa-solid fa-magnifying-glass mr-1 text-emerald-700"></i> Search Master Database</h3>
-                        <p class="text-[9px] italic text-emerald-800 mb-3">Search thousands of pre-configured items. Clicking an item adds it directly to the shop's shelves.</p>
+                        <p class="text-[9px] italic text-emerald-800 mb-3">Search thousands of pre-configured items, including your custom campaign homebrew. Clicking an item adds it directly to the shop's shelves.</p>
                         
                         <div class="relative">
                             <input type="text" id="manual-item-search" oninput="window.appActions.searchBazaarDatabase('${shopId}', this.value)" placeholder="Search items, weapons, potions..." class="w-full p-2 border border-emerald-300 rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner" autocomplete="off">
@@ -410,6 +408,7 @@ export const openManualItemModal = async (shopId) => {
                     <!-- Custom Item Panel -->
                     <div class="bg-white p-4 border border-[#d4c5a9] rounded-sm shadow-sm">
                         <h3 class="text-[10px] font-bold uppercase tracking-widest text-stone-600 mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-hammer mr-1 text-stone-400"></i> Forge Custom Item</h3>
+                        <p class="text-[9px] text-stone-500 italic mb-4 leading-snug">Forging an item here registers it globally in your campaign's **Unified Catalog** forever, so it can also be added to other shops or rolled on custom tables!</p>
                         
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                             <div class="sm:col-span-2">
@@ -447,9 +446,10 @@ export const openManualItemModal = async (shopId) => {
     `;
 };
 
-export const searchBazaarDatabase = (shopId, query) => {
+/* STREAMING_CHUNK: Integrating Unified Catalog search directly into Bazaar queries... */
+export const searchBazaarDatabase = async (shopId, query) => {
     const resultsDiv = document.getElementById('manual-item-results');
-    if (!resultsDiv || !LOCAL_BAZAAR_DB) return;
+    if (!resultsDiv) return;
 
     if (!query || query.length < 2) {
         resultsDiv.innerHTML = '';
@@ -457,26 +457,34 @@ export const searchBazaarDatabase = (shopId, query) => {
         return;
     }
 
-    const lowerQ = query.toLowerCase();
-    const matches = LOCAL_BAZAAR_DB.filter(i => i.name.toLowerCase().includes(lowerQ)).slice(0, 50); // Limit to 50 for performance
-    
-    if (matches.length === 0) {
-        resultsDiv.innerHTML = '<div class="p-3 text-stone-500 text-xs italic text-center">No matching items found in the master database.</div>';
-    } else {
-        resultsDiv.innerHTML = matches.map(m => {
-            const safeName = m.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-            const safeRarity = (m.rarity || 'common').replace(/'/g, "\\'");
-            return `
-            <div class="p-2.5 border-b border-stone-200 hover:bg-emerald-50 cursor-pointer flex justify-between items-center group transition-colors" onclick="window.appActions.addBazaarItemToShop('${shopId}', '${safeName}', ${m.price || 0}, '${safeRarity}', ${m.isMagic || false})">
-                <div class="min-w-0 pr-2">
-                    <span class="font-bold text-stone-800 text-sm block truncate group-hover:text-emerald-700 transition-colors">${m.name}</span>
-                    <span class="text-[9px] uppercase font-bold tracking-widest text-stone-500">${m.rarity || 'common'} ${m.isMagic ? '<i class="fa-solid fa-sparkles text-amber-500 ml-1"></i>' : ''}</span>
-                </div>
-                <span class="text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-2 py-1 rounded-sm shadow-sm whitespace-nowrap shrink-0 group-hover:bg-amber-200 transition-colors">${m.price || 0} gp</span>
-            </div>`;
-        }).join('');
+    try {
+        const lowerQ = query.toLowerCase();
+        
+        // Asynchronously query our Unified Catalog (includes customItems and itemOverrides)
+        const catalog = await getUnifiedCatalog();
+        const matches = catalog.filter(i => i.name.toLowerCase().includes(lowerQ)).slice(0, 50);
+        
+        if (matches.length === 0) {
+            resultsDiv.innerHTML = '<div class="p-3 text-stone-500 text-xs italic text-center">No matching items found in the master database.</div>';
+        } else {
+            resultsDiv.innerHTML = matches.map(m => {
+                const safeName = m.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                const safeRarity = (m.rarity || 'common').replace(/'/g, "\\'");
+                return `
+                <div class="p-2.5 border-b border-stone-200 hover:bg-emerald-50 cursor-pointer flex justify-between items-center group transition-colors" onclick="window.appActions.addBazaarItemToShop('${shopId}', '${safeName}', ${m.price || 0}, '${safeRarity}', ${m.isMagic || false})">
+                    <div class="min-w-0 pr-2">
+                        <span class="font-bold text-stone-800 text-sm block truncate group-hover:text-emerald-700 transition-colors">${m.name}</span>
+                        <span class="text-[9px] uppercase font-bold tracking-widest text-stone-500">${m.rarity || 'common'} ${m.isMagic ? '<i class="fa-solid fa-sparkles text-amber-500 ml-1"></i>' : ''}</span>
+                    </div>
+                    <span class="text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-2 py-1 rounded-sm shadow-sm whitespace-nowrap shrink-0 group-hover:bg-amber-200 transition-colors">${m.price || 0} gp</span>
+                </div>`;
+            }).join('');
+        }
+        resultsDiv.classList.remove('hidden');
+    } catch (e) {
+        console.error("Failed to query database:", e);
+        resultsDiv.innerHTML = '<div class="p-3 text-red-500 text-xs text-center">Search error.</div>';
     }
-    resultsDiv.classList.remove('hidden');
 };
 
 export const addBazaarItemToShop = async (shopId, name, price, rarity, isMagic) => {
@@ -519,6 +527,7 @@ export const addBazaarItemToShop = async (shopId, name, price, rarity, isMagic) 
     }
 };
 
+/* STREAMING_CHUNK: Rewriting custom item submission to sync globally with the campaign catalog... */
 export const submitCustomItem = async (shopId) => {
     const name = document.getElementById('custom-item-name').value.trim();
     if (!name) {
@@ -530,6 +539,28 @@ export const submitCustomItem = async (shopId) => {
     const rarity = document.getElementById('custom-item-rarity').value;
     const isMagic = document.getElementById('custom-item-magic').checked;
 
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    if (!camp || !camp._isDM) return;
+
+    // 1. Forge the item globally inside camp.customItems if it doesn't exist
+    const currentCustom = camp.customItems || [];
+    const existsGlobally = currentCustom.some(i => i.name.toLowerCase().trim() === name.toLowerCase().trim());
+    
+    if (!existsGlobally) {
+        const globalCustomItem = {
+            id: 'item_' + generateId(),
+            name: name,
+            price: price,
+            rarity: rarity,
+            isMagic: isMagic,
+            type: isMagic ? 'magic' : 'equipment',
+            description: "A custom crafted homebrew creation."
+        };
+        camp.customItems = [...currentCustom, globalCustomItem];
+    }
+
+    // 2. Add it directly to this shop's shelves
     await addBazaarItemToShop(shopId, name, price, rarity, isMagic);
     
     document.getElementById('custom-item-name').value = '';
@@ -618,7 +649,6 @@ export const rollShopInventory = async (shopId) => {
         themeOptions += `<option value="theme:${theme}">${theme}</option>`;
     }
 
-    /* STREAMING_CHUNK: Fetching dynamically imported/custom roll tables... */
     updateDerivedState();
     const camp = window.appData.activeCampaign;
     const campaignTables = camp?.rollTables || [];
@@ -697,7 +727,6 @@ export const executeRollWares = async () => {
 
     let currentInventory = [...(camp.shops[shopIndex].inventory || [])];
 
-    /* STREAMING_CHUNK: Detecting if rolling on custom tables... */
     if (theme.startsWith('table:')) {
         const tableId = theme.split(':')[1];
         
