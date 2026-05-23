@@ -1,3 +1,4 @@
+/* STREAMING_CHUNK: Importing core view builders and action layers... */
 import { getHomeHTML, getCampaignHTML, getAdventureHTML, getAdvRosterHTML, getActivityLogHTML } from './ui-campaign.js';
 import { getPCManagerHTML, getPCEditHTML } from './ui-characters.js';
 import { getSessionEditHTML } from './ui-session.js';
@@ -7,6 +8,9 @@ import { getRulesHTML } from './ui-rules.js';
 import { getAtlasHTML } from './ui-atlas.js';
 import { getWebsHTML } from './ui-webs.js';
 import { getBazaarHTML, getStorefrontHTML, getShopBackroomHTML } from './ui-shops.js';
+
+/* STREAMING_CHUNK: Importing our new Tables UI layout... */
+import { getTablesHTML } from './ui-tables.js';
 
 // --- CONSTANTS & HELPERS ---
 export const BUDGET_BY_LEVEL = { 
@@ -64,6 +68,7 @@ export function getLibraryTabsHTML(activeTab) {
     const isWebs = activeTab === 'webs';
     const isBazaar = activeTab === 'bazaar';
     const isTome = activeTab === 'tome';
+    const isTables = activeTab === 'tables';
 
     return `
     <div class="flex bg-stone-200 p-1 sm:p-1.5 rounded-sm border border-[#d4c5a9] shadow-inner mb-6 w-full max-w-5xl mx-auto shrink-0 overflow-x-auto hide-scrollbar">
@@ -75,6 +80,9 @@ export function getLibraryTabsHTML(activeTab) {
         </button>
         <button onclick="window.appActions.openRulesGlossary()" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isRules ? 'bg-white shadow-sm text-amber-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
             <i class="fa-solid fa-scale-balanced text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Rules</span>
+        </button>
+        <button onclick="window.appActions.setView('tables')" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isTables ? 'bg-white shadow-sm text-stone-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
+            <i class="fa-solid fa-table-list text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Tables</span>
         </button>
         <button onclick="window.appActions.setView('webs')" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isWebs ? 'bg-white shadow-sm text-purple-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
             <i class="fa-solid fa-diagram-project text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Webs</span>
@@ -133,6 +141,7 @@ export function updateHeaderUI(state) {
         case 'storefront': breadcrumbText = 'Bazaar • Storefront'; showBack = true; break;
         case 'shop-backroom': breadcrumbText = 'Bazaar • DM Backroom'; showBack = true; break;
         case 'rules': breadcrumbText = 'Library • Rules'; showBack = true; break;
+        case 'tables': breadcrumbText = 'Library • Roll Tables'; showBack = true; break;
         case 'webs': breadcrumbText = 'Library • Webs'; showBack = true; break;
         case 'atlas': breadcrumbText = 'Library • Atlas'; showBack = true; break;
         case 'calendar': breadcrumbText = 'Chronicle Timeline'; showBack = true; break;
@@ -170,7 +179,7 @@ export function updateDockUI(state) {
     let activeTab = 'campaign';
     if (['calendar'].includes(state.currentView)) activeTab = 'calendar';
     if (['pc-manager', 'pc-edit'].includes(state.currentView)) activeTab = 'pc-manager';
-    if (['codex', 'rules', 'atlas', 'webs', 'bazaar', 'storefront', 'shop-backroom'].includes(state.currentView)) activeTab = 'codex'; // Library items group here
+    if (['codex', 'rules', 'tables', 'atlas', 'webs', 'bazaar', 'storefront', 'shop-backroom'].includes(state.currentView)) activeTab = 'codex'; // Library items group here
     
     // The Grand Tome is now officially part of the Library Hub, so keep the Library dock icon highlighted
     if (state.currentView === 'journal' && !state.activeAdventureId && !state.activeSessionId) {
@@ -195,6 +204,7 @@ export const navigateBack = () => {
         case 'codex':
         case 'bazaar':
         case 'rules': 
+        case 'tables':
         case 'webs':
         case 'calendar':
             window.appActions.setView('home'); 
@@ -482,7 +492,7 @@ export function renderApp(state) {
         container.scrollTo({ top: 0, behavior: 'instant' });
     }
 
-    // --- NEW: LEAFLET DOM PRESERVATION ---
+    // --- LEAFLET DOM PRESERVATION ---
     // If we are already on the Atlas view and the DOM is built, 
     // DO NOT overwrite innerHTML! This prevents the map from disappearing or flickering.
     if (state.currentView === 'atlas' && document.getElementById('atlas-wrapper')) {
@@ -512,6 +522,7 @@ export function renderApp(state) {
         case 'shop-backroom': html = getShopBackroomHTML(state); break;
         case 'calendar': html = getCalendarHTML(state); break;
         case 'rules': html = getRulesHTML(state); break;
+        case 'tables': html = getTablesHTML(state); break;
         case 'webs': html = getWebsHTML(state); break; 
         case 'atlas': html = getAtlasHTML(state); break; 
         case 'activity-log': html = getActivityLogHTML(state); break;
