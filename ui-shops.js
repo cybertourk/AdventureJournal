@@ -1,5 +1,33 @@
 import { getLibraryTabsHTML } from './ui-core.js';
 
+// --- SEARCH FILTERING HELPER ---
+// This global script is bound to the window context so inline inputs can trigger client-side filtering instantly.
+window.filterShopInventory = function(query, containerSelector) {
+    const lower = query.toLowerCase().trim();
+    const container = document.querySelector(containerSelector);
+    if (!container) return;
+    const items = container.querySelectorAll('[data-search-name]');
+    items.forEach(item => {
+        const name = item.getAttribute('data-search-name') || '';
+        if (name.includes(lower)) {
+            item.style.display = '';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+};
+
+// --- HELPER: GET COLOR ASSIGNMENT BY RARITY ---
+function getRarityColor(rarity) {
+    const r = (rarity || '').toLowerCase().trim();
+    if (r === 'uncommon') return 'text-emerald-600 bg-emerald-50 border-emerald-200';
+    if (r === 'rare') return 'text-blue-600 bg-blue-50 border-blue-200';
+    if (r === 'veryrare' || r === 'very-rare') return 'text-purple-600 bg-purple-50 border-purple-200';
+    if (r === 'legendary') return 'text-orange-600 bg-orange-50 border-orange-200';
+    return 'text-stone-500 bg-stone-100 border-stone-200'; // Common or Custom
+}
+
+// --- HELPER: ESCAPE SPECIAL CHARACTERS FOR SAFETY ---
 const escapeHTML = (str) => {
     if (!str) return '';
     return String(str)
@@ -10,181 +38,178 @@ const escapeHTML = (str) => {
         .replace(/'/g, '&#39;');
 };
 
-const getRarityColor = (rarity) => {
-    switch((rarity || '').toLowerCase()) {
-        case 'legendary': return 'text-orange-600';
-        case 'very-rare': case 'very rare': return 'text-purple-600';
-        case 'rare': return 'text-blue-600';
-        case 'uncommon': return 'text-emerald-600';
-        case 'common': return 'text-stone-500';
-        case 'custom': return 'text-amber-700';
-        default: return 'text-stone-500';
-    }
-};
-
 export function getBazaarHTML(state) {
     const camp = state.activeCampaign;
     if (!camp) return '';
 
     const isDM = camp._isDM;
-    const allShops = camp.shops || [];
-    
-    // Players only see Open shops
-    const visibleShops = isDM ? allShops : allShops.filter(s => s.isOpen);
-    
-    // Sort alphabetically by name first to ensure predictable ordering within groups
-    const sortedShops = [...visibleShops].sort((a,b) => a.name.localeCompare(b.name));
+    const shops = camp.shops || [];
 
-    let listHtml = '';
-    
-    if (sortedShops.length === 0) {
-        listHtml = `
-            <div class="col-span-full p-8 sm:p-12 text-center text-stone-500 bg-[#f4ebd8] rounded-sm border border-[#d4c5a9] shadow-sm">
-                <i class="fa-solid fa-store-slash text-4xl sm:text-6xl mx-auto text-stone-400 mb-3 sm:mb-4 opacity-50"></i>
-                <p class="font-serif text-base sm:text-lg">There are no merchants available.</p>
-                ${isDM ? `<p class="text-xs sm:text-sm mt-2 font-sans">Establish your first shop to give players a place to spend their gold.</p>` : ''}
-            </div>
-        `;
-    } else {
-        // --- GROUPING ENGINE ---
-        const groupedShops = {};
-        const travelingShops = [];
-
-        sortedShops.forEach(shop => {
-            if (shop.isTraveling) {
-                travelingShops.push(shop);
-            } else {
-                const loc = shop.location ? shop.location.trim() : 'Unknown Location';
-                if (!groupedShops[loc]) groupedShops[loc] = [];
-                groupedShops[loc].push(shop);
-            }
-        });
-
-        const sortedLocations = Object.keys(groupedShops).sort((a, b) => a.localeCompare(b));
-        const collapsedLocs = state.bazaarCollapsedLocs || [];
-
-        const renderShopGrid = (shops) => {
-            let gridHtml = `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">`;
-            
-            shops.forEach(shop => {
-                const safeName = escapeHTML(shop.name);
-                const safeType = escapeHTML(shop.shopType || 'Merchant');
-                const safeLoc = escapeHTML(shop.location || 'Unknown Location');
-                const itemCount = (shop.inventory || []).length;
-                
-                const statusBadge = shop.isOpen 
-                    ? `<span class="absolute top-2 right-2 text-[9px] bg-emerald-100 text-emerald-800 border border-emerald-300 uppercase font-bold px-2 py-0.5 rounded-sm shadow-sm z-10"><i class="fa-solid fa-door-open mr-1"></i> Open</span>`
-                    : `<span class="absolute top-2 right-2 text-[9px] bg-red-100 text-red-800 border border-red-300 uppercase font-bold px-2 py-0.5 rounded-sm shadow-sm z-10"><i class="fa-solid fa-door-closed mr-1"></i> Closed</span>`;
-
-                const imgHtml = shop.image 
-                    ? `<div class="w-full h-32 bg-stone-900 overflow-hidden relative shrink-0"><img src="${shop.image}" class="w-full h-full object-cover object-center opacity-80 group-hover:opacity-100 transition-opacity" alt="${safeName}"></div>`
-                    : `<div class="w-full h-12 bg-stone-200 border-b border-[#d4c5a9] shrink-0"></div>`;
-
-                const onClickAction = isDM ? `window.appActions.viewBackroom('${shop.id}')` : `window.appActions.viewStorefront('${shop.id}')`;
-                
-                gridHtml += `
-                <div class="bg-white rounded-sm border border-[#d4c5a9] shadow-sm flex flex-col group relative overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition duration-200 cursor-pointer" onclick="${onClickAction}">
-                    <div class="absolute top-0 left-0 w-1 h-full bg-emerald-700 group-hover:bg-emerald-500 transition-colors z-20"></div>
-                    ${isDM ? statusBadge : ''}
-                    ${imgHtml}
-                    <div class="p-4 flex flex-col flex-grow relative z-10">
-                        <h3 class="font-serif font-bold text-lg text-emerald-900 leading-tight mb-1 truncate pr-8">${safeName}</h3>
-                        ${shop.isTraveling ? `<p class="text-[10px] uppercase font-bold text-amber-700 tracking-widest mb-3 truncate"><i class="fa-solid fa-caravan mr-1"></i> Spotted near ${safeLoc}</p>` : `<p class="text-[10px] uppercase font-bold text-stone-500 tracking-widest mb-3 truncate"><i class="fa-solid fa-map-pin mr-1"></i> ${safeLoc}</p>`}
-                        
-                        <div class="mt-auto flex justify-between items-center pt-3 border-t border-stone-100">
-                            <span class="text-xs font-bold text-stone-700"><i class="fa-solid fa-tag text-amber-600 mr-1.5"></i> ${itemCount} Wares</span>
-                            <span class="text-[10px] uppercase font-bold text-stone-400 bg-stone-100 px-2 py-1 rounded-sm">${safeType}</span>
-                        </div>
-                    </div>
-                </div>
-                `;
-            });
-            
-            gridHtml += `</div>`;
-            return gridHtml;
-        };
-
-        // Render standard locations first as collapsible folders
-        sortedLocations.forEach(loc => {
-            const isCollapsed = collapsedLocs.includes(loc);
-            const safeLoc = escapeHTML(loc);
-            const escapedLocParam = safeLoc.replace(/'/g, "\\'");
-            const shopCount = groupedShops[loc].length;
-
-            listHtml += `
-            <div class="mb-4 bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm shadow-sm overflow-hidden">
-                <div class="bg-stone-900 p-3 sm:p-4 flex items-center justify-between transition-colors border-b ${isCollapsed ? 'border-transparent' : 'border-stone-700'}">
-                    <button class="flex-grow flex items-center text-amber-500 hover:bg-stone-800 transition-colors text-left focus:outline-none -m-3 sm:-m-4 p-3 sm:p-4" onclick="window.appActions.toggleBazaarLocation('${escapedLocParam}')">
-                        <i class="fa-solid fa-map-location-dot mr-3 text-stone-400 text-lg"></i>
-                        <span class="font-serif font-bold text-base sm:text-lg tracking-wide">${safeLoc}</span>
-                        <span class="bg-stone-800 text-stone-400 text-[10px] px-2 py-0.5 rounded-full ml-3 border border-stone-700 font-sans">${shopCount}</span>
-                        <i class="fa-solid fa-chevron-down ml-auto transition-transform duration-200 ${isCollapsed ? '' : 'rotate-180'} text-stone-500"></i>
-                    </button>
-                    ${isDM ? `
-                    <div class="flex gap-2 ml-4 shrink-0 relative z-10">
-                        <button onclick="window.appActions.toggleAllShops('${escapedLocParam}', true)" class="px-2 py-1.5 bg-emerald-900/40 hover:bg-emerald-800 text-emerald-400 border border-emerald-700/50 rounded-sm transition text-[9px] font-bold uppercase tracking-wider shadow-sm" title="Open all shops here"><i class="fa-solid fa-door-open sm:mr-1"></i><span class="hidden sm:inline"> Open All</span></button>
-                        <button onclick="window.appActions.toggleAllShops('${escapedLocParam}', false)" class="px-2 py-1.5 bg-red-900/40 hover:bg-red-800 text-red-400 border border-red-700/50 rounded-sm transition text-[9px] font-bold uppercase tracking-wider shadow-sm" title="Close all shops here"><i class="fa-solid fa-door-closed sm:mr-1"></i><span class="hidden sm:inline"> Close All</span></button>
-                    </div>
-                    ` : ''}
-                </div>
-                
-                <div class="${isCollapsed ? 'hidden' : 'p-4 sm:p-6'} bg-[#fdfbf7]">
-                    ${renderShopGrid(groupedShops[loc])}
-                </div>
-            </div>
-            `;
-        });
-
-        // Render traveling merchants in their own block at the bottom
-        if (travelingShops.length > 0) {
-            const isCollapsed = collapsedLocs.includes('Traveling Merchants');
-            listHtml += `
-            <div class="mt-6 mb-4 bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm shadow-sm overflow-hidden">
-                <div class="bg-stone-900 p-3 sm:p-4 flex items-center justify-between transition-colors border-b ${isCollapsed ? 'border-transparent' : 'border-stone-700'}">
-                    <button class="flex-grow flex items-center text-emerald-500 hover:bg-stone-800 transition-colors text-left focus:outline-none -m-3 sm:-m-4 p-3 sm:p-4" onclick="window.appActions.toggleBazaarLocation('Traveling Merchants')">
-                        <i class="fa-solid fa-caravan mr-3 text-emerald-600 text-lg"></i>
-                        <span class="font-serif font-bold text-base sm:text-lg tracking-wide">Traveling Merchants</span>
-                        <span class="bg-stone-800 text-stone-400 text-[10px] px-2 py-0.5 rounded-full ml-3 border border-stone-700 font-sans">${travelingShops.length}</span>
-                        <i class="fa-solid fa-chevron-down ml-auto transition-transform duration-200 ${isCollapsed ? '' : 'rotate-180'} text-stone-500"></i>
-                    </button>
-                    ${isDM ? `
-                    <div class="flex gap-2 ml-4 shrink-0 relative z-10">
-                        <button onclick="window.appActions.toggleAllTravelingShops(true)" class="px-2 py-1.5 bg-emerald-900/40 hover:bg-emerald-800 text-emerald-400 border border-emerald-700/50 rounded-sm transition text-[9px] font-bold uppercase tracking-wider shadow-sm" title="Open all traveling shops"><i class="fa-solid fa-door-open sm:mr-1"></i><span class="hidden sm:inline"> Open All</span></button>
-                        <button onclick="window.appActions.toggleAllTravelingShops(false)" class="px-2 py-1.5 bg-red-900/40 hover:bg-red-800 text-red-400 border border-red-700/50 rounded-sm transition text-[9px] font-bold uppercase tracking-wider shadow-sm" title="Close all traveling shops"><i class="fa-solid fa-door-closed sm:mr-1"></i><span class="hidden sm:inline"> Close All</span></button>
-                    </div>
-                    ` : ''}
-                </div>
-                <div class="${isCollapsed ? 'hidden' : 'p-4 sm:p-6'} bg-[#fdfbf7]">
-                    ${renderShopGrid(travelingShops)}
-                </div>
-            </div>
-            `;
-        }
-    }
-
-    return `
+    let html = `
     <div class="animate-in fade-in duration-300 pb-12 max-w-7xl mx-auto">
         ${getLibraryTabsHTML('bazaar')}
-
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b border-[#d4c5a9] pb-4">
-            <div>
-                <h2 class="text-2xl sm:text-3xl font-serif font-bold text-emerald-900 leading-tight flex items-center">
-                    <i class="fa-solid fa-store mr-3 text-emerald-600"></i> The Bazaar
-                </h2>
-                <p class="text-stone-500 text-xs font-sans mt-1 italic">Merchants, markets, and purveyors of fine goods.</p>
-            </div>
-            
-            ${isDM ? `
-            <div class="flex flex-wrap gap-2 w-full md:w-auto">
-                <button onclick="window.appActions.openShopEditModal()" class="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-emerald-800 text-amber-50 border border-emerald-900 rounded-sm hover:bg-emerald-700 transition font-bold uppercase tracking-wider text-[10px] shadow-sm active:scale-95">
-                    <i class="fa-solid fa-plus mr-1.5"></i> Establish Shop
-                </button>
-            </div>
-            ` : ''}
-        </div>
-        ${listHtml}
-    </div>
     `;
+
+    if (shops.length === 0) {
+        html += `
+            <div class="p-8 sm:p-12 text-center text-stone-500 bg-[#f4ebd8] rounded-sm border border-[#d4c5a9] shadow-sm">
+                <i class="fa-solid fa-store text-4xl sm:text-6xl mx-auto text-stone-400 mb-3 sm:mb-4 opacity-50"></i>
+                <p class="font-serif text-base sm:text-lg">No merchants have set up stalls in the Bazaar yet.</p>
+                ${isDM ? `<button onclick="window.appActions.openShopEditModal()" class="mt-6 px-6 py-2 bg-stone-900 text-amber-50 font-bold uppercase tracking-wider text-xs rounded-sm hover:bg-stone-800 transition shadow-md"><i class="fa-solid fa-plus mr-2"></i> Establish First Shop</button>` : ''}
+            </div>
+        </div>
+        `;
+        return html;
+    }
+
+    // Header actions for DM
+    if (isDM) {
+        html += `
+        <div class="flex flex-wrap justify-end gap-2 mb-6">
+            <button onclick="window.appActions.openShopEditModal()" class="px-4 py-2 bg-emerald-700 text-amber-50 rounded-sm hover:bg-emerald-600 transition font-bold uppercase tracking-wider text-xs shadow-md">
+                <i class="fa-solid fa-plus mr-1.5"></i> New Shop
+            </button>
+        </div>
+        `;
+    }
+
+    // Group shops by location
+    const grouped = {};
+    const traveling = [];
+    shops.forEach(s => {
+        if (s.isTraveling) {
+            traveling.push(s);
+        } else {
+            const loc = s.location || 'Unknown Location';
+            if (!grouped[loc]) grouped[loc] = [];
+            grouped[loc].push(s);
+        }
+    });
+
+    const collapsedLocs = state.bazaarCollapsedLocs || [];
+
+    // Helper to render shop grids within folders
+    const renderShopGrid = (shopList) => {
+        let gridHtml = `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">`;
+        shopList.forEach(shop => {
+            const statusColor = shop.isOpen ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 'text-stone-500 bg-stone-100 border-stone-200';
+            const statusLabel = shop.isOpen ? 'Open' : 'Closed';
+            const safeShopName = escapeHTML(shop.name);
+            const safeDesc = escapeHTML(shop.desc);
+            const safeOwner = escapeHTML(shop.ownerName || 'Unknown');
+            const safeType = escapeHTML(shop.shopType || 'Merchant');
+            
+            const portraitHtml = shop.image ? `
+                <div class="w-full h-32 bg-stone-900 overflow-hidden relative border-b border-[#d4c5a9]">
+                    <img src="${escapeHTML(shop.image)}" class="w-full h-full object-cover object-top" alt="${safeShopName}" onerror="this.style.display='none'">
+                </div>
+            ` : '';
+
+            gridHtml += `
+            <div class="bg-[#fdfbf7] rounded-sm border border-[#d4c5a9] shadow-sm flex flex-col justify-between overflow-hidden group hover:border-amber-400 transition-all">
+                <div>
+                    ${portraitHtml}
+                    <div class="p-4 sm:p-5">
+                        <div class="flex justify-between items-start mb-2 gap-2">
+                            <h3 class="font-serif font-bold text-lg text-stone-900 leading-tight truncate flex-grow" title="${safeShopName}">${safeShopName}</h3>
+                            <span class="text-[9px] uppercase font-bold tracking-widest px-2 py-0.5 rounded border shrink-0 ${statusColor}">${statusLabel}</span>
+                        </div>
+                        <div class="flex flex-wrap gap-2 text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-3">
+                            <span><i class="fa-solid fa-tags mr-1"></i>${safeType}</span>
+                            <span>•</span>
+                            <span><i class="fa-solid fa-user-tie mr-1"></i>${safeOwner}</span>
+                        </div>
+                        <p class="text-xs text-stone-600 font-serif leading-relaxed line-clamp-3 italic">"${safeDesc || 'Welcome, traveler...'}"</p>
+                    </div>
+                </div>
+                
+                <div class="p-4 bg-stone-50 border-t border-[#d4c5a9] flex flex-wrap gap-2 items-center justify-between shrink-0">
+                    <div class="flex gap-1">
+                        <button onclick="window.appActions.viewStorefront('${shop.id}')" ${!shop.isOpen && !isDM ? 'disabled' : ''} class="px-3 py-1.5 bg-stone-800 text-amber-50 hover:bg-stone-700 rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                            Storefront
+                        </button>
+                        ${isDM ? `
+                            <button onclick="window.appActions.viewBackroom('${shop.id}')" class="px-3 py-1.5 bg-emerald-700 text-amber-50 hover:bg-emerald-600 rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm">
+                                Backroom
+                            </button>
+                        ` : ''}
+                    </div>
+                    ${isDM ? `
+                        <button onclick="window.appActions.openShopEditModal('${shop.id}')" class="text-stone-400 hover:text-emerald-700 p-1.5 transition" title="Edit Shop">
+                            <i class="fa-solid fa-pen-nib"></i>
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+            `;
+        });
+        gridHtml += `</div>`;
+        return gridHtml;
+    };
+
+    html += `<div class="space-y-8">`;
+
+    // Static Shops grouped by Location folders
+    Object.keys(grouped).sort().forEach(loc => {
+        const collapsed = collapsedLocs.includes(loc);
+        const shopsInLoc = grouped[loc];
+        const openShops = shopsInLoc.filter(s => s.isOpen).length;
+        const totalShops = shopsInLoc.length;
+
+        html += `
+        <div class="bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm shadow-sm overflow-hidden">
+            <div class="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 sm:p-4 bg-stone-900 text-amber-500 border-b border-transparent gap-3 sm:gap-0">
+                <button class="flex items-center gap-3 flex-grow text-left focus:outline-none" onclick="window.appActions.toggleBazaarLocation('${escapeHTML(loc).replace(/'/g, "\\'")}')">
+                    <i class="fa-solid fa-map-location-dot text-lg w-6 text-center shrink-0"></i>
+                    <span class="font-serif font-bold text-base sm:text-lg tracking-wide">${escapeHTML(loc)}</span>
+                    <span class="bg-stone-800 text-stone-400 text-[10px] px-2 py-0.5 rounded-full border border-stone-700 font-sans shrink-0">${openShops} / ${totalShops} Open</span>
+                    <i class="fa-solid fa-chevron-down transition-transform duration-200 text-stone-500 ${collapsed ? '' : 'rotate-180'} ml-2 shrink-0"></i>
+                </button>
+                ${isDM ? `
+                <div class="flex gap-1 shrink-0 w-full sm:w-auto justify-end sm:justify-start">
+                    <button onclick="window.appActions.toggleAllShops('${escapeHTML(loc).replace(/'/g, "\\'")}', true)" class="px-2 py-1 bg-emerald-950 text-emerald-400 border border-emerald-800 rounded-sm text-[9px] font-bold uppercase tracking-wider hover:bg-emerald-900 transition">Open All</button>
+                    <button onclick="window.appActions.toggleAllShops('${escapeHTML(loc).replace(/'/g, "\\'")}', false)" class="px-2 py-1 bg-stone-850 text-stone-400 border border-stone-700 rounded-sm text-[9px] font-bold uppercase tracking-wider hover:bg-stone-800 transition">Close All</button>
+                </div>
+                ` : ''}
+            </div>
+            <div class="${collapsed ? 'hidden' : ''} p-4 bg-[#fdfbf7] border-t border-[#d4c5a9]">
+                ${renderShopGrid(shopsInLoc)}
+            </div>
+        </div>
+        `;
+    });
+
+    // Traveling Merchants folder
+    if (traveling.length > 0) {
+        const collapsed = collapsedLocs.includes('Traveling');
+        const openShops = traveling.filter(s => s.isOpen).length;
+        const totalShops = traveling.length;
+
+        html += `
+        <div class="bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm shadow-sm overflow-hidden">
+            <div class="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 sm:p-4 bg-stone-900 text-amber-500 border-b border-transparent gap-3 sm:gap-0">
+                <button class="flex items-center gap-3 flex-grow text-left focus:outline-none" onclick="window.appActions.toggleBazaarLocation('Traveling')">
+                    <i class="fa-solid fa-caravan text-lg w-6 text-center shrink-0"></i>
+                    <span class="font-serif font-bold text-base sm:text-lg tracking-wide">Traveling Merchants</span>
+                    <span class="bg-stone-800 text-stone-400 text-[10px] px-2 py-0.5 rounded-full border border-stone-700 font-sans shrink-0">${openShops} / ${totalShops} Active</span>
+                    <i class="fa-solid fa-chevron-down transition-transform duration-200 text-stone-500 ${collapsed ? '' : 'rotate-180'} ml-2 shrink-0"></i>
+                </button>
+                ${isDM ? `
+                <div class="flex gap-1 shrink-0 w-full sm:w-auto justify-end sm:justify-start">
+                    <button onclick="window.appActions.toggleAllTravelingShops(true)" class="px-2 py-1 bg-emerald-950 text-emerald-400 border border-emerald-800 rounded-sm text-[9px] font-bold uppercase tracking-wider hover:bg-emerald-900 transition">Activate All</button>
+                    <button onclick="window.appActions.toggleAllTravelingShops(false)" class="px-2 py-1 bg-stone-850 text-stone-400 border border-stone-700 rounded-sm text-[9px] font-bold uppercase tracking-wider hover:bg-stone-800 transition">Deactivate All</button>
+                </div>
+                ` : ''}
+            </div>
+            <div class="${collapsed ? 'hidden' : ''} p-4 bg-[#fdfbf7] border-t border-[#d4c5a9]">
+                ${renderShopGrid(traveling)}
+            </div>
+        </div>
+        `;
+    }
+
+    html += `</div></div>`;
+    return html;
 }
 
 export function getStorefrontHTML(state) {
@@ -196,14 +221,13 @@ export function getStorefrontHTML(state) {
     if (!shop) return '<div class="text-center text-red-500 p-8 font-serif font-bold text-xl">Merchant not found.</div>';
 
     const safeName = escapeHTML(shop.name);
-    const safeDesc = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(shop.desc) : shop.desc.replace(/\n/g, '<br>');
-    const safeOwner = escapeHTML(shop.ownerName || 'The Proprietor');
-    const safeType = escapeHTML(shop.shopType || 'General Goods');
-    const safeLoc = escapeHTML(shop.location || 'Unknown');
-
+    const safeDesc = escapeHTML(shop.desc);
+    const safeOwner = escapeHTML(shop.ownerName || 'Unknown');
+    const safeType = escapeHTML(shop.shopType || 'Merchant');
+    const safeLoc = escapeHTML(shop.location || 'Traveling');
     const inventory = shop.inventory || [];
-    
-    // UNIFIED MULTIPLE CHARACTERS RESOLUTION: Find the player's active character in the current adventure arc
+    const pendingSales = shop.pendingSales || [];
+
     const myUid = state.currentUserUid;
     const adv = state.activeAdventure || window.appData?.activeAdventure;
     const activePcIds = adv?.activePcIds || [];
@@ -215,7 +239,13 @@ export function getStorefrontHTML(state) {
     if (inventory.length === 0) {
         invHtml = `<div class="text-center p-8 bg-white border border-[#d4c5a9] rounded-sm text-stone-500 italic text-sm shadow-sm">The shelves are currently bare.</div>`;
     } else {
-        invHtml = `<div class="grid grid-cols-1 md:grid-cols-2 gap-3">`;
+        invHtml = `
+        <div class="mb-4 relative">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-xs"></i>
+            <input type="text" oninput="window.filterShopInventory(this.value, '#storefront-inventory-list')" class="w-full pl-9 pr-3 py-2 bg-white border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-emerald-600 shadow-sm placeholder:text-stone-400" placeholder="Search wares...">
+        </div>
+        <div id="storefront-inventory-list" class="grid grid-cols-1 md:grid-cols-2 gap-3">`;
+        
         inventory.forEach(item => {
             const rColor = getRarityColor(item.rarity);
             const safeItemName = escapeHTML(item.name);
@@ -223,7 +253,7 @@ export function getStorefrontHTML(state) {
             const priceStr = item.price > 0 ? `${item.price.toLocaleString()} gp` : `Free`;
             
             invHtml += `
-                <div class="bg-white border border-[#d4c5a9] rounded-sm p-3 shadow-sm flex justify-between items-center gap-2 hover:border-amber-300 transition-colors">
+                <div data-search-name="${safeItemName.toLowerCase()}" class="bg-white border border-[#d4c5a9] rounded-sm p-3 shadow-sm flex justify-between items-center gap-2 hover:border-amber-300 transition-colors">
                     <div class="min-w-0 flex-grow pr-2">
                         <span class="font-bold text-sm text-stone-900 block truncate" title="${safeItemName}">${safeItemName} ${qtyStr}</span>
                         <div class="flex items-center gap-2 mt-0.5">
@@ -240,136 +270,132 @@ export function getStorefrontHTML(state) {
         invHtml += `</div>`;
     }
 
-    // Sell Items / Proposal HTML
-    let buysHtml = '';
+    let sellHtml = '';
     if (shop.buysItems) {
-        buysHtml = `
-        <div class="mt-6 bg-emerald-50 border border-emerald-200 p-4 rounded-sm shadow-sm">
-            <div class="flex items-start gap-3">
-                <i class="fa-solid fa-scale-balanced text-emerald-600 mt-1 text-lg"></i>
-                <div>
-                    <h4 class="text-xs text-emerald-900 font-bold uppercase tracking-widest mb-1">Purchasing Wares</h4>
-                    <p class="text-xs text-emerald-800 leading-snug mb-3">This merchant is currently accepting offers for items. Submit a proposal, and the DM will review it.</p>
-                    <button onclick="window.appActions.openProposeSaleModal('${shop.id}')" ${!canInteract ? 'disabled title="Enroll a hero first"' : ''} class="px-4 py-2 bg-emerald-700 text-amber-50 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm"><i class="fa-solid fa-hand-holding-dollar mr-1.5"></i> Make an Offer</button>
+        let proposedListHtml = '';
+        const myProposals = pendingSales.filter(p => p.playerId === myUid);
+        
+        if (myProposals.length > 0) {
+            proposedListHtml = `<div class="space-y-2 mt-3">`;
+            myProposals.forEach(prop => {
+                const qtyStr = (prop.quantity && prop.quantity > 1) ? ` (x${prop.quantity})` : '';
+                proposedListHtml += `
+                <div class="bg-stone-50 p-2.5 border border-[#d4c5a9] rounded-sm text-xs flex justify-between items-center shadow-sm">
+                    <div class="min-w-0">
+                        <span class="font-bold text-stone-900 block truncate">${escapeHTML(prop.itemName)}${qtyStr}</span>
+                        <span class="text-[9px] text-amber-700 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 mt-1 inline-block"><i class="fa-solid fa-coins mr-1"></i>Asking: ${prop.askingPrice.toLocaleString()} gp</span>
+                    </div>
+                    <button onclick="window.appActions.cancelSaleProposal('${shop.id}', '${prop.id}')" class="text-stone-500 hover:text-red-700 text-[10px] font-bold uppercase tracking-wider transition p-1.5"><i class="fa-solid fa-trash mr-1"></i> Cancel</button>
                 </div>
+                `;
+            });
+            proposedListHtml += `</div>`;
+        } else {
+            proposedListHtml = `<p class="text-xs text-stone-400 italic mt-3">You have no active sale proposals in this shop.</p>`;
+        }
+
+        sellHtml = `
+        <div class="mt-8 pt-6 border-t border-[#d4c5a9]">
+            <h4 class="font-serif font-bold text-lg text-stone-900 mb-2"><i class="fa-solid fa-hand-holding-dollar mr-2 text-emerald-600"></i> Offer Items for Sale</h4>
+            <p class="text-xs text-stone-600 italic leading-relaxed mb-4">This merchant is interested in buying goods. You can offer items from your inventory for gold, subject to DM approval.</p>
+            
+            <button onclick="window.appActions.openProposeSaleModal('${shop.id}')" ${!canInteract ? 'disabled' : ''} class="px-4 py-2 bg-emerald-700 text-amber-50 hover:bg-emerald-600 rounded-sm text-xs font-bold uppercase tracking-wider transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
+                Propose Item Sale
+            </button>
+            
+            <div class="mt-4">
+                <h5 class="text-[10px] uppercase font-bold text-stone-500 tracking-widest mb-1.5 border-b border-stone-200 pb-0.5">My Pending Offers</h5>
+                ${proposedListHtml}
             </div>
         </div>
         `;
     }
 
-    // Add pending sales visible to the current player
-    const myPending = (shop.pendingSales || []).filter(p => p.playerId === myUid);
-    if (myPending.length > 0) {
-        buysHtml += `<div class="mt-4 space-y-2">`;
-        buysHtml += `<h4 class="text-[10px] uppercase font-bold text-stone-500 tracking-widest border-b border-[#d4c5a9] pb-1 mb-2">My Pending Offers</h4>`;
-        myPending.forEach(p => {
-            buysHtml += `
-            <div class="bg-white border border-[#d4c5a9] p-2 sm:p-3 rounded-sm shadow-sm flex justify-between items-center group">
-                <div>
-                    <span class="block text-xs font-bold text-stone-800">${escapeHTML(p.itemName)}</span>
-                    <span class="text-[9px] text-stone-500 font-bold uppercase tracking-widest">Asking: <span class="text-amber-600">${p.askingPrice.toLocaleString()} gp</span></span>
-                </div>
-                <button onclick="window.appActions.cancelSaleProposal('${shop.id}', '${p.id}')" class="text-[9px] px-3 py-1.5 text-red-700 hover:text-white hover:bg-red-700 border border-red-200 rounded-sm transition uppercase font-bold tracking-wider shadow-sm opacity-50 group-hover:opacity-100">Cancel</button>
-            </div>
-            `;
-        });
-        buysHtml += `</div>`;
-    }
-
-    return `
-    <div class="animate-in slide-in-from-bottom-4 duration-300 bg-[#fdfbf7] rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col max-w-5xl mx-auto h-[calc(100vh-100px)] sm:h-[calc(100vh-120px)] relative">
-        
-        <div class="bg-stone-900 p-4 border-b-4 border-emerald-700 text-amber-500 flex justify-between items-center shrink-0 shadow-md z-10">
-            <h2 class="text-xl sm:text-2xl font-serif font-bold flex items-center min-w-0 pr-4">
-                <i class="fa-solid fa-store mr-3 text-emerald-500 shrink-0"></i> 
-                <span class="truncate text-amber-50">${safeName}</span>
-            </h2>
-            <button onclick="window.appActions.setView('bazaar')" class="w-8 h-8 rounded bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 transition flex items-center justify-center shrink-0"><i class="fa-solid fa-times"></i></button>
-        </div>
-
-        <div class="flex-grow overflow-y-auto custom-scrollbar flex flex-col md:flex-row">
+    // Main layout
+    let html = `
+    <div class="animate-in fade-in duration-300 pb-12 max-w-5xl mx-auto">
+        <div class="bg-[#fdfbf7] rounded-sm border-2 sm:border-4 border-stone-800 shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col">
             
-            <!-- Left Info Panel -->
-            <div class="w-full md:w-1/3 bg-[#f4ebd8] border-r border-[#d4c5a9] flex flex-col shrink-0">
-                ${shop.image ? `<div class="w-full h-48 md:h-64 bg-stone-900 shrink-0 border-b border-[#d4c5a9]"><img src="${shop.image}" class="w-full h-full object-cover object-center" alt="Proprietor"></div>` : ''}
-                <div class="p-5 sm:p-6 flex-grow">
-                    <h3 class="font-serif font-bold text-lg text-emerald-900 mb-1">${safeOwner}</h3>
-                    <div class="flex flex-wrap gap-2 mb-4">
-                        <span class="text-[9px] uppercase font-bold text-stone-500 bg-white px-2 py-0.5 rounded shadow-sm border border-[#d4c5a9]">${safeType}</span>
-                        ${shop.isTraveling ? `<span class="text-[9px] uppercase font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded shadow-sm border border-amber-200"><i class="fa-solid fa-caravan mr-1"></i>Traveling</span>` : ''}
-                        <span class="text-[9px] uppercase font-bold text-stone-500 bg-white px-2 py-0.5 rounded shadow-sm border border-[#d4c5a9]"><i class="fa-solid fa-map-pin mr-1"></i>${safeLoc}</span>
+            <!-- Shop Banner/Header -->
+            <div class="bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-stone-900 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center text-amber-500 shrink-0 border-b-2 sm:border-b-4 border-emerald-700 gap-4 sm:gap-0 shadow-md animate-in">
+                <div>
+                    <h2 class="text-xl sm:text-2xl font-serif font-bold text-amber-50 leading-tight">${safeName}</h2>
+                    <div class="flex flex-wrap gap-2 text-[10px] font-bold text-stone-400 uppercase tracking-wider mt-1.5">
+                        <span><i class="fa-solid fa-tags mr-1"></i>${safeType}</span>
+                        <span>•</span>
+                        <span><i class="fa-solid fa-user-tie mr-1"></i>${safeOwner}</span>
+                        <span>•</span>
+                        <span><i class="fa-solid fa-map-location-dot mr-1"></i>${safeLoc}</span>
                     </div>
-                    <div class="text-sm font-serif text-stone-800 leading-relaxed">${safeDesc || '<i class="text-stone-400">No public description provided.</i>'}</div>
+                </div>
+                <button onclick="window.appActions.setView('bazaar')" class="px-4 py-2 bg-stone-800 hover:bg-stone-700 text-amber-50 border border-stone-600 rounded-sm text-xs font-bold uppercase tracking-wider transition shadow-md">
+                    <i class="fa-solid fa-arrow-left mr-2"></i> Return to Bazaar
+                </button>
+            </div>
+
+            <!-- Portrait & Content -->
+            <div class="p-5 sm:p-8 flex flex-col lg:flex-row gap-6 bg-[#fdfbf7]">
+                ${shop.image ? `
+                <div class="w-full lg:w-1/3 shrink-0 h-48 sm:h-64 lg:h-auto max-h-[350px] overflow-hidden border border-[#d4c5a9] bg-stone-900 shadow-inner rounded-sm">
+                    <img src="${escapeHTML(shop.image)}" class="w-full h-full object-cover object-top" alt="${safeName}">
+                </div>
+                ` : ''}
+                
+                <div class="flex-grow flex flex-col justify-between min-w-0">
+                    <div>
+                        <h4 class="font-serif font-bold text-lg text-stone-900 mb-2 border-b border-stone-200 pb-1">The Atmosphere</h4>
+                        <p class="text-stone-700 text-sm leading-relaxed font-serif italic mb-6">"${safeDesc || 'Welcome, traveler. Have a look at our selection...'}"</p>
+                        
+                        <h4 class="font-serif font-bold text-lg text-stone-900 mb-3 border-b border-stone-200 pb-1">Merchant Inventory</h4>
+                        ${invHtml}
+                    </div>
                     
-                    ${buysHtml}
+                    ${sellHtml}
                 </div>
             </div>
-
-            <!-- Right Inventory Panel -->
-            <div class="w-full md:w-2/3 bg-[#fdfbf7] p-5 sm:p-6 lg:p-8">
-                <div class="flex justify-between items-end mb-4 border-b border-[#d4c5a9] pb-2">
-                    <h3 class="text-lg font-serif font-bold text-stone-900 flex items-center"><i class="fa-solid fa-boxes-stacked mr-2 text-amber-700"></i> Wares & Inventory</h3>
-                    ${!canInteract ? `<span class="text-[9px] uppercase font-bold text-red-600 bg-red-50 px-2 py-1 rounded border border-red-200 shadow-sm"><i class="fa-solid fa-circle-exclamation mr-1"></i> Enroll Hero to Interact</span>` : ''}
-                </div>
-                ${invHtml}
-            </div>
-
+            
         </div>
     </div>
     `;
+    return html;
 }
 
 export function getShopBackroomHTML(state) {
     const camp = state.activeCampaign;
     const shopId = state.activeShopId;
-    if (!camp || !camp._isDM || !shopId) return '';
+    if (!camp || !shopId || !camp._isDM) return '';
 
     const shop = camp.shops?.find(s => s.id === shopId);
     if (!shop) return '<div class="text-center text-red-500 p-8 font-serif font-bold text-xl">Merchant not found.</div>';
 
     const safeName = escapeHTML(shop.name);
+    const safeDesc = escapeHTML(shop.desc);
+    const safeOwner = escapeHTML(shop.ownerName || 'Unknown');
+    const safeType = escapeHTML(shop.shopType || 'Merchant');
+    const safeLoc = escapeHTML(shop.location || 'Traveling');
+    
     const inventory = shop.inventory || [];
     const ledger = shop.ledger || [];
     const pendingSales = shop.pendingSales || [];
-
-    // --- PENDING SALES TRAY (DM) ---
-    let proposalsHtml = '';
-    if (pendingSales.length > 0) {
-        proposalsHtml = `
-        <div class="bg-blue-50 border border-blue-200 p-4 sm:p-5 rounded-sm shadow-sm mb-8 animate-in slide-in-from-top-4">
-            <h3 class="text-lg font-serif font-bold text-blue-900 flex items-center mb-4 border-b border-blue-200 pb-2"><i class="fa-solid fa-inbox mr-2"></i> Pending Player Offers</h3>
-            <div class="space-y-3">
-        `;
-        proposalsHtml += pendingSales.map(p => `
-            <div class="bg-white p-3 border border-blue-200 rounded-sm shadow-sm flex flex-col sm:flex-row justify-between sm:items-center gap-3">
-                <div>
-                    <span class="block text-sm font-bold text-stone-900">${escapeHTML(p.itemName)}</span>
-                    <div class="text-[10px] uppercase font-bold tracking-widest mt-1 flex flex-wrap items-center gap-2">
-                        <span class="text-stone-500"><i class="fa-solid fa-user mr-1"></i> ${escapeHTML(p.playerName)}</span>
-                        <span class="text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 shadow-sm">Asking: ${p.askingPrice.toLocaleString()} gp</span>
-                    </div>
-                </div>
-                <div class="flex gap-2 shrink-0">
-                    <button onclick="window.appActions.cancelSaleProposal('${shop.id}', '${p.id}', true)" class="px-4 py-2 bg-white text-red-700 border border-red-200 hover:bg-red-50 rounded-sm transition text-[10px] font-bold uppercase tracking-wider shadow-sm">Decline</button>
-                    <button onclick="window.appActions.approveSaleProposal('${shop.id}', '${p.id}')" class="px-4 py-2 bg-emerald-700 text-white hover:bg-emerald-600 rounded-sm transition text-[10px] font-bold uppercase tracking-wider shadow-md flex items-center"><i class="fa-solid fa-check mr-1.5"></i> Approve</button>
-                </div>
-            </div>
-        `).join('');
-        proposalsHtml += `</div></div>`;
-    }
 
     let invHtml = '';
     if (inventory.length === 0) {
         invHtml = `<div class="text-center p-6 bg-stone-50 border border-dashed border-[#d4c5a9] rounded-sm text-stone-500 italic text-sm">Inventory is empty. Add items manually or use a themed roll table.</div>`;
     } else {
-        invHtml = `<div class="space-y-2">`;
+        invHtml = `
+        <div class="mb-4 relative">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-xs"></i>
+            <input type="text" oninput="window.filterShopInventory(this.value, '#backroom-inventory-list')" class="w-full pl-9 pr-3 py-2 bg-white border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-stone-600 shadow-sm placeholder:text-stone-400" placeholder="Search inventory...">
+        </div>
+        <div id="backroom-inventory-list" class="space-y-2">`;
+        
         inventory.forEach(item => {
             const rColor = getRarityColor(item.rarity);
             const qtyStr = (item.quantity && item.quantity > 1) ? `<span class="text-amber-600 ml-1.5 font-black text-[10px]">x${item.quantity}</span>` : '';
             const safeItemName = escapeHTML(item.name) + qtyStr;
             
             invHtml += `
-                <div class="bg-white border border-[#d4c5a9] rounded-sm p-2 sm:p-3 shadow-sm flex flex-col sm:flex-row justify-between sm:items-center gap-2 hover:border-amber-300 transition-colors group">
+                <div data-search-name="${escapeHTML(item.name).toLowerCase()}" class="bg-white border border-[#d4c5a9] rounded-sm p-2 sm:p-3 shadow-sm flex flex-col sm:flex-row justify-between sm:items-center gap-2 hover:border-amber-300 transition-colors group">
                     <div class="min-w-0 flex-grow pr-2">
                         <span class="font-bold text-sm text-stone-900 block truncate" title="${escapeHTML(item.name)}">${safeItemName}</span>
                         <span class="text-[9px] uppercase font-bold tracking-widest ${rColor}">${item.rarity || 'Item'} ${item.isMagic ? '<i class="fa-solid fa-sparkles ml-1 text-amber-500" title="Magical"></i>' : ''}</span>
@@ -388,88 +414,111 @@ export function getShopBackroomHTML(state) {
         invHtml += `</div>`;
     }
 
+    // Build Transaction Ledger History List
     let ledgerHtml = '';
     if (ledger.length === 0) {
-        ledgerHtml = `<div class="text-center p-6 bg-[#f4ebd8] border border-dashed border-[#d4c5a9] rounded-sm text-stone-500 italic text-sm">No transactions recorded yet.</div>`;
+        ledgerHtml = `<p class="text-xs text-stone-400 italic">No transaction records logged.</p>`;
     } else {
-        ledgerHtml = `<div class="space-y-3 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-[#d4c5a9] before:to-transparent">`;
+        ledgerHtml = `<div class="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-2">`;
         ledger.forEach(entry => {
-            const parsedText = window.appActions.parseSmartText(entry.text);
             ledgerHtml += `
-                <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                    <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-[#fdfbf7] bg-stone-200 text-stone-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 relative z-10">
-                        <i class="fa-solid fa-file-invoice-dollar text-xs"></i>
-                    </div>
-                    <div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-white p-3 rounded border border-[#d4c5a9] shadow-sm">
-                        <div class="flex items-center justify-between mb-1">
-                            <span class="text-[9px] font-bold uppercase tracking-widest text-stone-400">${entry.dateStr}</span>
-                        </div>
-                        <div class="text-xs text-stone-800 font-serif leading-snug">${parsedText}</div>
-                    </div>
-                </div>
+            <div class="p-2 border-b border-stone-200 last:border-0 text-xs text-stone-700 leading-snug">
+                <span class="block text-[8px] uppercase tracking-widest text-stone-400 mb-0.5">${entry.dateStr || 'Recent Transaction'}</span>
+                <div>${window.appActions.parseSmartText(entry.text)}</div>
+            </div>
             `;
         });
         ledgerHtml += `</div>`;
     }
 
-    return `
-    <div class="animate-in slide-in-from-bottom-4 duration-300 bg-[#fdfbf7] rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col max-w-5xl mx-auto h-[calc(100vh-100px)] sm:h-[calc(100vh-120px)] relative">
-        
-        <div class="bg-stone-900 p-4 border-b-4 border-stone-500 text-amber-500 flex justify-between items-center shrink-0 shadow-md z-10 bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')]">
-            <h2 class="text-xl sm:text-2xl font-serif font-bold flex items-center min-w-0 pr-4">
-                <i class="fa-solid fa-key mr-3 text-stone-400 shrink-0"></i> 
-                <span class="truncate text-amber-50">DM Backroom: ${safeName}</span>
-            </h2>
-            <div class="flex gap-2 shrink-0">
-                <button onclick="window.appActions.openShopEditModal('${shop.id}')" class="px-3 py-1.5 rounded bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 transition flex items-center justify-center border border-stone-600 shadow-sm text-[10px] font-bold uppercase tracking-wider hidden sm:flex"><i class="fa-solid fa-pen mr-1.5"></i> Edit Shop</button>
-                <button onclick="window.appActions.setView('bazaar')" class="w-8 h-8 rounded bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 transition flex items-center justify-center border border-stone-600 shadow-sm"><i class="fa-solid fa-times"></i></button>
+    // Build Pending Player Proposals Review Panel
+    let pendingHtml = '';
+    if (pendingSales.length === 0) {
+        pendingHtml = `<p class="text-xs text-stone-400 italic">No active offers from players.</p>`;
+    } else {
+        pendingHtml = `<div class="space-y-3">`;
+        pendingSales.forEach(prop => {
+            const qtyStr = (prop.quantity && prop.quantity > 1) ? ` (x${prop.quantity})` : '';
+            pendingHtml += `
+            <div class="bg-[#fdfbf7] p-3 border border-[#d4c5a9] rounded-sm text-xs shadow-sm flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                <div class="min-w-0">
+                    <span class="font-serif text-[10px] text-stone-500 uppercase tracking-widest block font-bold mb-1">Offer from: ${escapeHTML(prop.playerName)}</span>
+                    <span class="font-bold text-stone-900 text-sm block truncate" title="${escapeHTML(prop.itemName)}">${escapeHTML(prop.itemName)}${qtyStr}</span>
+                    <span class="text-[10px] text-amber-700 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 mt-1.5 inline-block"><i class="fa-solid fa-coins mr-1 text-amber-500"></i>Asking: ${prop.askingPrice.toLocaleString()} gp</span>
+                </div>
+                <div class="flex gap-2 shrink-0 self-end sm:self-auto">
+                    <button onclick="window.appActions.cancelSaleProposal('${shop.id}', '${prop.id}', true)" class="px-3 py-1.5 bg-stone-200 hover:bg-red-50 text-stone-700 hover:text-red-700 hover:border-red-300 border border-stone-300 rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm">Decline</button>
+                    <button onclick="window.appActions.approveSaleProposal('${shop.id}', '${prop.id}')" class="px-3 py-1.5 bg-emerald-700 text-amber-50 hover:bg-emerald-600 rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm">Approve</button>
+                </div>
             </div>
-        </div>
+            `;
+        });
+        pendingHtml += `</div>`;
+    }
 
-        <div class="flex-grow overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 flex flex-col gap-8">
+    let html = `
+    <div class="animate-in fade-in duration-300 pb-12 max-w-5xl mx-auto">
+        <div class="bg-[#fdfbf7] rounded-sm border-2 sm:border-4 border-stone-800 shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col">
             
-            <!-- Quick Stats -->
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div class="bg-white border border-[#d4c5a9] p-3 rounded-sm shadow-sm text-center">
-                    <span class="block text-[9px] uppercase font-bold text-stone-500 tracking-widest mb-1">Status</span>
-                    ${shop.isOpen ? `<span class="text-sm font-black text-emerald-600"><i class="fa-solid fa-door-open mr-1"></i> Open to Party</span>` : `<span class="text-sm font-black text-red-600"><i class="fa-solid fa-door-closed mr-1"></i> Closed</span>`}
-                    </div>
-                <div class="bg-white border border-[#d4c5a9] p-3 rounded-sm shadow-sm text-center">
-                    <span class="block text-[9px] uppercase font-bold text-stone-500 tracking-widest mb-1">Buying</span>
-                    ${shop.buysItems ? `<span class="text-sm font-black text-blue-600"><i class="fa-solid fa-scale-balanced mr-1"></i> Active</span>` : `<span class="text-sm font-black text-stone-400"><i class="fa-solid fa-ban mr-1"></i> Refusing</span>`}
-                </div>
-                <div class="bg-white border border-[#d4c5a9] p-3 rounded-sm shadow-sm text-center">
-                    <span class="block text-[9px] uppercase font-bold text-stone-500 tracking-widest mb-1">Total Wares</span>
-                    <span class="text-sm font-black text-stone-800">${inventory.length}</span>
-                </div>
-                <div class="bg-white border border-[#d4c5a9] p-3 rounded-sm shadow-sm text-center">
-                    <span class="block text-[9px] uppercase font-bold text-stone-500 tracking-widest mb-1">Ledger Entries</span>
-                    <span class="text-sm font-black text-stone-800">${ledger.length}</span>
-                </div>
-            </div>
-
-            <!-- PROPOSALS TRAY INJECTION -->
-            ${proposalsHtml}
-
-            <!-- Inventory Manager -->
-            <div class="bg-[#f4ebd8] p-4 sm:p-5 border border-[#d4c5a9] rounded-sm shadow-inner">
-                <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3 mb-4 border-b border-[#d4c5a9] pb-3">
-                    <h3 class="text-lg font-serif font-bold text-stone-900 flex items-center"><i class="fa-solid fa-boxes-stacked mr-2 text-stone-500"></i> Manage Inventory</h3>
-                    <div class="flex gap-2">
-                        <button onclick="window.appActions.openManualItemModal('${shop.id}')" class="flex-1 sm:flex-none px-3 py-1.5 bg-white text-stone-700 hover:text-stone-900 border border-[#d4c5a9] rounded-sm transition text-[10px] font-bold uppercase tracking-wider shadow-sm whitespace-nowrap"><i class="fa-solid fa-plus mr-1"></i> Add Item</button>
-                        <button onclick="window.appActions.rollShopInventory('${shop.id}')" class="flex-1 sm:flex-none px-3 py-1.5 bg-stone-900 text-amber-50 hover:bg-stone-800 border border-stone-950 rounded-sm transition text-[10px] font-bold uppercase tracking-wider shadow-md whitespace-nowrap"><i class="fa-solid fa-dice-d20 mr-1"></i> Roll Themed Wares</button>
+            <!-- Backroom Header -->
+            <div class="bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-stone-900 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center text-amber-500 shrink-0 border-b-2 sm:border-b-4 border-emerald-700 gap-4 sm:gap-0 shadow-md">
+                <div>
+                    <h2 class="text-xl sm:text-2xl font-serif font-bold text-amber-50 leading-tight">Backroom Management: ${safeName}</h2>
+                    <div class="flex flex-wrap gap-2 text-[10px] font-bold text-stone-400 uppercase tracking-wider mt-1.5">
+                        <span><i class="fa-solid fa-tags mr-1"></i>${safeType}</span>
+                        <span>•</span>
+                        <span><i class="fa-solid fa-user-tie mr-1"></i>${safeOwner}</span>
+                        <span>•</span>
+                        <span><i class="fa-solid fa-map-location-dot mr-1"></i>${safeLoc}</span>
                     </div>
                 </div>
-                ${invHtml}
+                <div class="flex gap-2">
+                    <button onclick="window.appActions.viewStorefront('${shop.id}')" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-amber-50 border border-emerald-800 rounded-sm text-xs font-bold uppercase tracking-wider transition shadow-md">
+                        Storefront
+                    </button>
+                    <button onclick="window.appActions.setView('bazaar')" class="px-4 py-2 bg-stone-800 hover:bg-stone-700 text-amber-50 border border-stone-600 rounded-sm text-xs font-bold uppercase tracking-wider transition shadow-md">
+                        Bazaar
+                    </button>
+                </div>
             </div>
 
-            <!-- Transaction Ledger -->
-            <div>
-                <h3 class="text-lg font-serif font-bold text-stone-900 flex items-center mb-4 border-b border-[#d4c5a9] pb-2"><i class="fa-solid fa-book-open mr-2 text-stone-500"></i> Transaction Ledger</h3>
-                ${ledgerHtml}
-            </div>
+            <!-- Management Tools Content Grid -->
+            <div class="p-5 sm:p-8 grid grid-cols-1 lg:grid-cols-3 gap-6 bg-[#fdfbf7]">
+                
+                <!-- Inventory Column (Left / 2 Cols Wide) -->
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="bg-[#f4ebd8] p-4 border border-[#d4c5a9] rounded-sm shadow-sm">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0 mb-4 pb-2 border-b border-[#d4c5a9]">
+                            <h4 class="font-serif font-bold text-lg text-stone-900"><i class="fa-solid fa-boxes-stacked mr-2 text-stone-600"></i> Stock & Shelves</h4>
+                            <div class="flex gap-2 w-full sm:w-auto">
+                                <button onclick="window.appActions.rollShopInventory('${shop.id}')" class="flex-grow sm:flex-none px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-amber-50 rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm"><i class="fa-solid fa-dice-d20 mr-1.5"></i> Roll Wares</button>
+                                <button onclick="window.appActions.openManualItemModal('${shop.id}')" class="flex-grow sm:flex-none px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-amber-50 rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm"><i class="fa-solid fa-plus-circle mr-1.5"></i> Add Wares</button>
+                            </div>
+                        </div>
+                        
+                        ${invHtml}
+                    </div>
+                </div>
 
+                <!-- Ledger and Offers Column (Right / 1 Col Wide) -->
+                <div class="space-y-6">
+                    <!-- Offers review panel -->
+                    <div class="bg-[#f4ebd8] p-4 border border-[#d4c5a9] rounded-sm shadow-sm">
+                        <h4 class="font-serif font-bold text-lg text-stone-900 mb-4 pb-2 border-b border-[#d4c5a9]"><i class="fa-solid fa-hand-holding-dollar mr-2 text-stone-600"></i> Player Proposals</h4>
+                        ${pendingHtml}
+                    </div>
+
+                    <!-- Transaction Ledger Panel -->
+                    <div class="bg-[#f4ebd8] p-4 border border-[#d4c5a9] rounded-sm shadow-sm">
+                        <h4 class="font-serif font-bold text-lg text-stone-900 mb-4 pb-2 border-b border-[#d4c5a9]"><i class="fa-solid fa-book mr-2 text-stone-600"></i> Shop Ledger</h4>
+                        ${ledgerHtml}
+                    </div>
+                </div>
+
+            </div>
+            
         </div>
     </div>
     `;
+    return html;
 }
