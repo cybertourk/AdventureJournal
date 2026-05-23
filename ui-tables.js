@@ -2,6 +2,7 @@
 import { getLibraryTabsHTML } from './ui-core.js';
 import { getUnifiedCatalog, updateDerivedState } from './state.js';
 import { notify } from './firebase-manager.js';
+import { saveRollTable } from './actions-tables.js';
 
 // --- SEARCH FILTERING HELPER ---
 export function filterRollTables(query) {
@@ -67,7 +68,6 @@ export const closeTableDetails = () => {
     window.appActions.reRender(true);
 };
 
-/* STREAMING_CHUNK: Managing folder collapsible states... */
 export const toggleTableFolder = (folderPath) => {
     if (!window.appData.collapsedTableFolders) {
         window.appData.collapsedTableFolders = [];
@@ -78,6 +78,72 @@ export const toggleTableFolder = (folderPath) => {
     } else {
         window.appData.collapsedTableFolders.splice(idx, 1);
     }
+    window.appActions.reRender(true);
+};
+
+export const openTableSettingsModal = (tableId) => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    const table = camp?.rollTables?.find(t => t.id === tableId);
+    if (!table) return;
+
+    const container = document.getElementById('global-popup-container');
+    if (!container) return;
+
+    container.innerHTML = `
+        <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[18000] backdrop-blur-sm animate-in">
+            <div class="bg-[#f4ebd8] rounded-sm w-full max-w-md border border-[#d4c5a9] shadow-2xl relative flex flex-col max-h-[90vh]">
+                <div class="bg-stone-900 p-4 border-b-4 border-amber-600 shadow-md shrink-0 flex justify-between items-center text-amber-50">
+                    <h2 class="text-lg font-serif font-bold flex items-center"><i class="fa-solid fa-gear mr-2 text-amber-500"></i> Table Settings</h2>
+                    <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="text-stone-400 hover:text-white transition"><i class="fa-solid fa-times text-xl"></i></button>
+                </div>
+                
+                <div class="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-grow bg-[#fdfbf7] space-y-4">
+                    <div>
+                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Table Name</label>
+                        <input type="text" id="table-settings-name" value="${table.name.replace(/"/g, '&quot;')}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 shadow-inner outline-none bg-stone-50 focus:border-amber-600">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Folder Path</label>
+                        <input type="text" id="table-settings-folder" value="${(table.folder || '').replace(/"/g, '&quot;')}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-inner outline-none bg-stone-50 focus:border-amber-600" placeholder="e.g. Weapons/Melee/Common">
+                        <p class="text-[9px] text-stone-400 italic mt-1 leading-snug">Organize tables into folders and subfolders using forward slashes (e.g. Weapons/Melee).</p>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Table Description</label>
+                        <textarea id="table-settings-desc" class="w-full h-24 p-2 border border-[#d4c5a9] rounded-sm text-xs text-stone-800 shadow-inner outline-none bg-stone-50 focus:border-amber-600 font-serif resize-none custom-scrollbar">${table.desc || ''}</textarea>
+                    </div>
+                </div>
+
+                <div class="bg-[#e8dec7] p-4 border-t border-[#d4c5a9] flex justify-end gap-2 shrink-0 z-10 shadow-sm">
+                    <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="px-4 py-2 text-stone-600 border border-stone-400 rounded-sm hover:bg-stone-300 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs">Cancel</button>
+                    <button onclick="window.appActions.saveTableSettings('${table.id}')" class="px-5 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md"><i class="fa-solid fa-floppy-disk mr-1.5"></i> Save Settings</button>
+                </div>
+            </div>
+        </div>
+        `;
+};
+
+export const saveTableSettings = async (tableId) => {
+    const name = document.getElementById('table-settings-name')?.value.trim();
+    const desc = document.getElementById('table-settings-desc')?.value.trim();
+    const folder = document.getElementById('table-settings-folder')?.value.trim();
+    
+    if (!name) {
+        notify("Table name is required.", "error");
+        return;
+    }
+
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    const table = camp?.rollTables?.find(t => t.id === tableId);
+    if (!table) return;
+
+    table.name = name;
+    table.desc = desc;
+    table.folder = folder;
+
+    await saveRollTable(table);
+    document.getElementById('global-popup-container').innerHTML = '';
     window.appActions.reRender(true);
 };
 
@@ -358,6 +424,11 @@ export function getTablesHTML(state) {
                     <p class="text-[10px] font-bold uppercase tracking-wider text-stone-400 mt-1"><i class="fa-solid fa-dice-d20 mr-1.5 text-stone-500"></i> Calculated Weight Pool: ${totalWeight}</p>
                 </div>
                 <div class="flex gap-2">
+                    ${isDM ? `
+                        <button onclick="window.appActions.openTableSettingsModal('${table.id}')" class="px-4 py-2 bg-stone-850 hover:bg-stone-800 text-stone-300 border border-stone-700 rounded-sm text-xs font-bold uppercase tracking-wider transition shadow-md">
+                            <i class="fa-solid fa-gear"></i> Settings
+                        </button>
+                    ` : ''}
                     <button onclick="window.appActions.simulateTableRoll('${table.id}')" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-amber-50 rounded-sm text-xs font-bold uppercase tracking-wider transition shadow-md flex items-center gap-1.5">
                         <i class="fa-solid fa-dice-d20"></i> Simulate Roll
                     </button>
@@ -383,32 +454,27 @@ export function getTablesHTML(state) {
     }
 
     // --- STEP B: TABLES DIRECTORY DASHBOARD VIEW ---
-    let tablesListHtml = '';
+    let tablesListHtml = `
+        <div class="relative mb-6">
+            <i class="fa-solid fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-stone-400 text-sm"></i>
+            <input type="text" oninput="window.filterRollTables(this.value)" class="w-full pl-10 pr-4 py-3.5 bg-white border border-[#d4c5a9] text-stone-900 text-sm font-bold rounded-full focus:outline-none focus:border-amber-600 shadow-sm placeholder:font-normal placeholder:text-stone-400 transition-colors" placeholder="Search roll tables...">
+        </div>
+    `;
+
     if (tables.length === 0) {
         tablesListHtml = `
-            <div class="p-8 sm:p-12 text-center text-stone-500 bg-[#f4ebd8] rounded-sm border border-[#d4c5a9] shadow-sm">
+            <div class="col-span-full p-8 sm:p-12 text-center text-stone-500 bg-[#f4ebd8] rounded-sm border border-[#d4c5a9] shadow-sm">
                 <i class="fa-solid fa-table-list text-4xl sm:text-6xl mx-auto text-stone-400 mb-3 sm:mb-4 opacity-50"></i>
                 <p class="font-serif text-base sm:text-lg">No custom roll tables are configured for this campaign.</p>
                 ${isDM ? `<button onclick="window.appActions.openTableImporter()" class="mt-6 px-6 py-2 bg-stone-900 text-amber-50 font-bold uppercase tracking-wider text-xs rounded-sm hover:bg-stone-800 transition shadow-md"><i class="fa-solid fa-file-import mr-2"></i> Import Table JSON</button>` : ''}
             </div>
         `;
     } else {
-        // Build search bar
-        tablesListHtml = `
-        <div class="relative mb-6">
-            <i class="fa-solid fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-stone-400 text-sm"></i>
-            <input type="text" oninput="window.filterRollTables(this.value)" class="w-full pl-10 pr-4 py-3.5 bg-white border border-[#d4c5a9] text-stone-900 text-sm font-bold rounded-full focus:outline-none focus:border-amber-600 shadow-sm placeholder:font-normal placeholder:text-stone-400 transition-colors" placeholder="Search roll tables...">
-        </div>
-        `;
-
-        // Organize into tree
         const tree = buildFolderTree(tables);
 
-        // Recursive renderer for folders and compact cards
         const renderFolderNode = (node, depth = 0) => {
             let nodeHtml = '';
             
-            // Render this folder's header (unless root)
             if (node.path) {
                 const isCollapsed = collapsedFolders.includes(node.path);
                 const indentClass = depth > 1 ? `ml-${(depth - 1) * 4}` : '';
@@ -429,12 +495,10 @@ export function getTablesHTML(state) {
                 `;
             }
 
-            // Render subfolders first (recursion)
             Object.values(node.subfolders).sort((a, b) => a.name.localeCompare(b.name)).forEach(sub => {
                 nodeHtml += renderFolderNode(sub, depth + 1);
             });
 
-            // Render highly compressed table cards in a dense list/grid
             if (node.tables.length > 0) {
                 nodeHtml += `<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">`;
                 node.tables.forEach(table => {
@@ -443,7 +507,7 @@ export function getTablesHTML(state) {
                     
                     nodeHtml += `
                     <div class="table-item-card bg-white border border-[#d4c5a9] rounded-sm p-3 shadow-sm flex items-center justify-between gap-3 hover:border-amber-400 transition" data-search-name="${table.name.toLowerCase()}">
-                        <div class="min-w-0 flex-grow" onclick="window.appActions.viewTableDetails('${table.id}')">
+                        <div class="min-w-0 flex-grow animate-in" onclick="window.appActions.viewTableDetails('${table.id}')">
                             <span class="font-serif font-bold text-xs text-stone-900 truncate block leading-tight cursor-pointer hover:text-amber-800" title="${table.name}">${table.name}</span>
                             <div class="flex items-center gap-2 mt-1 text-[8px] font-bold text-stone-400 uppercase tracking-wider">
                                 <span><i class="fa-solid fa-list mr-1"></i>${entryCount} Rows</span>
@@ -466,21 +530,18 @@ export function getTablesHTML(state) {
             }
 
             if (node.path) {
-                nodeHtml += `</div></div>`; // Close collapsible container
+                nodeHtml += `</div></div>`;
             }
 
             return nodeHtml;
         };
 
-        // Render from root
         tablesListHtml += renderFolderNode(tree);
-        tablesListHtml += `</div>`;
     }
 
     html += `
-        <!-- Dashboard Header Actions -->
         ${isDM ? `
-            <div class="flex justify-end gap-2 mb-6">
+            <div class="flex justify-end gap-2 mb-6 animate-in">
                 <button onclick="window.appActions.openTableImporter()" class="px-4 py-2 bg-emerald-700 text-amber-50 rounded-sm hover:bg-emerald-600 transition font-bold uppercase tracking-wider text-xs shadow-md">
                     <i class="fa-solid fa-file-import mr-1.5"></i> Import Foundry Table
                 </button>
@@ -506,8 +567,8 @@ export function getTablesHTML(state) {
                         <i class="fa-solid fa-circle-info mr-1.5 text-emerald-600"></i> Upload your exported <b>RollTable JSON</b> directly from your local filesystem, or paste it in raw below! The app compiles weights and links entries dynamically.
                     </div>
 
-                    <!-- File Picker Upload Section -->
-                    <div class="mb-5 bg-stone-50 border border-[#d4c5a9] p-4 rounded-sm shadow-inner flex items-center gap-4">
+                    <!-- File Picker -->
+                    <div class="mb-5 bg-stone-50 border border-[#d4c5a9] p-4 rounded-sm shadow-inner flex items-center gap-4 animate-in">
                         <input type="file" id="foundry-table-file-input" accept=".json" class="hidden" onchange="window.appActions.handleFoundryFileSelect(event)">
                         <button type="button" onclick="document.getElementById('foundry-table-file-input').click()" class="px-4 py-2 border border-emerald-400 bg-emerald-100 text-emerald-800 hover:bg-emerald-200 rounded-sm transition font-bold uppercase tracking-wider text-[10px] shadow-sm flex items-center gap-2">
                             <i class="fa-solid fa-file-arrow-up text-xs"></i> Select Exported JSON File
