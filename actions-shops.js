@@ -1,4 +1,4 @@
-/* STREAMING_CHUNK: Importing state management, firebase sync, and table calculators... */
+/* STREAMING_CHUNK: Importing core dependencies... */
 import { generateId, updateDerivedState, reRender, getUnifiedCatalog } from './state.js';
 import { saveCampaign, notify } from './firebase-manager.js';
 import { logPlayerActivity } from './actions-campaign.js';
@@ -446,7 +446,6 @@ export const openManualItemModal = async (shopId) => {
     `;
 };
 
-/* STREAMING_CHUNK: Integrating Unified Catalog search directly into Bazaar queries... */
 export const searchBazaarDatabase = async (shopId, query) => {
     const resultsDiv = document.getElementById('manual-item-results');
     if (!resultsDiv) return;
@@ -470,11 +469,15 @@ export const searchBazaarDatabase = async (shopId, query) => {
             resultsDiv.innerHTML = matches.map(m => {
                 const safeName = m.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
                 const safeRarity = (m.rarity || 'common').replace(/'/g, "\\'");
+                const safeImage = (m.image || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
                 return `
-                <div class="p-2.5 border-b border-stone-200 hover:bg-emerald-50 cursor-pointer flex justify-between items-center group transition-colors" onclick="window.appActions.addBazaarItemToShop('${shopId}', '${safeName}', ${m.price || 0}, '${safeRarity}', ${m.isMagic || false})">
-                    <div class="min-w-0 pr-2">
-                        <span class="font-bold text-stone-800 text-sm block truncate group-hover:text-emerald-700 transition-colors">${m.name}</span>
-                        <span class="text-[9px] uppercase font-bold tracking-widest text-stone-500">${m.rarity || 'common'} ${m.isMagic ? '<i class="fa-solid fa-sparkles text-amber-500 ml-1"></i>' : ''}</span>
+                <div class="p-2.5 border-b border-stone-200 hover:bg-emerald-50 cursor-pointer flex justify-between items-center group transition-colors" onclick="window.appActions.addBazaarItemToShop('${shopId}', '${safeName}', ${m.price || 0}, '${safeRarity}', ${m.isMagic || false}, '${safeImage}')">
+                    <div class="min-w-0 pr-2 flex items-center gap-2">
+                        ${m.image ? `<img src="${m.image}" class="w-6 h-6 object-contain shrink-0" onerror="this.style.display='none'">` : ''}
+                        <div>
+                            <span class="font-bold text-stone-800 text-sm block truncate group-hover:text-emerald-700 transition-colors">${m.name}</span>
+                            <span class="text-[9px] uppercase font-bold tracking-widest text-stone-500">${m.rarity || 'common'} ${m.isMagic ? '<i class="fa-solid fa-sparkles text-amber-500 ml-1"></i>' : ''}</span>
+                        </div>
                     </div>
                     <span class="text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-2 py-1 rounded-sm shadow-sm whitespace-nowrap shrink-0 group-hover:bg-amber-200 transition-colors">${m.price || 0} gp</span>
                 </div>`;
@@ -487,7 +490,8 @@ export const searchBazaarDatabase = async (shopId, query) => {
     }
 };
 
-export const addBazaarItemToShop = async (shopId, name, price, rarity, isMagic) => {
+/* STREAMING_CHUNK: Capturing and preserving item images... */
+export const addBazaarItemToShop = async (shopId, name, price, rarity, isMagic, image = "") => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
     if (!camp || !camp._isDM) return;
@@ -510,6 +514,7 @@ export const addBazaarItemToShop = async (shopId, name, price, rarity, isMagic) 
             price: price,
             rarity: rarity,
             isMagic: isMagic,
+            image: image || "",
             quantity: 1
         });
     }
@@ -527,7 +532,6 @@ export const addBazaarItemToShop = async (shopId, name, price, rarity, isMagic) 
     }
 };
 
-/* STREAMING_CHUNK: Rewriting custom item submission to sync globally with the campaign catalog... */
 export const submitCustomItem = async (shopId) => {
     const name = document.getElementById('custom-item-name').value.trim();
     if (!name) {
@@ -555,6 +559,7 @@ export const submitCustomItem = async (shopId) => {
             rarity: rarity,
             isMagic: isMagic,
             type: isMagic ? 'magic' : 'equipment',
+            image: "",
             description: "A custom crafted homebrew creation."
         };
         camp.customItems = [...currentCustom, globalCustomItem];
@@ -713,6 +718,7 @@ export const rollShopInventory = async (shopId) => {
     `;
 };
 
+/* STREAMING_CHUNK: Compiling automatic table rolling algorithms... */
 export const executeRollWares = async () => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
@@ -752,6 +758,7 @@ export const executeRollWares = async () => {
                             price: itemResult.price || 0,
                             rarity: itemResult.rarity || 'common',
                             isMagic: itemResult.isMagic || false,
+                            image: itemResult.image || "",
                             quantity: 1
                         });
                     }
@@ -852,6 +859,7 @@ export const executeRollWares = async () => {
                 price: selectedItem.price || 0,
                 rarity: selectedItem.rarity || 'common',
                 isMagic: selectedItem.isMagic || false,
+                image: selectedItem.image || "",
                 quantity: 1
             });
         }
@@ -934,6 +942,7 @@ export const submitSaleProposal = async () => {
     const shopIndex = camp.shops.findIndex(s => s.id === shopId);
     if (shopIndex === -1) return;
 
+    // UNIFIED MULTIPLE CHARACTERS RESOLUTION: Look for the PC in the active adventure first!
     const adv = window.appData.activeAdventure;
     const activePcIds = adv?.activePcIds || [];
     const pc = camp.playerCharacters?.find(p => p.playerId === myUid && activePcIds.includes(p.id)) 
