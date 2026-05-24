@@ -3,6 +3,16 @@ import { getLibraryTabsHTML } from './ui-core.js';
 import { getUnifiedCatalog, updateDerivedState, generateId } from './state.js';
 import { saveCampaign, notify } from './firebase-manager.js';
 
+/* STREAMING_CHUNK: Helper functions defined at the top to ensure scope visibility... */
+export function getRarityColor(rarity) {
+    const r = (rarity || '').toLowerCase().trim();
+    if (r === 'uncommon') return 'text-emerald-600 bg-emerald-50 border-emerald-200';
+    if (r === 'rare') return 'text-blue-600 bg-blue-50 border-blue-200';
+    if (r === 'veryrare' || r === 'very-rare') return 'text-purple-600 bg-purple-50 border-purple-200';
+    if (r === 'legendary') return 'text-orange-600 bg-orange-50 border-orange-200';
+    return 'text-stone-500 bg-stone-100 border-stone-200';
+}
+
 let LOCAL_CACHE = [];
 let DATABASE_SEARCH_QUERY = "";
 let DATABASE_FILTER_CATEGORY = "all";
@@ -54,11 +64,7 @@ export const openDatabaseItemDetails = async (itemName) => {
     if (!item) return;
 
     const isDM = window.appData.activeCampaign?._isDM;
-    const rColor = item.rarity === 'legendary' ? 'text-orange-600 bg-orange-50 border-orange-200' : 
-                   (item.rarity === 'veryrare' || item.rarity === 'very-rare' ? 'text-purple-600 bg-purple-50 border-purple-200' : 
-                   (item.rarity === 'rare' ? 'text-blue-600 bg-blue-50 border-blue-200' : 
-                   (item.rarity === 'uncommon' ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 
-                   'text-stone-500 bg-stone-100 border-stone-200')));
+    const rColor = getRarityColor(item.rarity);
 
     const iconMap = {
         item: 'fa-gem text-amber-500',
@@ -75,9 +81,30 @@ export const openDatabaseItemDetails = async (itemName) => {
         </div>
     ` : '';
 
+    // Stats sheet assembly
+    let statsHtml = '';
+    const stats = item.stats || {};
+    if (stats.ac) {
+        statsHtml += `
+        <div class="bg-stone-50 border border-stone-200 p-2.5 rounded-sm shadow-inner grid grid-cols-2 gap-2 text-xs text-stone-700">
+            <div><span class="font-bold text-stone-900 block uppercase tracking-wider text-[8px]">Armor Class (AC)</span> ${stats.ac}</div>
+            <div><span class="font-bold text-stone-900 block uppercase tracking-wider text-[8px]">Dex Limit</span> ${stats.dexCap !== null ? stats.dexCap : 'None'}</div>
+            <div><span class="font-bold text-stone-900 block uppercase tracking-wider text-[8px]">Armor Group</span> ${stats.armorType || 'Medium'}</div>
+            <div><span class="font-bold text-stone-900 block uppercase tracking-wider text-[8px]">Strength Req</span> ${stats.strengthReq || 0}</div>
+            <div class="col-span-2"><span class="font-bold text-stone-900 block uppercase tracking-wider text-[8px]">Stealth Check Disadvantage?</span> ${stats.stealthDisadv ? 'Yes' : 'No'}</div>
+        </div>`;
+    } else if (stats.damage) {
+        statsHtml += `
+        <div class="bg-stone-50 border border-stone-200 p-2.5 rounded-sm shadow-inner grid grid-cols-2 gap-2 text-xs text-stone-700">
+            <div><span class="font-bold text-stone-900 block uppercase tracking-wider text-[8px]">Base Damage</span> ${stats.damage}</div>
+            <div><span class="font-bold text-stone-900 block uppercase tracking-wider text-[8px]">Damage Type</span> ${stats.damageType || 'Bludgeoning'}</div>
+            <div class="col-span-2"><span class="font-bold text-stone-900 block uppercase tracking-wider text-[8px]">Properties</span> ${stats.properties || 'None'}</div>
+        </div>`;
+    }
+
     container.innerHTML = `
         <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[18000] backdrop-blur-sm animate-in">
-            <div class="bg-[#f4ebd8] rounded-sm w-full max-w-md border-2 border-stone-800 shadow-2xl relative overflow-hidden flex flex-col max-h-[85vh] border-t-4 border-t-amber-700">
+            <div class="bg-[#f4ebd8] rounded-sm w-full max-w-md border-2 border-stone-800 shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh] border-t-4 border-t-amber-700">
                 <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="absolute top-4 right-4 text-stone-400 hover:text-red-900 transition"><i class="fa-solid fa-xmark text-xl"></i></button>
                 
                 <div class="p-6 overflow-y-auto custom-scrollbar flex-grow">
@@ -90,8 +117,8 @@ export const openDatabaseItemDetails = async (itemName) => {
                         </h3>
                         <div class="flex flex-wrap gap-2 mt-2 text-[9px] font-bold uppercase tracking-wider">
                             <span class="px-2 py-0.5 rounded border ${rColor}">${item.rarity || 'common'}</span>
-                            <span class="bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded shadow-sm"><i class="fa-solid fa-coins mr-1 text-amber-500"></i>${(item.price || 0).toLocaleString()} gp</span>
-                            <span class="bg-blue-50 text-blue-800 border border-blue-200 px-2 py-0.5 rounded shadow-sm">${item.type || 'equipment'}</span>
+                            ${item.price ? `<span class="bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded shadow-sm"><i class="fa-solid fa-coins mr-1"></i>${item.price.toLocaleString()} gp</span>` : ''}
+                            ${item.resolvedType && item.resolvedType !== 'text' ? `<span class="bg-blue-50 text-blue-800 border border-blue-200 px-2 py-0.5 rounded shadow-sm">${item.resolvedType}</span>` : ''}
                         </div>
                     </div>
 
@@ -339,7 +366,6 @@ export const openItemJsonImporter = () => {
                     <i class="fa-solid fa-circle-info mr-1.5 text-emerald-600"></i> Paste the raw exported <b>Foundry VTT Item JSON</b> (such as an Armor, Weapon, or Scroll). The Item Forge will automatically parse, structure, and catalog the item globally!
                 </div>
 
-                <!-- File Picker -->
                 <div class="bg-stone-50 border border-[#d4c5a9] p-4 rounded-sm shadow-inner flex items-center gap-4">
                     <input type="file" id="item-import-file-input" accept=".json" class="hidden" onchange="window.appActions.handleItemFileSelect(event)">
                     <button type="button" onclick="document.getElementById('item-import-file-input').click()" class="px-4 py-2 border border-emerald-400 bg-emerald-100 text-emerald-800 hover:bg-emerald-200 rounded-sm transition font-bold uppercase tracking-wider text-[10px] shadow-sm flex items-center gap-2">
@@ -497,6 +523,7 @@ export const renderDatabaseResults = () => {
         return matchQuery && matchRarity && matchCategory;
     });
 
+    // Paginate / limit rendering to prevent DOM freeze
     const displayLimit = 100;
     const totalMatches = filtered.length;
     const displayList = filtered.slice(0, displayLimit);
@@ -516,6 +543,7 @@ export const renderDatabaseResults = () => {
         const isCustom = item.id && item.id.startsWith('item_');
         const customBadge = isCustom ? `<span class="bg-blue-100 text-blue-800 border border-blue-200 text-[8px] font-bold px-1.5 py-0.5 rounded-sm shrink-0" title="Custom Campaign Item"><i class="fa-solid fa-hammer"></i> Custom</span>` : '';
         
+        // Thumbnail displays
         const itemImageHtml = item.image 
             ? `<img src="${item.image}" class="w-8 h-8 object-contain shrink-0 border border-stone-200 bg-stone-100 rounded p-0.5" onerror="this.style.display='none'">` 
             : `<div class="w-8 h-8 bg-stone-100 flex items-center justify-center shrink-0 border border-stone-200 rounded text-stone-400 text-xs"><i class="fa-solid fa-box"></i></div>`;
@@ -548,82 +576,19 @@ export const renderDatabaseResults = () => {
     listEl.innerHTML = html;
 };
 
-/* STREAMING_CHUNK: Finalizing the UI structure... */
-export function getDatabasesHTML(state) {
-    const camp = state.activeCampaign;
-    if (!camp) return '';
-
-    const isDM = camp._isDM;
-
-    let catOptions = '';
-    Object.entries(CATEGORIES).forEach(([key, name]) => {
-        catOptions += `<option value="${key}" ${key === DATABASE_FILTER_CATEGORY ? 'selected' : ''}>${name}</option>`;
-    });
-
-    let html = `
-    <div class="animate-in fade-in duration-300 pb-12 max-w-7xl mx-auto flex flex-col h-full">
-        ${getLibraryTabsHTML('databases')}
-
-        <div class="bg-[#fdfbf7] rounded-sm border-2 sm:border-4 border-stone-800 shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col flex-grow">
-            <!-- Header -->
-            <div class="bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-stone-900 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center text-amber-500 shrink-0 border-b-2 sm:border-b-4 border-emerald-700 gap-4 sm:gap-0 shadow-md">
-                <div>
-                    <h2 class="text-xl sm:text-2xl font-serif font-bold text-amber-50 leading-tight">Databases</h2>
-                    <p class="text-[10px] font-bold uppercase tracking-widest text-stone-400 mt-1"><i class="fa-solid fa-box-archive mr-1.5 text-stone-500"></i> Master Item Encyclopedia & Custom Forge</p>
-                </div>
-                ${isDM ? `
-                <div class="flex gap-2">
-                    <button onclick="window.appActions.openItemJsonImporter()" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-amber-50 rounded-sm text-xs font-bold uppercase tracking-wider transition shadow-md flex items-center gap-1.5">
-                        <i class="fa-solid fa-file-import"></i> Import VTT Item
-                    </button>
-                    <button onclick="window.appActions.openItemForgeModal()" class="px-4 py-2 bg-stone-850 hover:bg-stone-800 text-stone-300 border border-stone-700 rounded-sm text-xs font-bold uppercase tracking-wider transition shadow-md flex items-center gap-1.5">
-                        <i class="fa-solid fa-hammer"></i> Forge New Item
-                    </button>
-                </div>
-                ` : ''}
-            </div>
-
-            <!-- Content Panel -->
-            <div class="p-4 sm:p-6 flex-grow flex flex-col min-h-0 bg-[#fdfbf7]">
-                <!-- Search & Filters Row -->
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 shrink-0">
-                    <div class="relative sm:col-span-1">
-                        <i class="fa-solid fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-stone-400 text-sm"></i>
-                        <input type="text" id="database-search-input" value="${DATABASE_SEARCH_QUERY}" oninput="window.appActions.searchDatabase(this.value)" class="w-full pl-10 pr-4 py-3.5 bg-white border border-[#d4c5a9] text-stone-900 text-sm font-bold rounded-full focus:outline-none focus:border-amber-600 shadow-sm placeholder:font-normal placeholder:text-stone-400 transition-colors" placeholder="Search item encyclopedia...">
-                    </div>
-                    <div>
-                        <select onchange="window.appActions.filterDatabaseCategory(this.value)" class="w-full p-3.5 border border-[#d4c5a9] rounded-full text-xs font-bold text-stone-900 outline-none focus:border-amber-600 bg-white shadow-sm cursor-pointer">
-                            ${catOptions}
-                        </select>
-                    </div>
-                    <div>
-                        <select onchange="window.appActions.filterDatabaseRarity(this.value)" class="w-full p-3.5 border border-[#d4c5a9] rounded-full text-xs font-bold text-stone-900 outline-none focus:border-amber-600 bg-white shadow-sm cursor-pointer">
-                            <option value="all" ${DATABASE_FILTER_RARITY==='all'?'selected':''}>All Rarities</option>
-                            <option value="common" ${DATABASE_FILTER_RARITY==='common'?'selected':''}>Common</option>
-                            <option value="uncommon" ${DATABASE_FILTER_RARITY==='uncommon'?'selected':''}>Uncommon</option>
-                            <option value="rare" ${DATABASE_FILTER_RARITY==='rare'?'selected':''}>Rare</option>
-                            <option value="very-rare" ${DATABASE_FILTER_RARITY==='very-rare'?'selected':''}>Very Rare</option>
-                            <option value="legendary" ${DATABASE_FILTER_RARITY==='legendary'?'selected':''}>Legendary</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Database Result Grid -->
-                <div id="database-inventory-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 overflow-y-auto custom-scrollbar flex-grow pb-4 pr-1">
-                    <div class="col-span-full text-center py-12 text-stone-400 font-serif italic text-xs">
-                        <i class="fa-solid fa-spinner fa-spin text-xl mb-3 text-stone-300"></i><br/>Compiling Master Index...
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    `;
-
-    // Asynchronously trigger lazy-loading of cache and rendering results
-    setTimeout(async () => {
-        await loadDatabaseCache();
-        window.appActions.renderDatabaseResults();
-    }, 50);
-
-    return html;
+// --- GLOBAL EXPORTS ---
+if (typeof window !== 'undefined') {
+    window.appActions = window.appActions || {};
+    window.appActions.searchDatabase = searchDatabase;
+    window.appActions.filterDatabaseCategory = filterDatabaseCategory;
+    window.appActions.filterDatabaseRarity = filterDatabaseRarity;
+    window.appActions.openDatabaseItemDetails = openDatabaseItemDetails;
+    window.appActions.openItemForgeModal = openItemForgeModal;
+    window.appActions.updateForgeInputStats = updateForgeInputStats;
+    window.appActions.saveForgedItem = saveForgedItem;
+    window.appActions.deleteForgedItem = deleteForgedItem;
+    window.appActions.openItemJsonImporter = openItemJsonImporter;
+    window.appActions.handleItemFileSelect = handleItemFileSelect;
+    window.appActions.executeItemJsonImport = executeItemJsonImport;
+    window.appActions.renderDatabaseResults = renderDatabaseResults;
 }
