@@ -275,7 +275,7 @@ import {
     resolveTableResult
 } from './actions-tables.js';
 
-/* STREAMING_CHUNK: Importing roll table settings modal controls... */
+// --- ROLL TABLE UI ACTIONS IMPORTS ---
 import {
     filterRollTables,
     openTableImporter,
@@ -292,6 +292,23 @@ import {
     openTableSettingsModal,
     saveTableSettings
 } from './ui-tables.js';
+
+/* STREAMING_CHUNK: Importing our new, highly detailed Database view handlers... */
+import {
+    getDatabasesHTML,
+    searchDatabase,
+    filterDatabaseCategory,
+    filterDatabaseRarity,
+    openDatabaseItemDetails,
+    openItemForgeModal,
+    updateForgeInputStats,
+    saveForgedItem,
+    deleteForgedItem,
+    openItemJsonImporter,
+    handleItemFileSelect,
+    executeItemJsonImport,
+    renderDatabaseResults
+} from './ui-databases.js';
 
 // --- APP ACTIONS HUB --- 
 if (typeof window !== 'undefined') {
@@ -607,10 +624,23 @@ if (typeof window !== 'undefined') {
       
       toggleTableFolder,
       handleFoundryFileSelect,
-      
-      /* STREAMING_CHUNK: Registering Settings Modal handlers... */
       openTableSettingsModal,
-      saveTableSettings
+      saveTableSettings,
+
+      /* STREAMING_CHUNK: Binding our new visual Database actions... */
+      getDatabasesHTML,
+      searchDatabase,
+      filterDatabaseCategory,
+      filterDatabaseRarity,
+      openDatabaseItemDetails,
+      openItemForgeModal,
+      updateForgeInputStats,
+      saveForgedItem,
+      deleteForgedItem,
+      openItemJsonImporter,
+      handleItemFileSelect,
+      executeItemJsonImport,
+      renderDatabaseResults
     };
 
     // Bind the table search filter directly to window as expected by the inline HTML oninput handler
