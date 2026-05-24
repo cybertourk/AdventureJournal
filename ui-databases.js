@@ -1,9 +1,7 @@
-/* STREAMING_CHUNK: Importing core layout and state resolvers... */
 import { getLibraryTabsHTML } from './ui-core.js';
 import { getUnifiedCatalog, updateDerivedState, generateId } from './state.js';
 import { saveCampaign, notify } from './firebase-manager.js';
 
-/* STREAMING_CHUNK: Helper functions defined at the top to ensure scope visibility... */
 export function getRarityColor(rarity) {
     const r = (rarity || '').toLowerCase().trim();
     if (r === 'uncommon') return 'text-emerald-600 bg-emerald-50 border-emerald-200';
@@ -28,7 +26,6 @@ const CATEGORIES = {
     magic: "✨ Magical Assets"
 };
 
-// --- CLIENT-SIDE PRE-LOAD COMPILER ---
 const loadDatabaseCache = async () => {
     try {
         LOCAL_CACHE = await getUnifiedCatalog();
@@ -54,7 +51,6 @@ export const filterDatabaseRarity = (rarity) => {
     renderDatabaseResults();
 };
 
-// --- ITEM DETAILS INSPECTOR ---
 export const openDatabaseItemDetails = async (itemName) => {
     const container = document.getElementById('global-popup-container');
     if (!container) return;
@@ -142,7 +138,6 @@ export const openDatabaseItemDetails = async (itemName) => {
     `;
 };
 
-// --- ITEM FORGING & MANAGEMENT ---
 export const openItemForgeModal = async (itemId = "", prefilledName = "") => {
     const camp = window.appData.activeCampaign;
     if (!camp || !camp._isDM) return;
@@ -428,6 +423,8 @@ export const executeItemJsonImport = async () => {
 
     try {
         const parsed = JSON.parse(jsonText.trim());
+        
+        // Support bulk imports (arrays of items) or single items
         const rawArray = Array.isArray(parsed) ? parsed : [parsed];
         
         updateDerivedState();
@@ -444,8 +441,11 @@ export const executeItemJsonImport = async () => {
             if (typeof rarity === "string") rarity = rarity.toLowerCase().trim();
 
             let isMagic = false;
-            if (sys.properties && Array.isArray(sys.properties)) isMagic = sys.properties.includes("mgc");
-            else if (sys.properties && typeof sys.properties === "object") isMagic = sys.properties.mgc === true;
+            if (sys.properties && Array.isArray(sys.properties)) {
+                isMagic = sys.properties.includes("mgc");
+            } else if (sys.properties && typeof sys.properties === "object") {
+                isMagic = sys.properties.mgc === true;
+            }
             if (rarity && rarity !== "common" && rarity !== "default") isMagic = true;
 
             let itemType = rawItem.type || "equipment";
@@ -465,15 +465,25 @@ export const executeItemJsonImport = async () => {
             }
             if (sys.damage) {
                 const dmgParts = sys.damage.parts || [];
-                if (dmgParts.length > 0 && Array.isArray(dmgParts[0])) { stats.damage = dmgParts[0][0] || ""; stats.damageType = dmgParts[0][1] || ""; }
-                else if (sys.damage.parts && sys.damage.parts[0]) { stats.damage = sys.damage.parts[0]; stats.damageType = sys.damage.type || ""; }
+                if (dmgParts.length > 0 && Array.isArray(dmgParts[0])) {
+                    stats.damage = dmgParts[0][0] || "";
+                    stats.damageType = dmgParts[0][1] || "";
+                } else if (dmgParts.length > 0 && typeof dmgParts[0] === "string") {
+                    stats.damage = dmgParts[0];
+                    stats.damageType = sys.damage.type || "";
+                } else if (sys.damage.parts && sys.damage.parts[0]) {
+                    stats.damage = sys.damage.parts[0];
+                    stats.damageType = sys.damage.type || "";
+                }
                 if (sys.properties) {
                     stats.properties = Array.isArray(sys.properties) 
                         ? sys.properties.join(", ") 
                         : Object.keys(sys.properties).filter(k => sys.properties[k] === true).join(", ");
                 }
             }
-            if (sys.uses) stats.charges = sys.uses.max || null;
+            if (sys.uses) {
+                stats.charges = sys.uses.max || null;
+            }
 
             const forgedItem = {
                 id: 'item_' + generateId(),
@@ -489,9 +499,13 @@ export const executeItemJsonImport = async () => {
                 stats: stats
             };
 
+            // Prevent duplicates
             const existsIdx = currentCustom.findIndex(i => i.name.toLowerCase().trim() === forgedItem.name.toLowerCase().trim());
-            if (existsIdx > -1) currentCustom[existsIdx] = forgedItem;
-            else currentCustom.push(forgedItem);
+            if (existsIdx > -1) {
+                currentCustom[existsIdx] = forgedItem;
+            } else {
+                currentCustom.push(forgedItem);
+            }
             importedCount++;
         });
 
@@ -548,6 +562,7 @@ export const renderDatabaseResults = () => {
         const isCustom = item.id && item.id.startsWith('item_');
         const customBadge = isCustom ? `<span class="bg-blue-100 text-blue-800 border border-blue-200 text-[8px] font-bold px-1.5 py-0.5 rounded-sm shrink-0" title="Custom Campaign Item"><i class="fa-solid fa-hammer"></i> Custom</span>` : '';
         
+        // Thumbnail displays
         const itemImageHtml = item.image 
             ? `<img src="${item.image}" class="w-8 h-8 object-contain shrink-0 border border-stone-200 bg-stone-100 rounded p-0.5" onerror="this.style.display='none'">` 
             : `<div class="w-8 h-8 bg-stone-100 flex items-center justify-center shrink-0 border border-stone-200 rounded text-stone-400 text-xs"><i class="fa-solid fa-box"></i></div>`;
@@ -580,12 +595,12 @@ export const renderDatabaseResults = () => {
     listEl.innerHTML = html;
 };
 
-// --- CORE LAYOUT BUILDER ---
 export function getDatabasesHTML(state) {
     const camp = state.activeCampaign;
     if (!camp) return '';
 
     const isDM = camp._isDM;
+    if (!isDM) return '<div class="text-center text-red-500 p-8 font-serif font-bold text-xl">Access Denied. DM Only.</div>';
 
     let catOptions = '';
     Object.entries(CATEGORIES).forEach(([key, name]) => {
@@ -593,10 +608,11 @@ export function getDatabasesHTML(state) {
     });
 
     let html = `
-    <div class="animate-in fade-in duration-300 pb-12 max-w-7xl mx-auto flex flex-col h-full">
+    <div class="animate-in fade-in duration-300 pb-12 max-w-7xl mx-auto">
         ${getLibraryTabsHTML('databases')}
 
-        <div class="bg-[#fdfbf7] rounded-sm border-2 sm:border-4 border-stone-800 shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col flex-grow">
+        <div class="bg-[#fdfbf7] rounded-sm border-2 sm:border-4 border-stone-800 shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col">
+            <!-- Header -->
             <div class="bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-stone-900 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center text-amber-500 shrink-0 border-b-2 sm:border-b-4 border-amber-700 gap-4 sm:gap-0 shadow-md">
                 <div>
                     <h2 class="text-xl sm:text-2xl font-serif font-bold text-amber-50 leading-tight">Databases</h2>
@@ -614,19 +630,21 @@ export function getDatabasesHTML(state) {
                 ` : ''}
             </div>
 
-            <div class="p-4 sm:p-6 flex-grow flex flex-col min-h-0 bg-[#fdfbf7]">
+            <!-- Content Panel -->
+            <div class="p-4 sm:p-6 bg-[#fdfbf7]">
+                <!-- Search & Filters Row -->
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 shrink-0">
                     <div class="relative sm:col-span-1">
-                        <i class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-stone-400 text-xs"></i>
-                        <input type="text" id="database-search-input" value="${DATABASE_SEARCH_QUERY}" oninput="window.appActions.searchDatabase(this.value)" class="w-full pl-9 pr-3 py-2 bg-white border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 shadow-sm placeholder:text-stone-400" placeholder="Search item encyclopedia...">
+                        <i class="fa-solid fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-stone-400 text-sm"></i>
+                        <input type="text" id="database-search-input" value="${DATABASE_SEARCH_QUERY}" oninput="window.appActions.searchDatabase(this.value)" class="w-full pl-10 pr-4 py-3.5 bg-white border border-[#d4c5a9] text-stone-900 text-sm font-bold rounded-full focus:outline-none focus:border-amber-600 shadow-sm placeholder:font-normal placeholder:text-stone-400 transition-colors" placeholder="Search item encyclopedia...">
                     </div>
                     <div>
-                        <select onchange="window.appActions.filterDatabaseCategory(this.value)" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 bg-white shadow-sm cursor-pointer">
+                        <select onchange="window.appActions.filterDatabaseCategory(this.value)" class="w-full p-3.5 border border-[#d4c5a9] rounded-full text-xs font-bold text-stone-900 outline-none focus:border-amber-600 bg-white shadow-sm cursor-pointer">
                             ${catOptions}
                         </select>
                     </div>
                     <div>
-                        <select onchange="window.appActions.filterDatabaseRarity(this.value)" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-amber-600 bg-white shadow-sm cursor-pointer">
+                        <select onchange="window.appActions.filterDatabaseRarity(this.value)" class="w-full p-3.5 border border-[#d4c5a9] rounded-full text-xs font-bold text-stone-900 outline-none focus:border-amber-600 bg-white shadow-sm cursor-pointer">
                             <option value="all" ${DATABASE_FILTER_RARITY==='all'?'selected':''}>All Rarities</option>
                             <option value="common" ${DATABASE_FILTER_RARITY==='common'?'selected':''}>Common</option>
                             <option value="uncommon" ${DATABASE_FILTER_RARITY==='uncommon'?'selected':''}>Uncommon</option>
@@ -637,7 +655,8 @@ export function getDatabasesHTML(state) {
                     </div>
                 </div>
 
-                <div id="database-inventory-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 overflow-y-auto custom-scrollbar flex-grow pb-4 pr-1">
+                <!-- Database Result Grid -->
+                <div id="database-inventory-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pb-4">
                     <div class="col-span-full text-center py-12 text-stone-400 font-serif italic text-xs">
                         <i class="fa-solid fa-spinner fa-spin text-xl mb-3 text-stone-300"></i><br/>Compiling Master Index...
                     </div>
@@ -647,6 +666,7 @@ export function getDatabasesHTML(state) {
     </div>
     `;
 
+    // Asynchronously trigger lazy-loading of cache and rendering results
     setTimeout(async () => {
         await loadDatabaseCache();
         window.appActions.renderDatabaseResults();
