@@ -8,8 +8,6 @@ import { getAtlasHTML } from './ui-atlas.js';
 import { getWebsHTML } from './ui-webs.js';
 import { getBazaarHTML, getStorefrontHTML, getShopBackroomHTML } from './ui-shops.js';
 import { getTablesHTML } from './ui-tables.js';
-
-// Import our new Databases view builder
 import { getDatabasesHTML } from './ui-databases.js';
 
 // --- CONSTANTS & HELPERS ---
@@ -71,6 +69,8 @@ export function getLibraryTabsHTML(activeTab) {
     const isTables = activeTab === 'tables';
     const isDatabases = activeTab === 'databases';
 
+    const isDM = window.appData?.activeCampaign?._isDM || false;
+
     return `
     <div class="flex bg-stone-200 p-1 sm:p-1.5 rounded-sm border border-[#d4c5a9] shadow-inner mb-6 w-full max-w-5xl mx-auto shrink-0 overflow-x-auto hide-scrollbar">
         <button onclick="window.appActions.setView('codex')" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isCodex ? 'bg-white shadow-sm text-red-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
@@ -79,15 +79,19 @@ export function getLibraryTabsHTML(activeTab) {
         <button onclick="window.appActions.openBazaar()" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isBazaar ? 'bg-white shadow-sm text-emerald-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
             <i class="fa-solid fa-store text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Bazaar</span>
         </button>
+        ${isDM ? `
         <button onclick="window.appActions.setView('databases')" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isDatabases ? 'bg-white shadow-sm text-stone-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
             <i class="fa-solid fa-box-archive text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Databases</span>
         </button>
+        ` : ''}
         <button onclick="window.appActions.openRulesGlossary()" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isRules ? 'bg-white shadow-sm text-amber-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
             <i class="fa-solid fa-scale-balanced text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Rules</span>
         </button>
+        ${isDM ? `
         <button onclick="window.appActions.setView('tables')" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isTables ? 'bg-white shadow-sm text-stone-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
             <i class="fa-solid fa-table-list text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Tables</span>
         </button>
+        ` : ''}
         <button onclick="window.appActions.setView('webs')" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isWebs ? 'bg-white shadow-sm text-purple-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
             <i class="fa-solid fa-diagram-project text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Webs</span>
         </button>
@@ -113,7 +117,6 @@ export function updateHeaderUI(state) {
 
     if (!titleEl) return;
 
-    // Hide dock & show default branding on home screen
     if (state.currentView === 'home' || !state.activeCampaign) {
         if (dockContainer) dockContainer.classList.add('translate-y-32', 'opacity-0');
         titleEl.textContent = 'Adventure Journal';
@@ -124,15 +127,13 @@ export function updateHeaderUI(state) {
         return;
     }
 
-    // Show dock and set campaign branding
     if (dockContainer) dockContainer.classList.remove('translate-y-32', 'opacity-0');
     titleEl.textContent = state.activeCampaign.name;
-    if (settingsBtn) settingsBtn.classList.add('hidden'); // Hide settings when in a campaign
+    if (settingsBtn) settingsBtn.classList.add('hidden');
 
     let breadcrumbText = 'Story Arcs';
     let showBack = false;
 
-    // Smart logic for breadcrumb text and deciding if we need the back button
     switch (state.currentView) {
         case 'campaign': breadcrumbText = 'Story Arcs'; showBack = true; break;
         case 'adventure': breadcrumbText = state.activeAdventure?.name || 'Adventure Arc'; showBack = true; break;
@@ -171,7 +172,6 @@ export function updateHeaderUI(state) {
 export function updateDockUI(state) {
     const tabs = ['campaign', 'calendar', 'pc-manager', 'codex'];
     
-    // Reset all tabs to inactive color
     tabs.forEach(tab => {
         const el = document.getElementById(`dock-tab-${tab}`);
         if (el) {
@@ -180,13 +180,11 @@ export function updateDockUI(state) {
         }
     });
 
-    // Determine which "Pill" tab should be highlighted based on the current deep view
     let activeTab = 'campaign';
     if (['calendar'].includes(state.currentView)) activeTab = 'calendar';
     if (['pc-manager', 'pc-edit'].includes(state.currentView)) activeTab = 'pc-manager';
-    if (['codex', 'rules', 'tables', 'webs', 'databases', 'bazaar', 'storefront', 'shop-backroom', 'atlas'].includes(state.currentView)) activeTab = 'codex'; // Library items group here
+    if (['codex', 'rules', 'tables', 'webs', 'databases', 'bazaar', 'storefront', 'shop-backroom', 'atlas'].includes(state.currentView)) activeTab = 'codex';
     
-    // The Grand Tome is now officially part of the Library Hub, so keep the Library dock icon highlighted
     if (state.currentView === 'journal' && !state.activeAdventureId && !state.activeSessionId) {
         activeTab = 'codex'; 
     }
@@ -219,7 +217,7 @@ export const navigateBack = () => {
         case 'shop-backroom':
             window.appActions.setView('bazaar'); 
             break;
-        case 'atlas': window.appActions.setView('campaign'); break; // Back from Atlas goes to Campaign
+        case 'atlas': window.appActions.setView('campaign'); break;
         case 'adventure': window.appActions.setView('campaign'); break;
         case 'adv-roster': window.appActions.setView('adventure'); break;
         case 'session-edit': window.appActions.setView('adventure'); break;
@@ -247,7 +245,6 @@ export const toggleActionMenu = () => {
     
     if (!sheet || !overlay || !icon) return;
     
-    // Unhide DM-Only buttons if the user is the DM
     const camp = window.appData?.activeCampaign;
     if (dmAssignBtn && dmNpcGenBtn) {
         if (camp && camp._isDM) {
@@ -279,20 +276,17 @@ export function updatePlayerResourceBar(state) {
 
     const camp = state.activeCampaign;
     
-    // Only display this bar if we are in a campaign and the user is a Player (not the DM)
     if (!camp || state.currentView === 'home' || camp._isDM) {
         bar.innerHTML = '';
         return;
     }
 
-    // Find the player's active hero
     const myPc = camp.playerCharacters?.find(p => p.playerId === state.currentUserUid);
     if (!myPc) {
         bar.innerHTML = '';
         return;
     }
 
-    // Calculate Resources
     let maxInsp = 0;
     if (myPc.boonBackstory) maxInsp += 1;
     if (myPc.boon2ndBday) maxInsp += 1;
@@ -300,19 +294,16 @@ export function updatePlayerResourceBar(state) {
     const currentInsp = myPc.inspiration === true ? 1 : (parseInt(myPc.inspiration) || 0);
     const autoSuccess = myPc.automaticSuccess ? 1 : 0;
 
-    // Get the most relevant/latest Adventure Name
     let advName = "Current Adventure";
     if (state.activeAdventure) {
         advName = state.activeAdventure.name;
     } else if (camp.adventures && camp.adventures.length > 0) {
-        // Sort alphanumerically to match the dashboard logic, grabbing the very last one
         const sortedAdventures = [...camp.adventures].sort((a, b) => {
             return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
         });
         advName = sortedAdventures[sortedAdventures.length - 1].name;
     }
 
-    // Pulse FX
     const inspPulse = currentInsp > 0 ? 'animate-pulse text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]' : 'text-stone-600';
     const autoPulse = autoSuccess > 0 ? 'animate-pulse text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'text-stone-600';
 
@@ -357,16 +348,14 @@ export function updateChecklistUI(state) {
     const myUid = state.currentUserUid;
     const updates = camp.sheetUpdates || [];
 
-    // Filter for this user
     const visibleUpdates = updates.filter(item => {
-        if (isDM || item.authorId === myUid) return true; // DM & Author always see it
+        if (isDM || item.authorId === myUid) return true;
         const vis = item.visibility || { mode: 'public' };
         if (vis.mode === 'public') return true;
         if (vis.mode === 'specific' && vis.visibleTo?.includes(myUid)) return true;
         return false;
     });
 
-    // Badge logic for players
     if (!isDM) {
         const pendingCount = visibleUpdates.filter(u => !(u.resolvedBy || []).includes(myUid)).length;
         if (pendingCount > 0) {
@@ -387,7 +376,6 @@ export function updateChecklistUI(state) {
         if (libTabBadge) libTabBadge.classList.add('hidden');
     }
 
-    // Sort: Tasks I haven't resolved float to top. Then sort by newest.
     const sorted = [...visibleUpdates].sort((a, b) => {
         const aRes = (a.resolvedBy || []).includes(myUid);
         const bRes = (b.resolvedBy || []).includes(myUid);
@@ -492,12 +480,10 @@ export function renderApp(state) {
     const container = document.getElementById('app-container');
     if (!container) return;
 
-    // Only reset scroll position if we are NOT on the Atlas view 
     if (state.currentView !== 'atlas') {
         container.scrollTo({ top: 0, behavior: 'instant' });
     }
 
-    // --- LEAFLET DOM PRESERVATION ---
     if (state.currentView === 'atlas' && document.getElementById('atlas-wrapper')) {
         if (window.appActions && window.appActions.refreshAtlasEntities) {
             window.appActions.refreshAtlasEntities();
@@ -535,7 +521,6 @@ export function renderApp(state) {
 
     container.innerHTML = html;
 
-    // Post-render UI adjustments (Handles the new mobile-first elements)
     updateHeaderUI(state);
     updateDockUI(state);
     updateChecklistUI(state);
@@ -543,8 +528,6 @@ export function renderApp(state) {
 
     if (state.currentView === 'session-edit') {
         updateSessionTabUI('session');
-        
-        // Ensure the budget UI initializes its values immediately upon loading the editor
         if (window.appActions && window.appActions.updateSessionBudget) {
             window.appActions.updateSessionBudget();
         }
