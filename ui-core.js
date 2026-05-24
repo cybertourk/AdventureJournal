@@ -1,4 +1,3 @@
-/* STREAMING_CHUNK: Importing core view builders and action layers... */
 import { getHomeHTML, getCampaignHTML, getAdventureHTML, getAdvRosterHTML, getActivityLogHTML } from './ui-campaign.js';
 import { getPCManagerHTML, getPCEditHTML } from './ui-characters.js';
 import { getSessionEditHTML } from './ui-session.js';
@@ -8,9 +7,10 @@ import { getRulesHTML } from './ui-rules.js';
 import { getAtlasHTML } from './ui-atlas.js';
 import { getWebsHTML } from './ui-webs.js';
 import { getBazaarHTML, getStorefrontHTML, getShopBackroomHTML } from './ui-shops.js';
-
-/* STREAMING_CHUNK: Importing our new Tables UI layout... */
 import { getTablesHTML } from './ui-tables.js';
+
+// Import our new Databases view builder
+import { getDatabasesHTML } from './ui-databases.js';
 
 // --- CONSTANTS & HELPERS ---
 export const BUDGET_BY_LEVEL = { 
@@ -69,6 +69,7 @@ export function getLibraryTabsHTML(activeTab) {
     const isBazaar = activeTab === 'bazaar';
     const isTome = activeTab === 'tome';
     const isTables = activeTab === 'tables';
+    const isDatabases = activeTab === 'databases';
 
     return `
     <div class="flex bg-stone-200 p-1 sm:p-1.5 rounded-sm border border-[#d4c5a9] shadow-inner mb-6 w-full max-w-5xl mx-auto shrink-0 overflow-x-auto hide-scrollbar">
@@ -77,6 +78,9 @@ export function getLibraryTabsHTML(activeTab) {
         </button>
         <button onclick="window.appActions.openBazaar()" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isBazaar ? 'bg-white shadow-sm text-emerald-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
             <i class="fa-solid fa-store text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Bazaar</span>
+        </button>
+        <button onclick="window.appActions.setView('databases')" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isDatabases ? 'bg-white shadow-sm text-stone-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
+            <i class="fa-solid fa-box-archive text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Databases</span>
         </button>
         <button onclick="window.appActions.openRulesGlossary()" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isRules ? 'bg-white shadow-sm text-amber-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
             <i class="fa-solid fa-scale-balanced text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Rules</span>
@@ -138,6 +142,7 @@ export function updateHeaderUI(state) {
         case 'pc-edit': breadcrumbText = state.activePcId ? 'Edit Hero' : 'New Hero'; showBack = true; break;
         case 'codex': breadcrumbText = 'Library • Codex'; showBack = true; break;
         case 'bazaar': breadcrumbText = 'Library • Bazaar'; showBack = true; break;
+        case 'databases': breadcrumbText = 'Library • Databases'; showBack = true; break;
         case 'storefront': breadcrumbText = 'Bazaar • Storefront'; showBack = true; break;
         case 'shop-backroom': breadcrumbText = 'Bazaar • DM Backroom'; showBack = true; break;
         case 'rules': breadcrumbText = 'Library • Rules'; showBack = true; break;
@@ -179,7 +184,7 @@ export function updateDockUI(state) {
     let activeTab = 'campaign';
     if (['calendar'].includes(state.currentView)) activeTab = 'calendar';
     if (['pc-manager', 'pc-edit'].includes(state.currentView)) activeTab = 'pc-manager';
-    if (['codex', 'rules', 'tables', 'atlas', 'webs', 'bazaar', 'storefront', 'shop-backroom'].includes(state.currentView)) activeTab = 'codex'; // Library items group here
+    if (['codex', 'rules', 'tables', 'webs', 'databases', 'bazaar', 'storefront', 'shop-backroom', 'atlas'].includes(state.currentView)) activeTab = 'codex'; // Library items group here
     
     // The Grand Tome is now officially part of the Library Hub, so keep the Library dock icon highlighted
     if (state.currentView === 'journal' && !state.activeAdventureId && !state.activeSessionId) {
@@ -203,6 +208,7 @@ export const navigateBack = () => {
         case 'pc-manager':
         case 'codex':
         case 'bazaar':
+        case 'databases':
         case 'rules': 
         case 'tables':
         case 'webs':
@@ -487,14 +493,11 @@ export function renderApp(state) {
     if (!container) return;
 
     // Only reset scroll position if we are NOT on the Atlas view 
-    // (Leaflet needs to retain its drag position when the DOM re-renders)
     if (state.currentView !== 'atlas') {
         container.scrollTo({ top: 0, behavior: 'instant' });
     }
 
     // --- LEAFLET DOM PRESERVATION ---
-    // If we are already on the Atlas view and the DOM is built, 
-    // DO NOT overwrite innerHTML! This prevents the map from disappearing or flickering.
     if (state.currentView === 'atlas' && document.getElementById('atlas-wrapper')) {
         if (window.appActions && window.appActions.refreshAtlasEntities) {
             window.appActions.refreshAtlasEntities();
@@ -518,6 +521,7 @@ export function renderApp(state) {
         case 'journal': html = getJournalHTML(state); break;
         case 'codex': html = getCodexHTML(state); break;
         case 'bazaar': html = getBazaarHTML(state); break;
+        case 'databases': html = getDatabasesHTML(state); break;
         case 'storefront': html = getStorefrontHTML(state); break;
         case 'shop-backroom': html = getShopBackroomHTML(state); break;
         case 'calendar': html = getCalendarHTML(state); break;
@@ -617,7 +621,6 @@ window.filterCodex = function() {
         });
 
         if (query !== '') {
-            // If searching, hide empty folders, expand folders with results
             if (hasVisibleCard) {
                 folder.style.display = 'block';
                 content.classList.remove('hidden');
@@ -627,7 +630,6 @@ window.filterCodex = function() {
                 folder.style.display = 'none';
             }
         } else {
-            // If search is cleared, show all folders again
             folder.style.display = 'block';
         }
     });
