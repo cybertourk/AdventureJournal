@@ -51,6 +51,7 @@ export const filterDatabaseRarity = (rarity) => {
     renderDatabaseResults();
 };
 
+// --- ITEM DETAILS INSPECTOR ---
 export const openDatabaseItemDetails = async (itemName) => {
     const container = document.getElementById('global-popup-container');
     if (!container) return;
@@ -69,7 +70,12 @@ export const openDatabaseItemDetails = async (itemName) => {
         text: 'fa-align-left text-stone-500'
     };
 
-    const parsedDesc = item.description ? window.appActions.parseSmartText(item.description) : '<p class="italic text-stone-400">No descriptive text is recorded for this entry.</p>';
+    let parsedDesc = item.description || '<p class="italic text-stone-400">No descriptive text is recorded for this entry.</p>';
+    if (item.description && (item.description.includes('<div') || item.description.includes('<p') || item.description.includes('<ul'))) {
+        parsedDesc = `<div class="prose prose-sm max-w-none text-stone-800 font-serif leading-relaxed">${item.description}</div>`;
+    } else {
+        parsedDesc = `<div class="text-stone-800 text-xs sm:text-sm leading-relaxed font-serif">${window.appActions.parseSmartText(item.description || '')}</div>`;
+    }
     
     const portraitHtml = item.image ? `
         <div class="w-full h-36 bg-stone-900 border border-[#d4c5a9] rounded-sm overflow-hidden mb-4 shadow-inner flex justify-center">
@@ -113,8 +119,8 @@ export const openDatabaseItemDetails = async (itemName) => {
                         </h3>
                         <div class="flex flex-wrap gap-2 mt-2 text-[9px] font-bold uppercase tracking-wider">
                             <span class="px-2 py-0.5 rounded border ${rColor}">${item.rarity || 'common'}</span>
-                            ${item.price ? `<span class="bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded shadow-sm"><i class="fa-solid fa-coins mr-1 text-amber-500"></i>${item.price.toLocaleString()} gp</span>` : ''}
-                            ${item.resolvedType && item.resolvedType !== 'text' ? `<span class="bg-blue-50 text-blue-800 border border-blue-200 px-2 py-0.5 rounded shadow-sm">${item.resolvedType}</span>` : ''}
+                            <span class="bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded shadow-sm"><i class="fa-solid fa-coins mr-1 text-amber-500"></i>${(item.price || 0).toLocaleString()} gp</span>
+                            <span class="bg-blue-50 text-blue-800 border border-blue-200 px-2 py-0.5 rounded shadow-sm">${item.type || 'equipment'}</span>
                         </div>
                     </div>
 
@@ -122,7 +128,7 @@ export const openDatabaseItemDetails = async (itemName) => {
 
                     <div>
                         <h4 class="text-[9px] uppercase tracking-widest font-bold text-stone-400 mb-1.5">Item Lore & Features</h4>
-                        <div class="bg-white border border-[#d4c5a9] p-3 rounded-sm shadow-inner text-xs sm:text-sm font-serif leading-relaxed text-stone-800 max-h-48 overflow-y-auto custom-scrollbar">
+                        <div class="bg-white border border-[#d4c5a9] p-3 rounded-sm shadow-inner max-h-48 overflow-y-auto custom-scrollbar">
                             ${parsedDesc}
                         </div>
                     </div>
@@ -138,6 +144,7 @@ export const openDatabaseItemDetails = async (itemName) => {
     `;
 };
 
+// --- ITEM FORGING & MANAGEMENT ---
 export const openItemForgeModal = async (itemId = "", prefilledName = "") => {
     const camp = window.appData.activeCampaign;
     if (!camp || !camp._isDM) return;
@@ -608,12 +615,12 @@ export function getDatabasesHTML(state) {
     });
 
     let html = `
-    <div class="animate-in fade-in duration-300 pb-12 max-w-7xl mx-auto">
+    <div class="animate-in fade-in duration-300 pb-12 max-w-7xl mx-auto flex flex-col h-full">
         ${getLibraryTabsHTML('databases')}
 
-        <div class="bg-[#fdfbf7] rounded-sm border-2 sm:border-4 border-stone-800 shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col">
+        <div class="bg-[#fdfbf7] rounded-sm border-2 sm:border-4 border-stone-800 shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col flex-grow">
             <!-- Header -->
-            <div class="bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-stone-900 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center text-amber-500 shrink-0 border-b-2 sm:border-b-4 border-amber-700 gap-4 sm:gap-0 shadow-md">
+            <div class="bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-stone-900 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center text-amber-500 shrink-0 border-b-2 sm:border-b-4 border-emerald-700 gap-4 sm:gap-0 shadow-md">
                 <div>
                     <h2 class="text-xl sm:text-2xl font-serif font-bold text-amber-50 leading-tight">Databases</h2>
                     <p class="text-[10px] font-bold uppercase tracking-wider text-stone-400 mt-1"><i class="fa-solid fa-box-archive mr-1.5 text-stone-500"></i> Master Item Encyclopedia & Custom Forge</p>
@@ -631,7 +638,7 @@ export function getDatabasesHTML(state) {
             </div>
 
             <!-- Content Panel -->
-            <div class="p-4 sm:p-6 bg-[#fdfbf7]">
+            <div class="p-4 sm:p-6 flex-grow flex flex-col min-h-0 bg-[#fdfbf7]">
                 <!-- Search & Filters Row -->
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 shrink-0">
                     <div class="relative sm:col-span-1">
@@ -656,7 +663,7 @@ export function getDatabasesHTML(state) {
                 </div>
 
                 <!-- Database Result Grid -->
-                <div id="database-inventory-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pb-4">
+                <div id="database-inventory-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 overflow-y-auto custom-scrollbar flex-grow pb-4 pr-1">
                     <div class="col-span-full text-center py-12 text-stone-400 font-serif italic text-xs">
                         <i class="fa-solid fa-spinner fa-spin text-xl mb-3 text-stone-300"></i><br/>Compiling Master Index...
                     </div>
@@ -673,21 +680,4 @@ export function getDatabasesHTML(state) {
     }, 50);
 
     return html;
-}
-
-// --- GLOBAL EXPORTS ---
-if (typeof window !== 'undefined') {
-    window.appActions = window.appActions || {};
-    window.appActions.searchDatabase = searchDatabase;
-    window.appActions.filterDatabaseCategory = filterDatabaseCategory;
-    window.appActions.filterDatabaseRarity = filterDatabaseRarity;
-    window.appActions.openDatabaseItemDetails = openDatabaseItemDetails;
-    window.appActions.openItemForgeModal = openItemForgeModal;
-    window.appActions.updateForgeInputStats = updateForgeInputStats;
-    window.appActions.saveForgedItem = saveForgedItem;
-    window.appActions.deleteForgedItem = deleteForgedItem;
-    window.appActions.openItemJsonImporter = openItemJsonImporter;
-    window.appActions.handleItemFileSelect = handleItemFileSelect;
-    window.appActions.executeItemJsonImport = executeItemJsonImport;
-    window.appActions.renderDatabaseResults = renderDatabaseResults;
 }
