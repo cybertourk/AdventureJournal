@@ -5,20 +5,16 @@ export function getCodexHTML(state) {
     if (!camp) return '';
     
     // Intercept existing codex entries: if an entry is linked to a hero, force its type to 'PC'
-    // This fixes legacy heroes that are currently saved in the database as 'NPC'
     const rawCodex = (camp.codex || []).map(c => {
         const linkedPC = camp.playerCharacters?.find(pc => pc.id === c.id);
         if (linkedPC) {
-            // Also grab the hero's image if the codex entry lacks its own!
             return { ...c, type: 'PC', image: c.image || linkedPC.image };
         }
-        // Map any legacy 'Lore / Rule' entries strictly to 'Lore'
         if (c.type === 'Lore / Rule') return { ...c, type: 'Lore' };
         return c;
     });
     
     // --- LEGACY HERO INJECTION ---
-    // Inject Heroes that don't have explicit codex entries yet so they appear in the grid
     const autoHeroes = (camp.playerCharacters || []).filter(pc => !rawCodex.some(c => c.id === pc.id)).map(pc => ({
         id: pc.id,
         name: pc.name,
@@ -26,26 +22,27 @@ export function getCodexHTML(state) {
         tags: ['Hero', pc.race, pc.classLevel].filter(Boolean),
         desc: 'Rumors and public knowledge surrounding this hero are yet to be penned.',
         visibility: { mode: 'public' },
-        image: pc.image // Feed the hero's image into the codex
+        image: pc.image
     }));
 
     const codex = [...rawCodex, ...autoHeroes];
+    
+    // --- TAG EXTRACTION ---
+    const allTags = [...new Set(codex.flatMap(c => c.tags || []))].sort();
     
     const isDM = camp._isDM;
     const myUid = state.currentUserUid;
 
     // --- FOG OF WAR FILTER ---
     const isVisibleToPlayer = (item) => {
-        if (isDM || item.authorId === myUid) return true; // DM and the Author always see it
-        
-        // If the item is a Hero Codex Entry owned by the current user, they can always see it
+        if (isDM || item.authorId === myUid) return true;
         const isHeroOwner = camp.playerCharacters?.some(p => p.id === item.id && p.playerId === myUid);
         if (isHeroOwner) return true;
 
-        const vis = item.visibility || { mode: 'public' }; // Default to public for older legacy data
+        const vis = item.visibility || { mode: 'public' };
         if (vis.mode === 'public') return true;
         if (vis.mode === 'hidden') return false;
-        if (vis.mode === 'specific' && vis.visibleTo && vis.visibleTo.includes(myUid)) return true;
+        if (vis.mode === 'specific' && vis.visibility?.visibleTo && vis.visibility.visibleTo.includes(myUid)) return true;
         return false;
     };
 
@@ -55,33 +52,21 @@ export function getCodexHTML(state) {
     const getVisStatus = (item) => {
         const mode = item?.visibility?.mode || 'public';
         const players = (item?.visibility?.visibleTo || []).join(',');
-        
         let icon = 'fa-eye';
         let color = 'text-emerald-600 hover:text-emerald-500 hover:bg-emerald-50 border-emerald-200';
-        
-        if (mode === 'hidden') {
-            icon = 'fa-eye-slash';
-            color = 'text-red-700 hover:text-red-600 hover:bg-red-50 border-red-200';
-        } else if (mode === 'specific') {
-            icon = 'fa-user-lock';
-            color = 'text-blue-600 hover:text-blue-500 hover:bg-blue-50 border-blue-200';
-        }
-        
+        if (mode === 'hidden') { icon = 'fa-eye-slash'; color = 'text-red-700 hover:text-red-600 hover:bg-red-50 border-red-200'; } 
+        else if (mode === 'specific') { icon = 'fa-user-lock'; color = 'text-blue-600 hover:text-blue-500 hover:bg-blue-50 border-blue-200'; }
         return { mode, players, icon, color };
     };
 
-    // --- GROUPING BY TYPE ---
     const groups = {
         'PC': [], 'NPC': [], 'Location': [], 'Faction': [], 'Route': [], 'Item': [], 'Lore': [], 'Other': []
     };
     
     visibleCodex.forEach(c => {
         const t = c.type;
-        if (groups[t] !== undefined) {
-            groups[t].push(c);
-        } else {
-            groups['Other'].push(c);
-        }
+        if (groups[t] !== undefined) groups[t].push(c);
+        else groups['Other'].push(c);
     });
 
     const groupOrder = [
@@ -97,13 +82,25 @@ export function getCodexHTML(state) {
     
     let html = `
     <div class="animate-in fade-in duration-300 pb-12 max-w-5xl mx-auto">
-        
         ${getLibraryTabsHTML('codex')}
 
         <!-- Thematic Search Bar -->
-        <div class="relative mb-6">
-            <i class="fa-solid fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-stone-400 text-sm"></i>
-            <input type="text" id="codex-search" class="w-full pl-10 pr-4 py-3.5 bg-white border border-[#d4c5a9] text-stone-900 text-sm font-bold rounded-full focus:outline-none focus:border-amber-600 shadow-sm placeholder:font-normal placeholder:text-stone-400 transition-colors" placeholder="Search the archives..." onkeyup="window.filterCodex()">
+        <div class="mb-6 space-y-4">
+            <div class="relative">
+                <i class="fa-solid fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-stone-400 text-sm"></i>
+                <input type="text" id="codex-search" class="w-full pl-10 pr-4 py-3.5 bg-white border border-[#d4c5a9] text-stone-900 text-sm font-bold rounded-full focus:outline-none focus:border-amber-600 shadow-sm placeholder:font-normal placeholder:text-stone-400 transition-colors" placeholder="Search the archives..." onkeyup="window.filterCodex()">
+            </div>
+            
+            <!-- Tag Filter Chips -->
+            <div class="flex flex-wrap gap-2 px-1" id="tag-filters">
+                <span class="text-[10px] font-bold text-stone-500 uppercase self-center mr-2">Filter Tags:</span>
+                <button onclick="window.toggleCodexTag('All')" class="px-3 py-1 bg-stone-900 text-amber-500 border border-stone-700 rounded-full text-[10px] uppercase font-bold transition-all">All</button>
+                ${allTags.map(tag => `
+                    <button onclick="window.toggleCodexTag('${tag}')" class="px-3 py-1 bg-white border border-stone-300 rounded-full text-[10px] uppercase font-bold text-stone-600 hover:bg-amber-100 hover:border-amber-400 transition-all tag-chip" data-tag="${tag}">
+                        ${tag}
+                    </button>
+                `).join('')}
+            </div>
         </div>
     `;
     
@@ -112,7 +109,6 @@ export function getCodexHTML(state) {
             <div class="col-span-full p-8 sm:p-12 text-center text-stone-500 bg-[#f4ebd8] rounded-sm border border-[#d4c5a9] shadow-sm">
                 <i class="fa-solid fa-book-journal-whills text-4xl sm:text-6xl mx-auto text-stone-400 mb-3 sm:mb-4 opacity-50"></i>
                 <p class="font-serif text-base sm:text-lg">${codex.length === 0 ? 'The Codex is empty.' : 'No knowledge has been revealed to you yet.'}</p>
-                <p class="text-xs sm:text-sm mt-2 font-sans">Create entries for NPCs, Locations, and Lore to auto-link them in your session logs.</p>
             </div>
         `;
     } else {
@@ -157,7 +153,7 @@ export function getCodexHTML(state) {
                     ` : '';
 
                     html += `
-                    <div class="codex-card bg-white p-0 rounded-sm border border-[#d4c5a9] shadow-sm flex group relative overflow-hidden hover:shadow-md hover:-translate-y-[1px] transition duration-200 cursor-pointer h-20 sm:h-24" onclick="window.appActions.viewCodex('${c.id}')" data-search="${c.name.toLowerCase()} ${c.type.toLowerCase()} ${tagsStr.toLowerCase()}">
+                    <div class="codex-card bg-white p-0 rounded-sm border border-[#d4c5a9] shadow-sm flex group relative overflow-hidden hover:shadow-md hover:-translate-y-[1px] transition duration-200 cursor-pointer h-20 sm:h-24" onclick="window.appActions.viewCodex('${c.id}')" data-search="${c.name.toLowerCase()} ${c.type.toLowerCase()} ${tagsStr.toLowerCase()}" data-tags='${JSON.stringify(c.tags || [])}'>
                         <div class="absolute top-0 left-0 w-1 h-full bg-stone-400 group-hover:bg-amber-500 transition-colors z-20"></div>
                         
                         ${c.image ? `<div class="w-20 sm:w-24 h-full shrink-0 border-r border-[#d4c5a9] bg-stone-900 overflow-hidden relative z-10"><img src="${c.image}" alt="${c.name}" class="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105" onerror="this.style.display='none'"></div>` : ''}
@@ -189,6 +185,34 @@ export function getCodexHTML(state) {
     
     html += `
     </div>
+    
+    <script>
+    window.toggleCodexTag = (tag) => {
+        const chips = document.querySelectorAll('.tag-chip');
+        const folders = document.querySelectorAll('.codex-folder');
+        
+        // UI toggle
+        chips.forEach(c => {
+            if(c.dataset.tag === tag) c.classList.toggle('bg-amber-400');
+        });
+        
+        // Filtering logic
+        folders.forEach(f => {
+            const cards = f.querySelectorAll('.codex-card');
+            let hasVisible = false;
+            cards.forEach(c => {
+                const tags = JSON.parse(c.dataset.tags || '[]');
+                if (tag === 'All' || tags.includes(tag)) {
+                    c.style.display = 'flex';
+                    hasVisible = true;
+                } else {
+                    c.style.display = 'none';
+                }
+            });
+            f.style.display = hasVisible ? 'block' : 'none';
+        });
+    };
+    </script>
     `;
     return html;
 }
