@@ -579,7 +579,6 @@ export const _openCodexModal = (entry) => {
         <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[17000] backdrop-blur-sm animate-in">
             <div class="bg-[#f4ebd8] rounded-sm shadow-2xl w-full max-w-2xl border border-[#d4c5a9] overflow-hidden flex flex-col max-h-[90vh]">
                 
-                <!-- Header -->
                 <div class="bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-[#292524] p-4 flex justify-between items-center border-b-2 border-red-900 shadow-md">
                     <div class="flex items-center gap-3">
                         <i class="fa-solid fa-book-journal-whills text-amber-500 text-xl"></i>
@@ -594,7 +593,6 @@ export const _openCodexModal = (entry) => {
                     </div>
                 </div>
 
-                <!-- View Mode -->
                 <div id="cx-view-mode" class="p-5 sm:p-8 overflow-y-auto custom-scrollbar flex-grow bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-[#fdfbf7] ${viewHidden}">
                     ${imgHTML}
                     <div class="mb-6">
@@ -612,7 +610,6 @@ export const _openCodexModal = (entry) => {
                     ${privateDataHTML}
                 </div>
 
-                <!-- Edit Mode -->
                 <div id="cx-edit-mode" class="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-grow bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-[#fdfbf7] ${editHidden}">
                     <input type="hidden" id="cx-modal-id" value="${id}">
                     <div class="bg-red-900 text-amber-50 text-xs font-bold uppercase tracking-wider py-1 px-3 inline-block rounded-sm mb-4 shadow-sm">
@@ -689,7 +686,6 @@ export const _openCodexModal = (entry) => {
 
                 </div>
 
-                <!-- Actions -->
                 <div id="cx-edit-actions" class="p-4 bg-stone-200 border-t border-[#d4c5a9] flex flex-wrap-reverse sm:flex-nowrap justify-between gap-3 shrink-0 ${editHidden}">
                     ${(!isNew && canDelete) ? `<button onclick="window.appActions.deleteCodexEntry('${id}')" class="w-full sm:w-auto px-4 py-2 bg-red-900 text-white rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-red-800 transition"><i class="fa-solid fa-trash mr-1"></i> Delete</button>` : `<div class="hidden sm:block">${linkedPC ? '<span class="text-[10px] uppercase text-stone-500 font-bold"><i class="fa-solid fa-lock mr-1"></i> Core Hero Profile</span>' : ''}</div>`}
                     <div class="flex gap-2 w-full sm:w-auto">
@@ -925,7 +921,39 @@ export const copyJournal = () => {
     }
 };
 
+/**
+ * NEW FEATURE: Tag Toggle Logic
+ * Filters Codex cards in the UI by toggling their visibility based on tags.
+ */
+export const toggleCodexTag = (tag) => {
+    const chips = document.querySelectorAll('.tag-chip');
+    const folders = document.querySelectorAll('.codex-folder');
+    
+    // UI toggle for chips
+    chips.forEach(c => {
+        c.classList.remove('bg-amber-400');
+        if(c.dataset.tag === tag) c.classList.add('bg-amber-400');
+    });
+    
+    // Filtering logic for cards inside folders
+    folders.forEach(f => {
+        const cards = f.querySelectorAll('.codex-card');
+        let hasVisible = false;
+        cards.forEach(c => {
+            const tags = JSON.parse(c.dataset.tags || '[]');
+            if (tag === 'All' || tags.includes(tag)) {
+                c.style.display = 'flex';
+                hasVisible = true;
+            } else {
+                c.style.display = 'none';
+            }
+        });
+        f.style.display = hasVisible ? 'block' : 'none';
+    });
+};
+
 if (typeof window !== 'undefined') {
     window.appActions = window.appActions || {};
     window.appActions.updateLocEditFields = updateLocEditFields;
+    window.appActions.toggleCodexTag = toggleCodexTag;
 }
