@@ -1,5 +1,32 @@
 import { getLibraryTabsHTML } from './ui-core.js';
 
+// --- Global Toggle Logic ---
+window.toggleCodexTag = (tag) => {
+    const chips = document.querySelectorAll('.tag-chip');
+    const folders = document.querySelectorAll('.codex-folder');
+    
+    // UI toggle
+    chips.forEach(c => {
+        if(c.dataset.tag === tag) c.classList.toggle('bg-amber-400');
+    });
+    
+    // Filtering logic
+    folders.forEach(f => {
+        const cards = f.querySelectorAll('.codex-card');
+        let hasVisible = false;
+        cards.forEach(c => {
+            const tags = JSON.parse(c.dataset.tags || '[]');
+            if (tag === 'All' || tags.includes(tag)) {
+                c.style.display = 'flex';
+                hasVisible = true;
+            } else {
+                c.style.display = 'none';
+            }
+        });
+        f.style.display = hasVisible ? 'block' : 'none';
+    });
+};
+
 export function getCodexHTML(state) {
     const camp = state.activeCampaign;
     if (!camp) return '';
@@ -183,37 +210,7 @@ export function getCodexHTML(state) {
         html += `</div>`; // Close codex-folders
     }
     
-    html += `
-    </div>
-    
-    <script>
-    window.toggleCodexTag = (tag) => {
-        const chips = document.querySelectorAll('.tag-chip');
-        const folders = document.querySelectorAll('.codex-folder');
-        
-        // UI toggle
-        chips.forEach(c => {
-            if(c.dataset.tag === tag) c.classList.toggle('bg-amber-400');
-        });
-        
-        // Filtering logic
-        folders.forEach(f => {
-            const cards = f.querySelectorAll('.codex-card');
-            let hasVisible = false;
-            cards.forEach(c => {
-                const tags = JSON.parse(c.dataset.tags || '[]');
-                if (tag === 'All' || tags.includes(tag)) {
-                    c.style.display = 'flex';
-                    hasVisible = true;
-                } else {
-                    c.style.display = 'none';
-                }
-            });
-            f.style.display = hasVisible ? 'block' : 'none';
-        });
-    };
-    </script>
-    `;
+    html += `</div>`;
     return html;
 }
 
