@@ -45,7 +45,7 @@ export function getCodexHTML(state) {
                 <div class="flex flex-wrap gap-1.5 mt-2 pl-1 pb-1">
                     ${groupedTags[letter].map(tag => {
                         const safeTag = tag.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                        return `<button onclick="window.appActions.toggleCodexTag('${safeTag}')" class="px-2.5 py-1 bg-white border border-stone-300 rounded-sm text-[10px] uppercase font-bold text-stone-600 hover:bg-amber-50 hover:text-amber-800 hover:border-amber-400 transition-all tag-chip shadow-sm" data-tag="${safeTag}">${tag}</button>`;
+                        return `<button onclick="window.toggleCodexTag('${safeTag}')" class="px-2.5 py-1 bg-white border border-stone-300 rounded-sm text-[10px] uppercase font-bold text-stone-600 hover:bg-amber-50 hover:text-amber-800 hover:border-amber-400 transition-all tag-chip shadow-sm" data-tag="${safeTag}">${tag}</button>`;
                     }).join('')}
                 </div>
             </div>
@@ -110,7 +110,7 @@ export function getCodexHTML(state) {
         <div class="mb-6 space-y-4">
             <div class="relative">
                 <i class="fa-solid fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-stone-400 text-sm"></i>
-                <input type="text" id="codex-search" class="w-full pl-10 pr-4 py-3.5 bg-white border border-[#d4c5a9] text-stone-900 text-sm font-bold rounded-sm focus:outline-none focus:border-amber-600 shadow-sm placeholder:font-normal placeholder:text-stone-400 transition-colors" placeholder="Search the archives..." onkeyup="window.appActions.updateCodexFilters()">
+                <input type="text" id="codex-search" class="w-full pl-10 pr-4 py-3.5 bg-white border border-[#d4c5a9] text-stone-900 text-sm font-bold rounded-sm focus:outline-none focus:border-amber-600 shadow-sm placeholder:font-normal placeholder:text-stone-400 transition-colors" placeholder="Search the archives..." onkeyup="window.updateCodexFilters()">
             </div>
             
             <!-- Scrollable Tag Box -->
@@ -120,7 +120,7 @@ export function getCodexHTML(state) {
                         <span class="text-[10px] font-bold text-stone-500 uppercase tracking-widest"><i class="fa-solid fa-tags mr-1"></i> Filter by Tags</span>
                         <p class="text-[9px] text-stone-400 normal-case tracking-normal italic mt-0.5">Entries must contain ALL selected tags.</p>
                     </div>
-                    <button id="tag-chip-all" onclick="window.appActions.toggleCodexTag('All')" class="px-3 py-1.5 bg-stone-900 text-amber-500 border border-stone-700 rounded-sm text-[10px] uppercase font-bold transition-all shadow-sm">Clear Filters</button>
+                    <button id="tag-chip-all" onclick="window.toggleCodexTag('All')" class="px-3 py-1.5 bg-stone-900 text-amber-500 border border-stone-700 rounded-sm text-[10px] uppercase font-bold transition-all shadow-sm">Clear Filters</button>
                 </div>
                 <div class="h-48 overflow-y-auto custom-scrollbar pr-2 mt-1">
                     ${tagsHtml}
@@ -211,7 +211,7 @@ export function getCodexHTML(state) {
     html += `</div>`;
     
     // Apply filters immediately to respect persisted state across re-renders
-    setTimeout(() => { if (window.appActions && window.appActions.updateCodexFilters) window.appActions.updateCodexFilters(); }, 50);
+    setTimeout(() => { if (window.updateCodexFilters) window.updateCodexFilters(); }, 50);
 
     return html;
 }
@@ -261,13 +261,14 @@ export function getJournalHTML(state) {
     return html;
 }
 
-// --- BIND JAVASCRIPT LOGIC TO GLOBAL ACTIONS DIRECTLY ---
+// --- BIND JAVASCRIPT LOGIC TO GLOBAL WINDOW DIRECTLY ---
+// By binding these directly to 'window' rather than 'window.appActions', we guarantee they
+// won't be overwritten by data.js later in the load cycle!
 if (typeof window !== 'undefined') {
     window.appData = window.appData || {};
     window.appData.activeCodexTags = window.appData.activeCodexTags || new Set();
-    window.appActions = window.appActions || {};
 
-    window.appActions.toggleCodexTag = (tag) => {
+    window.toggleCodexTag = (tag) => {
         if (tag === 'All') {
             window.appData.activeCodexTags.clear();
         } else {
@@ -277,10 +278,10 @@ if (typeof window !== 'undefined') {
                 window.appData.activeCodexTags.add(tag);
             }
         }
-        window.appActions.updateCodexFilters();
+        window.updateCodexFilters();
     };
 
-    window.appActions.updateCodexFilters = () => {
+    window.updateCodexFilters = () => {
         const searchInput = document.getElementById('codex-search');
         if (!searchInput) return;
         
