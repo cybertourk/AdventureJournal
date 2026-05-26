@@ -106,24 +106,26 @@ export function getCodexHTML(state) {
     <div class="animate-in fade-in duration-300 pb-12 max-w-5xl mx-auto">
         ${getLibraryTabsHTML('codex')}
 
-        <!-- Thematic Search Bar & Filters -->
+        <!-- Thematic Search Bar & Collapsible Filters -->
         <div class="mb-6 space-y-4">
             <div class="relative">
                 <i class="fa-solid fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-stone-400 text-sm"></i>
                 <input type="text" id="codex-search" class="w-full pl-10 pr-4 py-3.5 bg-white border border-[#d4c5a9] text-stone-900 text-sm font-bold rounded-sm focus:outline-none focus:border-amber-600 shadow-sm placeholder:font-normal placeholder:text-stone-400 transition-colors" placeholder="Search the archives..." onkeyup="window.updateCodexFilters()">
             </div>
             
-            <!-- Scrollable Tag Box -->
-            <div class="bg-white border border-[#d4c5a9] rounded-sm shadow-sm p-4">
-                <div class="flex justify-between items-center mb-3 border-b border-[#d4c5a9] pb-3">
-                    <div>
-                        <span class="text-[10px] font-bold text-stone-500 uppercase tracking-widest"><i class="fa-solid fa-tags mr-1"></i> Filter by Tags</span>
-                        <p class="text-[9px] text-stone-400 normal-case tracking-normal italic mt-0.5">Entries must contain ALL selected tags.</p>
+            <div class="bg-white border border-[#d4c5a9] rounded-sm shadow-sm overflow-hidden">
+                <button onclick="const el=document.getElementById('tag-box-content'); el.classList.toggle('hidden'); if(el.classList.contains('hidden')) window.toggleCodexTag('All');" class="w-full flex justify-between items-center p-3 text-[10px] font-bold text-stone-600 uppercase tracking-widest hover:bg-stone-50">
+                    <span><i class="fa-solid fa-tags mr-1"></i> Filter by Tags</span>
+                    <i class="fa-solid fa-chevron-down"></i>
+                </button>
+                <div id="tag-box-content" class="hidden p-4 border-t border-[#d4c5a9]">
+                    <div class="flex justify-between items-center mb-3 border-b border-[#d4c5a9] pb-3">
+                        <p class="text-[9px] text-stone-400 normal-case tracking-normal italic">Entries must contain ALL selected tags.</p>
+                        <button id="tag-chip-all" onclick="window.toggleCodexTag('All')" class="px-3 py-1.5 bg-stone-900 text-amber-500 border border-stone-700 rounded-sm text-[10px] uppercase font-bold transition-all shadow-sm">Clear Filters</button>
                     </div>
-                    <button id="tag-chip-all" onclick="window.toggleCodexTag('All')" class="px-3 py-1.5 bg-stone-900 text-amber-500 border border-stone-700 rounded-sm text-[10px] uppercase font-bold transition-all shadow-sm">Clear Filters</button>
-                </div>
-                <div class="h-48 overflow-y-auto custom-scrollbar pr-2 mt-1">
-                    ${tagsHtml}
+                    <div class="h-48 overflow-y-auto custom-scrollbar pr-2 mt-1">
+                        ${tagsHtml}
+                    </div>
                 </div>
             </div>
         </div>
