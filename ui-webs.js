@@ -328,5 +328,11 @@ export function getWebsHTML(state) {
     </div>
     `;
 
+    setTimeout(() => {
+        if (window.appActions && window.appActions.renderMermaidWeb) {
+            window.appActions.renderMermaidWeb();
+        }
+    }, 50);
+
     return html;
 }
