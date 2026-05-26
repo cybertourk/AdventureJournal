@@ -279,6 +279,12 @@
     <!-- Global Popup Container (Codex Modals injected here) -->
     <div id="global-popup-container"></div>
 
+    <!-- FULL SCREEN IMAGE VIEWER -->
+    <div id="fullscreen-image-viewer" class="hidden fixed inset-0 bg-stone-950/95 z-[30000] flex items-center justify-center backdrop-blur-sm transition-opacity duration-300 opacity-0 cursor-zoom-out" onclick="window.appActions.closeFullscreenImage()">
+        <button onclick="event.stopPropagation(); window.appActions.closeFullscreenImage()" class="absolute top-4 right-4 sm:top-6 sm:right-6 text-stone-400 hover:text-white transition z-10 bg-black/50 rounded-full w-10 h-10 flex items-center justify-center shadow-lg"><i class="fa-solid fa-xmark text-xl"></i></button>
+        <img id="fullscreen-image-display" src="" class="max-w-full max-h-full object-contain p-2 sm:p-4 scale-95 transition-transform duration-300 shadow-2xl">
+    </div>
+
     <!-- ACCOUNT SETTINGS MODAL -->
     <div id="account-settings-modal" class="hidden fixed inset-0 bg-stone-950/90 z-[15000] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-300">
         <div class="bg-[#f4ebd8] p-6 sm:p-8 rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] max-w-md w-full relative overflow-hidden">
