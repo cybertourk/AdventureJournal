@@ -2,6 +2,7 @@ import { auth, db, appId, onAuthStateChanged } from './firebase-config.js';
 import { subscribeToCampaigns, subscribeToPlayerCampaigns, subscribeToPersonalData, logoutUser, deleteUserAccount } from './firebase-manager.js';
 import { initAuthUI } from './ui-auth.js';
 import { setCampaignsData } from './data.js';
+import { updateDerivedState, reRender } from './state.js'; // Added missing imports!
 
 // Ensure the global state is available
 if (!window.appData) {
@@ -333,5 +334,3 @@ if (typeof window !== 'undefined' && typeof history !== 'undefined') {
         }
     });
 }
-
-export { setCampaignsData };
