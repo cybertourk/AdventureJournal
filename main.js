@@ -2,7 +2,7 @@ import { auth, db, appId, onAuthStateChanged } from './firebase-config.js';
 import { subscribeToCampaigns, subscribeToPlayerCampaigns, subscribeToPersonalData, logoutUser, deleteUserAccount } from './firebase-manager.js';
 import { initAuthUI } from './ui-auth.js';
 import { setCampaignsData } from './data.js';
-import { updateDerivedState, reRender } from './state.js'; // Added missing imports!
+import { updateDerivedState, reRender } from './state.js'; 
 
 // Ensure the global state is available
 if (!window.appData) {
@@ -23,9 +23,49 @@ if (!window.appData) {
     };
 }
 
+// Fullscreen Image Functions
+const openFullscreenImage = (src) => {
+    const viewer = document.getElementById('fullscreen-image-viewer');
+    const img = document.getElementById('fullscreen-image-display');
+    if (!viewer || !img) return;
+    
+    img.src = src;
+    viewer.classList.remove('hidden');
+    // Trigger reflow for transition
+    void viewer.offsetWidth;
+    viewer.classList.remove('opacity-0');
+    img.classList.remove('scale-95');
+    img.classList.add('scale-100');
+    
+    // Push history state to intercept phone back button
+    if (typeof history !== 'undefined') {
+        history.pushState({ fullscreenImage: true }, "", "#image");
+    }
+};
+
+const closeFullscreenImage = () => {
+    const viewer = document.getElementById('fullscreen-image-viewer');
+    const img = document.getElementById('fullscreen-image-display');
+    if (!viewer || viewer.classList.contains('hidden')) return;
+    
+    viewer.classList.add('opacity-0');
+    if (img) {
+        img.classList.remove('scale-100');
+        img.classList.add('scale-95');
+    }
+    
+    setTimeout(() => {
+        viewer.classList.add('hidden');
+        if (img) img.src = '';
+    }, 300);
+};
+
 // Bind entry router globally
 if (typeof window !== 'undefined') {
     window.appActions = window.appActions || {};
+    
+    window.appActions.openFullscreenImage = openFullscreenImage;
+    window.appActions.closeFullscreenImage = closeFullscreenImage;
     
     window.appActions.enterApp = () => {
         const authScreen = document.getElementById('auth-screen');
@@ -99,6 +139,25 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // Global Image Click Listener for Full Screen Viewer
+    document.body.addEventListener('click', (e) => {
+        if (e.target.tagName === 'IMG') {
+            // Ignore Leaflet map tiles
+            if (e.target.classList.contains('leaflet-tile')) return;
+            // Ignore thumbnails inside clickable codex cards to prevent double-triggering
+            if (e.target.closest('.codex-card')) return;
+            // Ignore the fullscreen viewer's own image to avoid closing/reopening loops
+            if (e.target.closest('#fullscreen-image-viewer')) return;
+            // Ignore tiny UI icons or avatars
+            if (e.target.clientWidth < 40 && e.target.clientHeight < 40) return;
+
+            const src = e.target.src;
+            if (src && window.appActions && window.appActions.openFullscreenImage) {
+                window.appActions.openFullscreenImage(src);
+            }
+        }
+    });
 
     // Temporary storage for our two separate data streams
     let hostedCampaigns = [];
@@ -269,12 +328,16 @@ if (typeof window !== 'undefined' && typeof history !== 'undefined') {
         const univEditor = document.getElementById('universal-editor-modal');
         const settingsModal = document.getElementById('account-settings-modal');
         const visibilityModal = document.getElementById('visibility-modal');
+        const imageViewer = document.getElementById('fullscreen-image-viewer');
         
         let modalClosed = false;
         
         // Check if Atlas is in Full Screen Mode
         if (window.appData && window.appData.isAtlasFullScreen) {
             window.appActions.toggleAtlasFullScreen();
+            modalClosed = true;
+        } else if (imageViewer && !imageViewer.classList.contains('hidden')) {
+            window.appActions.closeFullscreenImage();
             modalClosed = true;
         } else if (visibilityModal && !visibilityModal.classList.contains('hidden')) {
             visibilityModal.classList.add('hidden');
