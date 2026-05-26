@@ -78,10 +78,18 @@ export const parseSmartText = (text, contextId = null) => {
         let parts = safeText.split(/(<[^>]+>)/g);
         for (let i = 0; i < parts.length; i++) {
             if (parts[i].startsWith('<') && parts[i].endsWith('>')) continue;
-            parts[i] = parts[i].replace(massiveRegex, (match) => {
+            parts[i] = parts[i].replace(massiveRegex, (match, p1, offset, string) => {
                 const entry = sortedCache.find(e => e.text.toLowerCase() === match.toLowerCase());
                 
                 if (entry) {
+                    // NEW FEATURE: Prevent Linking Check!
+                    // If the word is prefixed with a backslash '\', skip linking it entirely!
+                    // This prevents it from entering the 'linkedIds' set, forcing the auto-linker 
+                    // to find the NEXT instance of the word in the text block to link instead.
+                    if (offset > 0 && string.charAt(offset - 1) === '\\') {
+                        return match; 
+                    }
+
                     // PREVENT SELF-LINKING: Don't link an entry to itself if we are currently viewing it
                     if (entry.id === contextId) return match;
                     
@@ -110,6 +118,9 @@ export const parseSmartText = (text, contextId = null) => {
     safeText = safeText.replace(/<\/h4><br>/g, '</h4>');
     safeText = safeText.replace(/<\/li><br>/g, '</li>');
     safeText = safeText.replace(/(<hr[^>]*>)<br>/g, '$1');
+
+    // CLEANUP: Strip the escape backslash '\' used to prevent linking so it renders cleanly
+    safeText = safeText.replace(/\\(?=[a-zA-Z0-9])/g, '');
 
     return safeText;
 };
@@ -193,7 +204,7 @@ export const _showSuggestions = (matches, inputEl, cursor, triggerLen) => {
     });
 };
 
-// --- NEW FEATURE: CREATE ENTRY FROM HIGHLIGHTED TEXT (CASCADE SAVE PROTECTED) ---
+// --- CREATE ENTRY FROM HIGHLIGHTED TEXT ---
 export const defineEntryFromSelection = async (textareaId) => {
     const textarea = document.getElementById(textareaId);
     if (!textarea) return;
@@ -238,6 +249,48 @@ export const defineEntryFromSelection = async (textareaId) => {
 
     // 3. Open a fresh Codex Modal, prefilling the name! 
     window.appActions._openCodexModal({ isNew: true, name: selectedText });
+};
+
+// --- NEW FEATURE: PREVENT AUTO-LINKING FROM SELECTION ---
+export const preventLinkFromSelection = async (textareaId) => {
+    const textarea = document.getElementById(textareaId);
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = textarea.value.substring(start, end).trim();
+    
+    if (!selectedText) {
+        notify("Please highlight a word to prevent it from linking.", "error");
+        return;
+    }
+
+    const text = textarea.value;
+    const before = text.substring(0, start);
+    const after = text.substring(end);
+
+    // Inject a backslash immediately before the highlighted word
+    textarea.value = before + '\\' + text.substring(start, end) + after;
+
+    // Auto-save mechanisms to ensure data isn't lost if they exit
+    if (textareaId === 'cx-modal-desc' || textareaId === 'cx-modal-dmnotes') {
+        await window.appActions.saveCodexEntry();
+    } 
+    else if (textareaId === 'rule-modal-text') {
+        await window.appActions.saveRule();
+    }
+    else if (textareaId === 'cal-note-text') {
+        await window.appActions.saveCalendarNote();
+    }
+    else if (textareaId === 'ue-textarea') {
+        window.appActions.saveUniversalEditor();
+    } else {
+        textarea.dispatchEvent(new Event('input'));
+    }
+
+    // Restore selection focus
+    textarea.focus();
+    textarea.setSelectionRange(start, end + 1); 
 };
 
 // --- DYNAMIC LOCATION FIELDS TOGGLE ---
@@ -579,6 +632,7 @@ export const _openCodexModal = (entry) => {
         <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[17000] backdrop-blur-sm animate-in">
             <div class="bg-[#f4ebd8] rounded-sm shadow-2xl w-full max-w-2xl border border-[#d4c5a9] overflow-hidden flex flex-col max-h-[90vh]">
                 
+                <!-- Header -->
                 <div class="bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-[#292524] p-4 flex justify-between items-center border-b-2 border-red-900 shadow-md">
                     <div class="flex items-center gap-3">
                         <i class="fa-solid fa-book-journal-whills text-amber-500 text-xl"></i>
@@ -593,6 +647,7 @@ export const _openCodexModal = (entry) => {
                     </div>
                 </div>
 
+                <!-- View Mode -->
                 <div id="cx-view-mode" class="p-5 sm:p-8 overflow-y-auto custom-scrollbar flex-grow bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-[#fdfbf7] ${viewHidden}">
                     ${imgHTML}
                     <div class="mb-6">
@@ -610,6 +665,7 @@ export const _openCodexModal = (entry) => {
                     ${privateDataHTML}
                 </div>
 
+                <!-- Edit Mode -->
                 <div id="cx-edit-mode" class="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-grow bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-[#fdfbf7] ${editHidden}">
                     <input type="hidden" id="cx-modal-id" value="${id}">
                     <div class="bg-red-900 text-amber-50 text-xs font-bold uppercase tracking-wider py-1 px-3 inline-block rounded-sm mb-4 shadow-sm">
@@ -686,6 +742,7 @@ export const _openCodexModal = (entry) => {
 
                 </div>
 
+                <!-- Actions -->
                 <div id="cx-edit-actions" class="p-4 bg-stone-200 border-t border-[#d4c5a9] flex flex-wrap-reverse sm:flex-nowrap justify-between gap-3 shrink-0 ${editHidden}">
                     ${(!isNew && canDelete) ? `<button onclick="window.appActions.deleteCodexEntry('${id}')" class="w-full sm:w-auto px-4 py-2 bg-red-900 text-white rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-red-800 transition"><i class="fa-solid fa-trash mr-1"></i> Delete</button>` : `<div class="hidden sm:block">${linkedPC ? '<span class="text-[10px] uppercase text-stone-500 font-bold"><i class="fa-solid fa-lock mr-1"></i> Core Hero Profile</span>' : ''}</div>`}
                     <div class="flex gap-2 w-full sm:w-auto">
@@ -921,39 +978,8 @@ export const copyJournal = () => {
     }
 };
 
-/**
- * NEW FEATURE: Tag Toggle Logic
- * Filters Codex cards in the UI by toggling their visibility based on tags.
- */
-export const toggleCodexTag = (tag) => {
-    const chips = document.querySelectorAll('.tag-chip');
-    const folders = document.querySelectorAll('.codex-folder');
-    
-    // UI toggle for chips
-    chips.forEach(c => {
-        c.classList.remove('bg-amber-400');
-        if(c.dataset.tag === tag) c.classList.add('bg-amber-400');
-    });
-    
-    // Filtering logic for cards inside folders
-    folders.forEach(f => {
-        const cards = f.querySelectorAll('.codex-card');
-        let hasVisible = false;
-        cards.forEach(c => {
-            const tags = JSON.parse(c.dataset.tags || '[]');
-            if (tag === 'All' || tags.includes(tag)) {
-                c.style.display = 'flex';
-                hasVisible = true;
-            } else {
-                c.style.display = 'none';
-            }
-        });
-        f.style.display = hasVisible ? 'block' : 'none';
-    });
-};
-
 if (typeof window !== 'undefined') {
     window.appActions = window.appActions || {};
     window.appActions.updateLocEditFields = updateLocEditFields;
-    window.appActions.toggleCodexTag = toggleCodexTag;
+    window.appActions.preventLinkFromSelection = preventLinkFromSelection;
 }
