@@ -1,5 +1,16 @@
 import { getLibraryTabsHTML } from './ui-core.js';
 
+// --- SECURITY HELPER: Prevent HTML Attribute Corruption ---
+const escapeHTML = (str) => {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+};
+
 export function getCodexHTML(state) {
     const camp = state.activeCampaign;
     if (!camp) return '';
@@ -44,8 +55,10 @@ export function getCodexHTML(state) {
                 <div class="sticky top-0 bg-stone-200 text-stone-700 font-bold text-[10px] px-2 py-1 rounded-sm uppercase tracking-widest z-10 shadow-sm border border-stone-300">${letter}</div>
                 <div class="flex flex-wrap gap-1.5 mt-2 pl-1 pb-1">
                     ${groupedTags[letter].map(tag => {
-                        const safeTag = tag.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                        return `<button onclick="window.toggleCodexTag('${safeTag}')" class="px-2.5 py-1 bg-white border border-stone-300 rounded-sm text-[10px] uppercase font-bold text-stone-600 hover:bg-amber-50 hover:text-amber-800 hover:border-amber-400 transition-all tag-chip shadow-sm" data-tag="${safeTag}">${tag}</button>`;
+                        // Bulletproof escaping to prevent the Javascript engine OR the HTML attributes from crashing
+                        const safeTagForAttr = escapeHTML(tag);
+                        const safeTagForJS = tag.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"');
+                        return `<button onclick="window.toggleCodexTag('${safeTagForJS}')" class="px-2.5 py-1 bg-white border border-stone-300 rounded-sm text-[10px] uppercase font-bold text-stone-600 hover:bg-amber-50 hover:text-amber-800 hover:border-amber-400 transition-all tag-chip shadow-sm" data-tag="${safeTagForAttr}">${escapeHTML(tag)}</button>`;
                     }).join('')}
                 </div>
             </div>
@@ -169,6 +182,10 @@ export function getCodexHTML(state) {
                     const tagsStr = (c.tags || []).join(', ');
                     const vis = getVisStatus(c);
                     
+                    // Generate securely encoded HTML payloads to protect the parser from crashing
+                    const safeSearch = escapeHTML(`${c.name.toLowerCase()} ${c.type.toLowerCase()} ${tagsStr.toLowerCase()}`);
+                    const safeTagsJSON = escapeHTML(JSON.stringify(c.tags || []));
+
                     const visBadge = canEdit ? `
                         <div class="relative z-10 flex-shrink-0 ml-2" onclick="event.stopPropagation()">
                             <input type="hidden" class="vis-mode-input" value="${vis.mode}">
@@ -180,20 +197,20 @@ export function getCodexHTML(state) {
                     ` : '';
 
                     html += `
-                    <div class="codex-card bg-white p-0 rounded-sm border border-[#d4c5a9] shadow-sm flex group relative overflow-hidden hover:shadow-md hover:-translate-y-[1px] transition duration-200 cursor-pointer h-20 sm:h-24" onclick="window.appActions.viewCodex('${c.id}')" data-search="${c.name.toLowerCase()} ${c.type.toLowerCase()} ${tagsStr.toLowerCase()}" data-tags='${JSON.stringify(c.tags || [])}'>
+                    <div class="codex-card bg-white p-0 rounded-sm border border-[#d4c5a9] shadow-sm flex group relative overflow-hidden hover:shadow-md hover:-translate-y-[1px] transition duration-200 cursor-pointer h-20 sm:h-24" onclick="window.appActions.viewCodex('${c.id}')" data-search="${safeSearch}" data-tags="${safeTagsJSON}">
                         <div class="absolute top-0 left-0 w-1 h-full bg-stone-400 group-hover:bg-amber-500 transition-colors z-20"></div>
                         
-                        ${c.image ? `<div class="w-20 sm:w-24 h-full shrink-0 border-r border-[#d4c5a9] bg-stone-900 overflow-hidden relative z-10"><img src="${c.image}" alt="${c.name}" class="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105" onerror="this.style.display='none'"></div>` : ''}
+                        ${c.image ? `<div class="w-20 sm:w-24 h-full shrink-0 border-r border-[#d4c5a9] bg-stone-900 overflow-hidden relative z-10"><img src="${escapeHTML(c.image)}" alt="${escapeHTML(c.name)}" class="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105" onerror="this.style.display='none'"></div>` : ''}
                         
                         <div class="p-3 flex-grow flex flex-col justify-center min-w-0 relative z-10">
                             <div class="flex justify-between items-start mb-1">
-                                <h3 class="font-serif font-bold text-sm sm:text-base text-stone-900 truncate pr-2 leading-none" title="${c.name}">${c.name}</h3>
+                                <h3 class="font-serif font-bold text-sm sm:text-base text-stone-900 truncate pr-2 leading-none" title="${escapeHTML(c.name)}">${escapeHTML(c.name)}</h3>
                                 ${visBadge}
                             </div>
                             <div class="flex items-center gap-1 mb-1 flex-wrap overflow-hidden h-[18px]">
-                                ${(c.tags || []).map(t => `<span class="text-[8px] font-bold uppercase tracking-wider text-stone-500 bg-stone-200 px-1.5 py-0.5 rounded-sm truncate max-w-[80px]">${t}</span>`).join('')}
+                                ${(c.tags || []).map(t => `<span class="text-[8px] font-bold uppercase tracking-wider text-stone-500 bg-stone-200 px-1.5 py-0.5 rounded-sm truncate max-w-[80px]" title="${escapeHTML(t)}">${escapeHTML(t)}</span>`).join('')}
                             </div>
-                            <p class="text-[10px] sm:text-[11px] text-stone-500 font-sans truncate italic leading-tight">"${c.desc || 'No description...'}"</p>
+                            <p class="text-[10px] sm:text-[11px] text-stone-500 font-sans truncate italic leading-tight">"${escapeHTML(c.desc) || 'No description...'}"</p>
                         </div>
                     </div>
                     `;
@@ -240,7 +257,7 @@ export function getJournalHTML(state) {
             <div class="bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-stone-900 p-3 sm:p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center text-amber-500 shrink-0 border-b-2 sm:border-b-4 border-red-900 gap-3 sm:gap-0 shadow-md z-10">
                 <h2 class="text-base sm:text-xl font-serif font-bold flex items-center w-full sm:w-auto min-w-0">
                     <i class="fa-solid fa-scroll mr-2 sm:mr-3 text-red-700 flex-shrink-0"></i> 
-                    <span class="truncate pr-2">${title}</span>
+                    <span class="truncate pr-2">${escapeHTML(title)}</span>
                 </h2>
                 <div class="flex gap-2 w-full sm:w-auto self-end flex-shrink-0">
                     <button id="journal-copy-btn" onclick="window.appActions.copyJournal()" class="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider flex justify-center items-center transition shadow-md bg-stone-700 text-amber-50 hover:bg-stone-600 border border-stone-500">
@@ -271,102 +288,118 @@ if (typeof window !== 'undefined') {
     window.appData.activeCodexTags = window.appData.activeCodexTags || new Set();
 
     window.toggleCodexTag = (tag) => {
-        if (tag === 'All') {
-            window.appData.activeCodexTags.clear();
-        } else {
-            if (window.appData.activeCodexTags.has(tag)) {
-                window.appData.activeCodexTags.delete(tag);
+        try {
+            console.log(`Toggling Codex Tag: ${tag}`);
+            if (tag === 'All') {
+                window.appData.activeCodexTags.clear();
             } else {
-                window.appData.activeCodexTags.add(tag);
+                if (window.appData.activeCodexTags.has(tag)) {
+                    window.appData.activeCodexTags.delete(tag);
+                } else {
+                    window.appData.activeCodexTags.add(tag);
+                }
             }
+            window.updateCodexFilters();
+        } catch(e) {
+            console.error("Filter Engine Error: Failed to toggle tag.", e);
         }
-        window.updateCodexFilters();
     };
 
     window.updateCodexFilters = () => {
-        const searchInput = document.getElementById('codex-search');
-        if (!searchInput) return;
-        
-        const query = searchInput.value.toLowerCase().trim();
-        const folders = document.querySelectorAll('.codex-folder');
-        const chips = document.querySelectorAll('.tag-chip');
-        const allBtn = document.getElementById('tag-chip-all');
-        
-        // Update UI for Tag Chips
-        chips.forEach(c => {
-            if (window.appData.activeCodexTags.has(c.dataset.tag)) {
-                c.classList.add('bg-amber-100', 'border-amber-400', 'text-amber-900');
-                c.classList.remove('bg-white', 'border-stone-300', 'text-stone-600');
-            } else {
-                c.classList.remove('bg-amber-100', 'border-amber-400', 'text-amber-900');
-                c.classList.add('bg-white', 'border-stone-300', 'text-stone-600');
-            }
-        });
-
-        if (window.appData.activeCodexTags.size === 0) {
-            if (allBtn) {
-                allBtn.classList.add('bg-stone-900', 'text-amber-500', 'border-stone-700');
-                allBtn.classList.remove('bg-white', 'text-stone-600', 'border-stone-300');
-            }
-        } else {
-            if (allBtn) {
-                allBtn.classList.remove('bg-stone-900', 'text-amber-500', 'border-stone-700');
-                allBtn.classList.add('bg-white', 'text-stone-600', 'border-stone-300');
-            }
-        }
-        
-        // Filter Folders and Cards
-        folders.forEach(f => {
-            const cards = f.querySelectorAll('.codex-card');
-            let hasVisible = false;
+        try {
+            const searchInput = document.getElementById('codex-search');
+            if (!searchInput) return;
             
-            cards.forEach(c => {
-                const tagsRaw = c.getAttribute('data-tags');
-                const tags = tagsRaw ? JSON.parse(tagsRaw) : [];
-                const searchData = c.getAttribute('data-search') || '';
-                
-                const matchesSearch = query === '' || searchData.includes(query);
-                
-                let matchesTags = true;
-                if (window.appData.activeCodexTags.size > 0) {
-                    for (let activeTag of window.appData.activeCodexTags) {
-                        if (!tags.includes(activeTag)) {
-                            matchesTags = false;
-                            break;
-                        }
-                    }
-                }
-
-                if (matchesSearch && matchesTags) {
-                    c.style.display = 'flex';
-                    hasVisible = true;
+            const query = searchInput.value.toLowerCase().trim();
+            const folders = document.querySelectorAll('.codex-folder');
+            const chips = document.querySelectorAll('.tag-chip');
+            const allBtn = document.getElementById('tag-chip-all');
+            
+            // Update UI for Tag Chips
+            chips.forEach(c => {
+                const tagValue = c.getAttribute('data-tag');
+                if (window.appData.activeCodexTags.has(tagValue)) {
+                    c.classList.add('bg-amber-100', 'border-amber-400', 'text-amber-900');
+                    c.classList.remove('bg-white', 'border-stone-300', 'text-stone-600');
                 } else {
-                    c.style.display = 'none';
+                    c.classList.remove('bg-amber-100', 'border-amber-400', 'text-amber-900');
+                    c.classList.add('bg-white', 'border-stone-300', 'text-stone-600');
                 }
             });
 
-            const content = f.querySelector('.folder-content');
-            const chevron = f.querySelector('.folder-chevron');
-            const button = f.querySelector('button');
-
-            if (query !== '' || window.appData.activeCodexTags.size > 0) {
-                if (hasVisible) {
-                    f.style.display = 'block';
-                    content.classList.remove('hidden');
-                    chevron.classList.add('rotate-180');
-                    button.classList.add('border-stone-700');
-                } else {
-                    f.style.display = 'none';
+            if (window.appData.activeCodexTags.size === 0) {
+                if (allBtn) {
+                    allBtn.classList.add('bg-stone-900', 'text-amber-500', 'border-stone-700');
+                    allBtn.classList.remove('bg-white', 'text-stone-600', 'border-stone-300');
                 }
             } else {
-                f.style.display = hasVisible ? 'block' : 'none';
-                // Reset styling when completely cleared to let user manually expand/collapse
-                if (hasVisible) {
-                    content.classList.add('hidden');
-                    chevron.classList.remove('rotate-180');
-                    button.classList.remove('border-stone-700');
+                if (allBtn) {
+                    allBtn.classList.remove('bg-stone-900', 'text-amber-500', 'border-stone-700');
+                    allBtn.classList.add('bg-white', 'text-stone-600', 'border-stone-300');
                 }
             }
-        });
+            
+            // Filter Folders and Cards
+            folders.forEach(f => {
+                const cards = f.querySelectorAll('.codex-card');
+                let hasVisible = false;
+                
+                cards.forEach(c => {
+                    let tags = [];
+                    // Try-catch wrapped specifically around JSON.parse to prevent a single bad item from crashing the loop!
+                    try {
+                        const tagsRaw = c.getAttribute('data-tags');
+                        tags = tagsRaw ? JSON.parse(tagsRaw) : [];
+                    } catch (parseErr) {
+                        console.warn("Filter Engine recovered from a corrupted tag JSON payload.", parseErr);
+                    }
+                    
+                    const searchData = c.getAttribute('data-search') || '';
+                    const matchesSearch = query === '' || searchData.includes(query);
+                    
+                    let matchesTags = true;
+                    if (window.appData.activeCodexTags.size > 0) {
+                        for (let activeTag of window.appData.activeCodexTags) {
+                            if (!tags.includes(activeTag)) {
+                                matchesTags = false;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (matchesSearch && matchesTags) {
+                        c.style.display = 'flex';
+                        hasVisible = true;
+                    } else {
+                        c.style.display = 'none';
+                    }
+                });
+
+                const content = f.querySelector('.folder-content');
+                const chevron = f.querySelector('.folder-chevron');
+                const button = f.querySelector('button');
+
+                if (query !== '' || window.appData.activeCodexTags.size > 0) {
+                    if (hasVisible) {
+                        f.style.display = 'block';
+                        if (content) content.classList.remove('hidden');
+                        if (chevron) chevron.classList.add('rotate-180');
+                        if (button) button.classList.add('border-stone-700');
+                    } else {
+                        f.style.display = 'none';
+                    }
+                } else {
+                    f.style.display = hasVisible ? 'block' : 'none';
+                    // Reset styling when completely cleared to let user manually expand/collapse
+                    if (hasVisible) {
+                        if (content) content.classList.add('hidden');
+                        if (chevron) chevron.classList.remove('rotate-180');
+                        if (button) button.classList.remove('border-stone-700');
+                    }
+                }
+            });
+        } catch (e) {
+            console.error("Filter Engine Error: Loop failed unexpectedly.", e);
+        }
     };
 }
