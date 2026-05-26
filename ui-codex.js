@@ -1,32 +1,5 @@
 import { getLibraryTabsHTML } from './ui-core.js';
 
-// --- Global Toggle Logic ---
-window.toggleCodexTag = (tag) => {
-    const chips = document.querySelectorAll('.tag-chip');
-    const folders = document.querySelectorAll('.codex-folder');
-    
-    // UI toggle
-    chips.forEach(c => {
-        if(c.dataset.tag === tag) c.classList.toggle('bg-amber-400');
-    });
-    
-    // Filtering logic
-    folders.forEach(f => {
-        const cards = f.querySelectorAll('.codex-card');
-        let hasVisible = false;
-        cards.forEach(c => {
-            const tags = JSON.parse(c.dataset.tags || '[]');
-            if (tag === 'All' || tags.includes(tag)) {
-                c.style.display = 'flex';
-                hasVisible = true;
-            } else {
-                c.style.display = 'none';
-            }
-        });
-        f.style.display = hasVisible ? 'block' : 'none';
-    });
-};
-
 export function getCodexHTML(state) {
     const camp = state.activeCampaign;
     if (!camp) return '';
@@ -54,8 +27,30 @@ export function getCodexHTML(state) {
 
     const codex = [...rawCodex, ...autoHeroes];
     
-    // --- TAG EXTRACTION ---
-    const allTags = [...new Set(codex.flatMap(c => c.tags || []))].sort();
+    // --- ALPHABETICAL TAG EXTRACTION & GROUPING ---
+    const allTags = [...new Set(codex.flatMap(c => c.tags || []))].sort((a, b) => a.localeCompare(b));
+    const groupedTags = {};
+    allTags.forEach(tag => {
+        let firstLetter = tag.charAt(0).toUpperCase();
+        if (!/[A-Z]/.test(firstLetter)) firstLetter = '#';
+        if (!groupedTags[firstLetter]) groupedTags[firstLetter] = [];
+        groupedTags[firstLetter].push(tag);
+    });
+
+    let tagsHtml = '';
+    Object.keys(groupedTags).sort().forEach(letter => {
+        tagsHtml += `
+            <div class="mb-4">
+                <div class="sticky top-0 bg-stone-200 text-stone-700 font-bold text-[10px] px-2 py-1 rounded-sm uppercase tracking-widest z-10 shadow-sm border border-stone-300">${letter}</div>
+                <div class="flex flex-wrap gap-1.5 mt-2 pl-1 pb-1">
+                    ${groupedTags[letter].map(tag => {
+                        const safeTag = tag.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                        return `<button onclick="window.toggleCodexTag('${safeTag}')" class="px-2.5 py-1 bg-white border border-stone-300 rounded-sm text-[10px] uppercase font-bold text-stone-600 hover:bg-amber-50 hover:text-amber-800 hover:border-amber-400 transition-all tag-chip shadow-sm" data-tag="${safeTag}">${tag}</button>`;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    });
     
     const isDM = camp._isDM;
     const myUid = state.currentUserUid;
@@ -111,22 +106,25 @@ export function getCodexHTML(state) {
     <div class="animate-in fade-in duration-300 pb-12 max-w-5xl mx-auto">
         ${getLibraryTabsHTML('codex')}
 
-        <!-- Thematic Search Bar -->
+        <!-- Thematic Search Bar & Filters -->
         <div class="mb-6 space-y-4">
             <div class="relative">
                 <i class="fa-solid fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-stone-400 text-sm"></i>
-                <input type="text" id="codex-search" class="w-full pl-10 pr-4 py-3.5 bg-white border border-[#d4c5a9] text-stone-900 text-sm font-bold rounded-full focus:outline-none focus:border-amber-600 shadow-sm placeholder:font-normal placeholder:text-stone-400 transition-colors" placeholder="Search the archives..." onkeyup="window.filterCodex()">
+                <input type="text" id="codex-search" class="w-full pl-10 pr-4 py-3.5 bg-white border border-[#d4c5a9] text-stone-900 text-sm font-bold rounded-sm focus:outline-none focus:border-amber-600 shadow-sm placeholder:font-normal placeholder:text-stone-400 transition-colors" placeholder="Search the archives..." onkeyup="window.updateCodexFilters()">
             </div>
             
-            <!-- Tag Filter Chips -->
-            <div class="flex flex-wrap gap-2 px-1" id="tag-filters">
-                <span class="text-[10px] font-bold text-stone-500 uppercase self-center mr-2">Filter Tags:</span>
-                <button onclick="window.toggleCodexTag('All')" class="px-3 py-1 bg-stone-900 text-amber-500 border border-stone-700 rounded-full text-[10px] uppercase font-bold transition-all">All</button>
-                ${allTags.map(tag => `
-                    <button onclick="window.toggleCodexTag('${tag}')" class="px-3 py-1 bg-white border border-stone-300 rounded-full text-[10px] uppercase font-bold text-stone-600 hover:bg-amber-100 hover:border-amber-400 transition-all tag-chip" data-tag="${tag}">
-                        ${tag}
-                    </button>
-                `).join('')}
+            <!-- Scrollable Tag Box -->
+            <div class="bg-white border border-[#d4c5a9] rounded-sm shadow-sm p-4">
+                <div class="flex justify-between items-center mb-3 border-b border-[#d4c5a9] pb-3">
+                    <div>
+                        <span class="text-[10px] font-bold text-stone-500 uppercase tracking-widest"><i class="fa-solid fa-tags mr-1"></i> Filter by Tags</span>
+                        <p class="text-[9px] text-stone-400 normal-case tracking-normal italic mt-0.5">Entries must contain ALL selected tags.</p>
+                    </div>
+                    <button id="tag-chip-all" onclick="window.toggleCodexTag('All')" class="px-3 py-1.5 bg-stone-900 text-amber-500 border border-stone-700 rounded-sm text-[10px] uppercase font-bold transition-all shadow-sm">Clear Filters</button>
+                </div>
+                <div class="h-48 overflow-y-auto custom-scrollbar pr-2 mt-1">
+                    ${tagsHtml}
+                </div>
             </div>
         </div>
     `;
@@ -210,7 +208,112 @@ export function getCodexHTML(state) {
         html += `</div>`; // Close codex-folders
     }
     
-    html += `</div>`;
+    html += `
+    </div>
+    
+    <script>
+    window.activeCodexTags = window.activeCodexTags || new Set();
+
+    window.toggleCodexTag = (tag) => {
+        if (tag === 'All') {
+            window.activeCodexTags.clear();
+        } else {
+            if (window.activeCodexTags.has(tag)) {
+                window.activeCodexTags.delete(tag);
+            } else {
+                window.activeCodexTags.add(tag);
+            }
+        }
+        window.updateCodexFilters();
+    };
+
+    window.updateCodexFilters = () => {
+        const searchInput = document.getElementById('codex-search');
+        if (!searchInput) return;
+        
+        const query = searchInput.value.toLowerCase().trim();
+        const folders = document.querySelectorAll('.codex-folder');
+        const chips = document.querySelectorAll('.tag-chip');
+        const allBtn = document.getElementById('tag-chip-all');
+        
+        // Update UI for Tag Chips
+        chips.forEach(c => {
+            if (window.activeCodexTags.has(c.dataset.tag)) {
+                c.classList.add('bg-amber-100', 'border-amber-400', 'text-amber-900');
+                c.classList.remove('bg-white', 'border-stone-300', 'text-stone-600');
+            } else {
+                c.classList.remove('bg-amber-100', 'border-amber-400', 'text-amber-900');
+                c.classList.add('bg-white', 'border-stone-300', 'text-stone-600');
+            }
+        });
+
+        if (window.activeCodexTags.size === 0) {
+            allBtn.classList.add('bg-stone-900', 'text-amber-500', 'border-stone-700');
+            allBtn.classList.remove('bg-white', 'text-stone-600', 'border-stone-300');
+        } else {
+            allBtn.classList.remove('bg-stone-900', 'text-amber-500', 'border-stone-700');
+            allBtn.classList.add('bg-white', 'text-stone-600', 'border-stone-300');
+        }
+        
+        // Filter Folders and Cards
+        folders.forEach(f => {
+            const cards = f.querySelectorAll('.codex-card');
+            let hasVisible = false;
+            
+            cards.forEach(c => {
+                const tagsRaw = c.getAttribute('data-tags');
+                const tags = tagsRaw ? JSON.parse(tagsRaw) : [];
+                const searchData = c.getAttribute('data-search') || '';
+                
+                const matchesSearch = query === '' || searchData.includes(query);
+                
+                let matchesTags = true;
+                if (window.activeCodexTags.size > 0) {
+                    for (let activeTag of window.activeCodexTags) {
+                        if (!tags.includes(activeTag)) {
+                            matchesTags = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (matchesSearch && matchesTags) {
+                    c.style.display = 'flex';
+                    hasVisible = true;
+                } else {
+                    c.style.display = 'none';
+                }
+            });
+
+            const content = f.querySelector('.folder-content');
+            const chevron = f.querySelector('.folder-chevron');
+            const button = f.querySelector('button');
+
+            if (query !== '' || window.activeCodexTags.size > 0) {
+                if (hasVisible) {
+                    f.style.display = 'block';
+                    content.classList.remove('hidden');
+                    chevron.classList.add('rotate-180');
+                    button.classList.add('border-stone-700');
+                } else {
+                    f.style.display = 'none';
+                }
+            } else {
+                f.style.display = hasVisible ? 'block' : 'none';
+                // Reset styling when completely cleared to let user manually expand/collapse
+                if (hasVisible) {
+                    content.classList.add('hidden');
+                    chevron.classList.remove('rotate-180');
+                    button.classList.remove('border-stone-700');
+                }
+            }
+        });
+    };
+    
+    // Apply filters immediately to respect persisted state across re-renders
+    setTimeout(() => { if (window.updateCodexFilters) window.updateCodexFilters(); }, 50);
+    </script>
+    `;
     return html;
 }
 
