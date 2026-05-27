@@ -691,8 +691,11 @@ export const _openCodexModal = (entry) => {
                     </div>
 
                     <div class="mb-4">
-                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Tags (Comma Separated)</label>
-                        <input type="text" id="cx-modal-tags" value="${tags}" ${linkedPC ? 'readonly disabled' : ''} class="w-full ${linkedPC ? 'bg-stone-200 text-stone-500' : 'bg-white text-stone-900 focus:border-red-900'} border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner font-bold" placeholder="e.g. Ally, Vendor">
+                        <div class="flex justify-between items-end mb-1">
+                            <label class="block text-[10px] uppercase text-stone-500 font-bold tracking-widest">Tags (Comma Separated)</label>
+                            ${linkedPC ? '<span class="text-[8px] text-amber-600 font-bold italic">Editable for Hero Profiles</span>' : ''}
+                        </div>
+                        <input type="text" id="cx-modal-tags" value="${tags}" class="w-full bg-white text-stone-900 focus:border-red-900 border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner font-bold" placeholder="e.g. Hero, Ranger, Faction Name">
                     </div>
                     
                     <div class="mb-4">
