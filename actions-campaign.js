@@ -847,24 +847,31 @@ export const savePCEdit = async () => {
   let updatedCodexArray = [...(camp.codex || [])];
   const existingCodexEntry = updatedCodexArray.find(c => c.id === pcId);
 
+  // Core generated tags for the Hero
+  const baseTags = ['Hero', updatedPC.race, updatedPC.classLevel].filter(Boolean);
+  
   if (!existingCodexEntry) {
       updatedCodexArray.push({
           id: pcId,
           name: updatedPC.name,
           type: 'PC',
-          tags: ['Hero', updatedPC.race, updatedPC.classLevel].filter(Boolean),
+          tags: baseTags,
           desc: 'Rumors and public knowledge surrounding this hero are yet to be penned.',
           visibility: codexVisibility,
           image: updatedPC.image
       });
   } else {
+      // PRESERVE CUSTOM TAGS: Get any tags currently on the codex entry, merge with the base tags, and deduplicate
+      const existingTags = existingCodexEntry.tags || [];
+      const mergedTags = [...new Set([...baseTags, ...existingTags])];
+
       updatedCodexArray = updatedCodexArray.map(c => {
           if (c.id === pcId) {
               return {
                   ...c,
                   name: updatedPC.name,
                   type: 'PC',
-                  tags: ['Hero', updatedPC.race, updatedPC.classLevel].filter(Boolean),
+                  tags: mergedTags,
                   visibility: codexVisibility,
                   image: updatedPC.image
               };
