@@ -42,9 +42,10 @@ export const parseSmartText = (text, contextId = null) => {
     // --- 0. PARSE EMBEDDED IMAGES ---
     // Matches Markdown image syntax: ![Alt Text](URL)
     // Wrapped in a beautifully styled parchment container with a custom error fallback image.
+    // Direct, explicit trigger added to onclick bypassing parent propagation blocks!
     safeText = safeText.replace(/!\[(.*?)\]\((.*?)\)/gi, (match, alt, url) => {
         return `<div class="my-4 flex flex-col items-center justify-center bg-stone-100 p-2.5 border border-[#d4c5a9] rounded-sm shadow-sm max-w-full relative z-10" onclick="event.stopPropagation();">
-            <img src="${url}" alt="${alt}" class="max-h-[350px] max-w-full object-contain rounded-sm shadow-md cursor-zoom-in hover:opacity-95 transition" onerror="this.onerror=null; this.src='https://placehold.co/600x400?text=Image+Not+Found';">
+            <img src="${url}" alt="${alt}" class="max-h-[350px] max-w-full object-contain rounded-sm shadow-md cursor-zoom-in hover:opacity-95 transition" onclick="if(window.appActions && window.appActions.openFullscreenImage){ window.appActions.openFullscreenImage(this.src); } event.stopPropagation();" onerror="this.onerror=null; this.src='https://placehold.co/600x400?text=Image+Not+Found';">
             ${alt ? `<span class="text-[10px] text-stone-500 italic mt-2 font-sans">${alt}</span>` : ''}
         </div>`;
     });
@@ -61,7 +62,7 @@ export const parseSmartText = (text, contextId = null) => {
     safeText = safeText.replace(/^- (.*?)$/gim, '<li class="ml-4 list-disc marker:text-stone-400">$1</li>');
 
     // Bold, Underline, Italic (Safari Safe)
-    safeText = safeText.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-stone-900">$1</strong>');
+    safeText = safeText.replace(/\*\*(.*?)\*\"/g, '<strong class="font-bold text-stone-900">$1</strong>');
     safeText = safeText.replace(/__(.*?)__/g, '<u class="underline decoration-stone-400 underline-offset-2">$1</u>');
     safeText = safeText.replace(/(^|[^\w])\*(.*?)\*(?!\w)/g, '$1<em class="italic text-stone-800">$2</em>');
     safeText = safeText.replace(/\b_(.*?)_\b/g, '<em class="italic text-stone-800">$1</em>');
@@ -547,7 +548,7 @@ export const _openCodexModal = (entry) => {
     const linkedRoute = camp.atlasRoutes?.find(r => r.codexId === id);
     if ((linkedPin || linkedRoute) && !isNew) {
         mapBtnHtml = `
-            <button onclick="document.getElementById('global-popup-container').innerHTML = ''; window.appActions.viewOnMap('${id}')" class="mt-4 w-full py-2 border border-amber-400 bg-amber-50 text-amber-900 hover:bg-amber-100 rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm flex items-center justify-center">
+            <button onclick="document.getElementById('global-popup-container').innerHTML = ''; window.appActions.viewOnMap('${id}')" class="mt-4 w-full py-2 border border-amber-400 bg-amber-50 text-amber-950 hover:bg-amber-100 rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm flex items-center justify-center">
                 <i class="fa-solid fa-map-location-dot mr-2"></i> View on Atlas
             </button>
         `;
@@ -605,7 +606,7 @@ export const _openCodexModal = (entry) => {
         
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Personality Traits</label><textarea id="cx-npc-traits" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-white h-20 custom-scrollbar placeholder:italic" placeholder="Quirks, mannerisms...">${(entry.traits || '').replace(/"/g, '&quot;')}</textarea></div>
-            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Ideals</label><textarea id="cx-npc-ideals" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-white h-20 custom-scrollbar placeholder:italic" placeholder="What drives them...">${(entry.ideals || '').replace(/"/g, '&quot;')}</textarea></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Ideals</label><textarea id="cx-npc-traits" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-white h-20 custom-scrollbar placeholder:italic" placeholder="What drives them...">${(entry.ideals || '').replace(/"/g, '&quot;')}</textarea></div>
             <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Bonds</label><textarea id="cx-npc-bonds" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-white h-20 custom-scrollbar placeholder:italic" placeholder="Ties to others...">${(entry.bonds || '').replace(/"/g, '&quot;')}</textarea></div>
             <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Flaws</label><textarea id="cx-npc-flaws" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-white h-20 custom-scrollbar placeholder:italic" placeholder="Weaknesses, secrets...">${(entry.flaws || '').replace(/"/g, '&quot;')}</textarea></div>
         </div>
