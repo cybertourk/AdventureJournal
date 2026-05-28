@@ -1,5 +1,5 @@
 import { generateId, updateDerivedState, reRender } from './state.js';
-import { saveCampaign, deleteCampaign as dbDeleteCampaign, notify, joinCampaign as dbJoinCampaign, saveSpecificSheetUpdate, deleteSpecificSheetUpdate, pushActivityLog } from './firebase-manager.js';
+import { saveCampaign, deleteCampaign as dbDeleteCampaign, notify, dbJoinCampaign, saveSpecificSheetUpdate, deleteSpecificSheetUpdate, pushActivityLog } from './firebase-manager.js';
 
 // --- ACTIVITY LOG ENGINE ---
 export const logPlayerActivity = (camp, myUid, message, icon = 'fa-clock-rotate-left') => {
@@ -861,7 +861,8 @@ export const savePCEdit = async () => {
           image: updatedPC.image
       });
   } else {
-      // PRESERVE CUSTOM TAGS: Get any tags currently on the codex entry, merge with the base tags, and deduplicate
+      // PRESERVE CUSTOM TAGS: Get any tags currently on the codex entry, merge with the base tags, and deduplicate.
+      // This is the Safe Tag Merge logic ensuring manual adjustments to PC tags are retained safely.
       const existingTags = existingCodexEntry.tags || [];
       const mergedTags = [...new Set([...baseTags, ...existingTags])];
 
