@@ -86,7 +86,9 @@ import {
     closeJournal, 
     copyJournal, 
     defineEntryFromSelection, 
-    updateLocEditFields 
+    updateLocEditFields,
+    preventLinkFromSelection,
+    insertImagePlaceholder
 } from './actions-codex.js'; 
 
 // Import Calendar Functionality
@@ -409,6 +411,8 @@ if (typeof window !== 'undefined') {
       copyJournal,
       defineEntryFromSelection,
       updateLocEditFields,
+      preventLinkFromSelection,
+      insertImagePlaceholder,
 
       // Calendar System
       openCalendar,
