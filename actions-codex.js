@@ -39,6 +39,16 @@ export const parseSmartText = (text, contextId = null) => {
     if (!text) return "";
     let safeText = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+    // --- 0. PARSE EMBEDDED IMAGES ---
+    // Matches Markdown image syntax: ![Alt Text](URL)
+    // Wrapped in a beautifully styled parchment container with a custom error fallback image.
+    safeText = safeText.replace(/!\[(.*?)\]\((.*?)\)/gi, (match, alt, url) => {
+        return `<div class="my-4 flex flex-col items-center justify-center bg-stone-100 p-2.5 border border-[#d4c5a9] rounded-sm shadow-sm max-w-full relative z-10" onclick="event.stopPropagation();">
+            <img src="${url}" alt="${alt}" class="max-h-[350px] max-w-full object-contain rounded-sm shadow-md cursor-zoom-in hover:opacity-95 transition" onerror="this.onerror=null; this.src='https://placehold.co/600x400?text=Image+Not+Found';">
+            ${alt ? `<span class="text-[10px] text-stone-500 italic mt-2 font-sans">${alt}</span>` : ''}
+        </div>`;
+    });
+
     // --- 1. PARSE MARKDOWN FORMATTING ---
     // Enhanced Headings and Dividers to perfectly support the markdown generator outputs
     safeText = safeText.replace(/^#### (.*?)$/gim, '<h4 class="text-sm font-bold mt-4 mb-1 text-stone-800">$1</h4>');
@@ -82,7 +92,7 @@ export const parseSmartText = (text, contextId = null) => {
                 const entry = sortedCache.find(e => e.text.toLowerCase() === match.toLowerCase());
                 
                 if (entry) {
-                    // NEW FEATURE: Prevent Linking Check!
+                    // PREVENT AUTO-LINKING CHECK
                     // If the word is prefixed with a backslash '\', skip linking it entirely!
                     // This prevents it from entering the 'linkedIds' set, forcing the auto-linker 
                     // to find the NEXT instance of the word in the text block to link instead.
@@ -251,7 +261,7 @@ export const defineEntryFromSelection = async (textareaId) => {
     window.appActions._openCodexModal({ isNew: true, name: selectedText });
 };
 
-// --- NEW FEATURE: PREVENT AUTO-LINKING FROM SELECTION ---
+// --- PREVENT AUTO-LINKING FROM SELECTION ---
 export const preventLinkFromSelection = async (textareaId) => {
     const textarea = document.getElementById(textareaId);
     if (!textarea) return;
@@ -291,6 +301,33 @@ export const preventLinkFromSelection = async (textareaId) => {
     // Restore selection focus
     textarea.focus();
     textarea.setSelectionRange(start, end + 1); 
+};
+
+// --- NEW FEATURE: DYNAMICALLY EMBED Markdown Image Placeholders ---
+export const insertImagePlaceholder = (textareaId) => {
+    const textarea = document.getElementById(textareaId);
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const selectedText = text.substring(start, end).trim() || "Image Description";
+
+    const imageUrl = prompt("Enter the direct image URL:", "https://");
+    if (imageUrl === null) return; // Cancelled
+    
+    const markdownImage = `![${selectedText}](${imageUrl || 'https://example.com/image.jpg'})`;
+
+    const before = text.substring(0, start);
+    const after = text.substring(end);
+
+    textarea.value = before + markdownImage + after;
+
+    // Trigger input event to let autosave or state tracking fire
+    textarea.dispatchEvent(new Event('input'));
+    
+    textarea.focus();
+    textarea.setSelectionRange(start + 2, start + 2 + selectedText.length);
 };
 
 // --- DYNAMIC LOCATION FIELDS TOGGLE ---
@@ -397,7 +434,7 @@ export const _openCodexModal = (entry) => {
     const dataSrc = linkedPC ? linkedPC : entry;
 
     if (isCharacter && dataSrc) {
-        const parsedApp = dataSrc.appearance ? window.appActions.parseSmartText(dataSrc.appearance, id) : '<span class="text-stone-400 italic">No appearance recorded...</span>';
+        const parsedApp = dataSrc.appearance ? window.appActions.parseSmartText(dataSrc.appearance, id) : '<span class="text-stone-400 italic font-sans">No appearance recorded...</span>';
         
         charDataHTML = `
             <div class="mb-6 bg-white border border-[#d4c5a9] p-4 rounded-sm shadow-inner text-sm">
@@ -544,8 +581,9 @@ export const _openCodexModal = (entry) => {
             <div class="flex justify-between items-end mb-1">
                 <label class="block text-[9px] uppercase text-stone-500 font-bold">Appearance (Public)</label>
                 <div class="flex gap-1 bg-stone-200 p-0.5 rounded-sm border border-[#d4c5a9]">
-                    <button type="button" onclick="window.appActions.formatText('cx-npc-appearance', 'bold')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm"><i class="fa-solid fa-bold"></i></button>
-                    <button type="button" onclick="window.appActions.formatText('cx-npc-appearance', 'italic')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm"><i class="fa-solid fa-italic"></i></button>
+                    <button type="button" onclick="window.appActions.formatText('cx-npc-appearance', 'bold')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm" title="Bold"><i class="fa-solid fa-bold"></i></button>
+                    <button type="button" onclick="window.appActions.formatText('cx-npc-appearance', 'italic')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm" title="Italic"><i class="fa-solid fa-italic"></i></button>
+                    <button type="button" onclick="window.appActions.insertImagePlaceholder('cx-npc-appearance')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm" title="Insert Image"><i class="fa-solid fa-image"></i></button>
                 </div>
             </div>
             <textarea id="cx-npc-appearance" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white text-stone-900 h-24 font-serif outline-none focus:border-red-900 shadow-inner custom-scrollbar placeholder:italic" placeholder="Detailed physical description, scars, clothing...">${(entry.appearance || '').replace(/"/g, '&quot;')}</textarea>
@@ -557,8 +595,9 @@ export const _openCodexModal = (entry) => {
             <div class="flex justify-between items-end mb-1">
                 <label class="block text-[9px] uppercase text-stone-500 font-bold">Backstory</label>
                 <div class="flex gap-1 bg-stone-200 p-0.5 rounded-sm border border-[#d4c5a9]">
-                    <button type="button" onclick="window.appActions.formatText('cx-npc-backstory', 'bold')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm"><i class="fa-solid fa-bold"></i></button>
-                    <button type="button" onclick="window.appActions.formatText('cx-npc-backstory', 'italic')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm"><i class="fa-solid fa-italic"></i></button>
+                    <button type="button" onclick="window.appActions.formatText('cx-npc-backstory', 'bold')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm" title="Bold"><i class="fa-solid fa-bold"></i></button>
+                    <button type="button" onclick="window.appActions.formatText('cx-npc-backstory', 'italic')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm" title="Italic"><i class="fa-solid fa-italic"></i></button>
+                    <button type="button" onclick="window.appActions.insertImagePlaceholder('cx-npc-backstory')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm" title="Insert Image"><i class="fa-solid fa-image"></i></button>
                 </div>
             </div>
             <textarea id="cx-npc-backstory" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white text-stone-900 h-24 font-serif outline-none focus:border-red-900 shadow-inner custom-scrollbar placeholder:italic" placeholder="Origins, secrets, and history...">${(entry.backstory || '').replace(/"/g, '&quot;')}</textarea>
@@ -611,9 +650,10 @@ export const _openCodexModal = (entry) => {
             <div class="flex justify-between items-end mb-1">
                 <label class="block text-[9px] uppercase text-stone-500 font-bold">Points of Interest (Public)</label>
                 <div class="flex gap-1 bg-stone-200 p-0.5 rounded-sm border border-[#d4c5a9]">
-                    <button type="button" onclick="window.appActions.formatText('cx-loc-poi', 'bold')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm"><i class="fa-solid fa-bold"></i></button>
-                    <button type="button" onclick="window.appActions.formatText('cx-loc-poi', 'italic')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm"><i class="fa-solid fa-italic"></i></button>
-                    <button type="button" onclick="window.appActions.formatText('cx-loc-poi', 'list')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm"><i class="fa-solid fa-list-ul"></i></button>
+                    <button type="button" onclick="window.appActions.formatText('cx-loc-poi', 'bold')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm" title="Bold"><i class="fa-solid fa-bold"></i></button>
+                    <button type="button" onclick="window.appActions.formatText('cx-loc-poi', 'italic')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm" title="Italic"><i class="fa-solid fa-italic"></i></button>
+                    <button type="button" onclick="window.appActions.formatText('cx-loc-poi', 'list')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm" title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
+                    <button type="button" onclick="window.appActions.insertImagePlaceholder('cx-loc-poi')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm" title="Insert Image"><i class="fa-solid fa-image"></i></button>
                 </div>
             </div>
             <textarea id="cx-loc-poi" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white text-stone-900 h-24 font-serif outline-none focus:border-emerald-900 shadow-inner custom-scrollbar placeholder:italic" placeholder="Taverns, shops, notable structures...">${(entry.pointsOfInterest || '').replace(/"/g, '&quot;')}</textarea>
@@ -714,8 +754,10 @@ export const _openCodexModal = (entry) => {
                                 <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'h1')" class="w-6 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Heading 1">H1</button>
                                 <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'h2')" class="w-6 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Heading 2">H2</button>
                                 <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'list')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
+                                <button type="button" onclick="window.appActions.insertImagePlaceholder('cx-modal-desc')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Insert Image"><i class="fa-solid fa-image"></i></button>
                                 <div class="w-px bg-[#d4c5a9] mx-1 shrink-0"></div>
                                 <button type="button" onclick="window.appActions.defineEntryFromSelection('cx-modal-desc')" class="px-2 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-amber-700 hover:text-amber-900 hover:bg-[#d4c5a9] rounded-sm transition uppercase tracking-wider" title="Define Highlighted Text"><i class="fa-solid fa-book-medical mr-1"></i> Define</button>
+                                <button type="button" onclick="window.appActions.preventLinkFromSelection('cx-modal-desc')" class="px-2 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-500 hover:text-red-900 hover:bg-[#d4c5a9] rounded-sm transition uppercase tracking-wider" title="Prevent Auto-Linking"><i class="fa-solid fa-link-slash mr-1"></i> Unlink</button>
                             </div>
                         </div>
                         <textarea id="cx-modal-desc" class="w-full h-40 bg-white border border-[#d4c5a9] text-stone-900 p-3 text-sm focus:border-red-900 outline-none resize-none rounded-sm shadow-inner custom-scrollbar" placeholder="${descPlaceholder}">${desc}</textarea>
@@ -733,8 +775,10 @@ export const _openCodexModal = (entry) => {
                                 <button type="button" onclick="window.appActions.formatText('cx-modal-dmnotes', 'h1')" class="w-6 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Heading 1">H1</button>
                                 <button type="button" onclick="window.appActions.formatText('cx-modal-dmnotes', 'h2')" class="w-6 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Heading 2">H2</button>
                                 <button type="button" onclick="window.appActions.formatText('cx-modal-dmnotes', 'list')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
+                                <button type="button" onclick="window.appActions.insertImagePlaceholder('cx-modal-dmnotes')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Insert Image"><i class="fa-solid fa-image"></i></button>
                                 <div class="w-px bg-[#d4c5a9] mx-1 shrink-0"></div>
                                 <button type="button" onclick="window.appActions.defineEntryFromSelection('cx-modal-dmnotes')" class="px-2 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-amber-700 hover:text-amber-900 hover:bg-[#d4c5a9] rounded-sm transition uppercase tracking-wider" title="Define Highlighted Text"><i class="fa-solid fa-book-medical mr-1"></i> Define</button>
+                                <button type="button" onclick="window.appActions.preventLinkFromSelection('cx-modal-dmnotes')" class="px-2 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-500 hover:text-red-900 hover:bg-[#d4c5a9] rounded-sm transition uppercase tracking-wider" title="Prevent Auto-Linking"><i class="fa-solid fa-link-slash mr-1"></i> Unlink</button>
                             </div>
                         </div>
                         <textarea id="cx-modal-dmnotes" class="w-full h-32 bg-stone-200 border border-[#d4c5a9] border-l-4 border-l-red-900 text-stone-900 p-3 text-sm focus:border-red-900 outline-none resize-none rounded-sm shadow-inner custom-scrollbar" placeholder="True motives, hidden stats, traps, or DM-only details... Codex names link automatically.">${(entry.dmNotes || '').replace(/"/g, '&quot;')}</textarea>
@@ -792,7 +836,7 @@ export const saveCodexEntry = async () => {
 
     const myUid = window.appData.currentUserUid;
     const existingEntry = camp.codex?.find(c => c.id === id);
-    const exists = !!existingEntry; // Evaluates existence in database instead of just ID presence
+    const exists = !!existingEntry; // Evaluates if the entry is instantiated in the database
 
     let npcData = {};
     if (typeVal === 'NPC') {
@@ -856,15 +900,14 @@ export const saveCodexEntry = async () => {
         tags: document.getElementById('cx-modal-tags').value.split(',').map(t=>t.trim()).filter(t=>t),
         desc: document.getElementById('cx-modal-desc').value,
         image: document.getElementById('cx-modal-image').value.trim(),
-        authorId: !exists ? myUid : (existingEntry?.authorId || myUid),
+        authorId: exists ? (existingEntry?.authorId || myUid) : myUid,
         visibility: existingEntry?.visibility || { mode: 'public' },
         dmNotes: dmNotesVal,
         ...npcData,
         ...locData
     };
 
-    // Safely appends the entry to the codex array if it is the first time the hero is being customized
-    const newCodexArray = !exists ? [...(camp.codex || []), newEntry] : camp.codex.map(c => c.id === id ? newEntry : c);
+    const newCodexArray = exists ? camp.codex.map(c => c.id === id ? newEntry : c) : [...(camp.codex || []), newEntry];
     
     let updatedCamp = { ...camp, codex: newCodexArray };
 
@@ -986,4 +1029,15 @@ if (typeof window !== 'undefined') {
     window.appActions = window.appActions || {};
     window.appActions.updateLocEditFields = updateLocEditFields;
     window.appActions.preventLinkFromSelection = preventLinkFromSelection;
+    window.appActions.insertImagePlaceholder = insertImagePlaceholder;
+    window.appActions.defineEntryFromSelection = defineEntryFromSelection;
+    window.appActions.viewCodex = viewCodex;
+    window.appActions.saveCodexEntry = saveCodexEntry;
+    window.appActions.deleteCodexEntry = deleteCodexEntry;
+    window.appActions.parseSmartText = parseSmartText;
+    window.appActions.handleSmartInput = handleSmartInput;
+    window.appActions.openJournal = openJournal;
+    window.appActions.closeJournal = closeJournal;
+    window.appActions.copyJournal = copyJournal;
+    window.appActions._openCodexModal = _openCodexModal;
 }
