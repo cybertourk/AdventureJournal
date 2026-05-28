@@ -515,6 +515,10 @@ export const openHireModal = (pcId, bizId, hireType) => {
                         <input type="text" id="dt-hire-species" placeholder="e.g. Human" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 bg-white shadow-inner">
                     </div>
                     <div>
+                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Gender</label>
+                        <input type="text" id="dt-hire-gender" placeholder="e.g. Female" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 bg-white shadow-inner">
+                    </div>
+                    <div class="col-span-2">
                         <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Search Effort (1-5 Days)</label>
                         <input type="number" id="dt-hire-effort" min="1" max="5" value="1" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 bg-white shadow-inner text-center">
                     </div>
@@ -540,10 +544,12 @@ export const rollRandomNPCForHire = () => {
     
     const nameIn = document.getElementById('dt-hire-name');
     const speciesIn = document.getElementById('dt-hire-species');
+    const genderIn = document.getElementById('dt-hire-gender');
     const descIn = document.getElementById('dt-hire-desc');
 
     if (nameIn) nameIn.value = npc.name;
     if (speciesIn) speciesIn.value = npc.race;
+    if (genderIn) genderIn.value = npc.gender;
     if (descIn) descIn.value = `${npc.desc}\n${npc.appearance}\n${npc.backstory}`.trim();
 
     notify("Contractor generated via NPC engine!", "success");
@@ -555,6 +561,7 @@ export const rollRandomNPCForHire = () => {
 export const finalizeHire = async (pcId, bizId, hireType) => {
     const name = document.getElementById('dt-hire-name').value.trim();
     const species = document.getElementById('dt-hire-species').value.trim();
+    const gender = document.getElementById('dt-hire-gender')?.value.trim() || '--';
     const effort = parseInt(document.getElementById('dt-hire-effort').value) || 1;
     const desc = document.getElementById('dt-hire-desc').value.trim();
 
@@ -623,7 +630,7 @@ export const finalizeHire = async (pcId, bizId, hireType) => {
             name,
             desc: `A contracted ${species} working as a ${hireType} employee.`,
             race: species,
-            gender: 'Commoner',
+            gender: gender,
             alignment: 'True Neutral',
             faith: 'Unaligned',
             age: 'Adult',
@@ -660,7 +667,7 @@ export const finalizeHire = async (pcId, bizId, hireType) => {
         classLevel: hireType === 'skilled' ? 'Skilled Worker' : 'Untrained Laborer',
         alignment: npcDetails.alignment || 'True Neutral',
         faith: npcDetails.faith || 'Unaligned',
-        gender: npcDetails.gender || 'Commoner',
+        gender: npcDetails.gender || gender,
         age: npcDetails.age || 'Adult',
         height: npcDetails.height || '--',
         weight: npcDetails.weight || '--',
