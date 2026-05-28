@@ -1148,6 +1148,23 @@ export const executeRunBusiness = async (pcId, bizId) => {
     }
 };
 
+export const rollBusinessComplication = async (pcId, bizId) => {
+    // This function acts as an interface to roll a random complication for the user
+    // It initiates the resolveComplicationChoice modal.
+    const camp = window.appData.activeCampaign;
+    const pc = camp?.playerCharacters?.find(p => p.id === pcId);
+    if (!pc) return;
+
+    const biz = pc.businesses?.[bizId];
+    if (!biz) return;
+
+    const isExternal = Math.random() < 0.5;
+    const table = isExternal ? ["rivalry", "supply_chain", "shakedown", "disaster", "regulatory", "recession"] : ["infighting", "poached", "customer_complaint", "theft", "morale", "bad_idea"];
+    const complicationKey = table[Math.floor(Math.random() * table.length)];
+    
+    window.appActions.resolveComplicationChoice(pcId, bizId, complicationKey, 0, 0);
+};
+
 // ============================================================================
 // --- CRISIS RESOLVER MODAL ---
 // ============================================================================
@@ -1380,10 +1397,6 @@ export const executeComplicationResolution = async (pcId, bizId, resolutionKey, 
     notify("Crisis Resolved", "success");
     window.appActions.openRunningBusinessModal();
 };
-
-// ============================================================================
-// --- DEBT LEDGER ---
-// ============================================================================
 
 export const openBusinessDebtsModal = (pcId, bizId) => {
     const camp = window.appData.activeCampaign;
