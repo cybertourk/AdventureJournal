@@ -60,7 +60,7 @@ export const openRunningBusinessModal = () => {
         <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[18000] backdrop-blur-sm animate-in">
             <div class="bg-[#f4ebd8] rounded-sm w-full max-w-2xl border border-[#d4c5a9] shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
                 
-                <div class="bg-stone-900 p-4 border-b-4 border-amber-600 shadow-md shrink-0 flex justify-between items-center text-amber-50">
+                <div class="bg-stone-950 p-4 border-b-4 border-amber-600 shadow-md shrink-0 flex justify-between items-center text-amber-50">
                     <h2 class="text-lg font-serif font-bold flex items-center"><i class="fa-solid fa-store mr-2 text-amber-400"></i> Business Portfolio</h2>
                     <button onclick="window.appActions.openDowntimeMenu()" class="text-stone-400 hover:text-white transition" title="Back to Menu"><i class="fa-solid fa-arrow-left text-xl"></i></button>
                 </div>
@@ -392,6 +392,12 @@ export const openRosterModal = (pcId, bizId) => {
     const skilledHired = Object.values(biz.hirelings?.skilled || {});
     const untrainedHired = Object.values(biz.hirelings?.untrained || {});
 
+    const container = document.getElementById('global-popup-container');
+    if (!container) return;
+
+    // CRITICAL: Clear the global container to wipe out any previous/overlapping modals
+    container.innerHTML = '';
+
     const modal = document.createElement('div');
     modal.id = 'dt-biz-roster-modal';
     modal.className = 'fixed inset-0 bg-stone-900/80 z-[19000] flex items-center justify-center p-4 backdrop-blur-sm animate-in';
@@ -402,7 +408,7 @@ export const openRosterModal = (pcId, bizId) => {
         const extraPayStr = h.additionalPay > 0 ? `+${h.additionalPay.toFixed(2)} gp/day` : 'Standard';
 
         return `
-            <div class="bg-stone-50 border border-[#d4c5a9] rounded p-3 flex flex-col justify-between hover:border-amber-400 transition-colors">
+            <div class="bg-white border border-[#d4c5a9] rounded p-3 flex flex-col justify-between hover:border-amber-400 transition-colors">
                 <div class="cursor-pointer" onclick="window.appActions.viewHirelingCodex('${pcId}', '${bizId}', '${h.id}')" title="Click to view full Codex Form & Secret DM Notes">
                     <div class="flex justify-between items-start gap-1">
                         <span class="font-bold text-xs text-stone-900 leading-tight hover:underline"><i class="fa-solid fa-address-card mr-1 text-amber-600"></i> ${h.name}</span>
@@ -423,7 +429,7 @@ export const openRosterModal = (pcId, bizId) => {
             <div class="absolute top-0 left-0 w-full h-1.5 bg-amber-600"></div>
             <div class="flex justify-between items-center mb-4 pb-2 border-b border-[#d4c5a9] shrink-0">
                 <h3 class="font-serif font-bold text-lg text-amber-900 flex items-center"><i class="fa-solid fa-users mr-2"></i> Staff Roster: ${biz.name}</h3>
-                <button onclick="document.getElementById('dt-biz-roster-modal').remove()" class="text-stone-400 hover:text-stone-900 transition"><i class="fa-solid fa-times text-xl"></i></button>
+                <button onclick="window.appActions.openRunningBusinessModal()" class="text-stone-400 hover:text-stone-900 transition"><i class="fa-solid fa-times text-xl"></i></button>
             </div>
 
             <div class="overflow-y-auto custom-scrollbar flex-grow pr-2 space-y-6">
@@ -449,11 +455,11 @@ export const openRosterModal = (pcId, bizId) => {
             </div>
 
             <div class="bg-[#e8dec7] p-3 border-t border-[#d4c5a9] flex justify-end shrink-0 mt-4 z-10 shadow-sm">
-                <button onclick="document.getElementById('dt-biz-roster-modal').remove()" class="px-4 py-1.5 bg-stone-900 text-amber-50 rounded hover:bg-stone-800 transition text-[10px] font-bold uppercase tracking-wider shadow-sm">Close Roster</button>
+                <button onclick="window.appActions.openRunningBusinessModal()" class="px-4 py-1.5 bg-stone-900 text-amber-50 rounded hover:bg-stone-800 transition text-[10px] font-bold uppercase tracking-wider shadow-sm">Close Roster</button>
             </div>
         </div>
     `;
-    document.getElementById('global-popup-container').appendChild(modal);
+    container.appendChild(modal);
 };
 
 export const viewHirelingCodex = (pcId, bizId, workerId) => {
