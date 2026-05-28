@@ -62,7 +62,7 @@ export const parseSmartText = (text, contextId = null) => {
     safeText = safeText.replace(/^- (.*?)$/gim, '<li class="ml-4 list-disc marker:text-stone-400">$1</li>');
 
     // Bold, Underline, Italic (Safari Safe)
-    safeText = safeText.replace(/\*\*(.*?)\*\"/g, '<strong class="font-bold text-stone-900">$1</strong>');
+    safeText = safeText.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-stone-900">$1</strong>');
     safeText = safeText.replace(/__(.*?)__/g, '<u class="underline decoration-stone-400 underline-offset-2">$1</u>');
     safeText = safeText.replace(/(^|[^\w])\*(.*?)\*(?!\w)/g, '$1<em class="italic text-stone-800">$2</em>');
     safeText = safeText.replace(/\b_(.*?)_\b/g, '<em class="italic text-stone-800">$1</em>');
