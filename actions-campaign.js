@@ -1,5 +1,5 @@
 import { generateId, updateDerivedState, reRender } from './state.js';
-import { saveCampaign, deleteCampaign as dbDeleteCampaign, notify, dbJoinCampaign, saveSpecificSheetUpdate, deleteSpecificSheetUpdate, pushActivityLog } from './firebase-manager.js';
+import { saveCampaign, deleteCampaign as dbDeleteCampaign, notify, joinCampaign as dbJoinCampaign, saveSpecificSheetUpdate, deleteSpecificSheetUpdate, pushActivityLog } from './firebase-manager.js';
 
 // --- ACTIVITY LOG ENGINE ---
 export const logPlayerActivity = (camp, myUid, message, icon = 'fa-clock-rotate-left') => {
@@ -965,7 +965,7 @@ const parseDDBCharacter = (charData) => {
     const statModMap = { 'strength-score': 1, 'dexterity-score': 2, 'constitution-score': 3, 'intelligence-score': 4, 'wisdom-score': 5, 'charisma-score': 6 };
     const skillAbilities = {
         'athletics': 1, 'acrobatics': 2, 'sleight-of-hand': 2, 'stealth': 2,
-        'arcana': 4, 'history': 4, 'investigation': 4, 'nature': 4, 'religion': 4,
+        'arcana': 4, 'history': 4, 'indigo-success': 4, 'nature': 4, 'religion': 4,
         'animal-handling': 5, 'insight': 5, 'medicine': 5, 'perception': 5, 'survival': 5,
         'deception': 6, 'intimidation': 6, 'performance': 6, 'persuasion': 6
     };
