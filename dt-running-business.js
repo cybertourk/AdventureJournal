@@ -107,7 +107,7 @@ export const openRunningBusinessModal = () => {
     window.appActions.resolveComplicationChoice = resolveComplicationChoice;
     window.appActions.openBusinessDebtsModal = openBusinessDebtsModal;
     window.appActions.payBusinessDebt = payBusinessDebt;
-    window.appActions.showHirelingFullProfile = showHirelingFullProfile;
+    window.appActions.viewHirelingCodex = viewHirelingCodex;
 
     setTimeout(() => {
         const select = document.getElementById('dt-business-pc-select');
@@ -394,7 +394,7 @@ export const openRosterModal = (pcId, bizId) => {
 
     const modal = document.createElement('div');
     modal.id = 'dt-biz-roster-modal';
-    modal.className = 'fixed inset-0 bg-stone-950/80 z-[19000] flex items-center justify-center p-4 backdrop-blur-sm animate-in';
+    modal.className = 'fixed inset-0 bg-stone-900/80 z-[19000] flex items-center justify-center p-4 backdrop-blur-sm animate-in';
 
     const renderEmployeeCard = (h, type) => {
         const info = getQualityInfo(h.qualityBonus, type);
@@ -403,12 +403,12 @@ export const openRosterModal = (pcId, bizId) => {
 
         return `
             <div class="bg-stone-50 border border-[#d4c5a9] rounded p-3 flex flex-col justify-between hover:border-amber-400 transition-colors">
-                <div class="cursor-pointer" onclick="window.appActions.showHirelingFullProfile('${pcId}', '${bizId}', '${h.id}', '${type}')">
+                <div class="cursor-pointer" onclick="window.appActions.viewHirelingCodex('${pcId}', '${bizId}', '${h.id}')" title="Click to view full Codex Form & Secret DM Notes">
                     <div class="flex justify-between items-start gap-1">
-                        <span class="font-bold text-xs text-stone-900 leading-tight">${h.name}</span>
+                        <span class="font-bold text-xs text-stone-900 leading-tight hover:underline"><i class="fa-solid fa-address-card mr-1 text-amber-600"></i> ${h.name}</span>
                         <span class="text-[8px] uppercase tracking-wider font-bold bg-amber-100 border border-amber-300 text-amber-800 px-1.5 rounded-sm">${info.tier}</span>
                     </div>
-                    <span class="text-[8px] text-stone-400 font-sans block mt-0.5">${h.species || "Commoner"} • Wages: ${extraPayStr}</span>
+                    <span class="text-[8px] text-stone-400 font-sans block mt-1">${h.species || "Commoner"} • Wages: ${extraPayStr}</span>
                 </div>
                 <div class="flex gap-1.5 mt-3 pt-2 border-t border-stone-200/50 justify-end">
                     <button onclick="window.appActions.openTrainWorkerModal('${pcId}', '${bizId}', '${h.id}', '${type}')" ${!canTrain ? 'disabled' : ''} class="px-2 py-1 bg-stone-900 text-amber-50 rounded hover:bg-stone-800 text-[8px] font-bold uppercase tracking-wider shadow-sm disabled:opacity-30 disabled:cursor-not-allowed">Train</button>
@@ -456,34 +456,21 @@ export const openRosterModal = (pcId, bizId) => {
     document.getElementById('global-popup-container').appendChild(modal);
 };
 
-export const showHirelingFullProfile = (pcId, bizId, workerId, type) => {
-    const camp = window.appData.activeCampaign;
-    const worker = camp.playerCharacters?.find(p => p.id === pcId)?.businesses?.[bizId]?.hirelings?.[type]?.[workerId];
-    if (!worker) return;
-
-    const modal = document.createElement('div');
-    modal.className = 'fixed inset-0 bg-stone-950/90 z-[21000] flex items-center justify-center p-4 backdrop-blur-sm animate-in';
-    
-    // Render every single piece of generated NPC data if it exists
-    const fields = [
-        { label: "Full Name", val: worker.name },
-        { label: "Species", val: worker.species },
-        { label: "Quality", val: getQualityInfo(worker.qualityBonus, type).tier },
-        { label: "Additional Pay", val: worker.additionalPay + " gp/day" },
-        { label: "Description", val: worker.description },
-        { label: "Background / Faith / Origin", val: worker.backstory || "No additional lore." }
-    ];
-
-    modal.innerHTML = `
-        <div class="bg-[#f4ebd8] p-6 rounded-sm border-2 border-stone-800 shadow-2xl max-w-sm w-full relative">
-            <h3 class="font-serif font-bold text-lg text-amber-900 mb-4 pb-2 border-b border-[#d4c5a9]">Worker Profile: ${worker.name}</h3>
-            <div class="space-y-3">
-                ${fields.map(f => `<div><span class="text-[9px] uppercase font-bold text-stone-500">${f.label}</span><p class="text-xs font-serif text-stone-900">${f.val || '---'}</p></div>`).join('')}
-            </div>
-            <button onclick="this.parentElement.parentElement.remove()" class="mt-6 w-full py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px]">Close Profile</button>
-        </div>
-    `;
-    document.body.appendChild(modal);
+export const viewHirelingCodex = (pcId, bizId, workerId) => {
+    if (window.appActions.viewCodex) {
+        window.appActions.viewCodex(workerId);
+        
+        // Surgically hook any cancel/close click triggers inside the Codex modal 
+        // to return the user seamlessly back to this exact Business Roster!
+        setTimeout(() => {
+            const closeBtns = document.querySelectorAll('#global-popup-container button[onclick*="global-popup-container"]');
+            closeBtns.forEach(btn => {
+                btn.setAttribute('onclick', `window.appActions.openRosterModal('${pcId}', '${bizId}')`);
+            });
+        }, 100);
+    } else {
+        notify("The global Codex library coordinator is currently unavailable.", "error");
+    }
 };
 
 // ============================================================================
@@ -504,7 +491,7 @@ export const openHireModal = (pcId, bizId, hireType) => {
             </div>
 
             <div class="space-y-4 mb-6 overflow-y-auto custom-scrollbar pr-2 flex-grow">
-                <p class="text-[10px] sm:text-xs text-stone-600 italic leading-snug">Fill out the contract details, or use the <b>Auto-Generate</b> trigger to auto-generate a random worker!</p>
+                <p class="text-[10px] sm:text-xs text-stone-600 italic leading-snug font-serif">Fill out the details below, or click <b>Auto-Generate</b> to roll a completely detailed character with traits, appearance, and lore!</p>
                 
                 <div class="flex gap-2">
                     <button onclick="window.appActions.rollRandomNPCForHire()" class="w-full py-2 bg-stone-100 text-stone-600 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-400 transition text-[10px] font-bold uppercase tracking-wider rounded-sm shadow-sm border border-[#d4c5a9] flex items-center justify-center">
@@ -528,8 +515,8 @@ export const openHireModal = (pcId, bizId, hireType) => {
                 </div>
 
                 <div>
-                    <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Description & Traits</label>
-                    <textarea id="dt-hire-desc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs text-stone-900 outline-none focus:border-amber-600 bg-white h-16 shadow-inner custom-scrollbar" placeholder="Quirks, background, expertise..."></textarea>
+                    <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Description & Background Notes</label>
+                    <textarea id="dt-hire-desc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs text-stone-900 outline-none focus:border-amber-600 bg-white h-20 shadow-inner custom-scrollbar font-serif" placeholder="Quirks, background, or physical features..."></textarea>
                 </div>
             </div>
 
@@ -543,7 +530,6 @@ export const openHireModal = (pcId, bizId, hireType) => {
 };
 
 export const rollRandomNPCForHire = () => {
-    // Integrate the NPC Generator logic
     const npc = generateNpcData();
     
     const nameIn = document.getElementById('dt-hire-name');
@@ -552,9 +538,12 @@ export const rollRandomNPCForHire = () => {
 
     if (nameIn) nameIn.value = npc.name;
     if (speciesIn) speciesIn.value = npc.race;
-    if (descIn) descIn.value = `${npc.desc}\n${npc.appearance}\n${npc.backstory}`;
+    if (descIn) descIn.value = `${npc.desc}\n${npc.appearance}\n${npc.backstory}`.trim();
 
     notify("Contractor generated via NPC engine!", "success");
+    
+    // Store full generated NPC details to bind on save
+    window.appData.lastRolledNpcForHire = npc;
 };
 
 export const finalizeHire = async (pcId, bizId, hireType) => {
@@ -577,6 +566,9 @@ export const finalizeHire = async (pcId, bizId, hireType) => {
         notify("Not enough downtime days available to execute searching.", "error");
         return;
     }
+
+    const biz = pc.businesses?.[bizId];
+    if (!biz) return;
 
     // Roll for quality
     const d20 = Math.floor(Math.random() * 20) + 1;
@@ -607,8 +599,9 @@ export const finalizeHire = async (pcId, bizId, hireType) => {
         qBonus *= 2;
     }
 
+    const workerId = 'hire_' + generateId();
     const newWorker = {
-        id: 'hire_' + generateId(),
+        id: workerId,
         name,
         species,
         description: desc,
@@ -617,17 +610,80 @@ export const finalizeHire = async (pcId, bizId, hireType) => {
         promotionBonus: 0
     };
 
+    // --- CODES AND ENCYCLOPEDIA REGISTRATION ---
+    const npcDetails = (window.appData.lastRolledNpcForHire && window.appData.lastRolledNpcForHire.name === name) 
+        ? window.appData.lastRolledNpcForHire 
+        : {
+            name,
+            desc: `A contracted ${species} working as a ${hireType} employee.`,
+            race: species,
+            gender: 'Commoner',
+            alignment: 'True Neutral',
+            faith: 'Unaligned',
+            age: 'Adult',
+            height: '--',
+            weight: '--',
+            eyes: '--',
+            hair: '--',
+            skin: '--',
+            appearance: '',
+            backstory: desc,
+            traits: '',
+            ideals: '',
+            bonds: '',
+            flaws: '',
+            organizations: '',
+            allies: '',
+            enemies: ''
+        };
+
+    // Clean up temporary cache
+    window.appData.lastRolledNpcForHire = null;
+
+    // Scribe a complete Codex Entry for this employee
+    const companionCodexEntry = {
+        id: workerId,
+        name: name,
+        type: 'NPC',
+        tags: ['Employee', biz.name, hireType === 'skilled' ? 'Skilled' : 'Untrained'],
+        desc: npcDetails.desc || npcDetails.backstory || `A hired worker of ${biz.name}.`,
+        image: '',
+        authorId: window.appData.currentUserUid,
+        visibility: { mode: 'public' },
+        race: npcDetails.race || species,
+        classLevel: hireType === 'skilled' ? 'Skilled Worker' : 'Untrained Laborer',
+        alignment: npcDetails.alignment || 'True Neutral',
+        faith: npcDetails.faith || 'Unaligned',
+        gender: npcDetails.gender || 'Commoner',
+        age: npcDetails.age || 'Adult',
+        height: npcDetails.height || '--',
+        weight: npcDetails.weight || '--',
+        eyes: npcDetails.eyes || '--',
+        hair: npcDetails.hair || '--',
+        skin: npcDetails.skin || '--',
+        appearance: npcDetails.appearance || '',
+        backstory: npcDetails.backstory || '',
+        traits: npcDetails.traits || '',
+        ideals: npcDetails.ideals || '',
+        bonds: npcDetails.bonds || '',
+        flaws: npcDetails.flaws || '',
+        organizations: npcDetails.organizations || '',
+        allies: npcDetails.allies || '',
+        enemies: npcDetails.enemies || '',
+        dmNotes: `Contracted wages: ${extraWages.toFixed(2)} gp/day. Initial Quality: ${tierLabel}.`
+    };
+
     const updatedPCs = camp.playerCharacters.map(p => {
         if (p.id === pcId) {
             const b = p.businesses || {};
-            const biz = b[bizId];
-            if (biz) {
-                if (!biz.hirelings) biz.hirelings = { skilled: {}, untrained: {} };
-                if (!biz.hirelings[hireType]) biz.hirelings[hireType] = {};
-                biz.hirelings[hireType][newWorker.id] = newWorker;
-                biz.totalDaysWorked = (biz.totalDaysWorked || 0) + effort;
+            const activeBiz = b[bizId];
+            if (activeBiz) {
+                if (!activeBiz.hirelings) activeBiz.hirelings = { skilled: {}, untrained: {} };
+                if (!activeBiz.hirelings[hireType]) activeBiz.hirelings[hireType] = {};
+                activeBiz.hirelings[hireType][newWorker.id] = newWorker;
+                activeBiz.totalDaysWorked = (activeBiz.totalDaysWorked || 0) + effort;
             }
-            const logAddition = `\n\n---\n\n**Logged on ${new Date().toLocaleDateString()}**\n**Downtime: Running a Business (Hiring)**\n*Hero:* ${p.name}\n\nSpent **${effort} Day(s)** searching and contracted **${name}** (${species}) as a **${hireType} worker**.\n> *Quality Roll (1d20 + ${searchBonus}):* **${totalRoll}** (${tierLabel} Quality • Bonus: ${qBonus > 0 ? '+' : ''}${qBonus} • Wages: +${extraWages.toFixed(2)} gp/day).`;
+            const logAddition = `\n\n---\n\n**Logged on ${new Date().toLocaleDateString()}**\n**Downtime: Running a Business (Hiring)**\n*Hero:* ${p.name}\n\nSpent **${effort} Day(s)** searching and contracted **${name}** (${species}) as a **${hireType} worker**.\n> *Quality Roll (1d20 + ${searchBonus}):* **${totalRoll}** (${tierLabel} Quality • Bonus: ${qBonus > 0 ? '+' : ''}${qBonus} • Wages: +${extraWages.toFixed(2)} gp/day).\n*(A complete, editable profile has been forged in the Codex)*`;
             return { 
                 ...p, 
                 availableDowntime: Math.max(0, (parseInt(p.availableDowntime) || 0) - effort),
@@ -638,7 +694,11 @@ export const finalizeHire = async (pcId, bizId, hireType) => {
         return p;
     });
 
-    await saveCampaign({ ...camp, playerCharacters: updatedPCs });
+    const updatedCodex = [...(camp.codex || []), companionCodexEntry];
+    let updatedCamp = { ...camp, playerCharacters: updatedPCs, codex: updatedCodex };
+    updatedCamp = logPlayerActivity(updatedCamp, window.appData.currentUserUid, `hired a new worker: <span class="font-bold text-stone-900">${name}</span> at ${biz.name}.`, 'fa-user-plus');
+
+    await saveCampaign(updatedCamp);
     document.getElementById('dt-biz-hire-modal').remove();
     document.getElementById('dt-biz-roster-modal').remove();
     
@@ -647,7 +707,7 @@ export const finalizeHire = async (pcId, bizId, hireType) => {
 };
 
 export const fireWorker = async (pcId, bizId, workerId, type) => {
-    if (!confirm("Are you sure you want to fire this worker? All training progress and stats will be lost.")) return;
+    if (!confirm("Are you sure you want to fire this worker? All training progress and stats will be lost. (Their Codex profile will remain saved in your archives).")) return;
 
     updateDerivedState();
     const camp = window.appData.activeCampaign;
@@ -870,7 +930,7 @@ export const openRunBusinessModal = (pcId, bizId) => {
 
     const modal = document.createElement('div');
     modal.id = 'dt-biz-run-modal';
-    modal.className = 'fixed inset-0 bg-stone-950/80 z-[19000] flex items-center justify-center p-4 backdrop-blur-sm animate-in';
+    modal.className = 'fixed inset-0 bg-stone-900/80 z-[19000] flex items-center justify-center p-4 backdrop-blur-sm animate-in';
 
     modal.innerHTML = `
         <div class="bg-[#f4ebd8] p-5 sm:p-6 rounded-sm border-2 border-stone-800 shadow-2xl max-w-md w-full relative overflow-hidden flex flex-col max-h-[90vh]">
@@ -1216,7 +1276,7 @@ export const executeComplicationResolution = async (pcId, bizId, resolutionKey, 
     if (!biz) return;
 
     if (dtLost > 0 && (parseInt(pc.availableDowntime) || 0) < dtLost) {
-        notify("Not enough available downtime days left to fulfill mediation/reparation requirements.", "error");
+        notify("Not enough available downtime days left to fulfill requirements.", "error");
         return;
     }
 
