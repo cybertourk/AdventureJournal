@@ -1,4 +1,3 @@
-/* STREAMING_CHUNK: Importing core state modules and actions... */
 import { setCampaignsData, updateDerivedState, reRender } from './state.js'; 
 
 // Import UI Core Navigation & Layout Controls
@@ -181,6 +180,31 @@ import {
 // Import Downtime Menu Hub
 import { openDowntimeMenu } from './actions-downtime.js';
 
+// Import Running a Business Logic
+import {
+    openRunningBusinessModal,
+    renderBusinessPortfolio,
+    openEstablishBusinessModal,
+    establishNewBusiness,
+    openRosterModal,
+    openBusinessDetailsModal,
+    saveBusinessDetails,
+    demolishBusiness,
+    openHireModal,
+    rollRandomNPCForHire,
+    finalizeHire,
+    fireWorker,
+    openTrainWorkerModal,
+    executeTrainingSession,
+    openRunBusinessModal,
+    updateRunBusinessMath,
+    executeRunBusiness,
+    rollBusinessComplication,
+    resolveComplicationChoice,
+    openBusinessDebtsModal,
+    payBusinessDebt
+} from './dt-running-business.js';
+
 // --- MODULAR DOWNTIME IMPORTS ---
 import { openBuyMagicItemModal, updateBuyMagicItemMath, executeBuyMagicItem } from './dt-buy-magic-item.js';
 import { 
@@ -295,7 +319,6 @@ import {
     saveTableSettings
 } from './ui-tables.js';
 
-/* STREAMING_CHUNK: Importing our new, highly detailed Database view handlers... */
 import {
     getDatabasesHTML,
     searchDatabase,
@@ -493,6 +516,29 @@ if (typeof window !== 'undefined') {
       setWebZoom,
       renderMermaidWeb,
 
+      // Running a Business
+      openRunningBusinessModal,
+      renderBusinessPortfolio,
+      openEstablishBusinessModal,
+      establishNewBusiness,
+      openRosterModal,
+      openBusinessDetailsModal,
+      saveBusinessDetails,
+      demolishBusiness,
+      openHireModal,
+      rollRandomNPCForHire,
+      finalizeHire,
+      fireWorker,
+      openTrainWorkerModal,
+      executeTrainingSession,
+      openRunBusinessModal,
+      updateRunBusinessMath,
+      executeRunBusiness,
+      rollBusinessComplication,
+      resolveComplicationChoice,
+      openBusinessDebtsModal,
+      payBusinessDebt,
+
       // Modular Downtime Activities
       openDowntimeMenu,
       
@@ -631,7 +677,6 @@ if (typeof window !== 'undefined') {
       openTableSettingsModal,
       saveTableSettings,
 
-      /* STREAMING_CHUNK: Binding our new visual Database actions... */
       getDatabasesHTML,
       searchDatabase,
       filterDatabaseCategory,
