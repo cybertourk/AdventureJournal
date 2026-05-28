@@ -1,6 +1,7 @@
 import { generateId, updateDerivedState, reRender } from './state.js';
 import { saveCampaign, notify } from './firebase-manager.js';
 import { logPlayerActivity } from './actions-campaign.js';
+import { generateNpcData } from './actions-npc.js';
 
 // --- DMG BUSINESS TYPE CONFIGURATIONS ---
 export const BUSINESS_TYPES = {
@@ -106,6 +107,7 @@ export const openRunningBusinessModal = () => {
     window.appActions.resolveComplicationChoice = resolveComplicationChoice;
     window.appActions.openBusinessDebtsModal = openBusinessDebtsModal;
     window.appActions.payBusinessDebt = payBusinessDebt;
+    window.appActions.showHirelingFullProfile = showHirelingFullProfile;
 
     setTimeout(() => {
         const select = document.getElementById('dt-business-pc-select');
@@ -384,7 +386,7 @@ export const openRosterModal = (pcId, bizId) => {
     if (!biz) return;
 
     const typeInfo = BUSINESS_TYPES[biz.type] || { label: "Business", cost: 0, skilled: 0, untrained: 0 };
-    const maxSkilled = typeInfo.skilled + 1; // Allows 1 extra in backup roster
+    const maxSkilled = typeInfo.skilled + 1;
     const maxUntrained = typeInfo.untrained + 2;
 
     const skilledHired = Object.values(biz.hirelings?.skilled || {});
@@ -401,13 +403,12 @@ export const openRosterModal = (pcId, bizId) => {
 
         return `
             <div class="bg-stone-50 border border-[#d4c5a9] rounded p-3 flex flex-col justify-between hover:border-amber-400 transition-colors">
-                <div>
+                <div class="cursor-pointer" onclick="window.appActions.showHirelingFullProfile('${pcId}', '${bizId}', '${h.id}', '${type}')">
                     <div class="flex justify-between items-start gap-1">
                         <span class="font-bold text-xs text-stone-900 leading-tight">${h.name}</span>
                         <span class="text-[8px] uppercase tracking-wider font-bold bg-amber-100 border border-amber-300 text-amber-800 px-1.5 rounded-sm">${info.tier}</span>
                     </div>
                     <span class="text-[8px] text-stone-400 font-sans block mt-0.5">${h.species || "Commoner"} • Wages: ${extraPayStr}</span>
-                    ${h.description ? `<p class="text-[10px] font-serif text-stone-600 italic mt-1 line-clamp-2">${h.description}</p>` : ''}
                 </div>
                 <div class="flex gap-1.5 mt-3 pt-2 border-t border-stone-200/50 justify-end">
                     <button onclick="window.appActions.openTrainWorkerModal('${pcId}', '${bizId}', '${h.id}', '${type}')" ${!canTrain ? 'disabled' : ''} class="px-2 py-1 bg-stone-900 text-amber-50 rounded hover:bg-stone-800 text-[8px] font-bold uppercase tracking-wider shadow-sm disabled:opacity-30 disabled:cursor-not-allowed">Train</button>
@@ -426,7 +427,6 @@ export const openRosterModal = (pcId, bizId) => {
             </div>
 
             <div class="overflow-y-auto custom-scrollbar flex-grow pr-2 space-y-6">
-                <!-- Skilled section -->
                 <div>
                     <div class="flex justify-between items-center mb-3">
                         <span class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Skilled Hirelings (${skilledHired.length} / ${typeInfo.skilled})</span>
@@ -437,7 +437,6 @@ export const openRosterModal = (pcId, bizId) => {
                     </div>
                 </div>
 
-                <!-- Untrained section -->
                 <div>
                     <div class="flex justify-between items-center mb-3">
                         <span class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Untrained Workers (${untrainedHired.length} / ${typeInfo.untrained})</span>
@@ -455,6 +454,36 @@ export const openRosterModal = (pcId, bizId) => {
         </div>
     `;
     document.getElementById('global-popup-container').appendChild(modal);
+};
+
+export const showHirelingFullProfile = (pcId, bizId, workerId, type) => {
+    const camp = window.appData.activeCampaign;
+    const worker = camp.playerCharacters?.find(p => p.id === pcId)?.businesses?.[bizId]?.hirelings?.[type]?.[workerId];
+    if (!worker) return;
+
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-stone-950/90 z-[21000] flex items-center justify-center p-4 backdrop-blur-sm animate-in';
+    
+    // Render every single piece of generated NPC data if it exists
+    const fields = [
+        { label: "Full Name", val: worker.name },
+        { label: "Species", val: worker.species },
+        { label: "Quality", val: getQualityInfo(worker.qualityBonus, type).tier },
+        { label: "Additional Pay", val: worker.additionalPay + " gp/day" },
+        { label: "Description", val: worker.description },
+        { label: "Background / Faith / Origin", val: worker.backstory || "No additional lore." }
+    ];
+
+    modal.innerHTML = `
+        <div class="bg-[#f4ebd8] p-6 rounded-sm border-2 border-stone-800 shadow-2xl max-w-sm w-full relative">
+            <h3 class="font-serif font-bold text-lg text-amber-900 mb-4 pb-2 border-b border-[#d4c5a9]">Worker Profile: ${worker.name}</h3>
+            <div class="space-y-3">
+                ${fields.map(f => `<div><span class="text-[9px] uppercase font-bold text-stone-500">${f.label}</span><p class="text-xs font-serif text-stone-900">${f.val || '---'}</p></div>`).join('')}
+            </div>
+            <button onclick="this.parentElement.parentElement.remove()" class="mt-6 w-full py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px]">Close Profile</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
 };
 
 // ============================================================================
@@ -475,7 +504,7 @@ export const openHireModal = (pcId, bizId, hireType) => {
             </div>
 
             <div class="space-y-4 mb-6 overflow-y-auto custom-scrollbar pr-2 flex-grow">
-                <p class="text-[10px] sm:text-xs text-stone-600 italic leading-snug">Fill out the contract details, or use the **Roll Character** trigger to auto-generate a random worker!</p>
+                <p class="text-[10px] sm:text-xs text-stone-600 italic leading-snug">Fill out the contract details, or use the <b>Auto-Generate</b> trigger to auto-generate a random worker!</p>
                 
                 <div class="flex gap-2">
                     <button onclick="window.appActions.rollRandomNPCForHire()" class="w-full py-2 bg-stone-100 text-stone-600 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-400 transition text-[10px] font-bold uppercase tracking-wider rounded-sm shadow-sm border border-[#d4c5a9] flex items-center justify-center">
@@ -514,28 +543,18 @@ export const openHireModal = (pcId, bizId, hireType) => {
 };
 
 export const rollRandomNPCForHire = () => {
-    const firstNames = ["Theron", "Lydia", "Garrick", "Sariel", "Roland", "Vondal", "Mireia", "Kaelen", "Kithri", "Sylas", "Eldon", "Mira"];
-    const lastNames = ["Swiftwater", "Oakenheel", "Frostbeard", "Ironfist", "Moonwhisper", "Ashdown", "Oakhaven", "Starbreeze"];
-    const speciesList = ["Human", "Elf", "Dwarf", "Halfling", "Gnome", "Tiefling", "Half-Orc"];
-    const traits = [
-        "A quiet worker who keeps to themselves.", "Prone to daydreaming, but highly creative.",
-        "Obsessively organized and efficient.", "Very friendly; loved by regular customers.",
-        "Short-tempered, but executes orders flawlessly.", "Always humming old sailors' shanties."
-    ];
-
-    const randomName = firstNames[Math.floor(Math.random() * firstNames.length)] + " " + lastNames[Math.floor(Math.random() * lastNames.length)];
-    const randomSpecies = speciesList[Math.floor(Math.random() * speciesList.length)];
-    const randomTrait = traits[Math.floor(Math.random() * traits.length)];
-
+    // Integrate the NPC Generator logic
+    const npc = generateNpcData();
+    
     const nameIn = document.getElementById('dt-hire-name');
     const speciesIn = document.getElementById('dt-hire-species');
     const descIn = document.getElementById('dt-hire-desc');
 
-    if (nameIn) nameIn.value = randomName;
-    if (speciesIn) speciesIn.value = randomSpecies;
-    if (descIn) descIn.value = randomTrait;
+    if (nameIn) nameIn.value = npc.name;
+    if (speciesIn) speciesIn.value = npc.race;
+    if (descIn) descIn.value = `${npc.desc}\n${npc.appearance}\n${npc.backstory}`;
 
-    notify("Contractor rolled randomly!", "success");
+    notify("Contractor generated via NPC engine!", "success");
 };
 
 export const finalizeHire = async (pcId, bizId, hireType) => {
@@ -584,7 +603,6 @@ export const finalizeHire = async (pcId, bizId, hireType) => {
         extraWages = hireType === 'skilled' ? 2.0 : 0.2;
     }
 
-    // Skilled hirelings receive twice the quality bonus
     if (hireType === 'skilled' && qBonus > 0) {
         qBonus *= 2;
     }
@@ -607,8 +625,6 @@ export const finalizeHire = async (pcId, bizId, hireType) => {
                 if (!biz.hirelings) biz.hirelings = { skilled: {}, untrained: {} };
                 if (!biz.hirelings[hireType]) biz.hirelings[hireType] = {};
                 biz.hirelings[hireType][newWorker.id] = newWorker;
-                
-                // Track total time/complications
                 biz.totalDaysWorked = (biz.totalDaysWorked || 0) + effort;
             }
             const logAddition = `\n\n---\n\n**Logged on ${new Date().toLocaleDateString()}**\n**Downtime: Running a Business (Hiring)**\n*Hero:* ${p.name}\n\nSpent **${effort} Day(s)** searching and contracted **${name}** (${species}) as a **${hireType} worker**.\n> *Quality Roll (1d20 + ${searchBonus}):* **${totalRoll}** (${tierLabel} Quality • Bonus: ${qBonus > 0 ? '+' : ''}${qBonus} • Wages: +${extraWages.toFixed(2)} gp/day).`;
@@ -709,7 +725,6 @@ export const openTrainWorkerModal = (pcId, bizId, workerId, type) => {
     `;
     document.getElementById('global-popup-container').appendChild(modal);
 
-    // Auto-calculate Persuasion
     setTimeout(() => {
         const getAbilityMod = (score) => Math.floor(((parseInt(score) || 10) - 10) / 2);
         let pb = 2;
@@ -752,7 +767,6 @@ export const executeTrainingSession = async (pcId, bizId, workerId, type) => {
     const info = getQualityInfo(worker.qualityBonus, type);
     const pBonus = worker.promotionBonus || 0;
     
-    // Training check roll
     const d20 = Math.floor(Math.random() * 20) + 1;
     const totalRoll = d20 + pMod + days + pBonus;
 
@@ -776,18 +790,17 @@ export const executeTrainingSession = async (pcId, bizId, workerId, type) => {
                     outcomeText = `❌ **Total Failure.** The training session was ineffective. **${worker.name}** remains **${info.tier}** quality.`;
                 } else if (totalRoll < info.dc) {
                     status = " pupil";
-                    targetWorker.promotionBonus = 2; // Marks them as a "Promising Pupil"
+                    targetWorker.promotionBonus = 2;
                     outcomeText = `⚠️ **Promising Pupil!** The training shows promise but fell short. **${worker.name}** remains **${info.tier}** quality, but gains a **+2 bonus** on their next promotion check.`;
                 } else {
                     status = "promoted";
                     targetWorker.qualityBonus = info.nextBonus;
                     targetWorker.additionalPay = info.nextPay;
-                    delete targetWorker.promotionBonus; // Consume bonus
+                    delete targetWorker.promotionBonus;
                     outcomeText = `🎉 **Success!** The training has paid off! **${worker.name}** has been promoted to **${info.nextTier}** quality (Bonus: ${info.nextBonus > 0 ? '+' : ''}${info.nextBonus} • Wages: +${info.nextPay.toFixed(2)} gp/day).`;
                     logTitle = "Roster Update: Promoted!";
                 }
 
-                // Add active days
                 activeBiz.totalDaysWorked = (activeBiz.totalDaysWorked || 0) + days;
             }
 
@@ -824,23 +837,18 @@ export const openRunBusinessModal = (pcId, bizId) => {
 
     const typeInfo = BUSINESS_TYPES[biz.type] || { label: "Business", cost: 0, skilled: 0, untrained: 0 };
     
-    // Check if staffed
     const skilledHired = Object.values(biz.hirelings?.skilled || {});
     const untrainedHired = Object.values(biz.hirelings?.untrained || {});
     
     const isStaffed = skilledHired.length >= typeInfo.skilled && untrainedHired.length >= typeInfo.untrained;
 
-    // Accumulate modifiers
     const mods = biz.modifiers || {};
     const rollPenaltyMod = mods.nextRollPenalty || 0;
     const tempBonusReduction = mods.tempBonusReduction || 0;
 
-    // Debt Penalty: each unpaid debt causes -10 on rolls
     const activeDebts = Object.values(pc.businessDebts || {}).filter(d => d.businessId === biz.id);
     const debtPenalty = activeDebts.length * -10;
 
-    // Staffing bonuses calculation (only up to required limits contribute positive bonus)
-    // All poor quality (-1) always apply their penalty
     const sortedSkilled = [...skilledHired].sort((a,b) => b.qualityBonus - a.qualityBonus);
     const sortedUntrained = [...untrainedHired].sort((a,b) => b.qualityBonus - a.qualityBonus);
 
@@ -883,14 +891,11 @@ export const openRunBusinessModal = (pcId, bizId) => {
                     <div class="flex justify-between"><span>Hirelings Quality:</span> <strong>${finalStaffBonus >= 0 ? '+' : ''}${finalStaffBonus}</strong></div>
                     ${rollPenaltyMod !== 0 ? `<div class="flex justify-between text-red-700"><span>Complication Penalty:</span> <strong>${rollPenaltyMod}</strong></div>` : ''}
                     ${debtPenalty !== 0 ? `<div class="flex justify-between text-red-800 font-bold"><span>Debt Penalty (${activeDebts.length} Unpaid):</span> <strong>${debtPenalty}</strong></div>` : ''}
-                    ${mods.nextMaintenanceMultiplier ? `<div class="flex justify-between text-amber-800"><span>Maintenance Cost:</span> <strong>x${mods.nextMaintenanceMultiplier}</strong></div>` : ''}
-                    ${mods.nextProfitMultiplier ? `<div class="flex justify-between text-amber-800"><span>Profit Modifier:</span> <strong>x${mods.nextProfitMultiplier}</strong></div>` : ''}
                     <div class="flex justify-between border-t border-stone-300 pt-1 font-bold text-stone-900">
                         <span>Final Roll Mod:</span> <span>${totalModifiersBonus >= 0 ? '+' : ''}${totalModifiersBonus}</span>
                     </div>
                 </div>
 
-                <!-- Run Parameters -->
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Days to Run (1-30)</label>
@@ -902,7 +907,6 @@ export const openRunBusinessModal = (pcId, bizId) => {
                     </div>
                 </div>
 
-                <!-- Live Calculations Output -->
                 <div class="bg-[#1c1917] text-amber-50 p-4 rounded-sm shadow-inner flex justify-between items-center">
                     <div>
                         <span class="block text-[9px] uppercase tracking-widest text-stone-400 font-bold mb-0.5">Calculated Cost</span>
@@ -927,7 +931,6 @@ export const openRunBusinessModal = (pcId, bizId) => {
         </div>
     `;
     document.getElementById('global-popup-container').appendChild(modal);
-
     setTimeout(() => { window.appActions.updateRunBusinessMath(pcId, bizId); }, 50);
 };
 
@@ -949,7 +952,6 @@ export const updateRunBusinessMath = (pcId, bizId) => {
     const mods = biz.modifiers || {};
     const maintMultiplier = mods.nextMaintenanceMultiplier || 1.0;
 
-    // Extra wages tally
     const skilledHired = Object.values(biz.hirelings?.skilled || {});
     const untrainedHired = Object.values(biz.hirelings?.untrained || {});
     const extraWages = parseFloat([...skilledHired, ...untrainedHired].reduce((sum, h) => sum + h.additionalPay, 0).toFixed(2));
@@ -960,7 +962,6 @@ export const updateRunBusinessMath = (pcId, bizId) => {
     costOut.textContent = `${finalCalculatedCost.toLocaleString(undefined, { maximumFractionDigits: 2 })} gp`;
     daysOut.textContent = `${days} Day${days !== 1 ? 's' : ''}`;
 
-    // Calculate Accumulated Complication Risk
     const currentUnriskedDays = biz.daysTowardsComplication || 0;
     const totalUnrisked = currentUnriskedDays + days;
     const numBlocks = Math.floor(totalUnrisked / 10);
@@ -984,7 +985,6 @@ export const executeRunBusiness = async (pcId, bizId) => {
 
     if (!confirm(`Commit ${days} downtime days to run ${biz.name}?`)) return;
 
-    // Grab all current modifiers
     const typeInfo = BUSINESS_TYPES[biz.type];
     const mods = biz.modifiers || {};
     const rollPenaltyMod = mods.nextRollPenalty || 0;
@@ -992,11 +992,9 @@ export const executeRunBusiness = async (pcId, bizId) => {
     const maintMultiplier = mods.nextMaintenanceMultiplier || 1.0;
     const profitMultiplier = mods.nextProfitMultiplier || 1.0;
 
-    // Debt Penalty
     const activeDebts = Object.values(pc.businessDebts || {}).filter(d => d.businessId === biz.id);
     const debtPenalty = activeDebts.length * -10;
 
-    // Staffing bonuses
     const skilledHired = Object.values(biz.hirelings?.skilled || {});
     const untrainedHired = Object.values(biz.hirelings?.untrained || {});
     const sortedSkilled = [...skilledHired].sort((a,b) => b.qualityBonus - a.qualityBonus);
@@ -1027,7 +1025,6 @@ export const executeRunBusiness = async (pcId, bizId) => {
     let netLoss = 0;
     let isDebtAccumulated = false;
 
-    // DMG Business Table Math
     if (finalRollTotal <= 20) {
         netLoss = Math.ceil(maintenanceCost * 1.5);
         isDebtAccumulated = true;
@@ -1056,7 +1053,6 @@ export const executeRunBusiness = async (pcId, bizId) => {
         outcomeText = `🏆 **Windfall! (Roll 91+)** A monumental success! The business generated an incredible profit of **${profitWon.toLocaleString()} gp**!`;
     }
 
-    // Process Complication Risk
     const currentUnriskedDays = biz.daysTowardsComplication || 0;
     const totalUnrisked = currentUnriskedDays + days;
     const numBlocks = Math.floor(totalUnrisked / 10);
@@ -1074,26 +1070,18 @@ export const executeRunBusiness = async (pcId, bizId) => {
         }
     }
 
-    // Build personal log
-    let checksText = `**D100 Roll:** ${d20} + ${days} days + ${finalRollMod} mod = **${finalRollTotal}**.\n**Maintenance Incurred:** ${maintenanceCost.toLocaleString()} gp.`;
+    let checksText = `**D100 Roll:** ${d100} + ${days} days + ${finalRollMod} mod = **${finalRollTotal}**.\n**Maintenance Incurred:** ${maintenanceCost.toLocaleString()} gp.`;
     const logAddition = `\n\n---\n\n**Logged on ${new Date().toLocaleDateString()}**\n**Downtime: Running a Business (${typeInfo.label})**\n*Hero:* ${pc.name}\n\nOperated **${biz.name}** for **${days} Day(s)**.\n> ${checksText}\n\n${outcomeText}`;
 
-    // Sync tasks
     let newTasks = [];
     let businessDebts = { ...(pc.businessDebts || {}) };
 
     if (isDebtAccumulated && netLoss > 0) {
         const debtId = 'debt_' + generateId();
-        businessDebts[debtId] = {
-            id: debtId,
-            businessId: biz.id,
-            businessName: biz.name,
-            amount: netLoss,
-            date: new Date().toLocaleDateString()
-        };
+        businessDebts[debtId] = { id: debtId, businessId: biz.id, businessName: biz.name, amount: netLoss, date: new Date().toLocaleDateString() };
         newTasks.push({
             id: generateId(),
-            text: `D&D Beyond Sync (${pc.name}): Add a business debt of ${netLoss.toLocaleString()} gp for running losses. (Unpaid debts cause a cumulative -10 on future rolls).`,
+            text: `D&D Beyond Sync (${pc.name}): Add a business debt of ${netLoss.toLocaleString()} gp for running losses.`,
             resolvedBy: [],
             visibility: { mode: pc.playerId ? 'specific' : 'public', visibleTo: pc.playerId ? [pc.playerId] : [] },
             timestamp: Date.now()
@@ -1110,7 +1098,6 @@ export const executeRunBusiness = async (pcId, bizId) => {
         });
     }
 
-    // Apply updates
     const updatedPCs = camp.playerCharacters.map(p => {
         if (p.id === pcId) {
             const b = p.businesses || {};
@@ -1118,7 +1105,6 @@ export const executeRunBusiness = async (pcId, bizId) => {
             if (activeBiz) {
                 activeBiz.daysTowardsComplication = remainingUnrisked;
                 activeBiz.totalDaysWorked = (activeBiz.totalDaysWorked || 0) + days;
-                // Clear out temporary modifiers after execution
                 activeBiz.modifiers = {};
             }
             return { 
@@ -1149,8 +1135,6 @@ export const executeRunBusiness = async (pcId, bizId) => {
 };
 
 export const rollBusinessComplication = async (pcId, bizId) => {
-    // This function acts as an interface to roll a random complication for the user
-    // It initiates the resolveComplicationChoice modal.
     const camp = window.appData.activeCampaign;
     const pc = camp?.playerCharacters?.find(p => p.id === pcId);
     if (!pc) return;
@@ -1165,10 +1149,6 @@ export const rollBusinessComplication = async (pcId, bizId) => {
     window.appActions.resolveComplicationChoice(pcId, bizId, complicationKey, 0, 0);
 };
 
-// ============================================================================
-// --- CRISIS RESOLVER MODAL ---
-// ============================================================================
-
 export const resolveComplicationChoice = (pcId, bizId, complicationKey, chance, rolledVal) => {
     const camp = window.appData.activeCampaign;
     const pc = camp?.playerCharacters?.find(p => p.id === pcId);
@@ -1181,11 +1161,7 @@ export const resolveComplicationChoice = (pcId, bizId, complicationKey, chance, 
     modal.id = 'dt-biz-complication-modal';
     modal.className = 'fixed inset-0 bg-stone-950/90 z-[20000] flex items-center justify-center p-4 backdrop-blur-sm animate-in pointer-events-auto';
 
-    let title = "";
-    let desc = "";
-    let choicesHtml = "";
-
-    // Generate random values for calculations
+    let title = "", desc = "", choicesHtml = "";
     const cost2d10 = (Math.floor(Math.random() * 10) + 1 + Math.floor(Math.random() * 10) + 1) * 5;
     const cost3d6 = (Math.floor(Math.random() * 6) + 1 + Math.floor(Math.random() * 6) + 1 + Math.floor(Math.random() * 6) + 1) * 10;
     const cost1d6 = (Math.floor(Math.random() * 6) + 1) * 10;
@@ -1193,75 +1169,18 @@ export const resolveComplicationChoice = (pcId, bizId, complicationKey, chance, 
     const cost1d10 = (Math.floor(Math.random() * 10) + 1) * 10;
 
     switch(complicationKey) {
-        case "rivalry":
-            title = "Competitorprice War!";
-            desc = "A fierce competitor starts a price war or smear campaign in the region, bringing heavy pressure.";
-            choicesHtml = `<button onclick="window.appActions.executeComplicationResolution('${pcId}', '${bizId}', 'rivalry', 0, 0, -10)" class="w-full py-2 bg-red-900 hover:bg-red-800 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm">Adapt to Pressure (-10 next roll)</button>`;
-            break;
-        case "supply_chain":
-            title = "Supply Chain Failure!";
-            desc = "A critical raw-materials shipment has been spoiled or stolen by highwaymen, forcing you to source expensive alternatives.";
-            choicesHtml = `<button onclick="window.appActions.executeComplicationResolution('${pcId}', '${bizId}', 'supply_chain_maint', 0, 0, 0, 1.5)" class="w-full py-2 bg-red-900 hover:bg-red-800 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm">Accept +50% next maintenance cost</button>`;
-            break;
-        case "shakedown":
-            title = "Official Shakedown!";
-            desc = "A corrupt guild official or local syndicate captain demands protection fees.";
-            choicesHtml = `<button onclick="window.appActions.executeComplicationResolution('${pcId}', '${bizId}', 'shakedown_pay', ${cost2d10}, 0, 0)" class="w-full py-2 bg-red-900 hover:bg-red-800 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm">Pay them off (${cost2d10} gp added to debt)</button>`;
-            break;
-        case "disaster":
-            title = "Minor Disaster!";
-            desc = "A minor localized fire or building collapse has compromised part of your facility.";
-            choicesHtml = `<button onclick="window.appActions.executeComplicationResolution('${pcId}', '${bizId}', 'disaster_pay', ${cost3d6}, 0, 0)" class="w-full py-2 bg-red-900 hover:bg-red-800 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm">Fund repair repairs (${cost3d6} gp added to debt)</button>`;
-            break;
-        case "regulatory":
-            title = "Surprise Inspection!";
-            desc = "A surprise guild audit forces you to close operations for a workweek and pay a hefty fine for an obscure infraction.";
-            choicesHtml = `<button onclick="window.appActions.executeComplicationResolution('${pcId}', '${bizId}', 'reg_fine', ${cost1d6}, 5, 0)" class="w-full py-2 bg-red-900 hover:bg-red-800 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm">Settle fine (${cost1d6} gp to debt & spend 5 downtime days)</button>`;
-            break;
-        case "recession":
-            title = "Local Market Recession!";
-            desc = "An unexpected economic slump dries up local trade, depressing all commercial profit.";
-            choicesHtml = `<button onclick="window.appActions.executeComplicationResolution('${pcId}', '${bizId}', 'recession', 0, 0, 0, 1.0, 0.5)" class="w-full py-2 bg-red-900 hover:bg-red-800 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm">Tough out market conditions (Next profits halved)</button>`;
-            break;
-        case "infighting":
-            title = "Staff Infighting!";
-            desc = "Squabbling and petty feuds among your crew threaten to disrupt business.";
-            choicesHtml = `
-                <button onclick="window.appActions.executeComplicationResolution('${pcId}', '${bizId}', 'infighting_mediate', 0, 5, 0)" class="w-full py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm mb-2">Mediate dispute (Spend 5 downtime days)</button>
-                <button onclick="window.appActions.executeComplicationResolution('${pcId}', '${bizId}', 'infighting_ignore', 0, 0, -5)" class="w-full py-2 bg-red-900 hover:bg-red-800 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm">Let them squabble (-5 next roll)</button>
-            `;
-            break;
-        case "poached":
-            title = "Key Employee Poached!";
-            desc = "Your most talented worker has been offered a more lucrative position by a rival firm.";
-            choicesHtml = `
-                <button onclick="window.appActions.executeComplicationResolution('${pcId}', '${bizId}', 'poach_match', 0, 0, 0)" class="w-full py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm mb-2">Match offer (Double wages)</button>
-                <button onclick="window.appActions.executeComplicationResolution('${pcId}', '${bizId}', 'poach_letgo', 0, 0, 0)" class="w-full py-2 bg-red-900 hover:bg-red-800 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm">Let them walk (Erase random worker)</button>
-            `;
-            break;
-        case "customer_complaint":
-            title = "Severe Patron Complaint!";
-            desc = "An influential noble customer is furious over a minor mistake, threatening a major boycott.";
-            choicesHtml = `
-                <button onclick="window.appActions.executeComplicationResolution('${pcId}', '${bizId}', 'complaint_refund', ${cost1d20}, 0, 0)" class="w-full py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm mb-2">Appease them with gifts (${cost1d20} gp to debt)</button>
-                <button onclick="window.appActions.executeComplicationResolution('${pcId}', '${bizId}', 'complaint_ignore', 0, 0, -10)" class="w-full py-2 bg-red-900 hover:bg-red-800 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm">Refuse compensation (-10 next roll)</button>
-            `;
-            break;
-        case "theft":
-            title = "Internal Theft!";
-            desc = "You discover one of your hirelings has been systematically skimming from the cashbox.";
-            choicesHtml = `<button onclick="window.appActions.executeComplicationResolution('${pcId}', '${bizId}', 'theft_resolved', ${cost1d10}, 0, 0)" class="w-full py-2 bg-red-900 hover:bg-red-800 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm">Cover losses (${cost1d10} gp added to debt)</button>`;
-            break;
-        case "morale":
-            title = "Morale Plummets!";
-            desc = "Burnout and poor working conditions cause staff morale to plunge.";
-            choicesHtml = `<button onclick="window.appActions.executeComplicationResolution('${pcId}', '${bizId}', 'morale_slump', 0, 0, 0, 1.0, 1.0, 1)" class="w-full py-2 bg-red-900 hover:bg-red-800 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm">Accept temporary penalty (-1 staff bonuses next roll)</button>`;
-            break;
-        case "bad_idea":
-            title = "A Terrible Idea!";
-            desc = "An overzealous worker tried to implement a 'brilliant' organizational shortcut that backfired spectacularly.";
-            choicesHtml = `<button onclick="window.appActions.executeComplicationResolution('${pcId}', '${bizId}', 'bad_idea_fix', ${cost1d6}, 0, 0)" class="w-full py-2 bg-red-900 hover:bg-red-800 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm">Pay to fix mess (${cost1d6} gp added to debt)</button>`;
-            break;
+        case "rivalry": title = "Competitor Price War!"; desc = "A fierce competitor starts a price war or smear campaign."; choicesHtml = `<button onclick="window.appActions.executeComplicationResolution('${pcId}', '${bizId}', 'rivalry', 0, 0, -10)" class="w-full py-2 bg-red-900 hover:bg-red-800 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm">Adapt to Pressure (-10 next roll)</button>`; break;
+        case "supply_chain": title = "Supply Chain Failure!"; desc = "Critical raw-materials shipment has been spoiled or stolen."; choicesHtml = `<button onclick="window.appActions.executeComplicationResolution('${pcId}', '${bizId}', 'supply_chain_maint', 0, 0, 0, 1.5)" class="w-full py-2 bg-red-900 hover:bg-red-800 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm">Accept +50% next maintenance cost</button>`; break;
+        case "shakedown": title = "Official Shakedown!"; desc = "A corrupt guild official demands protection fees."; choicesHtml = `<button onclick="window.appActions.executeComplicationResolution('${pcId}', '${bizId}', 'shakedown_pay', ${cost2d10}, 0, 0)" class="w-full py-2 bg-red-900 hover:bg-red-800 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm">Pay them off (${cost2d10} gp added to debt)</button>`; break;
+        case "disaster": title = "Minor Disaster!"; desc = "A minor localized fire or building collapse."; choicesHtml = `<button onclick="window.appActions.executeComplicationResolution('${pcId}', '${bizId}', 'disaster_pay', ${cost3d6}, 0, 0)" class="w-full py-2 bg-red-900 hover:bg-red-800 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm">Fund repair repairs (${cost3d6} gp added to debt)</button>`; break;
+        case "regulatory": title = "Surprise Inspection!"; desc = "A surprise audit forces you to close operations for a workweek and pay a hefty fine."; choicesHtml = `<button onclick="window.appActions.executeComplicationResolution('${pcId}', '${bizId}', 'reg_fine', ${cost1d6}, 5, 0)" class="w-full py-2 bg-red-900 hover:bg-red-800 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm">Settle fine (${cost1d6} gp to debt & spend 5 downtime days)</button>`; break;
+        case "recession": title = "Local Market Recession!"; desc = "An unexpected economic slump dries up local trade."; choicesHtml = `<button onclick="window.appActions.executeComplicationResolution('${pcId}', '${bizId}', 'recession', 0, 0, 0, 1.0, 0.5)" class="w-full py-2 bg-red-900 hover:bg-red-800 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm">Tough out market conditions (Next profits halved)</button>`; break;
+        case "infighting": title = "Staff Infighting!"; desc = "Squabbling and petty feuds among your crew threaten to disrupt business."; choicesHtml = `<button onclick="window.appActions.executeComplicationResolution('${pcId}', '${bizId}', 'infighting_mediate', 0, 5, 0)" class="w-full py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm mb-2">Mediate dispute (Spend 5 downtime days)</button> <button onclick="window.appActions.executeComplicationResolution('${pcId}', '${bizId}', 'infighting_ignore', 0, 0, -5)" class="w-full py-2 bg-red-900 hover:bg-red-800 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm">Let them squabble (-5 next roll)</button>`; break;
+        case "poached": title = "Key Employee Poached!"; desc = "Your most talented worker has been offered a more lucrative position by a rival firm."; choicesHtml = `<button onclick="window.appActions.executeComplicationResolution('${pcId}', '${bizId}', 'poach_match', 0, 0, 0)" class="w-full py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm mb-2">Match offer (Double wages)</button> <button onclick="window.appActions.executeComplicationResolution('${pcId}', '${bizId}', 'poach_letgo', 0, 0, 0)" class="w-full py-2 bg-red-900 hover:bg-red-800 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm">Let them walk (Erase random worker)</button>`; break;
+        case "customer_complaint": title = "Severe Patron Complaint!"; desc = "An influential noble customer is furious over a minor mistake."; choicesHtml = `<button onclick="window.appActions.executeComplicationResolution('${pcId}', '${bizId}', 'complaint_refund', ${cost1d20}, 0, 0)" class="w-full py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm mb-2">Appease them with gifts (${cost1d20} gp to debt)</button> <button onclick="window.appActions.executeComplicationResolution('${pcId}', '${bizId}', 'complaint_ignore', 0, 0, -10)" class="w-full py-2 bg-red-900 hover:bg-red-800 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm">Refuse compensation (-10 next roll)</button>`; break;
+        case "theft": title = "Internal Theft!"; desc = "You discover one of your hirelings has been systematically skimming from the cashbox."; choicesHtml = `<button onclick="window.appActions.executeComplicationResolution('${pcId}', '${bizId}', 'theft_resolved', ${cost1d10}, 0, 0)" class="w-full py-2 bg-red-900 hover:bg-red-800 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm">Cover losses (${cost1d10} gp added to debt)</button>`; break;
+        case "morale": title = "Morale Plummets!"; desc = "Burnout and poor working conditions cause staff morale to plunge."; choicesHtml = `<button onclick="window.appActions.executeComplicationResolution('${pcId}', '${bizId}', 'morale_slump', 0, 0, 0, 1.0, 1.0, 1)" class="w-full py-2 bg-red-900 hover:bg-red-800 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm">Accept temporary penalty (-1 staff bonuses next roll)</button>`; break;
+        case "bad_idea": title = "A Terrible Idea!"; desc = "An overzealous worker tried to implement a 'brilliant' organizational shortcut that backfired spectacularly."; choicesHtml = `<button onclick="window.appActions.executeComplicationResolution('${pcId}', '${bizId}', 'bad_idea_fix', ${cost1d6}, 0, 0)" class="w-full py-2 bg-red-900 hover:bg-red-800 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm">Pay to fix mess (${cost1d6} gp added to debt)</button>`; break;
     }
 
     modal.innerHTML = `
@@ -1273,16 +1192,13 @@ export const resolveComplicationChoice = (pcId, bizId, complicationKey, chance, 
                 <span class="text-[8px] uppercase tracking-wider text-stone-500 font-bold block mt-1">Roll Failure: ${rolledVal}% vs ${chance}% Risk</span>
             </div>
             <p class="text-xs text-stone-300 font-serif leading-relaxed text-center mb-6">${desc}</p>
-            
             <div class="space-y-2">
                 ${choicesHtml}
             </div>
         </div>
     `;
 
-    // Bind resolution script
     window.appActions.executeComplicationResolution = executeComplicationResolution;
-
     document.getElementById('global-popup-container').appendChild(modal);
 };
 
@@ -1304,7 +1220,6 @@ export const executeComplicationResolution = async (pcId, bizId, resolutionKey, 
         return;
     }
 
-    // Process Specific Modifiers
     const activeModifiers = {
         nextRollPenalty: penalty,
         nextMaintenanceMultiplier: maintMult,
@@ -1320,7 +1235,6 @@ export const executeComplicationResolution = async (pcId, bizId, resolutionKey, 
             const victim = all[Math.floor(Math.random() * all.length)];
             const isSkilled = !!biz.hirelings?.skilled?.[victim.id];
             
-            // Double wages permanently
             const doubledPay = victim.additionalPay > 0 ? victim.additionalPay * 2.0 : 0.5;
             if (isSkilled) {
                 biz.hirelings.skilled[victim.id].additionalPay = doubledPay;
@@ -1338,7 +1252,7 @@ export const executeComplicationResolution = async (pcId, bizId, resolutionKey, 
             const targetId = isSkilled ? skilled[0] : untrained[0];
             const victimName = targetList[targetId].name;
             
-            delete targetList[targetId]; // Fire employee
+            delete targetList[targetId]; 
             logMsg = `Allowed **${victimName}** to be recruited by rival firm.`;
         }
     }
@@ -1372,7 +1286,6 @@ export const executeComplicationResolution = async (pcId, bizId, resolutionKey, 
 
     const logAddition = `\n\n---\n\n**Logged on ${new Date().toLocaleDateString()}**\n**Crisis Resolution: ${biz.name}**\n*Hero:* ${pc.name}\n\nResolved crisis successfully. ${logMsg}`;
 
-    // Apply state
     const updatedPCs = camp.playerCharacters.map(p => {
         if (p.id === pcId) {
             const b = p.businesses || {};
@@ -1424,7 +1337,7 @@ export const openBusinessDebtsModal = (pcId, bizId) => {
                         <span class="text-xs text-stone-400 block font-bold uppercase tracking-wider">${d.date}</span>
                         <span class="text-base font-black text-amber-900">${d.amount.toLocaleString()} gp</span>
                     </div>
-                    <button onclick="window.appActions.payBusinessDebt('${pcId}', '${bizId}', '${d.id}')" class="px-4 py-2 bg-emerald-700 text-white rounded hover:bg-emerald-600 transition font-bold uppercase text-[10px] tracking-widest shadow-sm">Pay Off</button>
+                    <button onclick="window.appActions.payBusinessDebt('${pcId}', '${bizId}', '${d.id}')" class="px-4 py-2 bg-emerald-700 text-white rounded hover:bg-emerald-600 transition font-bold uppercase tracking-wider text-[10px] tracking-widest shadow-sm">Pay Off</button>
                 </div>
             `;
         });
