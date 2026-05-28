@@ -14,6 +14,7 @@ const DOWNTIME_ACTIVITIES = {
     "Relaxation": { icon: "fa-bed", desc: "Recover from injuries or stress.", action: "openRelaxationModal" },
     "Religious Service": { icon: "fa-hands-praying", desc: "Serve a temple to earn favors.", action: "openReligiousServiceModal" },
     "Research": { icon: "fa-book-open", desc: "Delve into lore about a specific topic.", action: "openResearchModal" },
+    "Running a Business": { icon: "fa-store", desc: "Establish and manage a commercial enterprise.", action: "openRunningBusinessModal" },
     "Scribing a Spell Scroll": { icon: "fa-scroll", desc: "Transfer a spell to a scroll.", action: "openScribingModal" },
     "Selling a Magic Item": { icon: "fa-coins", desc: "Find a buyer for a magic item.", action: "openSellingModal" },
     "Training": { icon: "fa-dumbbell", desc: "Learn a new language or tool proficiency.", action: "openTrainingModal" },
