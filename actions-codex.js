@@ -791,8 +791,8 @@ export const saveCodexEntry = async () => {
     }
 
     const myUid = window.appData.currentUserUid;
-    const isNew = !id;
     const existingEntry = camp.codex?.find(c => c.id === id);
+    const exists = !!existingEntry; // Evaluates existence in database instead of just ID presence
 
     let npcData = {};
     if (typeVal === 'NPC') {
@@ -856,20 +856,21 @@ export const saveCodexEntry = async () => {
         tags: document.getElementById('cx-modal-tags').value.split(',').map(t=>t.trim()).filter(t=>t),
         desc: document.getElementById('cx-modal-desc').value,
         image: document.getElementById('cx-modal-image').value.trim(),
-        authorId: isNew ? myUid : (existingEntry?.authorId || myUid),
+        authorId: !exists ? myUid : (existingEntry?.authorId || myUid),
         visibility: existingEntry?.visibility || { mode: 'public' },
         dmNotes: dmNotesVal,
         ...npcData,
         ...locData
     };
 
-    const newCodexArray = isNew ? [...(camp.codex || []), newEntry] : camp.codex.map(c => c.id === id ? newEntry : c);
+    // Safely appends the entry to the codex array if it is the first time the hero is being customized
+    const newCodexArray = !exists ? [...(camp.codex || []), newEntry] : camp.codex.map(c => c.id === id ? newEntry : c);
     
     let updatedCamp = { ...camp, codex: newCodexArray };
 
     // Track Player Edits!
     if (!camp._isDM) {
-        if (isNew) {
+        if (!exists) {
             updatedCamp = logPlayerActivity(updatedCamp, myUid, `added a new Codex entry for <span class="font-bold text-amber-700">${name}</span>.`, 'fa-book-medical');
         } else {
             updatedCamp = logPlayerActivity(updatedCamp, myUid, `amended the Codex entry for <span class="font-bold text-amber-700">${name}</span>.`, 'fa-pen-to-square');
