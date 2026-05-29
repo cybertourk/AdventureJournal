@@ -19,6 +19,17 @@ export const BUDGET_BY_LEVEL = {
     15: 75000, 16: 103000, 17: 130000, 18: 214000, 19: 383000, 20: 552000, 21: 805000 
 };
 
+// --- SECURITY HELPER: Prevent HTML Attribute Corruption ---
+const escapeHTML = (str) => {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+};
+
 export function renderLevelOptions(selected) {
     return Object.keys(BUDGET_BY_LEVEL).map(lvl => 
         `<option value="${lvl}" ${parseInt(lvl) === parseInt(selected) ? 'selected' : ''}>Level ${lvl === '21' ? '20+' : lvl}</option>`
@@ -470,6 +481,20 @@ export function updateChecklistUI(state) {
         const activeCategory = state.activeQuestCategory || 'current';
         const quests = camp.quests || [];
         
+        // Connect player registration helpers
+        const activePlayerUIDs = camp.activePlayers || [];
+        const playerNames = camp.playerNames || {};
+        const connectedPlayers = activePlayerUIDs.filter(uid => uid !== camp.dmId);
+
+        // FOG OF WAR FILTER: Restrict quests strictly based on metadata privacy
+        const visibleQuests = quests.filter(q => {
+            if (isDM) return true;
+            const vis = q.visibility || { mode: 'public' };
+            if (vis.mode === 'public') return true;
+            if (vis.mode === 'specific' && vis.visibleTo?.includes(myUid)) return true;
+            return false;
+        });
+
         const categoryFilters = [
             { id: 'current', label: 'Current Arc' },
             { id: 'general', label: 'General' },
@@ -480,7 +505,7 @@ export function updateChecklistUI(state) {
         const categoryNav = `
         <div class="flex flex-wrap gap-1.5 mb-4 p-1 bg-stone-100 border border-stone-300 rounded-sm">
             ${categoryFilters.map(cat => {
-                const count = quests.filter(q => q.category === cat.id && q.status === 'active').length;
+                const count = visibleQuests.filter(q => q.category === cat.id && q.status === 'active').length;
                 const countBadge = count > 0 ? `<span class="bg-red-800 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full ml-1.5">${count}</span>` : '';
                 return `
                 <button onclick="window.switchQuestCategory('${cat.id}')" class="flex-1 min-w-[70px] py-1 text-[8px] sm:text-[9px] font-bold uppercase tracking-wider rounded-sm transition ${activeCategory === cat.id ? 'bg-white shadow-sm text-stone-900 border border-stone-300' : 'text-stone-500 hover:text-stone-800'}">
@@ -490,13 +515,95 @@ export function updateChecklistUI(state) {
         </div>
         `;
 
-        const filteredQuests = quests.filter(q => q.category === activeCategory);
+        const filteredQuests = visibleQuests.filter(q => q.category === activeCategory);
         let questListHtml = '';
 
         if (filteredQuests.length === 0) {
             questListHtml = `<div class="text-xs text-stone-500 italic py-8 text-center bg-white border border-[#d4c5a9] rounded-sm">No quests documented in this category.</div>`;
         } else {
             filteredQuests.forEach(q => {
+                // If this quest is currently being edited, swap out the card for our inline edit form
+                if (window.appData.editingQuestId === q.id) {
+                    questListHtml += `
+                    <div class="bg-[#fdfbf7] border-2 border-blue-500 rounded-sm p-4 shadow-md flex flex-col gap-3 animate-in mb-3 last:mb-0">
+                        <h4 class="font-serif font-bold text-xs uppercase tracking-widest text-blue-900 border-b border-[#d4c5a9] pb-1.5 mb-2"><i class="fa-solid fa-pen-nib mr-1.5"></i> Edit Quest</h4>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-[9px] uppercase font-bold text-stone-500 tracking-wider mb-1">Quest Title</label>
+                                <input type="text" id="edit-quest-name-${q.id}" value="${escapeHTML(q.name)}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none bg-white">
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[9px] uppercase font-bold text-stone-500 tracking-wider mb-1">Quest Giver</label>
+                                    <input type="text" id="edit-quest-giver-${q.id}" value="${escapeHTML(q.giver)}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs text-stone-900 outline-none bg-white">
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] uppercase font-bold text-stone-500 tracking-wider mb-1">Giver Location</label>
+                                    <input type="text" id="edit-quest-giver-loc-${q.id}" value="${escapeHTML(q.giverLocation)}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs text-stone-900 outline-none bg-white">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[9px] uppercase font-bold text-stone-500 tracking-wider mb-1">Rewards</label>
+                                <input type="text" id="edit-quest-rewards-${q.id}" value="${escapeHTML(q.rewards)}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs text-stone-900 outline-none bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-[9px] uppercase font-bold text-stone-500 tracking-wider mb-1">Important Clues</label>
+                                <input type="text" id="edit-quest-clues-${q.id}" value="${escapeHTML(q.clues)}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs text-stone-900 outline-none bg-white">
+                            </div>
+                            
+                            <!-- Objectives Editor -->
+                            <div>
+                                <div class="flex justify-between items-center mb-1.5">
+                                    <label class="block text-[9px] uppercase font-bold text-stone-500 tracking-wider">Objectives</label>
+                                    <button onclick="window.addEditObjectiveField('${q.id}')" class="text-[8px] font-bold uppercase text-blue-700 hover:text-blue-900 transition"><i class="fa-solid fa-plus-circle mr-1"></i> Add Step</button>
+                                </div>
+                                <div id="edit-quest-objectives-container-${q.id}" class="space-y-2">
+                                    ${(q.objectives || []).map((obj, oIdx) => `
+                                        <div class="flex gap-2 items-center edit-objective-row-${q.id} objective-input-row">
+                                            <input type="text" class="edit-obj-input-text flex-grow p-1.5 border border-[#d4c5a9] rounded text-[11px] text-stone-900 outline-none bg-white" value="${escapeHTML(obj.text)}" placeholder="Objective">
+                                            <div class="flex items-center gap-1 shrink-0">
+                                                <input type="number" class="edit-obj-input-current w-12 p-1.5 border border-[#d4c5a9] rounded text-[11px] text-stone-900 outline-none bg-white text-center" value="${obj.current || 0}" title="Current Progress" placeholder="Current">
+                                                <span class="text-stone-400 text-xs">/</span>
+                                                <input type="number" class="edit-obj-input-target w-12 p-1.5 border border-[#d4c5a9] rounded text-[11px] text-stone-900 outline-none bg-white text-center" value="${obj.target || 1}" title="Target Goal" placeholder="Target">
+                                            </div>
+                                            <button onclick="this.closest('.objective-input-row').remove()" class="text-stone-400 hover:text-red-700 transition p-1 shrink-0"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+
+                            <!-- Visibility Editor -->
+                            <div>
+                                <label class="block text-[9px] uppercase font-bold text-stone-500 tracking-wider mb-1">Visibility</label>
+                                <select id="edit-quest-vis-mode-${q.id}" onchange="window.toggleQuestVisPlayers(this.value, 'edit-quest-players-wrap-${q.id}')" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none bg-white">
+                                    <option value="public" ${q.visibility?.mode === 'public' || !q.visibility ? 'selected' : ''}>Public (All Players)</option>
+                                    <option value="hidden" ${q.visibility?.mode === 'hidden' ? 'selected' : ''}>Hidden (DM Only)</option>
+                                    <option value="specific" ${q.visibility?.mode === 'specific' ? 'selected' : ''}>Shared (Specific Players...)</option>
+                                </select>
+                                <div id="edit-quest-players-wrap-${q.id}" class="${q.visibility?.mode === 'specific' ? '' : 'hidden'} mt-2 p-2 bg-stone-100 border border-stone-200 rounded-sm">
+                                    <label class="block text-[8px] uppercase font-bold text-stone-400 mb-1">Select Players</label>
+                                    <div class="space-y-1">
+                                        ${connectedPlayers.map(uid => {
+                                            const isChecked = q.visibility?.visibleTo?.includes(uid) ? 'checked' : '';
+                                            return `
+                                            <label class="flex items-center gap-1.5 text-[10px] text-stone-700 cursor-pointer">
+                                                <input type="checkbox" value="${uid}" ${isChecked} class="edit-quest-player-cb-${q.id} w-3.5 h-3.5 text-amber-600 rounded">
+                                                <span>${escapeHTML(playerNames[uid])}</span>
+                                            </label>`;
+                                        }).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-end gap-2 pt-3 border-t border-[#d4c5a9]">
+                            <button onclick="window.cancelEditQuest()" class="px-3 py-1.5 text-stone-600 border border-stone-400 rounded-sm hover:bg-stone-200 transition font-bold uppercase tracking-wider text-[8px]">Cancel</button>
+                            <button onclick="window.saveEditQuest('${q.id}')" class="px-4 py-1.5 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[8px] shadow-sm"><i class="fa-solid fa-floppy-disk mr-1"></i> Update Quest</button>
+                        </div>
+                    </div>`;
+                    return;
+                }
+
                 const statusColors = {
                     active: 'bg-emerald-100 border-emerald-300 text-emerald-800',
                     completed: 'bg-blue-100 border-blue-300 text-blue-800 line-through',
@@ -508,6 +615,14 @@ export function updateChecklistUI(state) {
                     ${q.status || 'active'}
                 </span>
                 `;
+
+                // Display small visual tag representing the visibility state
+                const visMode = q.visibility?.mode || 'public';
+                let visBadge = '';
+                if (isDM) {
+                    if (visMode === 'hidden') visBadge = `<span class="text-[8px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded border bg-red-50 border-red-200 text-red-800 mr-1"><i class="fa-solid fa-eye-slash mr-1"></i> Hidden</span>`;
+                    else if (visMode === 'specific') visBadge = `<span class="text-[8px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded border bg-blue-50 border-blue-200 text-blue-800 mr-1"><i class="fa-solid fa-user-lock mr-1"></i> Shared</span>`;
+                }
 
                 let objectivesHtml = '';
                 if (q.objectives && q.objectives.length > 0) {
@@ -523,7 +638,7 @@ export function updateChecklistUI(state) {
                             <div class="flex items-center gap-2 mt-1.5 shrink-0 select-none">
                                 <button onclick="window.updateQuestProgress('${q.id}', ${idx}, -1)" class="w-5 h-5 bg-stone-200 border border-stone-300 hover:bg-stone-300 text-stone-700 font-bold rounded flex items-center justify-center transition shadow-sm active:scale-90"><i class="fa-solid fa-minus text-[8px]"></i></button>
                                 <span class="text-[10px] font-mono font-bold text-stone-800 bg-white border border-stone-300 px-2 py-0.5 rounded shadow-inner min-w-[34px] text-center">${obj.current} / ${obj.target}</span>
-                                <button onclick="window.updateQuestProgress('${q.id}', ${idx}, 1)" class="w-5 h-5 bg-stone-200 border border-stone-300 hover:bg-stone-300 text-stone-700 font-bold rounded flex items-center justify-center transition shadow-sm active:scale-90"><i class="fa-solid fa-plus text-[8px]"></i></button>
+                                <button onclick="window.updateQuestProgress('${q.id}', ${idx}, 1)" class="w-5 h-5 bg-stone-200 border border-stone-300 hover:bg-stone-300 text-stone-700 font-bold rounded flex items-center justify-center transition shadow-sm active:scale-95"><i class="fa-solid fa-plus text-[8px]"></i></button>
                             </div>
                             `;
                         } else {
@@ -550,17 +665,19 @@ export function updateChecklistUI(state) {
                 }
 
                 questListHtml += `
-                <div class="bg-white border border-[#d4c5a9] rounded-sm p-4 shadow-sm flex flex-col gap-3 hover:border-amber-400 transition-colors relative group mb-3 last:mb-0">
+                <div class="bg-white border border-[#d4c5a9] rounded-sm p-4 shadow-sm flex flex-col gap-3 hover:border-amber-400 transition-colors relative group mb-3 last:mb-0 animate-in">
                     <div class="flex justify-between items-start border-b border-stone-200 pb-2 gap-2">
                         <div class="min-w-0">
                             <h4 class="font-serif font-bold text-sm sm:text-base text-stone-900 leading-tight">${q.name}</h4>
                             <span class="text-[9px] text-stone-400 font-bold block mt-1"><i class="fa-solid fa-user-circle mr-1"></i>From: ${q.giver || 'Unspecified'} (${q.giverLocation || 'Unspecified'})</span>
                         </div>
                         <div class="flex items-center gap-1.5 shrink-0 select-none">
+                            ${visBadge}
                             ${statusBadges}
                             ${isDM ? `
                                 <div class="w-px h-4 bg-stone-300"></div>
-                                <button onclick="window.deleteQuest('${q.id}')" class="w-6 h-6 flex items-center justify-center text-stone-400 hover:text-red-700 rounded transition hover:bg-stone-50"><i class="fa-solid fa-trash text-xs"></i></button>
+                                <button onclick="window.startEditQuest('${q.id}')" class="w-6 h-6 flex items-center justify-center text-stone-400 hover:text-blue-700 rounded transition hover:bg-stone-50" title="Edit Quest"><i class="fa-solid fa-pen text-xs"></i></button>
+                                <button onclick="window.deleteQuest('${q.id}')" class="w-6 h-6 flex items-center justify-center text-stone-400 hover:text-red-700 rounded transition hover:bg-stone-50" title="Delete Quest"><i class="fa-solid fa-trash text-xs"></i></button>
                             ` : ''}
                         </div>
                     </div>
@@ -632,6 +749,27 @@ export function updateChecklistUI(state) {
                         </div>
                     </div>
 
+                    <!-- Visibility Configurator -->
+                    <div>
+                        <label class="block text-[9px] uppercase font-bold text-stone-500 tracking-wider mb-1">Visibility</label>
+                        <select id="new-quest-vis-mode" onchange="window.toggleQuestVisPlayers(this.value, 'new-quest-players-wrap')" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none bg-white">
+                            <option value="public" selected>Public (All Players)</option>
+                            <option value="hidden">Hidden (DM Only)</option>
+                            <option value="specific">Shared (Specific Players...)</option>
+                        </select>
+                        <div id="new-quest-players-wrap" class="hidden mt-2 p-2 bg-stone-100 border border-stone-200 rounded-sm">
+                            <label class="block text-[8px] uppercase font-bold text-stone-400 mb-1">Select Players</label>
+                            <div class="space-y-1">
+                                ${connectedPlayers.map(uid => `
+                                    <label class="flex items-center gap-1.5 text-[10px] text-stone-700 cursor-pointer">
+                                        <input type="checkbox" value="${uid}" class="new-quest-player-cb w-3.5 h-3.5 text-amber-600 rounded">
+                                        <span>${escapeHTML(playerNames[uid])}</span>
+                                    </label>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="flex justify-end pt-2">
                         <button onclick="window.saveQuest()" class="px-4 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] shadow-sm"><i class="fa-solid fa-scroll mr-1.5"></i> Forge Quest</button>
                     </div>
@@ -654,9 +792,6 @@ if (typeof window !== 'undefined') {
     window.appActions.navigateBack = navigateBack;
     window.appActions.toggleActionMenu = toggleActionMenu;
     
-    // window.appActions.setView is bound globally by data.js during initialization,
-    // so we do not assign it here to prevent ReferenceErrors on load.
-
     // Direct global handlers bypassing data.js override issues
     window.switchChecklistTab = (tab) => {
         window.appData.activeChecklistTab = tab;
@@ -680,13 +815,99 @@ if (typeof window !== 'undefined') {
         container.insertAdjacentHTML('beforeend', html);
     };
 
+    window.toggleQuestVisPlayers = (value, elementId) => {
+        const el = document.getElementById(elementId);
+        if (el) {
+            if (value === 'specific') el.classList.remove('hidden');
+            else el.classList.add('hidden');
+        }
+    };
+
+    window.startEditQuest = (questId) => {
+        window.appData.editingQuestId = questId;
+        reRender(true);
+    };
+
+    window.cancelEditQuest = () => {
+        window.appData.editingQuestId = null;
+        reRender(true);
+    };
+
+    window.addEditObjectiveField = (questId) => {
+        const container = document.getElementById(`edit-quest-objectives-container-${questId}`);
+        if (!container) return;
+        const html = `
+        <div class="flex gap-2 items-center edit-objective-row-${questId} objective-input-row animate-in">
+            <input type="text" class="edit-obj-input-text flex-grow p-1.5 border border-[#d4c5a9] rounded text-[11px] text-stone-900 outline-none bg-white" placeholder="Objective">
+            <div class="flex items-center gap-1 shrink-0">
+                <input type="number" class="edit-obj-input-current w-12 p-1.5 border border-[#d4c5a9] rounded text-[11px] text-stone-900 outline-none bg-white text-center" value="0" placeholder="Current">
+                <span class="text-stone-400 text-xs">/</span>
+                <input type="number" class="edit-obj-input-target w-12 p-1.5 border border-[#d4c5a9] rounded text-[11px] text-stone-900 outline-none bg-white text-center" value="1" placeholder="Target">
+            </div>
+            <button onclick="this.closest('.objective-input-row').remove()" class="text-stone-400 hover:text-red-700 transition p-1 shrink-0"><i class="fa-solid fa-trash text-[10px]"></i></button>
+        </div>`;
+        container.insertAdjacentHTML('beforeend', html);
+    };
+
+    window.saveEditQuest = async (questId) => {
+        const name = document.getElementById(`edit-quest-name-${questId}`).value.trim();
+        const giver = document.getElementById(`edit-quest-giver-${questId}`).value.trim();
+        const giverLoc = document.getElementById(`edit-quest-giver-loc-${questId}`).value.trim();
+        const rewards = document.getElementById(`edit-quest-rewards-${questId}`).value.trim();
+        const clues = document.getElementById(`edit-quest-clues-${questId}`).value.trim();
+        const visMode = document.getElementById(`edit-quest-vis-mode-${questId}`).value;
+
+        const visibleTo = [];
+        if (visMode === 'specific') {
+            document.querySelectorAll(`.edit-quest-player-cb-${questId}:checked`).forEach(cb => {
+                visibleTo.push(cb.value);
+            });
+        }
+
+        const objectives = [];
+        document.querySelectorAll(`.edit-objective-row-${questId}`).forEach(row => {
+            const text = row.querySelector('.edit-obj-input-text').value.trim();
+            const target = parseInt(row.querySelector('.edit-obj-input-target').value) || 1;
+            const current = parseInt(row.querySelector('.edit-obj-input-current').value) || 0;
+            const completed = current >= target;
+            if (text) {
+                objectives.push({ text, current, target, completed });
+            }
+        });
+
+        const camp = window.appData.activeCampaign;
+        if (!camp) return;
+
+        camp.quests = (camp.quests || []).map(q => {
+            if (q.id === questId) {
+                return {
+                    ...q,
+                    name,
+                    giver,
+                    giverLocation: giverLoc,
+                    rewards,
+                    clues,
+                    objectives,
+                    visibility: { mode: visMode, visibleTo }
+                };
+            }
+            return q;
+        });
+
+        await saveCampaign(camp);
+        window.appData.editingQuestId = null;
+        notify("Quest updated successfully.", "success");
+        reRender(true);
+    };
+
     window.saveQuest = async () => {
         const nameIn = document.getElementById('new-quest-name');
         const giverIn = document.getElementById('new-quest-giver');
         const giverLocIn = document.getElementById('new-quest-giver-loc');
         const rewardsIn = document.getElementById('new-quest-rewards');
         const cluesIn = document.getElementById('new-quest-clues');
-        
+        const visMode = document.getElementById('new-quest-vis-mode').value;
+
         if (!nameIn || !nameIn.value.trim()) {
             notify("Quest title cannot be empty.", "error");
             return;
@@ -694,6 +915,13 @@ if (typeof window !== 'undefined') {
 
         const camp = window.appData.activeCampaign;
         if (!camp) return;
+
+        const visibleTo = [];
+        if (visMode === 'specific') {
+            document.querySelectorAll('.new-quest-player-cb:checked').forEach(cb => {
+                visibleTo.push(cb.value);
+            });
+        }
 
         // Parse objectives
         const objectives = [];
@@ -719,7 +947,8 @@ if (typeof window !== 'undefined') {
             clues: cluesIn ? cluesIn.value.trim() : '',
             category: window.appData.activeQuestCategory || 'current',
             status: 'active',
-            objectives
+            objectives,
+            visibility: { mode: visMode, visibleTo }
         };
 
         camp.quests = [...(camp.quests || []), newQuest];
