@@ -23,7 +23,6 @@ export function renderLevelOptions(selected) {
     ).join('');
 }
 
-// --- SMART TEXT FIELD GENERATOR (ZEN MODE) ---
 export function renderSmartField(id, labelHtml, value, placeholderText, rows, wrapperClass = '', isReadonly = false) {
     const hasText = value && value.trim().length > 0;
     const viewContent = (hasText && window.appActions && window.appActions.parseSmartText) 
@@ -36,7 +35,7 @@ export function renderSmartField(id, labelHtml, value, placeholderText, rows, wr
     const onClickAttr = isReadonly ? '' : `onclick="window.appActions.openUniversalEditor('input-${id}', '${plainLabel}')"`;
     const cursorClass = isReadonly ? '' : 'cursor-text';
     const hoverClass = isReadonly ? '' : 'group-hover:bg-white';
-    const editBtnHtml = isReadonly ? '' : `<button type="button" class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-600 hover:text-amber-500 transition" onclick="event.stopPropagation(); window.appActions.openUniversalEditor('input-${id}', '${plainLabel}')"><i class="fa-solid fa-pen"></i> Edit</button>`;
+    const editBtnHtml = isReadonly ? '' : `<button type="button" class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-600 hover:text-amber-50 transition" onclick="event.stopPropagation(); window.appActions.openUniversalEditor('input-${id}', '${plainLabel}')"><i class="fa-solid fa-pen"></i> Edit</button>`;
 
     return `
     <div class="scene-row flex flex-col ${wrapperClass} group ${cursorClass}" ${onClickAttr}>
@@ -56,7 +55,6 @@ export function renderSmartField(id, labelHtml, value, placeholderText, rows, wr
     `;
 }
 
-// --- LIBRARY NAVIGATION TABS ---
 export function getLibraryTabsHTML(activeTab) {
     const isCodex = activeTab === 'codex';
     const isRules = activeTab === 'rules';
@@ -69,7 +67,7 @@ export function getLibraryTabsHTML(activeTab) {
     const isDM = window.appData?.activeCampaign?._isDM || false;
 
     return `
-    <div class="flex bg-stone-200 p-1 sm:p-1.5 rounded-sm border border-[#d4c5a9] shadow-inner mb-6 w-full max-w-5xl mx-auto shrink-0 overflow-x-auto hide-scrollbar">
+    <div class="flex bg-stone-200 p-1 sm:p-1.5 rounded-sm border border-stone-300 shadow-inner mb-6 w-full max-w-5xl mx-auto shrink-0 overflow-x-auto hide-scrollbar">
         <button onclick="window.appActions.setView('codex')" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isCodex ? 'bg-white shadow-sm text-red-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
             <i class="fa-solid fa-book-journal-whills text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Codex</span>
         </button>
@@ -103,7 +101,6 @@ export function getLibraryTabsHTML(activeTab) {
     `;
 }
 
-// --- GLOBAL HEADER & NAVIGATION VISIBILITY ---
 export function updateHeaderUI(state) {
     const titleEl = document.getElementById('header-title');
     const breadcrumbEl = document.getElementById('header-breadcrumb');
@@ -189,11 +186,10 @@ export function updateDockUI(state) {
     const activeEl = document.getElementById(`dock-tab-${activeTab}`);
     if (activeEl) {
         activeEl.classList.remove('text-stone-400', 'hover:text-amber-300');
-        activeEl.classList.add('text-amber-500');
+        activeEl.classList.add('text-amber-50');
     }
 }
 
-// --- NAVIGATION & ACTION MENU HOOKS ---
 export const navigateBack = () => {
     const state = window.appData;
     if (!state) return;
@@ -266,7 +262,6 @@ export const toggleActionMenu = () => {
     }
 };
 
-// --- PLAYER RESOURCE BAR ---
 export function updatePlayerResourceBar(state) {
     const bar = document.getElementById('player-resource-bar');
     if (!bar) return;
@@ -324,7 +319,6 @@ export function updatePlayerResourceBar(state) {
     `;
 }
 
-// --- GLOBAL CHECKLIST GENERATOR (MODAL UI) ---
 export function updateChecklistUI(state) {
     const dockBadge = document.getElementById('dock-badge-tasks');
     const sheetBadge = document.getElementById('sheet-badge-tasks');
@@ -341,7 +335,6 @@ export function updateChecklistUI(state) {
         return;
     }
 
-    // --- TAB SYSTEM ADDITION ---
     const isDM = camp._isDM;
     const myUid = state.currentUserUid;
     const updates = camp.sheetUpdates || [];
@@ -374,97 +367,7 @@ export function updateChecklistUI(state) {
         if (libTabBadge) libTabBadge.classList.add('hidden');
     }
 
-    const sorted = [...visibleUpdates].sort((a, b) => {
-        const aRes = (a.resolvedBy || []).includes(myUid);
-        const bRes = (b.resolvedBy || []).includes(myUid);
-        if (aRes === bRes) return (b.timestamp || 0) - (a.timestamp || 0);
-        return aRes ? 1 : -1;
-    });
-
-    let listHtml = '';
-    if (sorted.length === 0) {
-        listHtml = `<div class="text-xs text-stone-500 italic mb-2 text-center py-6">No active tasks or reminders.</div>`;
-    } else {
-        sorted.forEach(item => {
-            const isResolvedByMe = (item.resolvedBy || []).includes(myUid);
-            const isAuthor = item.authorId === myUid;
-            const canEdit = isDM || isAuthor;
-
-            const statusIcon = isResolvedByMe 
-                ? '<i class="fa-solid fa-circle-check text-emerald-600"></i>' 
-                : '<i class="fa-regular fa-circle text-stone-400"></i>';
-            const statusTextClass = isResolvedByMe ? 'text-stone-400 line-through' : 'text-stone-800 font-bold';
-
-            let authorTag = '';
-            if (item.authorId && item.authorId !== camp.dmId) {
-                const aName = camp.playerNames[item.authorId] || 'Player';
-                authorTag = `<span class="text-[8px] uppercase tracking-widest text-stone-400 font-bold ml-2 border border-stone-200 px-1 rounded-sm shadow-sm align-middle whitespace-nowrap">From: ${aName}</span>`;
-            }
-
-            const resolveBtn = `
-                <button type="button" onclick="window.appActions.toggleSheetUpdateResolved('${item.id}')" class="text-[10px] font-bold uppercase tracking-wider border px-3 py-1.5 rounded-sm transition shadow-sm whitespace-nowrap ${isResolvedByMe ? 'bg-emerald-100 border-emerald-300 text-emerald-800 hover:bg-emerald-200' : 'bg-white border-amber-300/50 text-stone-600 hover:bg-stone-100 hover:text-stone-900'}">
-                    ${isResolvedByMe ? '<i class="fa-solid fa-check mr-1"></i> Completed' : 'Mark Complete'}
-                </button>
-            `;
-
-            let controlsHtml = '';
-            if (canEdit) {
-                const vis = item.visibility || { mode: 'public' };
-                let eyeIcon = 'fa-eye text-emerald-600';
-                let visLabel = 'Public';
-                if (vis.mode === 'hidden') { eyeIcon = 'fa-eye-slash text-red-700'; visLabel = 'Hidden'; }
-                if (vis.mode === 'specific') { eyeIcon = 'fa-user-lock text-blue-600'; visLabel = 'Shared'; }
-                
-                const resolvedUids = item.resolvedBy || [];
-                const playerNames = camp.playerNames || {};
-                const resolvedNames = resolvedUids.map(uid => playerNames[uid] || 'Unknown Player').join(', ');
-                
-                const resolvedText = resolvedNames 
-                    ? `<span class="text-[9px] text-emerald-700 font-bold bg-emerald-100 px-1.5 py-0.5 rounded mr-auto truncate max-w-[140px] sm:max-w-[200px]" title="Completed by: ${resolvedNames}"><i class="fa-solid fa-check-double mr-1"></i> ${resolvedNames}</span>` 
-                    : `<span class="text-[9px] text-stone-400 italic mr-auto">No completions yet</span>`;
-
-                let visBtnHtml = '';
-                if (isDM) {
-                    visBtnHtml = `<button type="button" onclick="window.appActions.openVisibilityMenu(this, 'checklist', '${item.id}')" class="text-[10px] flex items-center justify-center hover:bg-stone-200 px-2 py-1 rounded transition text-stone-600 font-bold uppercase tracking-widest border border-transparent hover:border-stone-300" title="Visibility Settings"><i class="fa-solid ${eyeIcon} sm:mr-1"></i> <span class="hidden sm:inline">${visLabel}</span></button>`;
-                } else {
-                    visBtnHtml = `<span class="text-[10px] flex items-center justify-center px-2 py-1 rounded text-red-800/60 font-bold uppercase tracking-widest border border-transparent" title="Private task (DM & You)"><i class="fa-solid fa-user-secret sm:mr-1"></i> <span class="hidden sm:inline">Private</span></span>`;
-                }
-
-                controlsHtml = `
-                    ${resolvedText}
-                    <div class="flex items-center gap-1 ml-auto">
-                        ${resolveBtn}
-                        <div class="w-px h-4 bg-stone-300 mx-1"></div>
-                        ${visBtnHtml}
-                        <button type="button" onclick="window.appActions.deleteSheetUpdate('${item.id}')" class="text-[10px] w-6 h-6 flex items-center justify-center text-stone-400 hover:text-red-700 hover:bg-red-50 rounded transition" title="Delete Task"><i class="fa-solid fa-trash"></i></button>
-                    </div>
-                `;
-            } else {
-                controlsHtml = `
-                    <div class="flex items-center justify-end w-full">
-                        ${resolveBtn}
-                    </div>
-                `;
-            }
-
-            const safeText = item.text.replace(/"/g, '&quot;');
-
-            listHtml += `
-            <div class="flex flex-col bg-[#fdfbf7] p-3 border border-amber-600/20 rounded-sm shadow-sm gap-2 mb-3 hover:border-amber-400/50 transition-colors">
-                <div class="flex items-start sm:items-center gap-3">
-                    <div class="flex-shrink-0 text-base mt-0.5 sm:mt-0">${statusIcon}</div>
-                    <span class="text-sm ${statusTextClass} break-words leading-tight">${safeText} ${authorTag}</span>
-                </div>
-                <div class="flex items-center justify-between w-full pt-2 border-t border-stone-200 mt-1 min-h-[28px]">
-                    ${controlsHtml}
-                </div>
-            </div>
-            `;
-        });
-    }
-
-    // --- TAB HEADER ---
-    const activeTab = window.appData.activeChecklistTab || 'tasks';
+    const activeTab = state.activeChecklistTab || 'tasks';
     const tabNav = `
     <div class="flex gap-2 mb-4">
         <button onclick="window.switchChecklistTab('tasks')" class="flex-1 py-2 text-[10px] font-bold uppercase tracking-widest border-b-2 ${activeTab === 'tasks' ? 'border-amber-700 text-amber-900' : 'border-transparent text-stone-500 hover:text-stone-800'} transition">Tasks</button>
@@ -472,52 +375,417 @@ export function updateChecklistUI(state) {
     </div>
     `;
 
-    // --- QUEST LOG CONTENT ---
-    let questHtml = `<div class="text-xs text-stone-500 italic py-6 text-center">Quest functionality coming soon...</div>`;
-    if (activeTab === 'quests') {
-        questHtml = `<div class="space-y-4">
-            <h4 class="text-[10px] uppercase font-bold text-stone-500 tracking-widest">Active Quests</h4>
-            <!-- Quest list goes here -->
-        </div>`;
+    let contentHtml = '';
+
+    if (activeTab === 'tasks') {
+        const sorted = [...visibleUpdates].sort((a, b) => {
+            const aRes = (a.resolvedBy || []).includes(myUid);
+            const bRes = (b.resolvedBy || []).includes(myUid);
+            if (aRes === bRes) return (b.timestamp || 0) - (a.timestamp || 0);
+            return aRes ? 1 : -1;
+        });
+
+        let listHtml = '';
+        if (sorted.length === 0) {
+            listHtml = `<div class="text-xs text-stone-500 italic mb-2 text-center py-6">No active tasks or reminders.</div>`;
+        } else {
+            sorted.forEach(item => {
+                const isResolvedByMe = (item.resolvedBy || []).includes(myUid);
+                const isAuthor = item.authorId === myUid;
+                const canEdit = isDM || isAuthor;
+
+                const statusIcon = isResolvedByMe 
+                    ? '<i class="fa-solid fa-circle-check text-emerald-600"></i>' 
+                    : '<i class="fa-regular fa-circle text-stone-400"></i>';
+                const statusTextClass = isResolvedByMe ? 'text-stone-400 line-through' : 'text-stone-800 font-bold';
+
+                let authorTag = '';
+                if (item.authorId && item.authorId !== camp.dmId) {
+                    const aName = camp.playerNames[item.authorId] || 'Player';
+                    authorTag = `<span class="text-[8px] uppercase tracking-widest text-stone-400 font-bold ml-2 border border-stone-200 px-1 rounded-sm shadow-sm align-middle">From: ${aName}</span>`;
+                }
+
+                const resolveBtn = `
+                    <button type="button" onclick="window.appActions.toggleSheetUpdateResolved('${item.id}')" class="text-[10px] font-bold uppercase tracking-wider border px-3 py-1.5 rounded-sm transition shadow-sm ${isResolvedByMe ? 'bg-emerald-100 border-emerald-300 text-emerald-800 hover:bg-emerald-200' : 'bg-white border-stone-300 text-stone-600 hover:bg-stone-50'}">
+                        ${isResolvedByMe ? '<i class="fa-solid fa-check mr-1"></i> Completed' : 'Mark Complete'}
+                    </button>
+                `;
+
+                let controlsHtml = '';
+                if (canEdit) {
+                    const vis = item.visibility || { mode: 'public' };
+                    let eyeIcon = 'fa-eye text-emerald-600';
+                    let visLabel = 'Public';
+                    if (vis.mode === 'hidden') { eyeIcon = 'fa-eye-slash text-red-700'; visLabel = 'Hidden'; }
+                    if (vis.mode === 'specific') { eyeIcon = 'fa-user-lock text-blue-600'; visLabel = 'Shared'; }
+                    
+                    const resolvedUids = item.resolvedBy || [];
+                    const resolvedNames = resolvedUids.map(uid => camp.playerNames[uid] || 'Unknown').join(', ');
+                    
+                    const resolvedText = resolvedNames 
+                        ? `<span class="text-[9px] text-emerald-700 font-bold bg-emerald-100 px-1.5 py-0.5 rounded mr-auto truncate max-w-[140px] sm:max-w-[200px]" title="Completed by: ${resolvedNames}"><i class="fa-solid fa-check-double mr-1"></i> ${resolvedNames}</span>` 
+                        : `<span class="text-[9px] text-stone-400 italic mr-auto">No completions yet</span>`;
+
+                    let visBtnHtml = '';
+                    if (isDM) {
+                        visBtnHtml = `<button type="button" onclick="window.appActions.openVisibilityMenu(this, 'checklist', '${item.id}')" class="text-[10px] flex items-center justify-center hover:bg-stone-200 px-2 py-1 rounded transition text-stone-600 font-bold uppercase tracking-widest border border-transparent hover:border-stone-300" title="Visibility Settings"><i class="fa-solid ${eyeIcon} sm:mr-1"></i> <span class="hidden sm:inline">${visLabel}</span></button>`;
+                    } else {
+                        visBtnHtml = `<span class="text-[10px] flex items-center justify-center px-2 py-1 rounded text-red-800/60 font-bold uppercase tracking-widest border border-transparent" title="Private task (DM & You)"><i class="fa-solid fa-user-secret sm:mr-1"></i> <span class="hidden sm:inline">Private</span></span>`;
+                    }
+
+                    controlsHtml = `
+                        ${resolvedText}
+                        <div class="flex items-center gap-1 ml-auto">
+                            ${resolveBtn}
+                            <div class="w-px h-4 bg-stone-300 mx-1"></div>
+                            ${visBtnHtml}
+                            <button type="button" onclick="window.appActions.deleteSheetUpdate('${item.id}')" class="text-[10px] w-6 h-6 flex items-center justify-center text-stone-400 hover:text-red-700 hover:bg-red-50 rounded transition" title="Delete Task"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    `;
+                } else {
+                    controlsHtml = `
+                        <div class="flex items-center justify-end w-full">
+                            ${resolveBtn}
+                        </div>
+                    `;
+                }
+
+                listHtml += `
+                <div class="flex flex-col bg-white p-3 border border-stone-200 rounded-sm shadow-sm gap-2 mb-3">
+                    <div class="flex items-start sm:items-center gap-3">
+                        <div class="flex-shrink-0 text-base mt-0.5 sm:mt-0">${statusIcon}</div>
+                        <span class="text-sm ${statusTextClass} break-words leading-tight">${item.text} ${authorTag}</span>
+                    </div>
+                    <div class="flex items-center justify-between w-full pt-2 border-t border-stone-100 mt-1 min-h-[28px]">
+                        ${controlsHtml}
+                    </div>
+                </div>
+                `;
+            });
+        }
+        contentHtml = listHtml;
+    } else {
+        const activeCategory = state.activeQuestCategory || 'current';
+        const quests = camp.quests || [];
+        
+        const categoryFilters = [
+            { id: 'current', label: 'Current Arc' },
+            { id: 'general', label: 'General' },
+            { id: 'personal', label: 'Personal' },
+            { id: 'previous', label: 'Previous' }
+        ];
+
+        const categoryNav = `
+        <div class="flex flex-wrap gap-1.5 mb-4 p-1 bg-stone-100 border border-stone-300 rounded-sm">
+            ${categoryFilters.map(cat => {
+                const count = quests.filter(q => q.category === cat.id && q.status === 'active').length;
+                const countBadge = count > 0 ? `<span class="bg-red-800 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full ml-1.5">${count}</span>` : '';
+                return `
+                <button onclick="window.switchQuestCategory('${cat.id}')" class="flex-1 min-w-[70px] py-1 text-[8px] sm:text-[9px] font-bold uppercase tracking-wider rounded-sm transition ${activeCategory === cat.id ? 'bg-white shadow-sm text-stone-900 border border-stone-300' : 'text-stone-500 hover:text-stone-800'}">
+                    ${cat.label}${countBadge}
+                </button>`;
+            }).join('')}
+        </div>
+        `;
+
+        const filteredQuests = quests.filter(q => q.category === activeCategory);
+        let questListHtml = '';
+
+        if (filteredQuests.length === 0) {
+            questListHtml = `<div class="text-xs text-stone-500 italic py-8 text-center bg-white border border-[#d4c5a9] rounded-sm">No quests documented in this category.</div>`;
+        } else {
+            filteredQuests.forEach(q => {
+                const statusColors = {
+                    active: 'bg-emerald-100 border-emerald-300 text-emerald-800',
+                    completed: 'bg-blue-100 border-blue-300 text-blue-800 line-through',
+                    failed: 'bg-red-100 border-red-300 text-red-800'
+                };
+
+                const statusBadges = `
+                <span class="text-[8px] uppercase tracking-wider font-bold px-2 py-0.5 rounded border shadow-sm ${statusColors[q.status || 'active']}">
+                    ${q.status || 'active'}
+                </span>
+                `;
+
+                let objectivesHtml = '';
+                if (q.objectives && q.objectives.length > 0) {
+                    objectivesHtml = `<div class="space-y-2.5 mt-2 bg-stone-100/50 p-2.5 rounded border border-stone-200 shadow-inner">`;
+                    q.objectives.forEach((obj, idx) => {
+                        const isProgress = parseInt(obj.target) > 1;
+                        const percent = isProgress ? Math.min(100, Math.max(0, (parseInt(obj.current) / parseInt(obj.target)) * 100)) : 0;
+                        const isComplete = isProgress ? (parseInt(obj.current) >= parseInt(obj.target)) : obj.completed === true;
+
+                        let trackerHtml = '';
+                        if (isProgress) {
+                            trackerHtml = `
+                            <div class="flex items-center gap-2 mt-1.5 shrink-0 select-none">
+                                <button onclick="window.updateQuestProgress('${q.id}', ${idx}, -1)" class="w-5 h-5 bg-stone-200 border border-stone-300 hover:bg-stone-300 text-stone-700 font-bold rounded flex items-center justify-center transition shadow-sm active:scale-90"><i class="fa-solid fa-minus text-[8px]"></i></button>
+                                <span class="text-[10px] font-mono font-bold text-stone-800 bg-white border border-stone-300 px-2 py-0.5 rounded shadow-inner min-w-[34px] text-center">${obj.current} / ${obj.target}</span>
+                                <button onclick="window.updateQuestProgress('${q.id}', ${idx}, 1)" class="w-5 h-5 bg-stone-200 border border-stone-300 hover:bg-stone-300 text-stone-700 font-bold rounded flex items-center justify-center transition shadow-sm active:scale-90"><i class="fa-solid fa-plus text-[8px]"></i></button>
+                            </div>
+                            `;
+                        } else {
+                            trackerHtml = `
+                            <button onclick="window.updateQuestProgress('${q.id}', ${idx}, ${isComplete ? 0 : 1})" class="shrink-0 flex items-center justify-center w-5 h-5 border-2 rounded transition-colors ${isComplete ? 'bg-emerald-500 border-emerald-600 text-white shadow-inner' : 'bg-white border-stone-300 shadow-sm'}">
+                                ${isComplete ? '<i class="fa-solid fa-check text-[9px]"></i>' : ''}
+                            </button>
+                            `;
+                        }
+
+                        objectivesHtml += `
+                        <div class="flex flex-col gap-1.5 border-b border-stone-200/50 last:border-0 pb-2 last:pb-0">
+                            <div class="flex items-start justify-between gap-3">
+                                <span class="text-xs font-serif ${isComplete ? 'text-stone-400 line-through' : 'text-stone-800 font-bold'}">${obj.text}</span>
+                                ${trackerHtml}
+                            </div>
+                            ${isProgress ? `
+                            <div class="w-full h-1.5 bg-stone-200 rounded-full overflow-hidden shadow-inner border border-stone-300/30">
+                                <div class="h-full bg-emerald-500 transition-all duration-300 shadow-sm" style="width: ${percent}%"></div>
+                            </div>` : ''}
+                        </div>`;
+                    });
+                    objectivesHtml += `</div>`;
+                }
+
+                questListHtml += `
+                <div class="bg-white border border-[#d4c5a9] rounded-sm p-4 shadow-sm flex flex-col gap-3 hover:border-amber-400 transition-colors relative group mb-3 last:mb-0">
+                    <div class="flex justify-between items-start border-b border-stone-200 pb-2 gap-2">
+                        <div class="min-w-0">
+                            <h4 class="font-serif font-bold text-sm sm:text-base text-stone-900 leading-tight">${q.name}</h4>
+                            <span class="text-[9px] text-stone-400 font-bold block mt-1"><i class="fa-solid fa-user-circle mr-1"></i>From: ${q.giver || 'Unspecified'} (${q.giverLocation || 'Unspecified'})</span>
+                        </div>
+                        <div class="flex items-center gap-1.5 shrink-0 select-none">
+                            ${statusBadges}
+                            ${isDM ? `
+                                <div class="w-px h-4 bg-stone-300"></div>
+                                <button onclick="window.deleteQuest('${q.id}')" class="w-6 h-6 flex items-center justify-center text-stone-400 hover:text-red-700 rounded transition hover:bg-stone-50"><i class="fa-solid fa-trash text-xs"></i></button>
+                            ` : ''}
+                        </div>
+                    </div>
+                    
+                    ${objectivesHtml}
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1 text-[10px] text-stone-700">
+                        ${q.rewards ? `<div class="bg-[#fdfbf7] p-2 rounded border border-amber-600/10"><span class="font-bold text-stone-900 block uppercase tracking-wider text-[8px] mb-0.5"><i class="fa-solid fa-gift text-amber-500 mr-1"></i>Rewards</span>${q.rewards}</div>` : ''}
+                        ${q.clues ? `<div class="bg-[#fdfbf7] p-2 rounded border border-amber-600/10"><span class="font-bold text-stone-900 block uppercase tracking-wider text-[8px] mb-0.5"><i class="fa-solid fa-key text-amber-500 mr-1"></i>Clues & Info</span>${q.clues}</div>` : ''}
+                    </div>
+
+                    ${isDM ? `
+                    <div class="flex gap-1.5 pt-2 border-t border-stone-200 justify-end select-none">
+                        <button onclick="window.toggleQuestStatus('${q.id}', 'active')" class="px-2 py-1 rounded border text-[8px] font-bold uppercase tracking-wider bg-emerald-50 border-emerald-200 text-emerald-800">Active</button>
+                        <button onclick="window.toggleQuestStatus('${q.id}', 'completed')" class="px-2 py-1 rounded border text-[8px] font-bold uppercase tracking-wider bg-blue-50 border-blue-200 text-blue-800">Complete</button>
+                        <button onclick="window.toggleQuestStatus('${q.id}', 'failed')" class="px-2 py-1 rounded border text-[8px] font-bold uppercase tracking-wider bg-red-50 border-red-200 text-red-800">Failed</button>
+                    </div>
+                    ` : ''}
+                </div>`;
+            });
+        }
+
+        let dmCreatorHtml = '';
+        if (isDM) {
+            dmCreatorHtml = `
+            <div class="bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm p-3.5 shadow-sm mt-5">
+                <button onclick="document.getElementById('dm-quest-creator-form').classList.toggle('hidden'); this.querySelector('i').classList.toggle('rotate-180')" class="w-full flex justify-between items-center text-[10px] font-bold text-amber-900 uppercase tracking-widest outline-none">
+                    <span><i class="fa-solid fa-plus-circle mr-1 text-amber-600 transition-transform"></i> Scribe New Quest (DM)</span>
+                    <i class="fa-solid fa-chevron-down text-amber-600"></i>
+                </button>
+                <div id="dm-quest-creator-form" class="hidden space-y-3.5 mt-4 border-t border-[#d4c5a9] pt-4 animate-in">
+                    <div>
+                        <label class="block text-[9px] uppercase font-bold text-stone-500 tracking-wider mb-1">Quest Title</label>
+                        <input type="text" id="new-quest-name" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 shadow-inner outline-none bg-white focus:border-amber-600" placeholder="e.g. Cleansing the Grotto...">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[9px] uppercase font-bold text-stone-500 tracking-wider mb-1">Quest Giver</label>
+                            <input type="text" id="new-quest-giver" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs text-stone-900 outline-none bg-white" placeholder="e.g. Gundren Rockseeker">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] uppercase font-bold text-stone-500 tracking-wider mb-1">Giver Location</label>
+                            <input type="text" id="new-quest-giver-loc" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs text-stone-900 outline-none bg-white" placeholder="e.g. Phandalin">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[9px] uppercase font-bold text-stone-500 tracking-wider mb-1">Rewards</label>
+                        <input type="text" id="new-quest-rewards" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs text-stone-900 outline-none bg-white" placeholder="e.g. 50 gp, 1 Potion of Healing...">
+                    </div>
+
+                    <div>
+                        <label class="block text-[9px] uppercase font-bold text-stone-500 tracking-wider mb-1">Important Clues & Riddles</label>
+                        <input type="text" id="new-quest-clues" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs text-stone-900 outline-none bg-white" placeholder="e.g. Passphrase is 'Moonlight'...">
+                    </div>
+
+                    <!-- Objectives Generator -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1.5">
+                            <label class="block text-[9px] uppercase font-bold text-stone-500 tracking-wider">Objectives</label>
+                            <button onclick="window.addQuestObjectiveField()" class="text-[8px] font-bold uppercase text-blue-700 hover:text-blue-900 transition"><i class="fa-solid fa-plus-circle mr-1"></i> Add Step</button>
+                        </div>
+                        <div id="new-quest-objectives-container" class="space-y-2">
+                            <div class="flex gap-2 items-center objective-input-row">
+                                <input type="text" class="obj-input-text flex-grow p-1.5 border border-[#d4c5a9] rounded text-[11px] text-stone-900 outline-none bg-white" placeholder="Objective (e.g. Find key)">
+                                <input type="number" class="obj-input-target w-16 p-1.5 border border-[#d4c5a9] rounded text-[11px] text-stone-900 outline-none bg-white text-center" placeholder="Qty" value="1" min="1">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end pt-2">
+                        <button onclick="window.saveQuest()" class="px-4 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] shadow-sm"><i class="fa-solid fa-scroll mr-1.5"></i> Forge Quest</button>
+                    </div>
+                </div>
+            </div>
+            `;
+        }
+
+        contentHtml = categoryNav + questListHtml + dmCreatorHtml;
     }
 
-    const contentHtml = activeTab === 'tasks' ? listHtml : questHtml;
-
-    const addHtml = activeTab === 'tasks' ? `
-    <div class="flex gap-2 mt-4 pt-4 border-t border-amber-700/20 sticky bottom-0 bg-[#f4ebd8] pb-2 z-10">
-        <input type="text" id="new-sheet-update-text" class="flex-grow p-2 border border-amber-600/30 rounded-sm text-xs sm:text-sm focus:border-red-900 outline-none shadow-inner bg-white font-sans placeholder:text-stone-400 placeholder:italic" placeholder="Add a task or reminder..." onkeydown="if(event.key === 'Enter') { event.preventDefault(); window.appActions.addSheetUpdate(); }">
-        <button type="button" onclick="window.appActions.addSheetUpdate()" class="px-4 py-2 bg-amber-700 text-amber-50 text-[10px] sm:text-xs font-bold uppercase tracking-wider rounded-sm shadow-md hover:bg-amber-600 transition whitespace-nowrap"><i class="fa-solid fa-plus sm:mr-1"></i> <span class="hidden sm:inline">Add</span></button>
-    </div>
-    ` : '';
-
-    container.innerHTML = tabNav + contentHtml + addHtml;
+    container.innerHTML = tabNav + contentHtml;
 }
 
-// --- QUEST LOG LOGIC ---
-export const switchChecklistTab = (tab) => {
-    window.appData.activeChecklistTab = tab;
-    if (window.appActions && window.appActions.reRender) {
-        window.appActions.reRender(true);
-    }
-};
+if (typeof window !== 'undefined') {
+    window.appData = window.appData || {};
+    window.appActions = window.appActions || {};
 
-export const openQuestDetails = (questId) => {
-    // Logic to open quest detail modal
-};
+    // Bind navigation
+    window.appActions.navigateBack = navigateBack;
+    window.appActions.toggleActionMenu = toggleActionMenu;
+    window.appActions.setView = setView;
 
-export const addQuestObjective = (questId, objective) => {
-    // Logic to add objective to a quest
-};
+    // Direct global handlers bypassing data.js override issues
+    window.switchChecklistTab = (tab) => {
+        window.appData.activeChecklistTab = tab;
+        reRender(true);
+    };
 
-export const saveQuest = (quest) => {
-    // Logic to save quest to Firebase
-};
+    window.switchQuestCategory = (cat) => {
+        window.appData.activeQuestCategory = cat;
+        reRender(true);
+    };
 
-export const toggleQuestStatus = (questId, status) => {
-    // Logic to toggle Active/Completed/Failed
-};
+    window.addQuestObjectiveField = () => {
+        const container = document.getElementById('new-quest-objectives-container');
+        if (!container) return;
+        const html = `
+        <div class="flex gap-2 items-center objective-input-row animate-in">
+            <input type="text" class="obj-input-text flex-grow p-1.5 border border-[#d4c5a9] rounded text-[11px] text-stone-900 outline-none bg-white" placeholder="Objective (e.g. Find key)">
+            <input type="number" class="obj-input-target w-16 p-1.5 border border-[#d4c5a9] rounded text-[11px] text-stone-900 outline-none bg-white text-center" placeholder="Qty" value="1" min="1">
+            <button onclick="this.closest('.objective-input-row').remove()" class="text-stone-400 hover:text-red-700 transition p-1 shrink-0"><i class="fa-solid fa-trash text-[10px]"></i></button>
+        </div>`;
+        container.insertAdjacentHTML('beforeend', html);
+    };
 
-// --- MAIN RENDERER ---
+    window.saveQuest = async () => {
+        const nameIn = document.getElementById('new-quest-name');
+        const giverIn = document.getElementById('new-quest-giver');
+        const giverLocIn = document.getElementById('new-quest-giver-loc');
+        const rewardsIn = document.getElementById('new-quest-rewards');
+        const cluesIn = document.getElementById('new-quest-clues');
+        
+        if (!nameIn || !nameIn.value.trim()) {
+            notify("Quest title cannot be empty.", "error");
+            return;
+        }
+
+        const camp = window.appData.activeCampaign;
+        if (!camp) return;
+
+        // Parse objectives
+        const objectives = [];
+        document.querySelectorAll('.objective-input-row').forEach(row => {
+            const text = row.querySelector('.obj-input-text').value.trim();
+            const target = parseInt(row.querySelector('.obj-input-target').value) || 1;
+            if (text) {
+                objectives.push({
+                    text,
+                    current: 0,
+                    target,
+                    completed: false
+                });
+            }
+        });
+
+        const newQuest = {
+            id: 'quest_' + generateId(),
+            name: nameIn.value.trim(),
+            giver: giverIn ? giverIn.value.trim() : '',
+            giverLocation: giverLocIn ? giverLocIn.value.trim() : '',
+            rewards: rewardsIn ? rewardsIn.value.trim() : '',
+            clues: cluesIn ? cluesIn.value.trim() : '',
+            category: window.appData.activeQuestCategory || 'current',
+            status: 'active',
+            objectives
+        };
+
+        camp.quests = [...(camp.quests || []), newQuest];
+        await saveCampaign(camp);
+
+        notify(`Quest '${newQuest.name}' created!`, "success");
+        reRender(true);
+    };
+
+    window.updateQuestProgress = async (questId, objIdx, delta) => {
+        const camp = window.appData.activeCampaign;
+        if (!camp) return;
+
+        const quest = (camp.quests || []).find(q => q.id === questId);
+        if (!quest || !quest.objectives || !quest.objectives[objIdx]) return;
+
+        const obj = quest.objectives[objIdx];
+        const isProgress = parseInt(obj.target) > 1;
+
+        if (isProgress) {
+            obj.current = Math.min(parseInt(obj.target), Math.max(0, parseInt(obj.current) + delta));
+            if (obj.current >= parseInt(obj.target)) {
+                obj.completed = true;
+            } else {
+                obj.completed = false;
+            }
+        } else {
+            obj.completed = delta > 0;
+            obj.current = obj.completed ? 1 : 0;
+        }
+
+        // Auto-complete check: If all objectives are completed, optionally tag quest as completed
+        const allDone = quest.objectives.every(o => o.completed);
+        if (allDone && quest.status === 'active') {
+            quest.status = 'completed';
+            notify(`Quest '${quest.name}' completed!`, "success");
+        }
+
+        await saveCampaign(camp);
+        reRender(true);
+    };
+
+    window.toggleQuestStatus = async (questId, status) => {
+        const camp = window.appData.activeCampaign;
+        if (!camp) return;
+
+        const quest = (camp.quests || []).find(q => q.id === questId);
+        if (!quest) return;
+
+        quest.status = status;
+        await saveCampaign(camp);
+
+        notify(`Quest status updated to: ${status}`, "info");
+        reRender(true);
+    };
+
+    window.deleteQuest = async (questId) => {
+        if (!confirm("Permanently erase this quest record?")) return;
+
+        const camp = window.appData.activeCampaign;
+        if (!camp) return;
+
+        camp.quests = (camp.quests || []).filter(q => q.id !== questId);
+        await saveCampaign(camp);
+
+        notify("Quest erased from log.", "success");
+        reRender(true);
+    };
+}
+
 export function renderApp(state) {
     const container = document.getElementById('app-container');
     if (!container) return;
@@ -659,12 +927,3 @@ window.filterCodex = function() {
         }
     });
 };
-
-// --- BINDING QUEST ACTIONS TO WINDOW ACTIONS ---
-if (typeof window !== 'undefined') {
-    window.switchChecklistTab = switchChecklistTab;
-    window.openQuestDetails = openQuestDetails;
-    window.addQuestObjective = addQuestObjective;
-    window.saveQuest = saveQuest;
-    window.toggleQuestStatus = toggleQuestStatus;
-}
