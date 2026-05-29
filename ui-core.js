@@ -1,14 +1,6 @@
-import { getHomeHTML, getCampaignHTML, getAdventureHTML, getAdvRosterHTML, getActivityLogHTML } from './ui-campaign.js';
-import { getPCManagerHTML, getPCEditHTML } from './ui-characters.js';
-import { getSessionEditHTML } from './ui-session.js';
-import { getCodexHTML, getJournalHTML } from './ui-codex.js';
-import { getCalendarHTML } from './ui-calendar.js';
-import { getRulesHTML } from './ui-rules.js';
-import { getAtlasHTML } from './ui-atlas.js';
-import { getWebsHTML } from './ui-webs.js';
-import { getBazaarHTML, getStorefrontHTML, getShopBackroomHTML } from './ui-shops.js';
-import { getTablesHTML } from './ui-tables.js';
-import { getDatabasesHTML } from './ui-databases.js';
+import { setView, openCampaign, openAdventure } from './actions-campaign.js';
+import { generateId, updateDerivedState, reRender } from './state.js';
+import { saveCampaign, notify } from './firebase-manager.js';
 
 // --- CONSTANTS & HELPERS ---
 export const BUDGET_BY_LEVEL = { 
@@ -30,10 +22,7 @@ export function renderSmartField(id, labelHtml, value, placeholderText, rows, wr
         ? window.appActions.parseSmartText(value) 
         : `<span class="text-stone-400 italic font-sans">${placeholderText || "No entry provided."}</span>`;
 
-    // Strip HTML from label to pass as plain text to the editor modal title, and escape apostrophes safely
     const plainLabel = labelHtml.replace(/<[^>]*>?/gm, '').trim().replace(/'/g, "\\'");
-    
-    // Ensure hidden input preserves both double quotes AND newlines
     const safeValue = (value || '').replace(/"/g, '&quot;').replace(/\n/g, '&#10;');
 
     const onClickAttr = isReadonly ? '' : `onclick="window.appActions.openUniversalEditor('input-${id}', '${plainLabel}')"`;
@@ -59,17 +48,12 @@ export function renderSmartField(id, labelHtml, value, placeholderText, rows, wr
     `;
 }
 
-// --- LIBRARY NAVIGATION TABS ---
 export function getLibraryTabsHTML(activeTab) {
     const isCodex = activeTab === 'codex';
     const isRules = activeTab === 'rules';
     const isWebs = activeTab === 'webs';
     const isBazaar = activeTab === 'bazaar';
     const isTome = activeTab === 'tome';
-    const isTables = activeTab === 'tables';
-    const isDatabases = activeTab === 'databases';
-
-    const isDM = window.appData?.activeCampaign?._isDM || false;
 
     return `
     <div class="flex bg-stone-200 p-1 sm:p-1.5 rounded-sm border border-[#d4c5a9] shadow-inner mb-6 w-full max-w-5xl mx-auto shrink-0 overflow-x-auto hide-scrollbar">
@@ -79,19 +63,9 @@ export function getLibraryTabsHTML(activeTab) {
         <button onclick="window.appActions.openBazaar()" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isBazaar ? 'bg-white shadow-sm text-emerald-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
             <i class="fa-solid fa-store text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Bazaar</span>
         </button>
-        ${isDM ? `
-        <button onclick="window.appActions.setView('databases')" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isDatabases ? 'bg-white shadow-sm text-stone-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
-            <i class="fa-solid fa-box-archive text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Databases</span>
-        </button>
-        ` : ''}
         <button onclick="window.appActions.openRulesGlossary()" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isRules ? 'bg-white shadow-sm text-amber-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
             <i class="fa-solid fa-scale-balanced text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Rules</span>
         </button>
-        ${isDM ? `
-        <button onclick="window.appActions.setView('tables')" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isTables ? 'bg-white shadow-sm text-stone-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
-            <i class="fa-solid fa-table-list text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Tables</span>
-        </button>
-        ` : ''}
         <button onclick="window.appActions.setView('webs')" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isWebs ? 'bg-white shadow-sm text-purple-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
             <i class="fa-solid fa-diagram-project text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Webs</span>
         </button>
@@ -106,228 +80,6 @@ export function getLibraryTabsHTML(activeTab) {
     `;
 }
 
-// --- GLOBAL HEADER & NAVIGATION VISIBILITY ---
-export function updateHeaderUI(state) {
-    const titleEl = document.getElementById('header-title');
-    const breadcrumbEl = document.getElementById('header-breadcrumb');
-    const backBtn = document.getElementById('header-back-btn');
-    const iconEl = document.getElementById('header-icon');
-    const settingsBtn = document.getElementById('settings-btn');
-    const dockContainer = document.getElementById('floating-dock-container');
-
-    if (!titleEl) return;
-
-    if (state.currentView === 'home' || !state.activeCampaign) {
-        if (dockContainer) dockContainer.classList.add('translate-y-32', 'opacity-0');
-        titleEl.textContent = 'Adventure Journal';
-        if (breadcrumbEl) breadcrumbEl.textContent = 'The Lobby';
-        if (backBtn) backBtn.classList.add('hidden');
-        if (iconEl) iconEl.classList.remove('hidden');
-        if (settingsBtn) settingsBtn.classList.remove('hidden');
-        return;
-    }
-
-    if (dockContainer) dockContainer.classList.remove('translate-y-32', 'opacity-0');
-    titleEl.textContent = state.activeCampaign.name;
-    if (settingsBtn) settingsBtn.classList.add('hidden');
-
-    let breadcrumbText = 'Story Arcs';
-    let showBack = false;
-
-    switch (state.currentView) {
-        case 'campaign': breadcrumbText = 'Story Arcs'; showBack = true; break;
-        case 'adventure': breadcrumbText = state.activeAdventure?.name || 'Adventure Arc'; showBack = true; break;
-        case 'adv-roster': breadcrumbText = 'Arc Roster'; showBack = true; break;
-        case 'session-edit': breadcrumbText = state.activeSessionId ? 'Amend Record' : 'New Record'; showBack = true; break;
-        case 'pc-manager': breadcrumbText = 'Party Manifest'; showBack = true; break;
-        case 'pc-edit': breadcrumbText = state.activePcId ? 'Edit Hero' : 'New Hero'; showBack = true; break;
-        case 'codex': breadcrumbText = 'Library • Codex'; showBack = true; break;
-        case 'bazaar': breadcrumbText = 'Library • Bazaar'; showBack = true; break;
-        case 'databases': breadcrumbText = 'Library • Databases'; showBack = true; break;
-        case 'storefront': breadcrumbText = 'Bazaar • Storefront'; showBack = true; break;
-        case 'shop-backroom': breadcrumbText = 'Bazaar • DM Backroom'; showBack = true; break;
-        case 'rules': breadcrumbText = 'Library • Rules'; showBack = true; break;
-        case 'tables': breadcrumbText = 'Library • Roll Tables'; showBack = true; break;
-        case 'webs': breadcrumbText = 'Library • Webs'; showBack = true; break;
-        case 'atlas': breadcrumbText = 'Library • Atlas'; showBack = true; break;
-        case 'calendar': breadcrumbText = 'Chronicle Timeline'; showBack = true; break;
-        case 'journal': 
-            breadcrumbText = state.activeSessionId ? 'Session Scroll' : (state.activeAdventureId ? 'Arc Scroll' : 'Library • Tome'); 
-            showBack = true; 
-            break;
-        case 'activity-log': breadcrumbText = 'Activity Log'; showBack = true; break;
-    }
-
-    if (breadcrumbEl) breadcrumbEl.textContent = breadcrumbText;
-
-    if (showBack) {
-        if (backBtn) backBtn.classList.remove('hidden');
-        if (iconEl) iconEl.classList.add('hidden');
-    } else {
-        if (backBtn) backBtn.classList.add('hidden');
-        if (iconEl) iconEl.classList.remove('hidden');
-    }
-}
-
-export function updateDockUI(state) {
-    const tabs = ['campaign', 'calendar', 'pc-manager', 'codex'];
-    
-    tabs.forEach(tab => {
-        const el = document.getElementById(`dock-tab-${tab}`);
-        if (el) {
-            el.classList.remove('text-amber-500', 'hover:text-amber-300');
-            el.classList.add('text-stone-400', 'hover:text-amber-300');
-        }
-    });
-
-    let activeTab = 'campaign';
-    if (['calendar'].includes(state.currentView)) activeTab = 'calendar';
-    if (['pc-manager', 'pc-edit'].includes(state.currentView)) activeTab = 'pc-manager';
-    if (['codex', 'rules', 'tables', 'webs', 'databases', 'bazaar', 'storefront', 'shop-backroom', 'atlas'].includes(state.currentView)) activeTab = 'codex';
-    
-    if (state.currentView === 'journal' && !state.activeAdventureId && !state.activeSessionId) {
-        activeTab = 'codex'; 
-    }
-
-    const activeEl = document.getElementById(`dock-tab-${activeTab}`);
-    if (activeEl) {
-        activeEl.classList.remove('text-stone-400', 'hover:text-amber-300');
-        activeEl.classList.add('text-amber-500');
-    }
-}
-
-// --- NAVIGATION & ACTION MENU HOOKS ---
-export const navigateBack = () => {
-    const state = window.appData;
-    if (!state) return;
-    
-    switch(state.currentView) {
-        case 'campaign': 
-        case 'pc-manager':
-        case 'codex':
-        case 'bazaar':
-        case 'databases':
-        case 'rules': 
-        case 'tables':
-        case 'webs':
-        case 'calendar':
-            window.appActions.setView('home'); 
-            break;
-        case 'storefront':
-        case 'shop-backroom':
-            window.appActions.setView('bazaar'); 
-            break;
-        case 'atlas': window.appActions.setView('campaign'); break;
-        case 'adventure': window.appActions.setView('campaign'); break;
-        case 'adv-roster': window.appActions.setView('adventure'); break;
-        case 'session-edit': window.appActions.setView('adventure'); break;
-        case 'pc-edit': window.appActions.setView('pc-manager'); break;
-        case 'activity-log': window.appActions.setView('campaign'); break;
-        case 'journal': 
-            if (state.activeSessionId) { 
-                window.appData.activeSessionId = null; 
-                window.appActions.setView('adventure'); 
-            } else if (state.activeAdventureId) { 
-                window.appActions.setView('adventure'); 
-            } else { 
-                window.appActions.setView('home'); 
-            }
-            break;
-    }
-};
-
-export const toggleActionMenu = () => {
-    const sheet = document.getElementById('action-sheet');
-    const overlay = document.getElementById('action-overlay');
-    const icon = document.getElementById('center-action-icon');
-    const dmAssignBtn = document.getElementById('dm-assign-downtime-btn');
-    const dmNpcGenBtn = document.getElementById('dm-npc-gen-btn');
-    
-    if (!sheet || !overlay || !icon) return;
-    
-    const camp = window.appData?.activeCampaign;
-    if (dmAssignBtn && dmNpcGenBtn) {
-        if (camp && camp._isDM) {
-            dmAssignBtn.classList.remove('hidden');
-            dmNpcGenBtn.classList.remove('hidden');
-        } else {
-            dmAssignBtn.classList.add('hidden');
-            dmNpcGenBtn.classList.add('hidden');
-        }
-    }
-    
-    if (sheet.classList.contains('open')) {
-        sheet.classList.remove('open');
-        overlay.style.opacity = '0';
-        icon.className = 'fa-solid fa-pen-nib text-lg transition-all duration-300';
-        setTimeout(() => overlay.classList.add('hidden'), 300);
-    } else {
-        sheet.classList.add('open');
-        overlay.classList.remove('hidden');
-        icon.className = 'fa-solid fa-xmark text-lg transition-all duration-300 rotate-90';
-        setTimeout(() => overlay.style.opacity = '1', 10);
-    }
-};
-
-// --- PLAYER RESOURCE BAR ---
-export function updatePlayerResourceBar(state) {
-    const bar = document.getElementById('player-resource-bar');
-    if (!bar) return;
-
-    const camp = state.activeCampaign;
-    
-    if (!camp || state.currentView === 'home' || camp._isDM) {
-        bar.innerHTML = '';
-        return;
-    }
-
-    const myPc = camp.playerCharacters?.find(p => p.playerId === state.currentUserUid);
-    if (!myPc) {
-        bar.innerHTML = '';
-        return;
-    }
-
-    let maxInsp = 0;
-    if (myPc.boonBackstory) maxInsp += 1;
-    if (myPc.boon2ndBday) maxInsp += 1;
-    
-    const currentInsp = myPc.inspiration === true ? 1 : (parseInt(myPc.inspiration) || 0);
-    const autoSuccess = myPc.automaticSuccess ? 1 : 0;
-
-    let advName = "Current Adventure";
-    if (state.activeAdventure) {
-        advName = state.activeAdventure.name;
-    } else if (camp.adventures && camp.adventures.length > 0) {
-        const sortedAdventures = [...camp.adventures].sort((a, b) => {
-            return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
-        });
-        advName = sortedAdventures[sortedAdventures.length - 1].name;
-    }
-
-    const inspPulse = currentInsp > 0 ? 'animate-pulse text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]' : 'text-stone-600';
-    const autoPulse = autoSuccess > 0 ? 'animate-pulse text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'text-stone-600';
-
-    bar.innerHTML = `
-        <div class="bg-[#292524] border-b-2 border-stone-800 p-3 px-5 flex flex-col sm:flex-row justify-between items-center gap-3 shadow-inner bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')]">
-            <div class="font-serif font-bold text-amber-500 text-sm sm:text-base truncate flex items-center">
-                <i class="fa-solid fa-book-journal-whills text-amber-700 mr-2 sm:mr-3"></i> ${advName}
-            </div>
-            <div class="flex items-center gap-4 text-[10px] sm:text-xs font-bold uppercase tracking-widest bg-stone-900 px-4 py-2 rounded-sm border border-stone-700 shadow-[0_4px_10px_rgba(0,0,0,0.5)]">
-                <div class="flex items-center gap-2" title="Inspiration Available">
-                    <i class="fa-solid fa-dice-d20 ${inspPulse} text-sm sm:text-lg transition-all duration-300"></i>
-                    <span class="${currentInsp > 0 ? 'text-amber-500' : 'text-stone-600'}">Insp <span class="text-white">${currentInsp}</span><span class="text-stone-600">/${maxInsp}</span></span>
-                </div>
-                <div class="w-px h-5 bg-stone-800"></div>
-                <div class="flex items-center gap-2" title="Auto-Success Available">
-                    <i class="fa-solid fa-check-double ${autoPulse} text-sm sm:text-lg transition-all duration-300"></i>
-                    <span class="${autoSuccess > 0 ? 'text-emerald-500' : 'text-stone-600'}">Auto <span class="text-white">${autoSuccess}</span></span>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-// --- GLOBAL CHECKLIST GENERATOR (MODAL UI) ---
 export function updateChecklistUI(state) {
     const dockBadge = document.getElementById('dock-badge-tasks');
     const sheetBadge = document.getElementById('sheet-badge-tasks');
@@ -346,17 +98,43 @@ export function updateChecklistUI(state) {
 
     const isDM = camp._isDM;
     const myUid = state.currentUserUid;
-    const updates = camp.sheetUpdates || [];
+    const activeTab = state.activeChecklistTab || 'tasks';
 
-    const visibleUpdates = updates.filter(item => {
-        if (isDM || item.authorId === myUid) return true;
-        const vis = item.visibility || { mode: 'public' };
-        if (vis.mode === 'public') return true;
-        if (vis.mode === 'specific' && vis.visibleTo?.includes(myUid)) return true;
-        return false;
-    });
+    // --- Dynamic Header & Navigation Alignment ---
+    const modal = document.getElementById('checklist-modal');
+    if (modal) {
+        const h2 = modal.querySelector('h2');
+        const p = modal.querySelector('p');
+        if (h2 && p) {
+            if (activeTab === 'quests') {
+                h2.innerHTML = `<i class="fa-solid fa-compass mr-3 text-amber-700"></i> Quest Log`;
+                p.textContent = "Track campaign objectives, main story progression, and personal character motivations.";
+            } else {
+                h2.innerHTML = `<i class="fa-solid fa-list-check mr-3 text-amber-700"></i> Sheet Updates`;
+                p.textContent = "Track loot, feats, or stats that need to be manually added to the official character sheet.";
+            }
+        }
+    }
 
-    if (!isDM) {
+    // Tab Switcher HTML Header
+    const switcherHtml = `
+    <div class="flex border-b border-[#d4c5a9] mb-4 shrink-0 bg-[#f4ebd8] rounded-t-sm">
+        <button onclick="window.appActions.switchChecklistTab('tasks')" class="flex-1 py-2 text-xs font-bold uppercase tracking-wider text-center transition ${activeTab === 'tasks' ? 'border-b-2 border-amber-700 text-stone-900 font-black' : 'text-stone-500 hover:text-stone-700'}">Sheet Updates</button>
+        <button onclick="window.appActions.switchChecklistTab('quests')" class="flex-1 py-2 text-xs font-bold uppercase tracking-wider text-center transition ${activeTab === 'quests' ? 'border-b-2 border-amber-700 text-stone-900 font-black' : 'text-stone-500 hover:text-stone-700'}">Quest Log</button>
+    </div>
+    `;
+
+    if (activeTab === 'tasks') {
+        const updates = camp.sheetUpdates || [];
+        const visibleUpdates = updates.filter(item => {
+            if (isDM || item.authorId === myUid) return true;
+            const vis = item.visibility || { mode: 'public' };
+            if (vis.mode === 'public') return true;
+            if (vis.mode === 'specific' && vis.visibleTo?.includes(myUid)) return true;
+            return false;
+        });
+
+        // Badge counters updates
         const pendingCount = visibleUpdates.filter(u => !(u.resolvedBy || []).includes(myUid)).length;
         if (pendingCount > 0) {
             if (dockBadge) dockBadge.classList.remove('hidden');
@@ -370,112 +148,331 @@ export function updateChecklistUI(state) {
             if (sheetBadge) sheetBadge.classList.add('hidden');
             if (libTabBadge) libTabBadge.classList.add('hidden');
         }
-    } else {
-        if (dockBadge) dockBadge.classList.add('hidden');
-        if (sheetBadge) sheetBadge.classList.add('hidden'); 
-        if (libTabBadge) libTabBadge.classList.add('hidden');
-    }
 
-    const sorted = [...visibleUpdates].sort((a, b) => {
-        const aRes = (a.resolvedBy || []).includes(myUid);
-        const bRes = (b.resolvedBy || []).includes(myUid);
-        if (aRes === bRes) return (b.timestamp || 0) - (a.timestamp || 0);
-        return aRes ? 1 : -1;
-    });
+        const sorted = [...visibleUpdates].sort((a, b) => {
+            const aRes = (a.resolvedBy || []).includes(myUid);
+            const bRes = (b.resolvedBy || []).includes(myUid);
+            if (aRes === bRes) return (b.timestamp || 0) - (a.timestamp || 0);
+            return aRes ? 1 : -1;
+        });
 
-    let listHtml = '';
-    if (sorted.length === 0) {
-        listHtml = `<div class="text-xs text-stone-500 italic mb-2 text-center py-6">No active tasks or reminders.</div>`;
-    } else {
-        sorted.forEach(item => {
-            const isResolvedByMe = (item.resolvedBy || []).includes(myUid);
-            const isAuthor = item.authorId === myUid;
-            const canEdit = isDM || isAuthor;
+        let listHtml = '';
+        if (sorted.length === 0) {
+            listHtml = `<div class="text-xs text-stone-500 italic mb-2 text-center py-6">No active tasks or reminders.</div>`;
+        } else {
+            sorted.forEach(item => {
+                const isResolvedByMe = (item.resolvedBy || []).includes(myUid);
+                const isAuthor = item.authorId === myUid;
+                const canEdit = isDM || isAuthor;
 
-            const statusIcon = isResolvedByMe 
-                ? '<i class="fa-solid fa-circle-check text-emerald-600"></i>' 
-                : '<i class="fa-regular fa-circle text-stone-400"></i>';
-            const statusTextClass = isResolvedByMe ? 'text-stone-400 line-through' : 'text-stone-800 font-bold';
+                const statusIcon = isResolvedByMe 
+                    ? '<i class="fa-solid fa-circle-check text-emerald-600"></i>' 
+                    : '<i class="fa-regular fa-circle text-stone-400"></i>';
+                const statusTextClass = isResolvedByMe ? 'text-stone-400 line-through' : 'text-stone-800 font-bold';
 
-            let authorTag = '';
-            if (item.authorId && item.authorId !== camp.dmId) {
-                const aName = camp.playerNames[item.authorId] || 'Player';
-                authorTag = `<span class="text-[8px] uppercase tracking-widest text-stone-400 font-bold ml-2 border border-stone-200 px-1 rounded-sm shadow-sm align-middle whitespace-nowrap">From: ${aName}</span>`;
-            }
-
-            const resolveBtn = `
-                <button type="button" onclick="window.appActions.toggleSheetUpdateResolved('${item.id}')" class="text-[10px] font-bold uppercase tracking-wider border px-3 py-1.5 rounded-sm transition shadow-sm whitespace-nowrap ${isResolvedByMe ? 'bg-emerald-100 border-emerald-300 text-emerald-800 hover:bg-emerald-200' : 'bg-white border-amber-300/50 text-stone-600 hover:bg-stone-100 hover:text-stone-900'}">
-                    ${isResolvedByMe ? '<i class="fa-solid fa-check mr-1"></i> Completed' : 'Mark Complete'}
-                </button>
-            `;
-
-            let controlsHtml = '';
-            if (canEdit) {
-                const vis = item.visibility || { mode: 'public' };
-                let eyeIcon = 'fa-eye text-emerald-600';
-                let visLabel = 'Public';
-                if (vis.mode === 'hidden') { eyeIcon = 'fa-eye-slash text-red-700'; visLabel = 'Hidden'; }
-                if (vis.mode === 'specific') { eyeIcon = 'fa-user-lock text-blue-600'; visLabel = 'Shared'; }
-                
-                const resolvedUids = item.resolvedBy || [];
-                const playerNames = camp.playerNames || {};
-                const resolvedNames = resolvedUids.map(uid => playerNames[uid] || 'Unknown Player').join(', ');
-                
-                const resolvedText = resolvedNames 
-                    ? `<span class="text-[9px] text-emerald-700 font-bold bg-emerald-100 px-1.5 py-0.5 rounded mr-auto truncate max-w-[140px] sm:max-w-[200px]" title="Completed by: ${resolvedNames}"><i class="fa-solid fa-check-double mr-1"></i> ${resolvedNames}</span>` 
-                    : `<span class="text-[9px] text-stone-400 italic mr-auto">No completions yet</span>`;
-
-                let visBtnHtml = '';
-                if (isDM) {
-                    visBtnHtml = `<button type="button" onclick="window.appActions.openVisibilityMenu(this, 'checklist', '${item.id}')" class="text-[10px] flex items-center justify-center hover:bg-stone-200 px-2 py-1 rounded transition text-stone-600 font-bold uppercase tracking-widest border border-transparent hover:border-stone-300" title="Visibility Settings"><i class="fa-solid ${eyeIcon} sm:mr-1"></i> <span class="hidden sm:inline">${visLabel}</span></button>`;
-                } else {
-                    visBtnHtml = `<span class="text-[10px] flex items-center justify-center px-2 py-1 rounded text-red-800/60 font-bold uppercase tracking-widest border border-transparent" title="Private task (DM & You)"><i class="fa-solid fa-user-secret sm:mr-1"></i> <span class="hidden sm:inline">Private</span></span>`;
+                let authorTag = '';
+                if (item.authorId && item.authorId !== camp.dmId) {
+                    const aName = camp.playerNames[item.authorId] || 'Player';
+                    authorTag = `<span class="text-[8px] uppercase tracking-widest text-stone-400 font-bold ml-2 border border-stone-200 px-1 rounded-sm shadow-sm align-middle whitespace-nowrap">From: ${aName}</span>`;
                 }
 
-                controlsHtml = `
-                    ${resolvedText}
-                    <div class="flex items-center gap-1 ml-auto">
-                        ${resolveBtn}
-                        <div class="w-px h-4 bg-stone-300 mx-1"></div>
-                        ${visBtnHtml}
-                        <button type="button" onclick="window.appActions.deleteSheetUpdate('${item.id}')" class="text-[10px] w-6 h-6 flex items-center justify-center text-stone-400 hover:text-red-700 hover:bg-red-50 rounded transition" title="Delete Task"><i class="fa-solid fa-trash"></i></button>
-                    </div>
+                const resolveBtn = `
+                    <button type="button" onclick="window.appActions.toggleSheetUpdateResolved('${item.id}')" class="text-[10px] font-bold uppercase tracking-wider border px-3 py-1.5 rounded-sm transition shadow-sm whitespace-nowrap ${isResolvedByMe ? 'bg-emerald-100 border-emerald-300 text-emerald-800 hover:bg-emerald-200' : 'bg-white border-amber-300/50 text-stone-600 hover:bg-stone-100 hover:text-stone-900'}">
+                        ${isResolvedByMe ? '<i class="fa-solid fa-check mr-1"></i> Completed' : 'Mark Complete'}
+                    </button>
                 `;
-            } else {
-                controlsHtml = `
-                    <div class="flex items-center justify-end w-full">
-                        ${resolveBtn}
+
+                let controlsHtml = '';
+                if (canEdit) {
+                    const vis = item.visibility || { mode: 'public' };
+                    let eyeIcon = 'fa-eye text-emerald-600';
+                    let visLabel = 'Public';
+                    if (vis.mode === 'hidden') { eyeIcon = 'fa-eye-slash text-red-700'; visLabel = 'Hidden'; }
+                    if (vis.mode === 'specific') { eyeIcon = 'fa-user-lock text-blue-600'; visLabel = 'Shared'; }
+                    
+                    const resolvedUids = item.resolvedBy || [];
+                    const playerNames = camp.playerNames || {};
+                    const resolvedNames = resolvedUids.map(uid => playerNames[uid] || 'Unknown Player').join(', ');
+                    
+                    const resolvedText = resolvedNames 
+                        ? `<span class="text-[9px] text-emerald-700 font-bold bg-emerald-100 px-1.5 py-0.5 rounded mr-auto truncate max-w-[140px] sm:max-w-[200px]" title="Completed by: ${resolvedNames}"><i class="fa-solid fa-check-double mr-1"></i> ${resolvedNames}</span>` 
+                        : `<span class="text-[9px] text-stone-400 italic mr-auto">No completions yet</span>`;
+
+                    let visBtnHtml = '';
+                    if (isDM) {
+                        visBtnHtml = `<button type="button" onclick="window.appActions.openVisibilityMenu(this, 'checklist', '${item.id}')" class="text-[10px] flex items-center justify-center hover:bg-stone-200 px-2 py-1 rounded transition text-stone-600 font-bold uppercase tracking-widest border border-transparent hover:border-stone-300" title="Visibility Settings"><i class="fa-solid ${eyeIcon} sm:mr-1"></i> <span class="hidden sm:inline">${visLabel}</span></button>`;
+                    } else {
+                        visBtnHtml = `<span class="text-[10px] flex items-center justify-center px-2 py-1 rounded text-red-800/60 font-bold uppercase tracking-widest border border-transparent" title="Private task (DM & You)"><i class="fa-solid fa-user-secret sm:mr-1"></i> <span class="hidden sm:inline">Private</span></span>`;
+                    }
+
+                    controlsHtml = `
+                        ${resolvedText}
+                        <div class="flex items-center gap-1 ml-auto">
+                            ${resolveBtn}
+                            <div class="w-px h-4 bg-stone-300 mx-1"></div>
+                            ${visBtnHtml}
+                            <button type="button" onclick="window.appActions.deleteSheetUpdate('${item.id}')" class="text-[10px] w-6 h-6 flex items-center justify-center text-stone-400 hover:text-red-700 hover:bg-red-50 rounded transition" title="Delete Task"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    `;
+                } else {
+                    controlsHtml = `
+                        <div class="flex items-center justify-end w-full">
+                            ${resolveBtn}
+                        </div>
+                    `;
+                }
+
+                const safeText = item.text.replace(/"/g, '&quot;');
+
+                listHtml += `
+                <div class="flex flex-col bg-[#fdfbf7] p-3 border border-amber-600/20 rounded-sm shadow-sm gap-2 mb-3 hover:border-amber-400/50 transition-colors">
+                    <div class="flex items-start sm:items-center gap-3">
+                        <div class="flex-shrink-0 text-base mt-0.5 sm:mt-0">${statusIcon}</div>
+                        <span class="text-sm ${statusTextClass} break-words leading-tight">${safeText} ${authorTag}</span>
                     </div>
-                `;
-            }
-
-            const safeText = item.text.replace(/"/g, '&quot;');
-
-            listHtml += `
-            <div class="flex flex-col bg-[#fdfbf7] p-3 border border-amber-600/20 rounded-sm shadow-sm gap-2 mb-3 hover:border-amber-400/50 transition-colors">
-                <div class="flex items-start sm:items-center gap-3">
-                    <div class="flex-shrink-0 text-base mt-0.5 sm:mt-0">${statusIcon}</div>
-                    <span class="text-sm ${statusTextClass} break-words leading-tight">${safeText} ${authorTag}</span>
+                    <div class="flex items-center justify-between w-full pt-2 border-t border-stone-200 mt-1 min-h-[28px]">
+                        ${controlsHtml}
+                    </div>
                 </div>
-                <div class="flex items-center justify-between w-full pt-2 border-t border-stone-200 mt-1 min-h-[28px]">
-                    ${controlsHtml}
+                `;
+            });
+        }
+
+        const addHtml = `
+        <div class="flex gap-2 mt-4 pt-4 border-t border-amber-700/20 sticky bottom-0 bg-[#f4ebd8] pb-2 z-10">
+            <input type="text" id="new-sheet-update-text" class="flex-grow p-2 border border-amber-600/30 rounded-sm text-xs sm:text-sm focus:border-red-900 outline-none shadow-inner bg-white font-sans placeholder:text-stone-400 placeholder:italic" placeholder="Add a task or reminder..." onkeydown="if(event.key === 'Enter') { event.preventDefault(); window.appActions.addSheetUpdate(); }">
+            <button type="button" onclick="window.appActions.addSheetUpdate()" class="px-4 py-2 bg-amber-700 text-amber-50 text-[10px] sm:text-xs font-bold uppercase tracking-wider rounded-sm shadow-md hover:bg-amber-600 transition whitespace-nowrap"><i class="fa-solid fa-plus sm:mr-1"></i> <span class="hidden sm:inline">Add</span></button>
+        </div>
+        `;
+
+        container.innerHTML = switcherHtml + listHtml + addHtml;
+
+    } else if (activeTab === 'quests') {
+        const quests = camp.quests || [];
+        const formId = state.activeQuestFormId;
+        const expandedQuests = state.expandedQuests || new Set();
+
+        if (formId !== null && formId !== undefined) {
+            // --- RENDER QUEST FORM (INLINE MODE) ---
+            const questToEdit = formId === 'new' ? { name: '', category: 'current', giverName: '', giverLocation: '', status: 'active', objectives: '', rewards: '', clues: '', hasTracker: false, trackerLabel: '', trackerCurrent: 0, trackerTarget: 1 } : quests.find(q => q.id === formId);
+
+            let formHtml = `
+            <div class="bg-white p-4 border border-[#d4c5a9] rounded-sm shadow-sm space-y-4 animate-in fade-in duration-200">
+                <input type="hidden" id="quest-form-id" value="${formId === 'new' ? '' : questToEdit.id}">
+                <h3 class="font-serif font-bold text-base text-amber-900 border-b border-[#d4c5a9] pb-1.5 flex items-center"><i class="fa-solid fa-compass mr-1.5"></i> ${formId === 'new' ? 'Forge Quest' : 'Amend Quest'}</h3>
+                
+                <div>
+                    <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Quest Name *</label>
+                    <input type="text" id="quest-form-name" value="${questToEdit.name.replace(/"/g, '&quot;')}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 bg-stone-50 outline-none focus:border-amber-600 shadow-inner">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Category</label>
+                        <select id="quest-form-category" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 bg-stone-50 outline-none focus:border-amber-600 shadow-sm">
+                            <option value="current" ${questToEdit.category === 'current' ? 'selected' : ''}>Current Arc</option>
+                            <option value="general" ${questToEdit.category === 'general' ? 'selected' : ''}>General Quest</option>
+                            <option value="personal" ${questToEdit.category === 'personal' ? 'selected' : ''}>Personal Motivation</option>
+                            <option value="previous" ${questToEdit.category === 'previous' ? 'selected' : ''}>Previous Arc</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Status</label>
+                        <select id="quest-form-status" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 bg-stone-50 outline-none focus:border-amber-600 shadow-sm">
+                            <option value="active" ${questToEdit.status === 'active' ? 'selected' : ''}>Active</option>
+                            <option value="completed" ${questToEdit.status === 'completed' ? 'selected' : ''}>Completed</option>
+                            <option value="failed" ${questToEdit.status === 'failed' ? 'selected' : ''}>Failed</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">The Giver (Name)</label>
+                        <input type="text" id="quest-form-giver" value="${questToEdit.giverName.replace(/"/g, '&quot;')}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs text-stone-900 bg-stone-50 outline-none focus:border-amber-600 shadow-inner" placeholder="e.g. Elara">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Assigning Location</label>
+                        <input type="text" id="quest-form-loc" value="${questToEdit.giverLocation.replace(/"/g, '&quot;')}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs text-stone-900 bg-stone-50 outline-none focus:border-amber-600 shadow-inner" placeholder="e.g. Waterdeep">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Objectives</label>
+                    <textarea id="quest-form-objectives" class="w-full p-2.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-900 bg-stone-50 font-serif h-20 outline-none focus:border-amber-600 shadow-inner resize-none" placeholder="1. Travel to high forest&#10;2. Find the ruins...">${questToEdit.objectives}</textarea>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Rewards</label>
+                        <input type="text" id="quest-form-rewards" value="${questToEdit.rewards.replace(/"/g, '&quot;')}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs text-stone-900 bg-stone-50 outline-none focus:border-amber-600 shadow-inner" placeholder="e.g. 500 gp, renown">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Important Clues</label>
+                        <input type="text" id="quest-form-clues" value="${questToEdit.clues.replace(/"/g, '&quot;')}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs text-stone-900 bg-stone-50 outline-none focus:border-amber-600 shadow-inner" placeholder="e.g. Password is 'Gryphon'">
+                    </div>
+                </div>
+
+                <!-- Progressive Tracker Configurations -->
+                <div class="bg-stone-50 p-3 rounded-sm border border-[#d4c5a9] shadow-inner space-y-3">
+                    <label class="flex items-center gap-2 cursor-pointer group">
+                        <input type="checkbox" id="quest-form-has-tracker" ${questToEdit.hasTracker ? 'checked' : ''} onchange="document.getElementById('quest-form-tracker-fields').classList.toggle('hidden', !this.checked)" class="w-4 h-4 text-amber-600 rounded focus:ring-amber-500 border-[#d4c5a9]">
+                        <span class="text-[10px] uppercase text-stone-600 font-bold tracking-widest group-hover:text-amber-700 transition">Enable Progressive Tracker</span>
+                    </label>
+                    <div id="quest-form-tracker-fields" class="${questToEdit.hasTracker ? '' : 'hidden'} grid grid-cols-3 gap-2">
+                        <div class="col-span-1">
+                            <label class="block text-[9px] uppercase text-stone-400 font-bold mb-1">Label</label>
+                            <input type="text" id="quest-form-tracker-label" value="${questToEdit.trackerLabel.replace(/"/g, '&quot;')}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-[10px] text-stone-900 bg-white" placeholder="e.g. Collected">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] uppercase text-stone-400 font-bold mb-1">Current</label>
+                            <input type="number" id="quest-form-tracker-current" value="${questToEdit.trackerCurrent}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-[10px] text-stone-900 bg-white text-center">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] uppercase text-stone-400 font-bold mb-1">Target</label>
+                            <input type="number" id="quest-form-tracker-target" value="${questToEdit.trackerTarget}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-[10px] text-stone-900 bg-white text-center">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer buttons -->
+                <div class="flex justify-end gap-2 border-t border-stone-200 pt-3">
+                    <button type="button" onclick="window.appActions.closeQuestForm()" class="px-4 py-1.5 text-stone-600 border border-stone-400 rounded-sm hover:bg-stone-100 transition font-bold uppercase tracking-wider text-[10px]">Cancel</button>
+                    <button type="button" onclick="window.appActions.saveQuest()" class="px-5 py-1.5 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] shadow-sm flex items-center"><i class="fa-solid fa-floppy-disk mr-1.5"></i> Save Quest</button>
                 </div>
             </div>
             `;
-        });
+            container.innerHTML = switcherHtml + formHtml;
+
+        } else {
+            const cats = [
+                { id: 'current', label: 'Current Arc Objectives', icon: 'fa-compass' },
+                { id: 'general', label: 'General Table Quests', icon: 'fa-scroll' },
+                { id: 'personal', label: 'Personal Motivations', icon: 'fa-user' },
+                { id: 'previous', label: 'Previous Arc Records', icon: 'fa-book' }
+            ];
+
+            let questLogHtml = '';
+
+            cats.forEach(cat => {
+                const filtered = quests.filter(q => q.category === cat.id);
+                if (filtered.length === 0) return;
+
+                let categoryCards = '';
+                filtered.forEach(q => {
+                    const isExpanded = expandedQuests.has(q.id);
+                    
+                    // Status Badge Styling
+                    let statusBadge = `<span class="bg-blue-100 border border-blue-200 text-blue-800 text-[8px] font-bold px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap"><i class="fa-solid fa-spinner fa-spin mr-1 text-[7px]"></i> Active</span>`;
+                    if (q.status === 'completed') {
+                        statusBadge = `<span class="bg-emerald-100 border border-emerald-300 text-emerald-800 text-[8px] font-bold px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap"><i class="fa-solid fa-check mr-1"></i> Completed</span>`;
+                    } else if (q.status === 'failed') {
+                        statusBadge = `<span class="bg-red-100 border border-red-300 text-red-800 text-[8px] font-bold px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap"><i class="fa-solid fa-xmark mr-1"></i> Failed</span>`;
+                    }
+
+                    // Progress bar math
+                    let trackerHtml = '';
+                    if (q.hasTracker) {
+                        const pct = Math.min(100, Math.max(0, (parseInt(q.trackerCurrent || 0) / parseInt(q.trackerTarget || 1)) * 100));
+                        trackerHtml = `
+                        <div class="mt-3 bg-stone-200 rounded-full h-2 w-full overflow-hidden border border-stone-300 relative">
+                            <div class="bg-amber-600 h-full rounded-full transition-all duration-300" style="width: ${pct}%"></div>
+                        </div>
+                        <div class="flex justify-between items-center mt-1.5 text-[10px] text-stone-600">
+                            <span>${escapeHTML(q.trackerLabel || 'Progress')}: <strong class="text-stone-800">${q.trackerCurrent} / ${q.trackerTarget}</strong></span>
+                            ${isDM ? `
+                            <div class="flex gap-1" onclick="event.stopPropagation()">
+                                <button onclick="window.appActions.adjustQuestTracker('${q.id}', -1)" class="w-5 h-5 bg-stone-200 rounded border border-stone-300 hover:bg-stone-300 flex items-center justify-center font-bold text-stone-700 active:scale-95 transition">-</button>
+                                <button onclick="window.appActions.adjustQuestTracker('${q.id}', 1)" class="w-5 h-5 bg-stone-200 rounded border border-stone-300 hover:bg-stone-300 flex items-center justify-center font-bold text-stone-700 active:scale-95 transition">+</button>
+                            </div>
+                            ` : ''}
+                        </div>`;
+                    }
+
+                    // Expansion Body
+                    let bodyHtml = '';
+                    if (isExpanded) {
+                        const objectivesParsed = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(q.objectives) : q.objectives.replace(/\n/g, '<br>');
+                        
+                        bodyHtml = `
+                        <div class="mt-4 pt-3 border-t border-stone-200/50 space-y-3">
+                            <div>
+                                <span class="block text-[8px] uppercase tracking-widest text-stone-400 font-bold mb-1">Objectives & Directives</span>
+                                <div class="text-xs text-stone-700 font-serif leading-relaxed">${objectivesParsed}</div>
+                            </div>
+                            ${q.rewards ? `
+                            <div class="flex gap-4">
+                                <div class="flex-1">
+                                    <span class="block text-[8px] uppercase tracking-widest text-stone-400 font-bold mb-0.5">Renown & Rewards</span>
+                                    <span class="text-xs font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 inline-block"><i class="fa-solid fa-coins mr-1 text-amber-500"></i> ${escapeHTML(q.rewards)}</span>
+                                </div>
+                            </div>` : ''}
+                            ${q.clues ? `
+                            <div class="bg-stone-100 p-2 border-l-2 border-amber-600 rounded-sm">
+                                <span class="block text-[8px] uppercase tracking-widest text-stone-500 font-bold mb-0.5"><i class="fa-solid fa-key text-[7px] mr-1"></i> Critical Discoveries</span>
+                                <span class="text-xs text-stone-700 italic font-serif leading-snug break-words">${escapeHTML(q.clues)}</span>
+                            </div>` : ''}
+                            
+                            ${isDM ? `
+                            <div class="flex justify-end gap-1.5 pt-3 border-t border-stone-200">
+                                <button onclick="event.stopPropagation(); window.appActions.openQuestForm('${q.id}')" class="px-2 py-1 bg-stone-100 border border-stone-300 rounded text-[9px] font-bold uppercase tracking-wider hover:bg-stone-200 transition"><i class="fa-solid fa-pen-to-square"></i></button>
+                                <button onclick="event.stopPropagation(); window.appActions.deleteQuest('${q.id}')" class="px-2 py-1 bg-red-50 text-red-700 border border-red-200 rounded text-[9px] font-bold uppercase tracking-wider hover:bg-red-100 transition"><i class="fa-solid fa-trash"></i></button>
+                            </div>` : ''}
+                        </div>`;
+                    }
+
+                    const safeGiver = escapeHTML(q.giverName || 'Unknown');
+                    const safeLoc = escapeHTML(q.giverLocation || 'Unknown');
+
+                    categoryCards += `
+                    <div onclick="window.appActions.toggleQuestExpanded('${q.id}')" class="bg-white p-3 border border-[#d4c5a9] rounded-sm shadow-sm hover:border-amber-400 transition-colors cursor-pointer group">
+                        <div class="flex justify-between items-start gap-2">
+                            <div class="min-w-0 flex-grow pr-2">
+                                <h4 class="font-serif font-bold text-sm text-stone-900 group-hover:text-amber-800 transition-colors leading-tight truncate" title="${escapeHTML(q.name)}">${escapeHTML(q.name)}</h4>
+                                <span class="text-[9px] text-stone-500 italic block mt-0.5">Assigned by <span class="font-bold">${safeGiver}</span> in <span class="font-bold">${safeLoc}</span></span>
+                            </div>
+                            <div class="shrink-0 flex items-center gap-1.5">
+                                ${statusBadge}
+                                <i class="fa-solid fa-chevron-down text-[10px] text-stone-400 group-hover:text-stone-600 transition-transform ${isExpanded ? 'rotate-180' : ''}"></i>
+                            </div>
+                        </div>
+                        ${trackerHtml}
+                        ${bodyHtml}
+                    </div>
+                    `;
+                });
+
+                questLogHtml += `
+                <div class="mb-5 bg-[#fcf8ee]/40 border border-amber-800/10 rounded p-3">
+                    <h4 class="text-[10px] uppercase font-bold text-amber-900 tracking-widest mb-3 flex items-center gap-1.5 border-b border-amber-800/10 pb-1">
+                        <i class="fa-solid ${cat.icon} text-amber-700"></i> ${cat.label}
+                    </h4>
+                    <div class="space-y-3">
+                        ${categoryCards}
+                    </div>
+                </div>
+                `;
+            });
+
+            if (quests.length === 0) {
+                questLogHtml = `
+                <div class="text-center py-12 bg-white border border-dashed border-[#d4c5a9] rounded-sm">
+                    <i class="fa-solid fa-compass text-4xl text-stone-300 mb-3 animate-pulse"></i>
+                    <p class="font-serif text-sm italic text-stone-500">The Quest Board is currently empty.</p>
+                </div>
+                `;
+            }
+
+            const forgeBtnHtml = isDM ? `
+            <div class="flex gap-2 mt-4 pt-4 border-t border-amber-700/20 sticky bottom-0 bg-[#f4ebd8] pb-2 z-10">
+                <button onclick="window.appActions.openQuestForm('new')" class="w-full py-2.5 bg-stone-900 text-amber-50 hover:bg-stone-800 rounded shadow-md font-bold uppercase tracking-wider text-xs flex items-center justify-center transition active:scale-95"><i class="fa-solid fa-plus-circle mr-2 text-amber-400"></i> Forge New Quest</button>
+            </div>` : '';
+
+            container.innerHTML = switcherHtml + questLogHtml + forgeBtnHtml;
+        }
     }
-
-    const addHtml = `
-    <div class="flex gap-2 mt-4 pt-4 border-t border-amber-700/20 sticky bottom-0 bg-[#f4ebd8] pb-2 z-10">
-        <input type="text" id="new-sheet-update-text" class="flex-grow p-2 border border-amber-600/30 rounded-sm text-xs sm:text-sm focus:border-red-900 outline-none shadow-inner bg-white font-sans placeholder:text-stone-400 placeholder:italic" placeholder="Add a task or reminder..." onkeydown="if(event.key === 'Enter') { event.preventDefault(); window.appActions.addSheetUpdate(); }">
-        <button type="button" onclick="window.appActions.addSheetUpdate()" class="px-4 py-2 bg-amber-700 text-amber-50 text-[10px] sm:text-xs font-bold uppercase tracking-wider rounded-sm shadow-md hover:bg-amber-600 transition whitespace-nowrap"><i class="fa-solid fa-plus sm:mr-1"></i> <span class="hidden sm:inline">Add</span></button>
-    </div>
-    `;
-
-    container.innerHTML = listHtml + addHtml;
 }
 
-// --- MAIN RENDERER ---
 export function renderApp(state) {
     const container = document.getElementById('app-container');
     if (!container) return;
@@ -484,7 +481,7 @@ export function renderApp(state) {
         container.scrollTo({ top: 0, behavior: 'instant' });
     }
 
-    if (state.currentView === 'atlas' && document.getElementById('atlas-wrapper')) {
+    if (state.currentView === 'atlas' && document.getElementById('map-container')) {
         if (window.appActions && window.appActions.refreshAtlasEntities) {
             window.appActions.refreshAtlasEntities();
         }
@@ -507,12 +504,10 @@ export function renderApp(state) {
         case 'journal': html = getJournalHTML(state); break;
         case 'codex': html = getCodexHTML(state); break;
         case 'bazaar': html = getBazaarHTML(state); break;
-        case 'databases': html = getDatabasesHTML(state); break;
         case 'storefront': html = getStorefrontHTML(state); break;
         case 'shop-backroom': html = getShopBackroomHTML(state); break;
         case 'calendar': html = getCalendarHTML(state); break;
         case 'rules': html = getRulesHTML(state); break;
-        case 'tables': html = getTablesHTML(state); break;
         case 'webs': html = getWebsHTML(state); break; 
         case 'atlas': html = getAtlasHTML(state); break; 
         case 'activity-log': html = getActivityLogHTML(state); break;
@@ -534,86 +529,134 @@ export function renderApp(state) {
     }
 }
 
-// --- UI HELPER FUNCTIONS ---
+// --- GLOBAL WINDOW EVENT LISTENERS & ACTION HANDLERS ---
+if (typeof window !== 'undefined') {
+    window.appActions = window.appActions || {};
 
-export function updateSessionTabUI(tabId) {
-    const tabs = ['session', 'pcs', 'preview'];
-    tabs.forEach(t => {
-        const btn = document.getElementById(`tab-btn-${t}`);
-        const content = document.getElementById(`tab-content-${t}`);
-        if (!btn || !content) return;
+    // --- Tab Selector ---
+    window.appActions.switchChecklistTab = (tabId) => {
+        window.appData.activeChecklistTab = tabId;
+        reRender(true);
+    };
 
-        if (t === tabId) {
-            btn.className = "whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-900 bg-[#f4ebd8] border-t-2 border-l border-r border-[#d4c5a9] border-t-red-900";
-            content.classList.remove('hidden');
-            if (t === 'preview') content.classList.add('flex', 'flex-col'); 
+    // --- Quest Form Managers ---
+    window.appActions.openQuestForm = (questId) => {
+        window.appData.activeQuestFormId = questId;
+        reRender(true);
+    };
+
+    window.appActions.closeQuestForm = () => {
+        window.appData.activeQuestFormId = null;
+        reRender(true);
+    };
+
+    window.appActions.toggleQuestExpanded = (questId) => {
+        window.appData.expandedQuests = window.appData.expandedQuests || new Set();
+        if (window.appData.expandedQuests.has(questId)) {
+            window.appData.expandedQuests.delete(questId);
         } else {
-            btn.className = "whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-600 border-transparent hover:text-stone-800";
-            content.classList.add('hidden');
-            if (t === 'preview') content.classList.remove('flex', 'flex-col');
+            window.appData.expandedQuests.add(questId);
         }
-    });
+        reRender(true);
+    };
+
+    window.appActions.saveQuest = async () => {
+        const id = document.getElementById('quest-form-id').value;
+        const name = document.getElementById('quest-form-name').value.trim();
+        const category = document.getElementById('quest-form-category').value;
+        const giverName = document.getElementById('quest-form-giver').value.trim();
+        const giverLocation = document.getElementById('quest-form-loc').value.trim();
+        const status = document.getElementById('quest-form-status').value;
+        const objectives = document.getElementById('quest-form-objectives').value.trim();
+        const rewards = document.getElementById('quest-form-rewards').value.trim();
+        const clues = document.getElementById('quest-form-clues').value.trim();
+        
+        const hasTracker = document.getElementById('quest-form-has-tracker').checked;
+        const trackerLabel = document.getElementById('quest-form-tracker-label')?.value.trim() || '';
+        const trackerCurrent = parseInt(document.getElementById('quest-form-tracker-current')?.value || 0);
+        const trackerTarget = parseInt(document.getElementById('quest-form-tracker-target')?.value || 1);
+
+        if (!name) {
+            notify("Quest Name is required.", "error");
+            return;
+        }
+
+        updateDerivedState();
+        const camp = window.appData.activeCampaign;
+        if (!camp) return;
+
+        const newQuest = {
+            id: id || 'quest_' + generateId(),
+            name,
+            category,
+            giverName,
+            giverLocation,
+            status,
+            objectives,
+            rewards,
+            clues,
+            hasTracker,
+            trackerLabel,
+            trackerCurrent,
+            trackerTarget
+        };
+
+        const currentQuests = camp.quests || [];
+        const isNew = !currentQuests.some(q => q.id === newQuest.id);
+
+        const updatedQuests = isNew 
+            ? [...currentQuests, newQuest]
+            : currentQuests.map(q => q.id === newQuest.id ? newQuest : q);
+
+        camp.quests = updatedQuests;
+        
+        // Optimistic UI updates
+        window.appData.activeCampaign.quests = updatedQuests;
+        window.appData.activeQuestFormId = null;
+        reRender(true);
+
+        // Persistent Firebase Saves
+        await saveCampaign(camp);
+        notify(`Quest "${name}" safely inscribed in the logs.`, "success");
+    };
+
+    window.appActions.deleteQuest = async (questId) => {
+        if (!confirm("Are you sure you want to permanently delete this quest?")) return;
+
+        updateDerivedState();
+        const camp = window.appData.activeCampaign;
+        if (!camp || !camp.quests) return;
+
+        const updatedQuests = camp.quests.filter(q => q.id !== questId);
+        camp.quests = updatedQuests;
+
+        // Optimistic Updates
+        window.appData.activeCampaign.quests = updatedQuests;
+        reRender(true);
+
+        await saveCampaign(camp);
+        notify("Quest deleted successfully.", "success");
+    };
+
+    window.appActions.adjustQuestTracker = async (questId, amount) => {
+        updateDerivedState();
+        const camp = window.appData.activeCampaign;
+        if (!camp || !camp.quests) return;
+
+        const questIndex = camp.quests.findIndex(q => q.id === questId);
+        if (questIndex === -1) return;
+
+        const quest = { ...camp.quests[questIndex] };
+        quest.trackerCurrent = Math.max(0, Math.min(parseInt(quest.trackerTarget || 1), parseInt(quest.trackerCurrent || 0) + amount));
+
+        const updatedQuests = [...camp.quests];
+        updatedQuests[questIndex] = quest;
+        camp.quests = updatedQuests;
+
+        // Optimistic Updates
+        window.appData.activeCampaign.quests = updatedQuests;
+        reRender(true);
+
+        await saveCampaign(camp);
+    };
 }
-
-export function updateBudgetUI(totalBudget, totalLoot, remaining, calculatedLootVal) {
-    const budgetEl = document.getElementById('budget-total');
-    const lootEl = document.getElementById('budget-loot');
-    const remainEl = document.getElementById('budget-remain');
-    const liveCalcEl = document.getElementById('budget-live-calc');
-    
-    if (budgetEl) budgetEl.textContent = `${totalBudget.toLocaleString()} gp`;
-    if (lootEl) lootEl.textContent = `${totalLoot.toLocaleString(undefined, {minimumFractionDigits: 2})} gp`;
-    
-    if (remainEl) {
-        remainEl.textContent = `${remaining.toLocaleString(undefined, {minimumFractionDigits: 2})} gp`;
-        if (remaining >= 0) {
-            remainEl.className = 'text-xs sm:text-sm font-bold text-emerald-400';
-        } else {
-            remainEl.className = 'text-xs sm:text-sm font-bold text-red-500';
-        }
-    }
-
-    if (liveCalcEl) {
-        liveCalcEl.textContent = `Calc: ${calculatedLootVal.toLocaleString()} gp`;
-    }
-}
-
-// --- GLOBAL WINDOW BINDINGS FOR INLINE HTML ---
-
-window.filterCodex = function() {
-    const input = document.getElementById('codex-search');
-    if(!input) return;
-    const query = input.value.toLowerCase().trim();
-    const folders = document.querySelectorAll('.codex-folder');
-    
-    folders.forEach(folder => {
-        const cards = folder.querySelectorAll('.codex-card');
-        const content = folder.querySelector('.folder-content');
-        const chevron = folder.querySelector('.folder-chevron');
-        const button = folder.querySelector('button');
-        let hasVisibleCard = false;
-
-        cards.forEach(card => {
-            const searchData = card.getAttribute('data-search') || '';
-            if (query === '' || searchData.includes(query)) {
-                card.style.display = 'flex';
-                hasVisibleCard = true;
-            } else {
-                card.style.display = 'none';
-            }
-        });
-
-        if (query !== '') {
-            if (hasVisibleCard) {
-                folder.style.display = 'block';
-                content.classList.remove('hidden');
-                chevron.classList.add('rotate-180');
-                button.classList.add('border-stone-700');
-            } else {
-                folder.style.display = 'none';
-            }
-        } else {
-            folder.style.display = 'block';
-        }
-    });
-};
