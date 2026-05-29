@@ -1,7 +1,7 @@
 import { getHomeHTML, getCampaignHTML, getAdventureHTML, getAdvRosterHTML, getActivityLogHTML } from './ui-campaign.js';
 import { getPCManagerHTML, getPCEditHTML } from './ui-characters.js';
 import { getSessionEditHTML } from './ui-session.js';
-import { getCodexHTML } from './ui-codex.js';
+import { getCodexHTML, getJournalHTML } from './ui-codex.js';
 import { getCalendarHTML } from './ui-calendar.js';
 import { getRulesHTML } from './ui-rules.js';
 import { getAtlasHTML } from './ui-atlas.js';
