@@ -1,7 +1,6 @@
 import { renderLevelOptions, renderSmartField } from './ui-core.js';
 import { reRender } from './state.js';
 
-// --- VISIBILITY (FOG OF WAR) HELPERS ---
 
 // Helper to generate the visibility toggle button
 function renderVisToggle(visObj) {
@@ -55,7 +54,7 @@ function renderSmartFieldWithVis(id, labelHtml, value, visObj, placeholderText, 
             <div class="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity items-center">
                 ${renderVisToggle(visObj)}
                 <div class="w-px h-3 bg-stone-300"></div>
-                <button type="button" class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-600 hover:text-amber-500 transition" onclick="event.stopPropagation(); window.appActions.openUniversalEditor('input-${id}', '${plainLabel}')"><i class="fa-solid fa-pen"></i> Edit</button>
+                <button type="button" class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-600 hover:text-amber-50 transition" onclick="event.stopPropagation(); window.appActions.openUniversalEditor('input-${id}', '${plainLabel}')"><i class="fa-solid fa-pen"></i> Edit</button>
             </div>
         </div>
         
@@ -88,7 +87,7 @@ function renderChronicleLog(session, camp, myUid, adv) {
             
             // Look up the Hero owned by this author, filtering by the active adventure's roster first!
             const activePcIds = adv?.activePcIds || [];
-            const authorPc = camp.playerCharacters?.find(p => p.playerId === entry.authorId && activePcIds.includes(p.id))
+            const authorPc = camp.playerCharacters?.find(p => p.playerId === i && activePcIds.includes(p.id))
                           || camp.playerCharacters?.find(p => p.playerId === entry.authorId);
             
             // Build the immersive Display Name
@@ -273,6 +272,23 @@ export function getSessionEditHTML(state) {
                     <button type="button" onclick="window.appActions.submitSessionClue()" class="px-4 py-2 bg-amber-700 text-amber-50 rounded-sm hover:bg-amber-600 transition text-[10px] font-bold uppercase tracking-wider shadow-md whitespace-nowrap flex items-center h-full"><i class="fa-solid fa-plus sm:mr-1"></i> <span class="hidden sm:inline">Add Clue</span></button>
                 </div>
             `;
+
+            // --- INJECT DISTRIBUTED LOOT & REWARDS REDESIGN ---
+            if (session.lootText && session.lootText.trim() && isVisible(session.lootVisibility)) {
+                const parsedLoot = (window.appActions && window.appActions.parseSmartText) 
+                    ? window.appActions.parseSmartText(session.lootText) 
+                    : session.lootText;
+
+                cluesTabHtml += `
+                <div class="mt-8 pt-5 border-t border-[#d4c5a9]">
+                    <h4 class="font-serif font-bold text-lg text-stone-900 mb-3 flex items-center"><i class="fa-solid fa-coins text-amber-500 mr-2"></i>Loot & Rewards</h4>
+                    <div class="bg-amber-50/40 p-4 border border-[#d4c5a9] rounded-sm shadow-inner text-sm text-stone-800 font-serif leading-relaxed">
+                        ${parsedLoot}
+                    </div>
+                </div>
+                `;
+            }
+
             activeTabContentHtml = cluesTabHtml;
 
         } else if (activeTab === 'chronicle') {
@@ -575,7 +591,7 @@ export function getSessionEditHTML(state) {
 
     const getDmSubTabClass = (subTabId) => {
         if (subTabId === activeDmSubTab) {
-            return "px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider rounded-sm bg-white text-stone-900 border border-[#d4c5a9] shadow-sm";
+            return "px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider rounded-sm bg-white text-stone-900 border border border-[#d4c5a9] shadow-sm";
         }
         return "px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider rounded-sm text-stone-500 hover:text-stone-800 transition";
     };
@@ -699,7 +715,7 @@ export function getSessionEditHTML(state) {
         <div id="tab-content-preview" class="hidden flex-grow overflow-hidden bg-[#fdfbf7] p-0 relative">
             <div class="absolute inset-0 overflow-y-auto custom-scrollbar p-6 sm:p-8">
                 <div id="draft-preview-text" class="max-w-3xl mx-auto font-serif text-sm text-stone-900 leading-relaxed whitespace-pre-wrap bg-white p-8 rounded-sm shadow-md border border-[#d4c5a9] min-h-full">
-                    <div class="text-center text-stone-400 mt-20"><i class="fa-solid fa-spinner fa-spin text-3xl mb-4"></i><p>Generating Preview...</p></div>
+                    <div class="text-center text-stone-400 mt-20"><i class="fa-solid fa-shadow fa-spin text-3xl mb-4"></i><p>Generating Preview...</p></div>
                 </div>
             </div>
         </div>
