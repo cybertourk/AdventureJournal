@@ -87,7 +87,7 @@ function renderChronicleLog(session, camp, myUid, adv) {
             
             // Look up the Hero owned by this author, filtering by the active adventure's roster first!
             const activePcIds = adv?.activePcIds || [];
-            const authorPc = camp.playerCharacters?.find(p => p.playerId === i && activePcIds.includes(p.id))
+            const authorPc = camp.playerCharacters?.find(p => p.playerId === entry.authorId && activePcIds.includes(p.id))
                           || camp.playerCharacters?.find(p => p.playerId === entry.authorId);
             
             // Build the immersive Display Name
@@ -299,7 +299,6 @@ export function getSessionEditHTML(state) {
                     ${renderChronicleLog(session, camp, myUid, adv)}
                 </div>
             `;
-
         } else if (activeTab === 'journal') {
             activeTabContentHtml = `
                 <div class="mb-4">
@@ -436,9 +435,9 @@ export function getSessionEditHTML(state) {
             const players = (vis.visibleTo || []).join(',');
             
             let icon = 'fa-eye';
-            let color = 'text-emerald-600 hover:text-emerald-500';
-            if (mode === 'hidden') { icon = 'fa-eye-slash'; color = 'text-red-700 hover:text-red-600'; }
-            else if (mode === 'specific') { icon = 'fa-user-lock'; color = 'text-blue-600 hover:text-blue-500'; }
+            let color = 'text-emerald-600 hover:text-emerald-500 hover:bg-emerald-50 border-emerald-200';
+            if (mode === 'hidden') { icon = 'fa-eye-slash'; color = 'text-red-700 hover:text-red-600 hover:bg-red-50 border-red-200'; }
+            else if (mode === 'specific') { icon = 'fa-user-lock'; color = 'text-blue-600 hover:text-blue-500 hover:bg-blue-50 border-blue-200'; }
             
             const isDMClue = clue.authorId === camp.dmId || !clue.authorId;
             const authorName = isDMClue ? '' : (camp.playerNames?.[clue.authorId] || 'Player');
