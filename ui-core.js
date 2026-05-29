@@ -467,8 +467,8 @@ export function updateChecklistUI(state) {
     const activeTab = window.appData.activeChecklistTab || 'tasks';
     const tabNav = `
     <div class="flex gap-2 mb-4">
-        <button onclick="window.appActions.switchChecklistTab('tasks')" class="flex-1 py-2 text-[10px] font-bold uppercase tracking-widest border-b-2 ${activeTab === 'tasks' ? 'border-amber-700 text-amber-900' : 'border-transparent text-stone-500 hover:text-stone-800'} transition">Tasks</button>
-        <button onclick="window.appActions.switchChecklistTab('quests')" class="flex-1 py-2 text-[10px] font-bold uppercase tracking-widest border-b-2 ${activeTab === 'quests' ? 'border-amber-700 text-amber-900' : 'border-transparent text-stone-500 hover:text-stone-800'} transition">Quest Log</button>
+        <button onclick="window.switchChecklistTab('tasks')" class="flex-1 py-2 text-[10px] font-bold uppercase tracking-widest border-b-2 ${activeTab === 'tasks' ? 'border-amber-700 text-amber-900' : 'border-transparent text-stone-500 hover:text-stone-800'} transition">Tasks</button>
+        <button onclick="window.switchChecklistTab('quests')" class="flex-1 py-2 text-[10px] font-bold uppercase tracking-widest border-b-2 ${activeTab === 'quests' ? 'border-amber-700 text-amber-900' : 'border-transparent text-stone-500 hover:text-stone-800'} transition">Quest Log</button>
     </div>
     `;
 
@@ -496,7 +496,9 @@ export function updateChecklistUI(state) {
 // --- QUEST LOG LOGIC ---
 export const switchChecklistTab = (tab) => {
     window.appData.activeChecklistTab = tab;
-    reRender(true);
+    if (window.appActions && window.appActions.reRender) {
+        window.appActions.reRender(true);
+    }
 };
 
 export const openQuestDetails = (questId) => {
@@ -660,10 +662,9 @@ window.filterCodex = function() {
 
 // --- BINDING QUEST ACTIONS TO WINDOW ACTIONS ---
 if (typeof window !== 'undefined') {
-    window.appActions = window.appActions || {};
-    window.appActions.switchChecklistTab = switchChecklistTab;
-    window.appActions.openQuestDetails = openQuestDetails;
-    window.appActions.addQuestObjective = addQuestObjective;
-    window.appActions.saveQuest = saveQuest;
-    window.appActions.toggleQuestStatus = toggleQuestStatus;
+    window.switchChecklistTab = switchChecklistTab;
+    window.openQuestDetails = openQuestDetails;
+    window.addQuestObjective = addQuestObjective;
+    window.saveQuest = saveQuest;
+    window.toggleQuestStatus = toggleQuestStatus;
 }
