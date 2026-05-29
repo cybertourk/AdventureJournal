@@ -9,6 +9,17 @@ export const BUDGET_BY_LEVEL = {
     15: 75000, 16: 103000, 17: 130000, 18: 214000, 19: 383000, 20: 552000, 21: 805000 
 };
 
+// --- SECURITY HELPER: Prevent HTML Attribute Corruption ---
+const escapeHTML = (str) => {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+};
+
 export function renderLevelOptions(selected) {
     return Object.keys(BUDGET_BY_LEVEL).map(lvl => 
         `<option value="${lvl}" ${parseInt(lvl) === parseInt(selected) ? 'selected' : ''}>Level ${lvl === '21' ? '20+' : lvl}</option>`
@@ -54,6 +65,7 @@ export function getLibraryTabsHTML(activeTab) {
     const isWebs = activeTab === 'webs';
     const isBazaar = activeTab === 'bazaar';
     const isTome = activeTab === 'tome';
+    const isDatabases = activeTab === 'databases';
 
     return `
     <div class="flex bg-stone-200 p-1 sm:p-1.5 rounded-sm border border-[#d4c5a9] shadow-inner mb-6 w-full max-w-5xl mx-auto shrink-0 overflow-x-auto hide-scrollbar">
@@ -72,6 +84,11 @@ export function getLibraryTabsHTML(activeTab) {
         <button onclick="window.appActions.openJournal('campaign')" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isTome ? 'bg-white shadow-sm text-stone-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
             <i class="fa-solid fa-scroll text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Tome</span>
         </button>
+        ${window.appData.activeCampaign?._isDM ? `
+        <button onclick="window.appActions.setView('databases')" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isDatabases ? 'bg-white shadow-sm text-teal-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
+            <i class="fa-solid fa-box-archive text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Data</span>
+        </button>
+        ` : ''}
         <button onclick="window.appActions.openChecklistMenu()" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition text-stone-500 hover:text-blue-800 border border-transparent text-[9px] sm:text-[10px] uppercase tracking-wider relative group">
             <i class="fa-solid fa-list-check text-sm sm:text-base mb-0.5 sm:mb-0 group-hover:text-blue-600 transition-colors"></i> <span>Tasks</span>
             <span id="lib-tab-badge-tasks" class="hidden absolute top-1 right-2 sm:right-6 w-2 h-2 bg-red-500 rounded-full border border-stone-200 animate-pulse"></span>
@@ -145,8 +162,12 @@ export function updateChecklistUI(state) {
             }
         } else {
             if (dockBadge) dockBadge.classList.add('hidden');
-            if (sheetBadge) sheetBadge.classList.add('hidden');
+            if (sheetBadge) mapBadgeHide();
             if (libTabBadge) libTabBadge.classList.add('hidden');
+        }
+
+        function mapBadgeHide() {
+            sheetBadge.classList.add('hidden');
         }
 
         const sorted = [...visibleUpdates].sort((a, b) => {
@@ -473,6 +494,46 @@ export function updateChecklistUI(state) {
     }
 }
 
+export function updateBudgetUI(totalPartyBudget, currentTotalLoot, remainingBudget, newLootValue) {
+    const totalEl = document.getElementById('budget-total');
+    const lootEl = document.getElementById('budget-loot');
+    const remainEl = document.getElementById('budget-remain');
+    const liveEl = document.getElementById('budget-live-calc');
+    
+    if (totalEl) totalEl.textContent = `${Math.round(totalPartyBudget).toLocaleString()} gp`;
+    if (lootEl) lootEl.textContent = `${Math.round(currentTotalLoot).toLocaleString()} gp`;
+    if (remainEl) {
+        remainEl.textContent = `${Math.round(remainingBudget).toLocaleString()} gp`;
+        if (remainingBudget < 0) {
+            remainEl.className = "font-bold text-sm sm:text-base text-red-500";
+        } else {
+            remainEl.className = "font-bold text-sm sm:text-base text-emerald-400";
+        }
+    }
+    if (liveEl) liveEl.textContent = `Calc: ${Math.round(newLootValue).toLocaleString()} gp`;
+}
+
+export function updateSessionTabUI(tabId) {
+    ['session', 'pcs', 'preview'].forEach(t => {
+        const content = document.getElementById(`tab-content-${t}`);
+        const btn = document.getElementById(`tab-btn-${t}`);
+        if (content) {
+            if (t === tabId) {
+                content.classList.remove('hidden');
+            } else {
+                content.classList.add('hidden');
+            }
+        }
+        if (btn) {
+            if (t === tabId) {
+                btn.className = "whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-900 bg-[#f4ebd8] border-t-2 border-l border-r border-[#d4c5a9] border-t-red-900";
+            } else {
+                btn.className = "whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-600 border-transparent hover:text-stone-800";
+            }
+        }
+    });
+}
+
 export function renderApp(state) {
     const container = document.getElementById('app-container');
     if (!container) return;
@@ -509,7 +570,7 @@ export function renderApp(state) {
         case 'calendar': html = getCalendarHTML(state); break;
         case 'rules': html = getRulesHTML(state); break;
         case 'webs': html = getWebsHTML(state); break; 
-        case 'atlas': html = getAtlasHTML(state); break; 
+        case 'databases': html = getDatabasesHTML(state); break;
         case 'activity-log': html = getActivityLogHTML(state); break;
         default: html = `<div class="text-center text-red-500">Unknown View: ${state.currentView}</div>`;
     }
@@ -529,134 +590,269 @@ export function renderApp(state) {
     }
 }
 
-// --- GLOBAL WINDOW EVENT LISTENERS & ACTION HANDLERS ---
-if (typeof window !== 'undefined') {
-    window.appActions = window.appActions || {};
+function updateHeaderUI(state) {
+    const title = document.getElementById('header-title');
+    const breadcrumb = document.getElementById('header-breadcrumb');
+    const backBtn = document.getElementById('header-back-btn');
+    const icon = document.getElementById('header-icon');
 
-    // --- Tab Selector ---
-    window.appActions.switchChecklistTab = (tabId) => {
-        window.appData.activeChecklistTab = tabId;
-        reRender(true);
-    };
+    if (!title || !breadcrumb || !backBtn || !icon) return;
 
-    // --- Quest Form Managers ---
-    window.appActions.openQuestForm = (questId) => {
-        window.appData.activeQuestFormId = questId;
-        reRender(true);
-    };
+    // Default library icons
+    icon.innerHTML = `<i class="fa-solid fa-scroll text-xl"></i>`;
+    backBtn.classList.remove('hidden');
 
-    window.appActions.closeQuestForm = () => {
-        window.appData.activeQuestFormId = null;
-        reRender(true);
-    };
+    switch (state.currentView) {
+        case 'home':
+            title.textContent = "Adventure Journal";
+            breadcrumb.textContent = "Vault Library";
+            backBtn.classList.add('hidden');
+            icon.innerHTML = `<i class="fa-solid fa-book-journal-whills text-xl"></i>`;
+            break;
+        case 'campaign':
+            title.textContent = state.activeCampaign?.name || "Campaign";
+            breadcrumb.textContent = "Tome Hub";
+            break;
+        case 'adventure':
+            title.textContent = state.activeAdventure?.name || "Adventure";
+            breadcrumb.textContent = `${state.activeCampaign?.name || "Campaign"} • Story Arc`;
+            break;
+        case 'adv-roster':
+            title.textContent = "Roster Setup";
+            breadcrumb.textContent = `${state.activeAdventure?.name || "Arc"} • Configuration`;
+            break;
+        case 'pc-manager':
+            title.textContent = "Party Manifest";
+            breadcrumb.textContent = `${state.activeCampaign?.name || "Campaign"} • Heroes`;
+            icon.innerHTML = `<i class="fa-solid fa-users text-lg"></i>`;
+            break;
+        case 'pc-edit':
+            title.textContent = "Hero's Journal";
+            breadcrumb.textContent = "Party Manifest • Edits";
+            icon.innerHTML = `<i class="fa-solid fa-user-pen text-lg"></i>`;
+            break;
+        case 'session-edit':
+            title.textContent = "Scribing Session";
+            breadcrumb.textContent = `${state.activeAdventure?.name || "Arc"} • Logs`;
+            break;
+        case 'journal':
+            title.textContent = "Scroll Presentation";
+            breadcrumb.textContent = "Grand Chronicle Timeline";
+            break;
+        case 'codex':
+            title.textContent = "World Codex";
+            breadcrumb.textContent = `${state.activeCampaign?.name || "Campaign"} • Library`;
+            icon.innerHTML = `<i class="fa-solid fa-book text-lg"></i>`;
+            break;
+        case 'bazaar':
+            title.textContent = "Bazaar District";
+            breadcrumb.textContent = `${state.activeCampaign?.name || "Campaign"} • Market`;
+            icon.innerHTML = `<i class="fa-solid fa-store text-lg"></i>`;
+            break;
+        case 'storefront':
+            title.textContent = "Storefront Wares";
+            breadcrumb.textContent = "Bazaar District • Stall";
+            icon.innerHTML = `<i class="fa-solid fa-shop text-lg"></i>`;
+            break;
+        case 'shop-backroom':
+            title.textContent = "GM Backroom Ledger";
+            breadcrumb.textContent = "Bazaar District • Supply";
+            icon.innerHTML = `<i class="fa-solid fa-warehouse text-lg"></i>`;
+            break;
+        case 'calendar':
+            title.textContent = "Grand Chronicle Timeline";
+            breadcrumb.textContent = `${state.activeCampaign?.name || "Campaign"} • Calendar`;
+            icon.innerHTML = `<i class="fa-regular fa-calendar-days text-xl"></i>`;
+            break;
+        case 'rules':
+            title.textContent = "Glossary of Rulings";
+            breadcrumb.textContent = "Archives • References";
+            icon.innerHTML = `<i class="fa-solid fa-scale-balanced text-lg"></i>`;
+            break;
+        case 'webs':
+            title.textContent = "Relationship Webs";
+            breadcrumb.textContent = `${state.activeCampaign?.name || "Campaign"} • Schematics`;
+            icon.innerHTML = `<i class="fa-solid fa-diagram-project text-lg"></i>`;
+            break;
+        case 'databases':
+            title.textContent = "Master Item Encyclopedia";
+            breadcrumb.textContent = "GM Administrative Core • Data";
+            icon.innerHTML = `<i class="fa-solid fa-box-archive text-lg"></i>`;
+            break;
+        case 'activity-log':
+            title.textContent = "Campaign Activity Feed";
+            breadcrumb.textContent = "GM Logs • Archives";
+            icon.innerHTML = `<i class="fa-solid fa-clock-rotate-left text-lg"></i>`;
+            break;
+    }
+}
 
-    window.appActions.toggleQuestExpanded = (questId) => {
-        window.appData.expandedQuests = window.appData.expandedQuests || new Set();
-        if (window.appData.expandedQuests.has(questId)) {
-            window.appData.expandedQuests.delete(questId);
-        } else {
-            window.appData.expandedQuests.add(questId);
-        }
-        reRender(true);
-    };
+function updateDockUI(state) {
+    document.querySelectorAll('.dock-tab').forEach(tab => {
+        tab.classList.remove('text-amber-500', 'font-bold');
+        tab.classList.add('text-stone-400');
+    });
 
-    window.appActions.saveQuest = async () => {
-        const id = document.getElementById('quest-form-id').value;
-        const name = document.getElementById('quest-form-name').value.trim();
-        const category = document.getElementById('quest-form-category').value;
-        const giverName = document.getElementById('quest-form-giver').value.trim();
-        const giverLocation = document.getElementById('quest-form-loc').value.trim();
-        const status = document.getElementById('quest-form-status').value;
-        const objectives = document.getElementById('quest-form-objectives').value.trim();
-        const rewards = document.getElementById('quest-form-rewards').value.trim();
-        const clues = document.getElementById('quest-form-clues').value.trim();
-        
-        const hasTracker = document.getElementById('quest-form-has-tracker').checked;
-        const trackerLabel = document.getElementById('quest-form-tracker-label')?.value.trim() || '';
-        const trackerCurrent = parseInt(document.getElementById('quest-form-tracker-current')?.value || 0);
-        const trackerTarget = parseInt(document.getElementById('quest-form-tracker-target')?.value || 1);
+    const activeView = state.currentView;
+    const isCampaignScope = ['campaign', 'adventure', 'adv-roster', 'session-edit', 'journal'].includes(activeView);
+    const isCalendarScope = ['calendar'].includes(activeView);
+    const isPartyScope = ['pc-manager', 'pc-edit'].includes(activeView);
+    const isLibraryScope = ['codex', 'bazaar', 'storefront', 'shop-backroom', 'rules', 'webs', 'databases', 'activity-log'].includes(activeView);
 
-        if (!name) {
-            notify("Quest Name is required.", "error");
-            return;
-        }
+    let activeTabId = '';
+    if (isCampaignScope) activeTabId = 'dock-tab-campaign';
+    else if (isCalendarScope) activeTabId = 'dock-tab-calendar';
+    else if (isPartyScope) activeTabId = 'dock-tab-pc-manager';
+    else if (isLibraryScope) activeTabId = 'dock-tab-codex';
 
-        updateDerivedState();
-        const camp = window.appData.activeCampaign;
-        if (!camp) return;
+    const activeTab = document.getElementById(activeTabId);
+    if (activeTab) {
+        activeTab.classList.remove('text-stone-400');
+        activeTab.classList.add('text-amber-500', 'font-bold');
+    }
 
-        const newQuest = {
-            id: id || 'quest_' + generateId(),
-            name,
-            category,
-            giverName,
-            giverLocation,
-            status,
-            objectives,
-            rewards,
-            clues,
-            hasTracker,
-            trackerLabel,
-            trackerCurrent,
-            trackerTarget
-        };
+    // Toggle DM assignments buttons on the actions sheet
+    const assignBtn = document.getElementById('dm-assign-downtime-btn');
+    const npcGenBtn = document.getElementById('dm-npc-gen-btn');
+    const camp = state.activeCampaign;
+    if (camp && camp._isDM) {
+        if (assignBtn) assignBtn.classList.remove('hidden');
+        if (npcGenBtn) npcGenBtn.classList.remove('hidden');
+    } else {
+        if (assignBtn) assignBtn.classList.add('hidden');
+        if (npcGenBtn) npcGenBtn.classList.add('hidden');
+    }
+}
 
-        const currentQuests = camp.quests || [];
-        const isNew = !currentQuests.some(q => q.id === newQuest.id);
+function updatePlayerResourceBar(state) {
+    const bar = document.getElementById('player-resource-bar');
+    if (!bar) return;
 
-        const updatedQuests = isNew 
-            ? [...currentQuests, newQuest]
-            : currentQuests.map(q => q.id === newQuest.id ? newQuest : q);
+    const camp = state.activeCampaign;
+    const myUid = state.currentUserUid;
+    if (!camp || state.currentView === 'home' || camp._isDM) {
+        bar.innerHTML = '';
+        return;
+    }
 
-        camp.quests = updatedQuests;
-        
-        // Optimistic UI updates
-        window.appData.activeCampaign.quests = updatedQuests;
-        window.appData.activeQuestFormId = null;
-        reRender(true);
+    // Check if player has an active PC in the active campaign
+    const myPc = camp.playerCharacters?.find(pc => pc.playerId === myUid);
+    if (!myPc) {
+        bar.innerHTML = '';
+        return;
+    }
 
-        // Persistent Firebase Saves
-        await saveCampaign(camp);
-        notify(`Quest "${name}" safely inscribed in the logs.`, "success");
-    };
+    let maxInsp = 0;
+    if (myPc.boonBackstory) maxInsp += 1;
+    if (myPc.boon2ndBday) maxInsp += 1;
+    const currentInsp = myPc.inspiration === true ? 1 : (parseInt(myPc.inspiration) || 0);
+    const hasAutoSuccess = myPc.automaticSuccess === true && myPc.unlockAutoSuccess === true;
+    const downtimeDays = parseInt(myPc.availableDowntime) || 0;
 
-    window.appActions.deleteQuest = async (questId) => {
-        if (!confirm("Are you sure you want to permanently delete this quest?")) return;
+    bar.innerHTML = `
+    <div class="w-full bg-stone-900 border-b border-amber-700/50 py-1.5 px-4 text-amber-100 flex items-center justify-between text-[10px] uppercase font-bold tracking-wider relative overflow-hidden thematic-bg shadow-md">
+        <div class="flex items-center gap-1">
+            <span class="text-stone-400">Hero:</span>
+            <span class="text-amber-400 font-serif normal-case text-xs font-black">${escapeHTML(myPc.name)}</span>
+        </div>
+        <div class="flex gap-3 items-center">
+            <div class="flex items-center gap-1 bg-amber-950/40 px-2 py-0.5 rounded border border-amber-600/30">
+                <i class="fa-solid fa-dice-d20 text-amber-500"></i> Insp: ${currentInsp}/${maxInsp}
+            </div>
+            ${hasAutoSuccess ? `
+            <div class="flex items-center gap-1 bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-600/30 text-emerald-300">
+                <i class="fa-solid fa-circle-check"></i> Auto-Success
+            </div>` : ''}
+            <div class="flex items-center gap-1 bg-blue-950/40 px-2 py-0.5 rounded border border-blue-600/30 text-blue-300">
+                <i class="fa-solid fa-hourglass-half"></i> ${downtimeDays} Days
+            </div>
+        </div>
+    </div>
+    `;
+}
 
-        updateDerivedState();
-        const camp = window.appData.activeCampaign;
-        if (!camp || !camp.quests) return;
+// --- VIEW WRAPPER ROUTINES (DELEGATING TO INDIVIDUAL MODULES) ---
+function getHomeHTML(state) {
+    const { getHomeHTML } = require('./ui-campaign.js');
+    return getHomeHTML(state);
+}
 
-        const updatedQuests = camp.quests.filter(q => q.id !== questId);
-        camp.quests = updatedQuests;
+function getCampaignHTML(state) {
+    const { getCampaignHTML } = require('./ui-campaign.js');
+    return getCampaignHTML(state);
+}
 
-        // Optimistic Updates
-        window.appData.activeCampaign.quests = updatedQuests;
-        reRender(true);
+function getAdventureHTML(state) {
+    const { getAdventureHTML } = require('./ui-campaign.js');
+    return getAdventureHTML(state);
+}
 
-        await saveCampaign(camp);
-        notify("Quest deleted successfully.", "success");
-    };
+function getAdvRosterHTML(state) {
+    const { getAdvRosterHTML } = require('./ui-campaign.js');
+    return getAdvRosterHTML(state);
+}
 
-    window.appActions.adjustQuestTracker = async (questId, amount) => {
-        updateDerivedState();
-        const camp = window.appData.activeCampaign;
-        if (!camp || !camp.quests) return;
+function getPCManagerHTML(state) {
+    const { getPCManagerHTML } = require('./ui-characters.js');
+    return getPCManagerHTML(state);
+}
 
-        const questIndex = camp.quests.findIndex(q => q.id === questId);
-        if (questIndex === -1) return;
+function getPCEditHTML(state) {
+    const { getPCEditHTML } = require('./ui-characters.js');
+    return getPCEditHTML(state);
+}
 
-        const quest = { ...camp.quests[questIndex] };
-        quest.trackerCurrent = Math.max(0, Math.min(parseInt(quest.trackerTarget || 1), parseInt(quest.trackerCurrent || 0) + amount));
+function getSessionEditHTML(state) {
+    const { getSessionEditHTML } = require('./ui-session.js');
+    return getSessionEditHTML(state);
+}
 
-        const updatedQuests = [...camp.quests];
-        updatedQuests[questIndex] = quest;
-        camp.quests = updatedQuests;
+function getJournalHTML(state) {
+    const { getJournalHTML } = require('./ui-codex.js');
+    return getJournalHTML(state);
+}
 
-        // Optimistic Updates
-        window.appData.activeCampaign.quests = updatedQuests;
-        reRender(true);
+function getCodexHTML(state) {
+    const { getCodexHTML } = require('./ui-codex.js');
+    return getCodexHTML(state);
+}
 
-        await saveCampaign(camp);
-    };
+function getBazaarHTML(state) {
+    const { getBazaarHTML } = require('./ui-shops.js');
+    return getBazaarHTML(state);
+}
+
+function getStorefrontHTML(state) {
+    const { getStorefrontHTML } = require('./ui-shops.js');
+    return getStorefrontHTML(state);
+}
+
+function getShopBackroomHTML(state) {
+    const { getShopBackroomHTML } = require('./ui-shops.js');
+    return getShopBackroomHTML(state);
+}
+
+function getCalendarHTML(state) {
+    const { getCalendarHTML } = require('./ui-calendar.js');
+    return getCalendarHTML(state);
+}
+
+function getRulesHTML(state) {
+    const { getRulesHTML } = require('./ui-rules.js');
+    return getRulesHTML(state);
+}
+
+function getWebsHTML(state) {
+    const { getWebsHTML } = require('./ui-webs.js');
+    return getWebsHTML(state);
+}
+
+function getDatabasesHTML(state) {
+    const { getDatabasesHTML } = require('./ui-databases.js');
+    return getDatabasesHTML(state);
+}
+
+function getActivityLogHTML(state) {
+    const { getActivityLogHTML } = require('./ui-campaign.js');
+    return getActivityLogHTML(state);
 }
