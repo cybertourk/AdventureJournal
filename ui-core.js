@@ -1,7 +1,7 @@
 import { getHomeHTML, getCampaignHTML, getAdventureHTML, getAdvRosterHTML, getActivityLogHTML } from './ui-campaign.js';
 import { getPCManagerHTML, getPCEditHTML } from './ui-characters.js';
 import { getSessionEditHTML } from './ui-session.js';
-import { getCodexHTML, getJournalHTML } from './ui-codex.js';
+import { getCodexHTML } from './ui-codex.js';
 import { getCalendarHTML } from './ui-calendar.js';
 import { getRulesHTML } from './ui-rules.js';
 import { getAtlasHTML } from './ui-atlas.js';
@@ -30,10 +30,7 @@ export function renderSmartField(id, labelHtml, value, placeholderText, rows, wr
         ? window.appActions.parseSmartText(value) 
         : `<span class="text-stone-400 italic font-sans">${placeholderText || "No entry provided."}</span>`;
 
-    // Strip HTML from label to pass as plain text to the editor modal title, and escape apostrophes safely
     const plainLabel = labelHtml.replace(/<[^>]*>?/gm, '').trim().replace(/'/g, "\\'");
-    
-    // Ensure hidden input preserves both double quotes AND newlines
     const safeValue = (value || '').replace(/"/g, '&quot;').replace(/\n/g, '&#10;');
 
     const onClickAttr = isReadonly ? '' : `onclick="window.appActions.openUniversalEditor('input-${id}', '${plainLabel}')"`;
@@ -344,6 +341,7 @@ export function updateChecklistUI(state) {
         return;
     }
 
+    // --- TAB SYSTEM ADDITION ---
     const isDM = camp._isDM;
     const myUid = state.currentUserUid;
     const updates = camp.sheetUpdates || [];
@@ -465,15 +463,57 @@ export function updateChecklistUI(state) {
         });
     }
 
-    const addHtml = `
+    // --- TAB HEADER ---
+    const activeTab = window.appData.activeChecklistTab || 'tasks';
+    const tabNav = `
+    <div class="flex gap-2 mb-4">
+        <button onclick="window.appActions.switchChecklistTab('tasks')" class="flex-1 py-2 text-[10px] font-bold uppercase tracking-widest border-b-2 ${activeTab === 'tasks' ? 'border-amber-700 text-amber-900' : 'border-transparent text-stone-500 hover:text-stone-800'} transition">Tasks</button>
+        <button onclick="window.appActions.switchChecklistTab('quests')" class="flex-1 py-2 text-[10px] font-bold uppercase tracking-widest border-b-2 ${activeTab === 'quests' ? 'border-amber-700 text-amber-900' : 'border-transparent text-stone-500 hover:text-stone-800'} transition">Quest Log</button>
+    </div>
+    `;
+
+    // --- QUEST LOG CONTENT ---
+    let questHtml = `<div class="text-xs text-stone-500 italic py-6 text-center">Quest functionality coming soon...</div>`;
+    if (activeTab === 'quests') {
+        questHtml = `<div class="space-y-4">
+            <h4 class="text-[10px] uppercase font-bold text-stone-500 tracking-widest">Active Quests</h4>
+            <!-- Quest list goes here -->
+        </div>`;
+    }
+
+    const contentHtml = activeTab === 'tasks' ? listHtml : questHtml;
+
+    const addHtml = activeTab === 'tasks' ? `
     <div class="flex gap-2 mt-4 pt-4 border-t border-amber-700/20 sticky bottom-0 bg-[#f4ebd8] pb-2 z-10">
         <input type="text" id="new-sheet-update-text" class="flex-grow p-2 border border-amber-600/30 rounded-sm text-xs sm:text-sm focus:border-red-900 outline-none shadow-inner bg-white font-sans placeholder:text-stone-400 placeholder:italic" placeholder="Add a task or reminder..." onkeydown="if(event.key === 'Enter') { event.preventDefault(); window.appActions.addSheetUpdate(); }">
         <button type="button" onclick="window.appActions.addSheetUpdate()" class="px-4 py-2 bg-amber-700 text-amber-50 text-[10px] sm:text-xs font-bold uppercase tracking-wider rounded-sm shadow-md hover:bg-amber-600 transition whitespace-nowrap"><i class="fa-solid fa-plus sm:mr-1"></i> <span class="hidden sm:inline">Add</span></button>
     </div>
-    `;
+    ` : '';
 
-    container.innerHTML = listHtml + addHtml;
+    container.innerHTML = tabNav + contentHtml + addHtml;
 }
+
+// --- QUEST LOG LOGIC ---
+export const switchChecklistTab = (tab) => {
+    window.appData.activeChecklistTab = tab;
+    reRender(true);
+};
+
+export const openQuestDetails = (questId) => {
+    // Logic to open quest detail modal
+};
+
+export const addQuestObjective = (questId, objective) => {
+    // Logic to add objective to a quest
+};
+
+export const saveQuest = (quest) => {
+    // Logic to save quest to Firebase
+};
+
+export const toggleQuestStatus = (questId, status) => {
+    // Logic to toggle Active/Completed/Failed
+};
 
 // --- MAIN RENDERER ---
 export function renderApp(state) {
@@ -617,3 +657,13 @@ window.filterCodex = function() {
         }
     });
 };
+
+// --- BINDING QUEST ACTIONS TO WINDOW ACTIONS ---
+if (typeof window !== 'undefined') {
+    window.appActions = window.appActions || {};
+    window.appActions.switchChecklistTab = switchChecklistTab;
+    window.appActions.openQuestDetails = openQuestDetails;
+    window.appActions.addQuestObjective = addQuestObjective;
+    window.appActions.saveQuest = saveQuest;
+    window.appActions.toggleQuestStatus = toggleQuestStatus;
+}
