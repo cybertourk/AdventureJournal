@@ -1,1 +1,709 @@
+import { 
+    auth, 
+    db, 
+    appId, 
+    signInWithEmailAndPassword, 
+    createUserWithEmailAndPassword, 
+    signOut, 
+    doc, 
+    setDoc, 
+    getDoc, 
+    deleteDoc, 
+    onSnapshot, 
+    collection, 
+    query, 
+    where,
+    getDocs
+} from "./firebase-config.js";
+import { deleteUser, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
+// --- NOTIFICATION HELPER ---
+export function notify(msg, type = 'info') {
+    const container = document.getElementById('notification-container');
+    if (!container) {
+        console.log(`Notify (${type}): ${msg}`);
+        return;
+    }
+    
+    const notif = document.createElement('div');
+    const bgClass = type === 'error' ? 'bg-red-900' : (type === 'success' ? 'bg-emerald-700' : 'bg-stone-800');
+    notif.className = `${bgClass} text-amber-50 px-4 py-3 rounded-sm shadow-[0_4px_12px_rgba(0,0,0,0.5)] text-sm border border-stone-600 font-bold uppercase tracking-wider animate-in transition-opacity duration-500`;
+    
+    let icon = 'fa-circle-info';
+    if (type === 'error') icon = 'fa-skull';
+    if (type === 'success') icon = 'fa-check';
+    
+    notif.innerHTML = `<i class="fa-solid ${icon} mr-2"></i> ${msg}`;
+    
+    container.appendChild(notif);
+    
+    setTimeout(() => {
+        notif.style.opacity = '0';
+        setTimeout(() => notif.remove(), 500);
+    }, 3000);
+}
+
+// --- AUTHENTICATION ---
+
+export async function loginUser(email, password) {
+    try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        // --- NEW: Log the player's arrival into all campaigns they play in ---
+        const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid);
+        const userSnap = await getDoc(userDocRef);
+        const displayName = userSnap.exists() && userSnap.data().displayName
+            ? userSnap.data().displayName
+            : "A hero";
+
+        const campaignsRef = collection(db, 'artifacts', appId, 'campaigns');
+        const q = query(campaignsRef, where("activePlayers", "array-contains", user.uid));
+        const snapshot = await getDocs(q);
+
+        const updatePromises = [];
+        snapshot.forEach(docSnap => {
+            const campData = docSnap.data();
+            
+            // Do not log DM activity to prevent spamming
+            if (campData.dmId === user.uid) return;
+
+            const activityLog = campData.activityLog || [];
+            const loginLog = {
+                id: 'log_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                timestamp: Date.now(),
+                text: `<span class="font-bold text-stone-900">${displayName}</span> has accessed the archives.`,
+                icon: 'fa-right-to-bracket'
+            };
+            activityLog.unshift(loginLog);
+
+            if (activityLog.length > 100) {
+                activityLog.length = 100;
+            }
+
+            const docRef = doc(db, 'artifacts', appId, 'campaigns', campData.id);
+            // Use merge: true so we only update the activity log without overwriting anything else
+            updatePromises.push(setDoc(docRef, { activityLog: activityLog }, { merge: true }));
+        });
+
+        if (updatePromises.length > 0) {
+            await Promise.all(updatePromises);
+        }
+
+        notify("Successfully accessed the archives.", "success");
+    } catch (error) {
+        console.error("Login Error:", error);
+        notify("Access Denied: " + error.message, "error");
+        throw error;
+    }
+}
+
+export async function registerUser(email, password, displayName, birthMonth = null, birthDay = null, role = 'user') {
+    try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        
+        await setDoc(doc(db, 'artifacts', appId, 'users', user.uid), {
+            email: email,
+            displayName: displayName || "Nameless Hero",
+            birthMonth: birthMonth ? parseInt(birthMonth, 10) : null,
+            birthDay: birthDay ? parseInt(birthDay, 10) : null,
+            role: role,
+            personalCodex: [], 
+            created: new Date().toISOString()
+        });
+        
+        notify("New account forged successfully.", "success");
+    } catch (error) {
+        console.error("Registration Error:", error);
+        notify("Forging Failed: " + error.message, "error");
+        throw error;
+    }
+}
+
+export async function logoutUser() {
+    try {
+        await signOut(auth);
+        notify("You have left the archives.");
+    } catch (error) {
+        console.error("Logout Error:", error);
+        notify("Error leaving: " + error.message, "error");
+    }
+}
+
+export async function resetPassword(email) {
+    try {
+        await sendPasswordResetEmail(auth, email);
+        notify("A recovery scroll has been sent to your email.", "success");
+        return true;
+    } catch (error) {
+        console.error("Password Reset Error:", error);
+        if (error.code === 'auth/user-not-found') {
+            notify("No archives found under that email address.", "error");
+        } else if (error.code === 'auth/invalid-email') {
+            notify("Invalid email format.", "error");
+        } else {
+            notify("Failed to send recovery scroll: " + error.message, "error");
+        }
+        return false;
+    }
+}
+
+export async function deleteUserAccount() {
+    const user = auth.currentUser;
+    if (!user) {
+        notify("You must be logged in to delete your account.", "error");
+        return false;
+    }
+
+    if (!confirm("FINAL WARNING: Are you sure you want to permanently delete your account and all personal data? This cannot be undone.")) {
+        return false;
+    }
+
+    try {
+        const uid = user.uid;
+
+        // 1. DATA CLEANUP: Remove user from all campaigns they have joined
+        const campaignsRef = collection(db, 'artifacts', appId, 'campaigns');
+        const q = query(campaignsRef, where("activePlayers", "array-contains", uid));
+        const snapshot = await getDocs(q);
+
+        const updatePromises = [];
+        snapshot.forEach(docSnap => {
+            const campData = docSnap.data();
+            const campId = campData.id;
+            
+            const updatedPlayers = (campData.activePlayers || []).filter(id => id !== uid);
+            
+            const updatedNames = { ...campData.playerNames };
+            delete updatedNames[uid];
+
+            const updatedBirthdays = { ...campData.playerBirthdays };
+            delete updatedBirthdays[uid];
+            
+            const docRef = doc(db, 'artifacts', appId, 'campaigns', campId);
+            updatePromises.push(setDoc(docRef, { 
+                ...campData,
+                activePlayers: updatedPlayers, 
+                playerNames: updatedNames,
+                playerBirthdays: updatedBirthdays
+            }));
+
+            // Scrub the user from the PlayerCharacters Subcollection!
+            const cleanupPCs = async () => {
+                const pcsRef = collection(db, 'artifacts', appId, 'campaigns', campId, 'playerCharacters');
+                const pcsSnap = await getDocs(pcsRef);
+                const batchPromises = [];
+                pcsSnap.forEach((pcDoc) => {
+                    const pcData = pcDoc.data();
+                    if (pcData.playerId === uid) {
+                        batchPromises.push(setDoc(pcDoc.ref, { ...pcData, playerId: '' }, { merge: true }));
+                    }
+                });
+                await Promise.all(batchPromises);
+            };
+            updatePromises.push(cleanupPCs());
+        });
+
+        if (updatePromises.length > 0) {
+            await Promise.all(updatePromises);
+        }
+
+        // 2. Delete user profile document from Firestore
+        const userDocRef = doc(db, 'artifacts', appId, 'users', uid);
+        await deleteDoc(userDocRef);
+
+        // 3. Delete the user from Firebase Authentication
+        await deleteUser(user);
+
+        notify("Your account and data have been permanently deleted.", "success");
+        return true;
+    } catch (error) {
+        console.error("Error deleting account:", error);
+        if (error.code === 'auth/requires-recent-login') {
+            notify("Security check: You must log out and log back in before deleting your account.", "error");
+        } else {
+            notify("Failed to delete account: " + error.message, "error");
+        }
+        return false;
+    }
+}
+
+// --- DATABASE (FIRESTORE) REAL-TIME LISTENERS & CACHE ---
+
+let campaignCache = {};
+const subListeners = {}; 
+
+let dmCallback = null;
+let playerCallback = null;
+let dmCampaignIds = [];
+let playerCampaignIds = [];
+let currentCampaignsListener = null;
+let currentPlayerCampaignsListener = null;
+
+function getFullCampaign(id) {
+    const c = campaignCache[id];
+    if (!c || !c.base) return null;
+    
+    // LAZY MIGRATION: If the new subcollections are empty, gracefully fall back to the legacy arrays 
+    // stored on the main document. The next time the DM saves, it will auto-migrate them!
+    return {
+        ...c.base,
+        playerCharacters: (c.pcs && c.pcs.length > 0) ? c.pcs : (c.base.playerCharacters || []),
+        adventures: (c.adventures && c.adventures.length > 0) ? c.adventures : (c.base.adventures || []),
+        codex: (c.codex && c.codex.length > 0) ? c.codex : (c.base.codex || []),
+        sheetUpdates: (c.sheetUpdates && c.sheetUpdates.length > 0) ? c.sheetUpdates : (c.base.sheetUpdates || []),
+        webs: (c.webs && c.webs.length > 0) ? c.webs : (c.base.webs || []),
+        customItems: (c.customItems && c.customItems.length > 0) ? c.customItems : (c.base.customItems || []),
+        itemOverrides: (c.itemOverrides && c.itemOverrides.length > 0) ? c.itemOverrides : (c.base.itemOverrides || []),
+        rollTables: (c.rollTables && c.rollTables.length > 0) ? c.rollTables : (c.base.rollTables || [])
+    };
+}
+
+function fireCallbacks() {
+    if (dmCallback) dmCallback(dmCampaignIds.map(getFullCampaign).filter(Boolean));
+    if (playerCallback) playerCallback(playerCampaignIds.map(getFullCampaign).filter(Boolean));
+}
+
+function setupSubListeners(campId) {
+    if (subListeners[campId]) return; 
+    subListeners[campId] = [];
+
+    const attach = (subName, cacheKey) => {
+        const subRef = collection(db, 'artifacts', appId, 'campaigns', campId, subName);
+        const unsub = onSnapshot(subRef, snap => {
+            if (campaignCache[campId]) {
+                campaignCache[campId][cacheKey] = snap.docs.map(d => d.data());
+                fireCallbacks();
+            }
+        }, err => console.error(`Error syncing ${subName}:`, err));
+        subListeners[campId].push(unsub);
+    };
+
+    attach('playerCharacters', 'pcs');
+    attach('adventures', 'adventures');
+    attach('codex', 'codex');
+    attach('sheetUpdates', 'sheetUpdates');
+    attach('webs', 'webs');
+    attach('customItems', 'customItems');
+    attach('itemOverrides', 'itemOverrides');
+    attach('rollTables', 'rollTables');
+}
+
+function cleanupSubListeners(campId) {
+    if (subListeners[campId]) {
+        subListeners[campId].forEach(unsub => unsub());
+        delete subListeners[campId];
+    }
+    delete campaignCache[campId];
+}
+
+// DM Listener: Campaigns I created
+export function subscribeToCampaigns(user, callback) {
+    dmCallback = callback;
+    if (currentCampaignsListener) {
+        currentCampaignsListener();
+        currentCampaignsListener = null;
+    }
+    
+    if (!user) {
+        dmCampaignIds = [];
+        fireCallbacks();
+        return;
+    }
+
+    const campaignsRef = collection(db, 'artifacts', appId, 'campaigns');
+    const q = query(campaignsRef, where("dmId", "==", user.uid));
+
+    currentCampaignsListener = onSnapshot(q, (snapshot) => {
+        const newIds = [];
+        snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            newIds.push(data.id);
+
+            if (!campaignCache[data.id]) {
+                campaignCache[data.id] = { base: data, pcs: [], adventures: [], codex: [], sheetUpdates: [], webs: [], customItems: [], itemOverrides: [], rollTables: [] };
+                setupSubListeners(data.id);
+            } else {
+                campaignCache[data.id].base = data;
+            }
+        });
+
+        // Cleanup orphaned listeners
+        dmCampaignIds.forEach(id => {
+            if (!newIds.includes(id) && !playerCampaignIds.includes(id)) {
+                cleanupSubListeners(id);
+            }
+        });
+
+        dmCampaignIds = newIds;
+        fireCallbacks();
+    }, (error) => {
+        console.error("Error fetching DM campaigns:", error);
+        notify("Failed to load your GM campaigns.", "error");
+    });
+}
+
+// Player Listener: Campaigns I joined
+export function subscribeToPlayerCampaigns(user, callback) {
+    playerCallback = callback;
+    if (currentPlayerCampaignsListener) {
+        currentPlayerCampaignsListener();
+        currentPlayerCampaignsListener = null;
+    }
+    
+    if (!user) {
+        playerCampaignIds = [];
+        fireCallbacks();
+        return;
+    }
+
+    const campaignsRef = collection(db, 'artifacts', appId, 'campaigns');
+    const q = query(campaignsRef, where("activePlayers", "array-contains", user.uid));
+
+    currentPlayerCampaignsListener = onSnapshot(q, (snapshot) => {
+        const newIds = [];
+        snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            newIds.push(data.id);
+
+            if (!campaignCache[data.id]) {
+                campaignCache[data.id] = { base: data, pcs: [], adventures: [], codex: [], sheetUpdates: [], webs: [], customItems: [], itemOverrides: [], rollTables: [] };
+                setupSubListeners(data.id);
+            } else {
+                campaignCache[data.id].base = data;
+            }
+        });
+
+        // Cleanup orphaned listeners
+        playerCampaignIds.forEach(id => {
+            if (!newIds.includes(id) && !dmCampaignIds.includes(id)) {
+                cleanupSubListeners(id);
+            }
+        });
+
+        playerCampaignIds = newIds;
+        fireCallbacks();
+    }, (error) => {
+        console.error("Error fetching player campaigns:", error);
+        notify("Failed to load joined campaigns.", "error");
+    });
+}
+
+// Personal Data Listener (For Private Codex)
+let currentPersonalDataListener = null;
+
+export function subscribeToPersonalData(user, callback) {
+    if (currentPersonalDataListener) {
+        currentPersonalDataListener();
+        currentPersonalDataListener = null;
+    }
+
+    if (!user) {
+        callback(null);
+        return;
+    }
+
+    const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid);
+    currentPersonalDataListener = onSnapshot(userDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+            callback(docSnap.data());
+        } else {
+            callback(null);
+        }
+    }, (error) => {
+        console.error("Error fetching personal data:", error);
+    });
+}
+
+export async function savePersonalData(dataUpdates) {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    try {
+        const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid);
+        await setDoc(userDocRef, dataUpdates, { merge: true });
+    } catch (error) {
+        console.error("Error saving personal data:", error);
+        notify("Failed to sync personal data.", "error");
+    }
+}
+
+export async function joinCampaign(campaignId) {
+    const user = auth.currentUser;
+    if (!user) {
+        notify("Must be authenticated to join a campaign.", "error");
+        return false;
+    }
+
+    try {
+        // Look up user's public info (Name & Birthday) from their personal document
+        const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid);
+        const userSnap = await getDoc(userDocRef);
+        
+        const displayName = userSnap.exists() && userSnap.data().displayName 
+            ? userSnap.data().displayName 
+            : "Unknown Player";
+
+        const birthMonth = userSnap.exists() ? userSnap.data().birthMonth : null;
+        const birthDay = userSnap.exists() ? userSnap.data().birthDay : null;
+
+        const docRef = doc(db, 'artifacts', appId, 'campaigns', campaignId);
+        const campSnap = await getDoc(docRef);
+        
+        if (campSnap.exists()) {
+            const data = campSnap.data();
+            const activePlayers = data.activePlayers || [];
+            const playerNames = data.playerNames || {};
+            const playerBirthdays = data.playerBirthdays || {};
+            const activityLog = data.activityLog || []; // Grab the existing activity log
+            
+            if (!activePlayers.includes(user.uid)) {
+                activePlayers.push(user.uid);
+                
+                // Inject Arrival Notification into the Activity Log
+                const joinLog = {
+                    id: 'log_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                    timestamp: Date.now(),
+                    text: `<span class="font-bold text-stone-900">${displayName}</span> has joined the campaign!`,
+                    icon: 'fa-door-open'
+                };
+                activityLog.unshift(joinLog); // Place it at the very top of the log
+                
+                // Enforce the 100-event cap so the document doesn't get bloated
+                if (activityLog.length > 100) {
+                    activityLog.length = 100;
+                }
+            }
+            playerNames[user.uid] = displayName;
+            
+            // Map the birthday payload directly to the user's ID
+            if (birthMonth !== null && birthDay !== null) {
+                playerBirthdays[user.uid] = { month: birthMonth, day: birthDay };
+            }
+            
+            await setDoc(docRef, { 
+                activePlayers: activePlayers, 
+                playerNames: playerNames,
+                playerBirthdays: playerBirthdays,
+                activityLog: activityLog // Save the updated log
+            }, { merge: true });
+            
+            notify(`Successfully joined ${data.name}!`, "success");
+            return true;
+        } else {
+            notify("Campaign not found. Check the ID and try again.", "error");
+            return false;
+        }
+    } catch (error) {
+        console.error("Error joining campaign:", error);
+        notify("Failed to join the campaign.", "error");
+        return false;
+    }
+}
+
+export async function saveCampaign(campaignData) {
+    const user = auth.currentUser;
+    if (!user) {
+        notify("Must be authenticated to scribe a tome.", "error");
+        return;
+    }
+
+    try {
+        // SECURITY SCRUB
+        const cleanData = { ...campaignData };
+        delete cleanData._isDM;
+        delete cleanData._isPlayer;
+
+        if (!cleanData.dmId) cleanData.dmId = user.uid;
+        if (!cleanData.activePlayers) cleanData.activePlayers = [];
+        if (!cleanData.playerNames) cleanData.playerNames = {};
+        if (!cleanData.playerBirthdays) cleanData.playerBirthdays = {};
+
+        // EXTRACT ARRAYS FOR SUBCOLLECTIONS
+        const pcs = cleanData.playerCharacters || [];
+        const advs = cleanData.adventures || [];
+        const codex = cleanData.codex || [];
+        const sheetUpdates = cleanData.sheetUpdates || [];
+        const webs = cleanData.webs || [];
+        const customItems = cleanData.customItems || [];
+        const itemOverrides = cleanData.itemOverrides || [];
+        const rollTables = cleanData.rollTables || [];
+
+        // Delete from the root document so they don't take up space in the 1MB limit
+        delete cleanData.playerCharacters;
+        delete cleanData.adventures;
+        delete cleanData.codex;
+        delete cleanData.sheetUpdates;
+        delete cleanData.webs;
+        delete cleanData.customItems;
+        delete cleanData.itemOverrides;
+        delete cleanData.rollTables;
+        
+        // 1. Save Base Campaign Document
+        const docRef = doc(db, 'artifacts', appId, 'campaigns', cleanData.id);
+        await setDoc(docRef, cleanData);
+
+        // 2. Helper to cleanly sync an array to a Firestore Subcollection (WITH DIRTY CHECKING)
+        const syncSubcollection = async (subName, newArray) => {
+            const subRef = collection(db, 'artifacts', appId, 'campaigns', cleanData.id, subName);
+            
+            // Diff checking: Fetch current items in the DB
+            const currentSnap = await getDocs(subRef);
+            const currentDocsMap = new Map();
+            currentSnap.docs.forEach(d => currentDocsMap.set(d.id, d.data()));
+            
+            const currentIds = Array.from(currentDocsMap.keys());
+            const newIds = newArray.map(item => item.id);
+
+            // Delete orphaned documents (Handles deleting a PC, Session, etc.)
+            for (const oldId of currentIds) {
+                if (!newIds.includes(oldId)) {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'campaigns', cleanData.id, subName, oldId));
+                }
+            }
+
+            // Upsert remaining documents individually if they have changed
+            for (const item of newArray) {
+                if (!item.id) continue;
+                
+                const existingData = currentDocsMap.get(item.id);
+                // The dirty check: only write if data is strictly different!
+                if (existingData && JSON.stringify(existingData) === JSON.stringify(item)) {
+                    continue; 
+                }
+                
+                await setDoc(doc(db, 'artifacts', appId, 'campaigns', cleanData.id, subName, item.id), item);
+            }
+        };
+
+        // 3. Fire Subcollection Syncs (Race condition safe!)
+        await syncSubcollection('playerCharacters', pcs);
+        await syncSubcollection('adventures', advs);
+        await syncSubcollection('codex', codex);
+        await syncSubcollection('sheetUpdates', sheetUpdates);
+        await syncSubcollection('webs', webs);
+        await syncSubcollection('customItems', customItems);
+        await syncSubcollection('itemOverrides', itemOverrides);
+        await syncSubcollection('rollTables', rollTables);
+
+    } catch (error) {
+        console.error("Error saving campaign:", error);
+        notify("Failed to save campaign to the vault.", "error");
+    }
+}
+
+// ============================================================================
+// --- GRANULAR COLLABORATIVE SAVES ---
+// These targeted functions prevent race conditions by bypassing the 
+// monolithic saveCampaign function. They use { merge: true } to surgically
+// update only the specific document being edited by the player.
+// ============================================================================
+
+export async function saveSpecificSheetUpdate(campaignId, sheetUpdate) {
+    try {
+        const docRef = doc(db, 'artifacts', appId, 'campaigns', campaignId, 'sheetUpdates', sheetUpdate.id);
+        await setDoc(docRef, sheetUpdate, { merge: true });
+    } catch (error) {
+        console.error("Error saving specific sheet update:", error);
+        notify("Failed to sync specific task.", "error");
+    }
+}
+
+export async function deleteSpecificSheetUpdate(campaignId, sheetUpdateId) {
+    try {
+        const docRef = doc(db, 'artifacts', appId, 'campaigns', campaignId, 'sheetUpdates', sheetUpdateId);
+        await deleteDoc(docRef);
+    } catch (error) {
+        console.error("Error deleting specific sheet update:", error);
+    }
+}
+
+export async function saveSpecificAdventure(campaignId, adventure) {
+    try {
+        const docRef = doc(db, 'artifacts', appId, 'campaigns', campaignId, 'adventures', adventure.id);
+        await setDoc(docRef, adventure, { merge: true });
+    } catch (error) {
+        console.error("Error saving specific adventure:", error);
+        notify("Failed to sync adventure record.", "error");
+    }
+}
+
+export async function saveSpecificCodexEntry(campaignId, codexEntry) {
+    try {
+        const docRef = doc(db, 'artifacts', appId, 'campaigns', campaignId, 'codex', codexEntry.id);
+        await setDoc(docRef, codexEntry, { merge: true });
+    } catch (error) {
+        console.error("Error saving specific codex entry:", error);
+    }
+}
+
+export async function deleteSpecificCodexEntry(campaignId, codexEntryId) {
+    try {
+        const docRef = doc(db, 'artifacts', appId, 'campaigns', campaignId, 'codex', codexEntryId);
+        await deleteDoc(docRef);
+    } catch (error) {
+        console.error("Error deleting specific codex entry:", error);
+    }
+}
+
+export async function pushActivityLog(campaignId, newLog) {
+    try {
+        const docRef = doc(db, 'artifacts', appId, 'campaigns', campaignId);
+        const campSnap = await getDoc(docRef);
+        if (campSnap.exists()) {
+            const data = campSnap.data();
+            const activityLog = data.activityLog || [];
+            activityLog.unshift(newLog);
+            if (activityLog.length > 100) activityLog.length = 100;
+            await setDoc(docRef, { activityLog: activityLog }, { merge: true });
+        }
+    } catch (error) {
+        console.error("Error pushing activity log:", error);
+    }
+}
+
+// ============================================================================
+
+export async function deleteCampaign(campaignId) {
+    const user = auth.currentUser;
+    if (!user) {
+        notify("Must be authenticated to burn a tome.", "error");
+        return;
+    }
+    
+    if (!confirm("Are you sure you want to completely destroy this Campaign Tome? This action cannot be undone.")) {
+        return false;
+    }
+
+    try {
+        // Deep cleanup: Delete all documents in all subcollections first
+        const deleteSubcollection = async (subName) => {
+            const subRef = collection(db, 'artifacts', appId, 'campaigns', campaignId, subName);
+            const snap = await getDocs(subRef);
+            const batchPromises = [];
+            snap.forEach(d => batchPromises.push(deleteDoc(d.ref)));
+            await Promise.all(batchPromises);
+        };
+
+        await deleteSubcollection('playerCharacters');
+        await deleteSubcollection('adventures');
+        await deleteSubcollection('codex');
+        await deleteSubcollection('sheetUpdates');
+        await deleteSubcollection('webs');
+        await deleteSubcollection('customItems');
+        await deleteSubcollection('itemOverrides');
+        await deleteSubcollection('rollTables');
+
+        // Finally, delete the base Campaign Document
+        const docRef = doc(db, 'artifacts', appId, 'campaigns', campaignId);
+        await deleteDoc(docRef);
+        
+        notify("Campaign tome reduced to ashes.", "success");
+        return true;
+    } catch (error) {
+        console.error("Error deleting campaign:", error);
+        notify("Failed to destroy the campaign.", "error");
+        return false;
+    }
+}
