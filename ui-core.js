@@ -651,7 +651,9 @@ if (typeof window !== 'undefined') {
     // Bind navigation
     window.appActions.navigateBack = navigateBack;
     window.appActions.toggleActionMenu = toggleActionMenu;
-    window.appActions.setView = setView;
+    
+    // window.appActions.setView is bound globally by data.js during initialization,
+    // so we do not assign it here to prevent ReferenceErrors on load.
 
     // Direct global handlers bypassing data.js override issues
     window.switchChecklistTab = (tab) => {
