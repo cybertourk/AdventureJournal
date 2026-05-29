@@ -1,4 +1,5 @@
 import { renderLevelOptions, renderSmartField } from './ui-core.js';
+import { reRender } from './state.js';
 
 // --- VISIBILITY (FOG OF WAR) HELPERS ---
 
@@ -140,15 +141,15 @@ function renderChronicleLog(session, camp, myUid, adv) {
         <div class="flex flex-wrap justify-between items-end mb-1 gap-2">
             <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest"><i class="fa-solid fa-comment-dots mr-1"></i> Contribute to Chronicle</label>
             <div class="flex gap-1 bg-stone-200 p-1 rounded-sm border border-[#d4c5a9] shadow-sm ml-auto overflow-x-auto hide-scrollbar">
-                <button type="button" onclick="window.appActions.formatText('new-chronicle-input', 'bold')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bold"><i class="fa-solid fa-bold"></i></button>
-                <button type="button" onclick="window.appActions.formatText('new-chronicle-input', 'italic')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Italic"><i class="fa-solid fa-italic"></i></button>
-                <button type="button" onclick="window.appActions.formatText('new-chronicle-input', 'underline')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Underline"><i class="fa-solid fa-underline"></i></button>
-                <div class="w-px bg-[#d4c5a9] mx-0.5 sm:mx-1 shrink-0"></div>
-                <button type="button" onclick="window.appActions.formatText('new-chronicle-input', 'h1')" class="w-6 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Heading 1">H1</button>
-                <button type="button" onclick="window.appActions.formatText('new-chronicle-input', 'h2')" class="w-6 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Heading 2">H2</button>
-                <button type="button" onclick="window.appActions.formatText('new-chronicle-input', 'list')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
-                <div class="w-px bg-[#d4c5a9] mx-0.5 sm:mx-1 shrink-0"></div>
-                <button type="button" onclick="window.appActions.defineEntryFromSelection('new-chronicle-input')" class="px-2 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-amber-700 hover:text-amber-900 hover:bg-[#d4c5a9] rounded-sm transition uppercase tracking-wider" title="Define Highlighted Text"><i class="fa-solid fa-book-medical mr-1"></i> Define</button>
+                <button type="button" onclick="window.appActions.formatText('new-chronicle-input', 'bold')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-700 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bold"><i class="fa-solid fa-bold"></i></button>
+                <button type="button" onclick="window.appActions.formatText('new-chronicle-input', 'italic')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-700 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Italic"><i class="fa-solid fa-italic"></i></button>
+                <button type="button" onclick="window.appActions.formatText('new-chronicle-input', 'underline')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-700 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Underline"><i class="fa-solid fa-underline"></i></button>
+                <div class="w-px h-6 bg-[#c2b59b] mx-1 sm:mx-2 self-center"></div>
+                <button type="button" onclick="window.appActions.formatText('new-chronicle-input', 'h1')" class="w-8 h-8 flex flex-shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition font-serif font-bold" title="Heading 1">H1</button>
+                <button type="button" onclick="window.appActions.formatText('new-chronicle-input', 'h2')" class="w-8 h-8 flex flex-shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition font-serif font-bold" title="Heading 2">H2</button>
+                <button type="button" onclick="window.appActions.formatText('new-chronicle-input', 'list')" class="w-8 h-8 flex flex-shrink-0 items-center justify-center text-sm text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
+                <div class="w-px h-6 bg-[#c2b59b] mx-1 sm:mx-2 self-center"></div>
+                <button type="button" onclick="window.appActions.defineEntryFromSelection('new-chronicle-input')" class="px-2 h-8 flex flex-shrink-0 items-center justify-center text-[10px] sm:text-xs font-bold text-amber-700 hover:text-amber-900 hover:bg-[#d4c5a9] rounded-sm transition uppercase tracking-wider" title="Define Highlighted Text"><i class="fa-solid fa-book-medical mr-1 sm:mr-2"></i> Define</button>
             </div>
         </div>
         
@@ -191,6 +192,9 @@ export function getSessionEditHTML(state) {
             return `<div class="text-center text-red-500 p-8 font-serif font-bold text-xl">Only the DM can initiate new sessions.</div>`;
         }
 
+        // Default tab behavior
+        const activeTab = state.activePlayerSessionTab || 'narrative';
+
         // Local fog of war helper
         const isVisible = (visObj) => {
             const mode = visObj?.mode || 'public';
@@ -199,76 +203,103 @@ export function getSessionEditHTML(state) {
             return false;
         };
 
-        let dmNarrativeHtml = '';
-        
-        // Render Scenes
-        if (session.scenes && session.scenes.length > 0) {
-            const visibleScenes = session.scenes.filter(s => isVisible(s.visibility) && s.text.trim());
-            if (visibleScenes.length > 0) {
-                dmNarrativeHtml += `<h4 class="font-serif font-bold text-lg text-stone-800 mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-masks-theater text-red-900 mr-2"></i>The Story Unfolds</h4><div class="space-y-4 mb-8">`;
-                visibleScenes.forEach((scene, idx) => {
-                    const parsed = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(scene.text) : scene.text;
-                    dmNarrativeHtml += `<div class="bg-white p-4 border border-[#d4c5a9] rounded-sm shadow-sm text-sm text-stone-800 font-serif leading-relaxed"><span class="text-[10px] font-bold uppercase tracking-widest text-stone-400 block mb-2">Scene ${scene.id || idx + 1}</span>${parsed}</div>`;
-                });
-                dmNarrativeHtml += `</div>`;
+        // Render tab content based on active state
+        let activeTabContentHtml = '';
+
+        if (activeTab === 'narrative') {
+            let dmNarrativeHtml = '';
+            // Render Scenes
+            if (session.scenes && session.scenes.length > 0) {
+                const visibleScenes = session.scenes.filter(s => isVisible(s.visibility) && s.text.trim());
+                if (visibleScenes.length > 0) {
+                    dmNarrativeHtml += `<h4 class="font-serif font-bold text-lg text-stone-800 mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-masks-theater text-red-900 mr-2"></i>The Story Unfolds</h4><div class="space-y-4 mb-6">`;
+                    visibleScenes.forEach((scene, idx) => {
+                        const parsed = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(scene.text) : scene.text;
+                        dmNarrativeHtml += `<div class="bg-white p-4 border border-[#d4c5a9] rounded-sm shadow-sm text-sm text-stone-800 font-serif leading-relaxed"><span class="text-[10px] font-bold uppercase tracking-widest text-stone-400 block mb-2">Scene ${scene.id || idx + 1}</span>${parsed}</div>`;
+                    });
+                    dmNarrativeHtml += `</div>`;
+                }
             }
-        }
 
-        // --- NEW: COLLABORATIVE CLUES FOR PLAYERS ---
-        dmNarrativeHtml += `<h4 class="font-serif font-bold text-lg text-stone-800 mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-magnifying-glass text-amber-700 mr-2"></i>Discoveries & Objectives</h4>`;
-        dmNarrativeHtml += `<ul class="space-y-2 mb-3">`;
-        
-        if (session.clues && session.clues.length > 0) {
-            const visibleClues = session.clues.filter(c => isVisible(c.visibility) && c.text.trim());
-            if (visibleClues.length > 0) {
-                visibleClues.forEach(clue => {
-                    const parsed = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(clue.text) : clue.text;
-                    
-                    const isDMClue = clue.authorId === camp.dmId || !clue.authorId;
-                    const authorName = isDMClue ? 'DM' : (camp.playerNames?.[clue.authorId] || 'Player');
-                    
-                    // Display badge if a player authored the clue
-                    const authorBadge = isDMClue ? '' : `<span class="ml-2 text-[9px] font-bold uppercase tracking-widest text-blue-700 bg-blue-100 border border-blue-200 px-1.5 py-0.5 rounded-sm shrink-0 whitespace-nowrap align-middle"><i class="fa-solid fa-user mr-1"></i>${authorName}</span>`;
-                    
-                    let deleteBtn = '';
-                    if (clue.authorId === myUid) {
-                        deleteBtn = `<button type="button" onclick="window.appActions.deleteSessionClue('${clue.id}')" class="ml-2 text-stone-400 hover:text-red-600 transition p-1"><i class="fa-solid fa-trash text-[10px]"></i></button>`;
-                    }
-
-                    dmNarrativeHtml += `
-                    <li class="bg-white p-3 border border-[#d4c5a9] rounded-sm shadow-sm text-sm text-stone-800 flex justify-between items-start gap-3 group">
-                        <div class="flex gap-3 items-start min-w-0">
-                            <i class="fa-solid fa-magnifying-glass text-amber-600 mt-1 shrink-0"></i> 
-                            <div class="leading-relaxed break-words">${parsed} ${authorBadge}</div>
-                        </div>
-                        <div class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
-                            ${deleteBtn}
-                        </div>
-                    </li>`;
-                });
-            } else {
-                dmNarrativeHtml += `<li class="text-stone-500 italic text-sm py-2 px-3">No public discoveries have been revealed.</li>`;
+            // Render DM Notes / Epilogue
+            if (session.notes && session.notes.trim() && isVisible(session.notesVisibility)) {
+                const parsed = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(session.notes) : session.notes;
+                dmNarrativeHtml += `<h4 class="font-serif font-bold text-lg text-stone-800 mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-book text-stone-500 mr-2"></i>Epilogue & Notes</h4>`;
+                dmNarrativeHtml += `<div class="bg-white p-4 border border-[#d4c5a9] rounded-sm shadow-sm text-sm text-stone-800 font-serif leading-relaxed mb-6">${parsed}</div>`;
             }
-        } else {
-            dmNarrativeHtml += `<li class="text-stone-500 italic text-sm py-2 px-3">No public discoveries have been revealed.</li>`;
-        }
-        
-        dmNarrativeHtml += `</ul>`;
-        
-        // Add Clue Input
-        dmNarrativeHtml += `
-            <div class="mt-3 flex gap-2 items-center bg-stone-100 p-2 border border-[#d4c5a9] rounded-sm shadow-inner mb-8">
-                <input type="text" id="new-player-clue" class="flex-grow p-2 text-xs sm:text-sm border border-[#d4c5a9] rounded-sm focus:border-amber-600 outline-none shadow-sm bg-white font-sans placeholder:italic placeholder:text-stone-400" placeholder="Log a new discovery or objective..." onkeydown="if(event.key === 'Enter') { window.appActions.submitSessionClue(); }">
-                <button type="button" onclick="window.appActions.submitSessionClue()" class="px-4 py-2 bg-amber-700 text-amber-50 rounded-sm hover:bg-amber-600 transition text-[10px] font-bold uppercase tracking-wider shadow-md whitespace-nowrap flex items-center h-full"><i class="fa-solid fa-plus sm:mr-1"></i> <span class="hidden sm:inline">Add Clue</span></button>
-            </div>
-        `;
 
-        // Render DM Notes / Epilogue
-        if (session.notes && session.notes.trim() && isVisible(session.notesVisibility)) {
-            const parsed = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(session.notes) : session.notes;
-            dmNarrativeHtml += `<h4 class="font-serif font-bold text-lg text-stone-800 mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-book text-stone-500 mr-2"></i>Epilogue & Notes</h4>`;
-            dmNarrativeHtml += `<div class="bg-white p-4 border border-[#d4c5a9] rounded-sm shadow-sm text-sm text-stone-800 font-serif leading-relaxed mb-8">${parsed}</div>`;
+            activeTabContentHtml = dmNarrativeHtml || `<p class="text-stone-500 italic text-sm py-4">No public narrative chronicles recorded for this session.</p>`;
+
+        } else if (activeTab === 'clues') {
+            let cluesTabHtml = `<h4 class="font-serif font-bold text-lg text-stone-800 mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-magnifying-glass text-amber-700 mr-2"></i>Discoveries & Objectives</h4>`;
+            cluesTabHtml += `<ul class="space-y-2 mb-3">`;
+            
+            let cluesListHtml = '';
+            if (session.clues && session.clues.length > 0) {
+                const visibleClues = session.clues.filter(c => isVisible(c.visibility) && c.text.trim());
+                if (visibleClues.length > 0) {
+                    visibleClues.forEach(clue => {
+                        const parsed = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(clue.text) : clue.text;
+                        const isDMClue = clue.authorId === camp.dmId || !clue.authorId;
+                        const authorName = isDMClue ? 'DM' : (camp.playerNames?.[clue.authorId] || 'Player');
+                        const authorBadge = isDMClue ? '' : `<span class="ml-2 text-[9px] font-bold uppercase tracking-widest text-blue-700 bg-blue-100 border border-blue-200 px-1.5 py-0.5 rounded-sm shrink-0 whitespace-nowrap align-middle"><i class="fa-solid fa-user mr-1"></i>${authorName}</span>`;
+                        
+                        let deleteBtn = '';
+                        if (clue.authorId === myUid) {
+                            deleteBtn = `<button type="button" onclick="window.appActions.deleteSessionClue('${clue.id}')" class="ml-2 text-stone-400 hover:text-red-600 transition p-1"><i class="fa-solid fa-trash text-[10px]"></i></button>`;
+                        }
+
+                        cluesListHtml += `
+                        <li class="bg-white p-3 border border-[#d4c5a9] rounded-sm shadow-sm text-sm text-stone-800 flex justify-between items-start gap-3 group">
+                            <div class="flex gap-3 items-start min-w-0">
+                                <i class="fa-solid fa-magnifying-glass text-amber-600 mt-1 shrink-0"></i> 
+                                <div class="leading-relaxed break-words">${parsed} ${authorBadge}</div>
+                            </div>
+                            <div class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                                ${deleteBtn}
+                            </div>
+                        </li>`;
+                    });
+                }
+            }
+
+            cluesTabHtml += cluesListHtml || `<li class="text-stone-500 italic text-sm py-2 px-3">No public discoveries have been revealed.</li>`;
+            cluesTabHtml += `</ul>`;
+            
+            // Add Clue Input
+            cluesTabHtml += `
+                <div class="mt-4 flex gap-2 items-center bg-stone-100 p-2 border border-[#d4c5a9] rounded-sm shadow-inner mb-2">
+                    <input type="text" id="new-player-clue" class="flex-grow p-2 text-xs sm:text-sm border border-[#d4c5a9] rounded-sm focus:border-amber-600 outline-none shadow-sm bg-white font-sans placeholder:italic placeholder:text-stone-400" placeholder="Log a new discovery or objective..." onkeydown="if(event.key === 'Enter') { window.appActions.submitSessionClue(); }">
+                    <button type="button" onclick="window.appActions.submitSessionClue()" class="px-4 py-2 bg-amber-700 text-amber-50 rounded-sm hover:bg-amber-600 transition text-[10px] font-bold uppercase tracking-wider shadow-md whitespace-nowrap flex items-center h-full"><i class="fa-solid fa-plus sm:mr-1"></i> <span class="hidden sm:inline">Add Clue</span></button>
+                </div>
+            `;
+            activeTabContentHtml = cluesTabHtml;
+
+        } else if (activeTab === 'chronicle') {
+            activeTabContentHtml = `
+                <div class="mb-4">
+                    <h4 class="font-serif font-bold text-lg text-stone-900 border-b border-[#d4c5a9] pb-1 mb-3"><i class="fa-solid fa-users text-amber-600 mr-2"></i> Collaborative Chronicle</h4>
+                    <p class="text-stone-500 text-[10px] uppercase tracking-widest font-bold mb-4">A shared record of events, quotes, and memories.</p>
+                    ${renderChronicleLog(session, camp, myUid, adv)}
+                </div>
+            `;
+
+        } else if (activeTab === 'journal') {
+            activeTabContentHtml = `
+                <div class="mb-4">
+                    <h4 class="font-serif font-bold text-lg text-stone-900 border-b border-[#d4c5a9] pb-1 mb-3"><i class="fa-solid fa-lock text-stone-500 mr-2"></i> Private Details</h4>
+                    <p class="text-stone-500 text-xs sm:text-sm mb-4 italic border-l-2 border-blue-500 pl-3">Record your private thoughts, inventory updates, or quest notes for this session. By default, these are only visible to you and the Dungeon Master.</p>
+                    ${renderSmartFieldWithVis(`player-note-${myUid}`, `<i class="fa-solid fa-book-open mr-2 text-stone-500"></i> My Hero's Journal`, myNoteData.text, myNoteData.visibility, 'Scribe your personal notes here... Codex names link automatically.', 8, false)}
+                </div>
+            `;
         }
+
+        const getPlayerTabClass = (tabId) => {
+            if (tabId === activeTab) {
+                return "whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-900 bg-[#fdfbf7] border-t-2 border-l border-r border-[#d4c5a9] border-t-blue-900";
+            }
+            return "whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-600 border-transparent hover:text-stone-800";
+        };
 
         return `
         <div class="animate-in slide-in-from-bottom-4 duration-300 bg-[#fdfbf7] rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col max-w-4xl mx-auto h-[calc(100vh-100px)] sm:h-[calc(100vh-120px)] relative">
@@ -286,27 +317,19 @@ export function getSessionEditHTML(state) {
             <!-- Banner Image -->
             ${session.image ? `<div class="w-full h-32 sm:h-48 overflow-hidden bg-stone-900 shrink-0 z-0 relative"><img src="${session.image}" class="w-full h-full object-contain" alt="Session Banner" onerror="this.style.display='none'"></div>` : ''}
 
+            <!-- Tabs Navigation for Player View -->
+            <div class="flex bg-[#e8dec7] border-b-2 border-stone-800 shrink-0 px-2 sm:px-4 pt-2 gap-1 overflow-x-auto hide-scrollbar z-10 relative">
+                <button id="p-tab-btn-narrative" class="${getPlayerTabClass('narrative')}" onclick="window.switchPlayerSessionTab('narrative')">The Story</button>
+                <button id="p-tab-btn-clues" class="${getPlayerTabClass('clues')}" onclick="window.switchPlayerSessionTab('clues')">Discoveries</button>
+                <button id="p-tab-btn-chronicle" class="${getPlayerTabClass('chronicle')}" onclick="window.switchPlayerSessionTab('chronicle')">Chronicle</button>
+                <button id="p-tab-btn-journal" class="${getPlayerTabClass('journal')}" onclick="window.switchPlayerSessionTab('journal')">My Journal</button>
+            </div>
+
             <!-- Content Area -->
             <div class="flex-grow overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 bg-[#fdfbf7]">
                 <div class="max-w-3xl mx-auto">
-                    <h3 class="w-full pb-4 mb-6 text-stone-900 font-serif font-bold text-2xl border-b-2 border-stone-300">${session.name || 'Session'}</h3>
-                    
-                    <!-- INJECTED DM NARRATIVE & CLUES -->
-                    ${dmNarrativeHtml}
-
-                    <!-- Collaborative Chronicle -->
-                    <div class="mb-10 mt-8 border-t-2 border-stone-300 pt-6">
-                        <h4 class="font-serif font-bold text-lg text-stone-900 border-b border-[#d4c5a9] pb-1 mb-3"><i class="fa-solid fa-users text-amber-600 mr-2"></i> Collaborative Chronicle</h4>
-                        <p class="text-stone-500 text-[10px] uppercase tracking-widest font-bold mb-4">A shared record of events, quotes, and memories.</p>
-                        ${renderChronicleLog(session, camp, myUid, adv)}
-                    </div>
-
-                    <!-- Personal Notes -->
-                    <div class="mt-8 border-t-2 border-stone-300 pt-6">
-                        <h4 class="font-serif font-bold text-lg text-stone-900 border-b border-[#d4c5a9] pb-1 mb-3"><i class="fa-solid fa-lock text-stone-500 mr-2"></i> Private Details</h4>
-                        <p class="text-stone-500 text-xs sm:text-sm mb-4 italic border-l-2 border-blue-500 pl-3">Record your private thoughts, inventory updates, or quest notes for this session. By default, these are only visible to you and the Dungeon Master.</p>
-                        ${renderSmartFieldWithVis(`player-note-${myUid}`, `<i class="fa-solid fa-book-open mr-2 text-stone-500"></i> My Hero's Journal`, myNoteData.text, myNoteData.visibility, 'Scribe your personal notes here... Codex names link automatically.', 8, false)}
-                    </div>
+                    <h3 class="w-full pb-3 mb-5 text-stone-900 font-serif font-bold text-2xl border-b border-[#d4c5a9]">${session.name || 'Session'}</h3>
+                    ${activeTabContentHtml}
                 </div>
             </div>
 
@@ -320,7 +343,7 @@ export function getSessionEditHTML(state) {
     }
 
     // ==========================================
-    // DM VIEW (Full Narrative Editor)
+    // DM VIEW (Full Narrative Editor with Tabs)
     // ==========================================
     const title = isNew ? "Log New Session" : "Amend Session Record";
     const defaultName = isNew ? `Log from ${new Date().toLocaleDateString()}` : (session.name || '');
@@ -429,32 +452,13 @@ export function getSessionEditHTML(state) {
         });
     }
 
-    return `
-    <div class="animate-in slide-in-from-bottom-4 duration-300 bg-[#fdfbf7] rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col max-w-5xl mx-auto h-[calc(100vh-100px)] sm:h-[calc(100vh-120px)] relative">
-        
-        <!-- Header -->
-        <div class="bg-stone-900 p-4 border-b-4 border-red-900 text-amber-500 flex justify-between items-center shrink-0 shadow-md z-10">
-            <h2 class="text-xl sm:text-2xl font-serif font-bold flex items-center">
-                <i class="fa-solid fa-feather-pointed mr-3 text-red-700"></i> ${title}
-            </h2>
-            <div class="flex items-center gap-2">
-                <span class="bg-stone-800 text-amber-200 text-[10px] px-2 py-1 rounded border border-stone-600 uppercase tracking-widest shadow-inner hidden sm:inline-block">${adv.name}</span>
-            </div>
-        </div>
+    // Default DM sub-tab state
+    const activeDmSubTab = state.activeDmSessionTab || 'setup';
 
-        <!-- Banner Image -->
-        ${session.image ? `<div class="w-full h-32 sm:h-48 overflow-hidden bg-stone-900 shrink-0 z-0 relative"><img src="${session.image}" class="w-full h-full object-contain" alt="Session Banner" onerror="this.style.display='none'"></div>` : ''}
-
-        <!-- Tabs Navigation -->
-        <div class="flex bg-[#e8dec7] border-b-2 border-stone-800 shrink-0 px-2 sm:px-4 pt-2 gap-1 overflow-x-auto hide-scrollbar z-10 relative">
-            <button id="tab-btn-session" class="whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-900 bg-[#f4ebd8] border-t-2 border-l border-r border-[#d4c5a9] border-t-red-900" onclick="window.appActions.switchSessionTab('session')">The Narrative</button>
-            <button id="tab-btn-pcs" class="whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-600 border-transparent hover:text-stone-800" onclick="window.appActions.switchSessionTab('pcs')">Hero Management</button>
-            <button id="tab-btn-preview" class="whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-600 border-transparent hover:text-stone-800" onclick="window.appActions.switchSessionTab('preview')">Live Scroll Preview</button>
-        </div>
-
-        <!-- Tab Content: Session Narrative -->
-        <div id="tab-content-session" class="flex-grow overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 bg-[#fdfbf7]">
-            <div class="max-w-3xl mx-auto">
+    let dmSubTabContentHtml = '';
+    if (activeDmSubTab === 'setup') {
+        dmSubTabContentHtml = `
+            <div class="space-y-4">
                 <input type="text" id="draft-name" value="${defaultName}" class="w-full p-2 bg-transparent border-b-2 border-stone-400 text-stone-900 font-serif font-bold text-2xl outline-none focus:border-red-900 mb-4 transition-colors" placeholder="Session Title...">
 
                 <!-- Dates Configuration -->
@@ -517,7 +521,7 @@ export function getSessionEditHTML(state) {
                 </div>
 
                 <!-- Dynamic Scenes -->
-                <div class="mb-8 mt-6">
+                <div class="mt-6">
                     <div class="flex justify-between items-center mb-3">
                         <h3 class="text-sm font-bold text-stone-800 uppercase tracking-widest flex items-center border-b border-stone-300 w-full pb-1"><i class="fa-solid fa-masks-theater mr-2 text-stone-500"></i> Narrative Scenes</h3>
                     </div>
@@ -528,9 +532,13 @@ export function getSessionEditHTML(state) {
                         <i class="fa-solid fa-plus mr-2"></i> Add Scene
                     </button>
                 </div>
-
+            </div>
+        `;
+    } else if (activeDmSubTab === 'clues') {
+        dmSubTabContentHtml = `
+            <div class="space-y-6">
                 <!-- Dynamic Clues -->
-                <div class="mb-8">
+                <div>
                     <div class="flex justify-between items-center mb-3">
                         <h3 class="text-sm font-bold text-stone-800 uppercase tracking-widest flex items-center border-b border-stone-300 w-full pb-1"><i class="fa-solid fa-magnifying-glass mr-2 text-stone-500"></i> Investigation & Clues</h3>
                     </div>
@@ -542,23 +550,71 @@ export function getSessionEditHTML(state) {
                     </button>
                 </div>
 
-                <!-- Loot & Main Overview -->
-                <div class="space-y-6 mb-8">
+                <!-- Loot & Rewards -->
+                <div class="pt-4">
                     ${renderSmartFieldWithVis('draft-loot', `<i class="fa-solid fa-coins mr-2 text-stone-500"></i> Loot & Rewards`, session.lootText, session.lootVisibility, 'Describe the treasure found...', 4)}
-                    ${renderSmartFieldWithVis('draft-notes', `<i class="fa-solid fa-book mr-2 text-stone-500"></i> DM Overview & Context`, session.notes, session.notesVisibility, 'The primary summary or hidden DM notes...', 4)}
+                </div>
+            </div>
+        `;
+    } else if (activeDmSubTab === 'notes') {
+        dmSubTabContentHtml = `
+            <div class="space-y-6">
+                ${renderSmartFieldWithVis('draft-notes', `<i class="fa-solid fa-book mr-2 text-stone-500"></i> DM Overview & Context`, session.notes, session.notesVisibility, 'The primary summary or hidden DM notes...', 4)}
+                ${renderSmartFieldWithVis(`player-note-${myUid}`, `<i class="fa-solid fa-feather mr-2 text-stone-500"></i> My Personal Notes`, myNoteData.text, myNoteData.visibility, 'Record your private DM/player thoughts here...', 4)}
+            </div>
+        `;
+    } else if (activeDmSubTab === 'chronicle') {
+        dmSubTabContentHtml = `
+            <div class="mb-4">
+                <h3 class="text-sm font-bold text-stone-800 uppercase tracking-widest flex items-center border-b border-stone-300 w-full pb-1 mb-3"><i class="fa-solid fa-users mr-2 text-stone-500"></i> Collaborative Chronicle</h3>
+                <p class="text-stone-500 text-[10px] uppercase tracking-widest font-bold mb-4">A shared record of events, quotes, and memories.</p>
+                ${renderChronicleLog(session, camp, myUid, adv)}
+            </div>
+        `;
+    }
+
+    const getDmSubTabClass = (subTabId) => {
+        if (subTabId === activeDmSubTab) {
+            return "px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider rounded-sm bg-white text-stone-900 border border-[#d4c5a9] shadow-sm";
+        }
+        return "px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider rounded-sm text-stone-500 hover:text-stone-800 transition";
+    };
+
+    return `
+    <div class="animate-in slide-in-from-bottom-4 duration-300 bg-[#fdfbf7] rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col max-w-4xl mx-auto h-[calc(100vh-100px)] sm:h-[calc(100vh-120px)] relative">
+        
+        <!-- Header -->
+        <div class="bg-stone-900 p-4 border-b-4 border-red-900 text-amber-500 flex justify-between items-center shrink-0 shadow-md z-10">
+            <h2 class="text-xl sm:text-2xl font-serif font-bold flex items-center">
+                <i class="fa-solid fa-feather-pointed mr-3 text-red-700"></i> ${title}
+            </h2>
+            <div class="flex items-center gap-2">
+                <span class="bg-stone-800 text-amber-200 text-[10px] px-2 py-1 rounded border border-stone-600 uppercase tracking-widest shadow-inner hidden sm:inline-block">${adv.name}</span>
+            </div>
+        </div>
+
+        <!-- Banner Image -->
+        ${session.image ? `<div class="w-full h-32 sm:h-48 overflow-hidden bg-stone-900 shrink-0 z-0 relative"><img src="${session.image}" class="w-full h-full object-contain" alt="Session Banner" onerror="this.style.display='none'"></div>` : ''}
+
+        <!-- Tabs Navigation -->
+        <div class="flex bg-[#e8dec7] border-b-2 border-stone-800 shrink-0 px-2 sm:px-4 pt-2 gap-1 overflow-x-auto hide-scrollbar z-10 relative">
+            <button id="tab-btn-session" class="whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-900 bg-[#f4ebd8] border-t-2 border-l border-r border-[#d4c5a9] border-t-red-900" onclick="window.appActions.switchSessionTab('session')">The Narrative</button>
+            <button id="tab-btn-pcs" class="whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-600 border-transparent hover:text-stone-800" onclick="window.appActions.switchSessionTab('pcs')">Hero Management</button>
+            <button id="tab-btn-preview" class="whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-600 border-transparent hover:text-stone-800" onclick="window.appActions.switchSessionTab('preview')">Live Scroll Preview</button>
+        </div>
+
+        <!-- Tab Content: Session Narrative -->
+        <div id="tab-content-session" class="flex-grow overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 bg-[#fdfbf7]">
+            <div class="max-w-3xl mx-auto">
+                <!-- DM Sub-tab bar for the Narrative -->
+                <div class="flex gap-1.5 p-1 bg-stone-100 border border-[#d4c5a9] rounded-sm mb-6 max-w-lg">
+                    <button type="button" onclick="window.switchDmSessionSubTab('setup')" class="${getDmSubTabClass('setup')} flex-1">Setup & Scenes</button>
+                    <button type="button" onclick="window.switchDmSessionSubTab('clues')" class="${getDmSubTabClass('clues')} flex-1">Clues & Loot</button>
+                    <button type="button" onclick="window.switchDmSessionSubTab('notes')" class="${getDmSubTabClass('notes')} flex-1">DM Notes</button>
+                    <button type="button" onclick="window.switchDmSessionSubTab('chronicle')" class="${getDmSubTabClass('chronicle')} flex-1">Chronicle</button>
                 </div>
 
-                <!-- Collaborative Chronicle -->
-                <div class="mb-8 mt-6 border-t-2 border-stone-300 pt-6">
-                    <h3 class="text-sm font-bold text-stone-800 uppercase tracking-widest flex items-center border-b border-stone-300 w-full pb-1 mb-3"><i class="fa-solid fa-users mr-2 text-stone-500"></i> Collaborative Chronicle</h3>
-                    <p class="text-stone-500 text-[10px] uppercase tracking-widest font-bold mb-4">A shared record of events, quotes, and memories.</p>
-                    ${renderChronicleLog(session, camp, myUid, adv)}
-                </div>
-
-                <!-- DM's Personal Notes Section -->
-                <div class="space-y-6 mt-8 border-t-2 border-stone-300 pt-6">
-                    ${renderSmartFieldWithVis(`player-note-${myUid}`, `<i class="fa-solid fa-feather mr-2 text-stone-500"></i> My Personal Notes`, myNoteData.text, myNoteData.visibility, 'Record your private DM/player thoughts here...', 4)}
-                </div>
+                ${dmSubTabContentHtml}
             </div>
         </div>
 
@@ -655,4 +711,21 @@ export function getSessionEditHTML(state) {
         </div>
     </div>
     `;
+}
+
+// --- BIND JAVASCRIPT LOGIC TO GLOBAL WINDOW DIRECTLY ---
+if (typeof window !== 'undefined') {
+    window.appData = window.appData || {};
+    
+    // Player View Tab Switcher
+    window.switchPlayerSessionTab = (tabId) => {
+        window.appData.activePlayerSessionTab = tabId;
+        reRender(true);
+    };
+
+    // DM View Sub-tab Switcher
+    window.switchDmSessionSubTab = (tabId) => {
+        window.appData.activeDmSessionTab = tabId;
+        reRender(true);
+    };
 }
