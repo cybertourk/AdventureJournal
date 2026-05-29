@@ -7,6 +7,8 @@ import { getRulesHTML } from './ui-rules.js';
 import { getAtlasHTML } from './ui-atlas.js';
 import { getWebsHTML } from './ui-webs.js';
 import { getBazaarHTML, getStorefrontHTML, getShopBackroomHTML } from './ui-shops.js';
+import { getTablesHTML } from './ui-tables.js';
+import { getDatabasesHTML } from './ui-databases.js';
 
 // --- CONSTANTS & HELPERS ---
 export const BUDGET_BY_LEVEL = { 
@@ -28,10 +30,7 @@ export function renderSmartField(id, labelHtml, value, placeholderText, rows, wr
         ? window.appActions.parseSmartText(value) 
         : `<span class="text-stone-400 italic font-sans">${placeholderText || "No entry provided."}</span>`;
 
-    // Strip HTML from label to pass as plain text to the editor modal title, and escape apostrophes safely
     const plainLabel = labelHtml.replace(/<[^>]*>?/gm, '').trim().replace(/'/g, "\\'");
-    
-    // Ensure hidden input preserves both double quotes AND newlines
     const safeValue = (value || '').replace(/"/g, '&quot;').replace(/\n/g, '&#10;');
 
     const onClickAttr = isReadonly ? '' : `onclick="window.appActions.openUniversalEditor('input-${id}', '${plainLabel}')"`;
@@ -64,6 +63,10 @@ export function getLibraryTabsHTML(activeTab) {
     const isWebs = activeTab === 'webs';
     const isBazaar = activeTab === 'bazaar';
     const isTome = activeTab === 'tome';
+    const isTables = activeTab === 'tables';
+    const isDatabases = activeTab === 'databases';
+
+    const isDM = window.appData?.activeCampaign?._isDM || false;
 
     return `
     <div class="flex bg-stone-200 p-1 sm:p-1.5 rounded-sm border border-[#d4c5a9] shadow-inner mb-6 w-full max-w-5xl mx-auto shrink-0 overflow-x-auto hide-scrollbar">
@@ -73,9 +76,19 @@ export function getLibraryTabsHTML(activeTab) {
         <button onclick="window.appActions.openBazaar()" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isBazaar ? 'bg-white shadow-sm text-emerald-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
             <i class="fa-solid fa-store text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Bazaar</span>
         </button>
+        ${isDM ? `
+        <button onclick="window.appActions.setView('databases')" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isDatabases ? 'bg-white shadow-sm text-stone-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
+            <i class="fa-solid fa-box-archive text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Databases</span>
+        </button>
+        ` : ''}
         <button onclick="window.appActions.openRulesGlossary()" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isRules ? 'bg-white shadow-sm text-amber-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
             <i class="fa-solid fa-scale-balanced text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Rules</span>
         </button>
+        ${isDM ? `
+        <button onclick="window.appActions.setView('tables')" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isTables ? 'bg-white shadow-sm text-stone-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
+            <i class="fa-solid fa-table-list text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Tables</span>
+        </button>
+        ` : ''}
         <button onclick="window.appActions.setView('webs')" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isWebs ? 'bg-white shadow-sm text-purple-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
             <i class="fa-solid fa-diagram-project text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Webs</span>
         </button>
@@ -101,7 +114,6 @@ export function updateHeaderUI(state) {
 
     if (!titleEl) return;
 
-    // Hide dock & show default branding on home screen
     if (state.currentView === 'home' || !state.activeCampaign) {
         if (dockContainer) dockContainer.classList.add('translate-y-32', 'opacity-0');
         titleEl.textContent = 'Adventure Journal';
@@ -112,15 +124,13 @@ export function updateHeaderUI(state) {
         return;
     }
 
-    // Show dock and set campaign branding
     if (dockContainer) dockContainer.classList.remove('translate-y-32', 'opacity-0');
     titleEl.textContent = state.activeCampaign.name;
-    if (settingsBtn) settingsBtn.classList.add('hidden'); // Hide settings when in a campaign
+    if (settingsBtn) settingsBtn.classList.add('hidden');
 
     let breadcrumbText = 'Story Arcs';
     let showBack = false;
 
-    // Smart logic for breadcrumb text and deciding if we need the back button
     switch (state.currentView) {
         case 'campaign': breadcrumbText = 'Story Arcs'; showBack = true; break;
         case 'adventure': breadcrumbText = state.activeAdventure?.name || 'Adventure Arc'; showBack = true; break;
@@ -130,9 +140,11 @@ export function updateHeaderUI(state) {
         case 'pc-edit': breadcrumbText = state.activePcId ? 'Edit Hero' : 'New Hero'; showBack = true; break;
         case 'codex': breadcrumbText = 'Library • Codex'; showBack = true; break;
         case 'bazaar': breadcrumbText = 'Library • Bazaar'; showBack = true; break;
+        case 'databases': breadcrumbText = 'Library • Databases'; showBack = true; break;
         case 'storefront': breadcrumbText = 'Bazaar • Storefront'; showBack = true; break;
         case 'shop-backroom': breadcrumbText = 'Bazaar • DM Backroom'; showBack = true; break;
         case 'rules': breadcrumbText = 'Library • Rules'; showBack = true; break;
+        case 'tables': breadcrumbText = 'Library • Roll Tables'; showBack = true; break;
         case 'webs': breadcrumbText = 'Library • Webs'; showBack = true; break;
         case 'atlas': breadcrumbText = 'Library • Atlas'; showBack = true; break;
         case 'calendar': breadcrumbText = 'Chronicle Timeline'; showBack = true; break;
@@ -157,7 +169,6 @@ export function updateHeaderUI(state) {
 export function updateDockUI(state) {
     const tabs = ['campaign', 'calendar', 'pc-manager', 'codex'];
     
-    // Reset all tabs to inactive color
     tabs.forEach(tab => {
         const el = document.getElementById(`dock-tab-${tab}`);
         if (el) {
@@ -166,13 +177,11 @@ export function updateDockUI(state) {
         }
     });
 
-    // Determine which "Pill" tab should be highlighted based on the current deep view
     let activeTab = 'campaign';
     if (['calendar'].includes(state.currentView)) activeTab = 'calendar';
     if (['pc-manager', 'pc-edit'].includes(state.currentView)) activeTab = 'pc-manager';
-    if (['codex', 'rules', 'atlas', 'webs', 'bazaar', 'storefront', 'shop-backroom'].includes(state.currentView)) activeTab = 'codex'; // Library items group here
+    if (['codex', 'rules', 'tables', 'webs', 'databases', 'bazaar', 'storefront', 'shop-backroom', 'atlas'].includes(state.currentView)) activeTab = 'codex';
     
-    // The Grand Tome is now officially part of the Library Hub, so keep the Library dock icon highlighted
     if (state.currentView === 'journal' && !state.activeAdventureId && !state.activeSessionId) {
         activeTab = 'codex'; 
     }
@@ -194,7 +203,9 @@ export const navigateBack = () => {
         case 'pc-manager':
         case 'codex':
         case 'bazaar':
+        case 'databases':
         case 'rules': 
+        case 'tables':
         case 'webs':
         case 'calendar':
             window.appActions.setView('home'); 
@@ -203,7 +214,7 @@ export const navigateBack = () => {
         case 'shop-backroom':
             window.appActions.setView('bazaar'); 
             break;
-        case 'atlas': window.appActions.setView('campaign'); break; // Back from Atlas goes to Campaign
+        case 'atlas': window.appActions.setView('campaign'); break;
         case 'adventure': window.appActions.setView('campaign'); break;
         case 'adv-roster': window.appActions.setView('adventure'); break;
         case 'session-edit': window.appActions.setView('adventure'); break;
@@ -231,7 +242,6 @@ export const toggleActionMenu = () => {
     
     if (!sheet || !overlay || !icon) return;
     
-    // Unhide DM-Only buttons if the user is the DM
     const camp = window.appData?.activeCampaign;
     if (dmAssignBtn && dmNpcGenBtn) {
         if (camp && camp._isDM) {
@@ -263,20 +273,17 @@ export function updatePlayerResourceBar(state) {
 
     const camp = state.activeCampaign;
     
-    // Only display this bar if we are in a campaign and the user is a Player (not the DM)
     if (!camp || state.currentView === 'home' || camp._isDM) {
         bar.innerHTML = '';
         return;
     }
 
-    // Find the player's active hero
     const myPc = camp.playerCharacters?.find(p => p.playerId === state.currentUserUid);
     if (!myPc) {
         bar.innerHTML = '';
         return;
     }
 
-    // Calculate Resources
     let maxInsp = 0;
     if (myPc.boonBackstory) maxInsp += 1;
     if (myPc.boon2ndBday) maxInsp += 1;
@@ -284,19 +291,16 @@ export function updatePlayerResourceBar(state) {
     const currentInsp = myPc.inspiration === true ? 1 : (parseInt(myPc.inspiration) || 0);
     const autoSuccess = myPc.automaticSuccess ? 1 : 0;
 
-    // Get the most relevant/latest Adventure Name
     let advName = "Current Adventure";
     if (state.activeAdventure) {
         advName = state.activeAdventure.name;
     } else if (camp.adventures && camp.adventures.length > 0) {
-        // Sort alphanumerically to match the dashboard logic, grabbing the very last one
         const sortedAdventures = [...camp.adventures].sort((a, b) => {
             return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
         });
         advName = sortedAdventures[sortedAdventures.length - 1].name;
     }
 
-    // Pulse FX
     const inspPulse = currentInsp > 0 ? 'animate-pulse text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]' : 'text-stone-600';
     const autoPulse = autoSuccess > 0 ? 'animate-pulse text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'text-stone-600';
 
@@ -341,16 +345,14 @@ export function updateChecklistUI(state) {
     const myUid = state.currentUserUid;
     const updates = camp.sheetUpdates || [];
 
-    // Filter for this user
     const visibleUpdates = updates.filter(item => {
-        if (isDM || item.authorId === myUid) return true; // DM & Author always see it
+        if (isDM || item.authorId === myUid) return true;
         const vis = item.visibility || { mode: 'public' };
         if (vis.mode === 'public') return true;
         if (vis.mode === 'specific' && vis.visibleTo?.includes(myUid)) return true;
         return false;
     });
 
-    // Badge logic for players
     if (!isDM) {
         const pendingCount = visibleUpdates.filter(u => !(u.resolvedBy || []).includes(myUid)).length;
         if (pendingCount > 0) {
@@ -371,7 +373,6 @@ export function updateChecklistUI(state) {
         if (libTabBadge) libTabBadge.classList.add('hidden');
     }
 
-    // Sort: Tasks I haven't resolved float to top. Then sort by newest.
     const sorted = [...visibleUpdates].sort((a, b) => {
         const aRes = (a.resolvedBy || []).includes(myUid);
         const bRes = (b.resolvedBy || []).includes(myUid);
@@ -468,7 +469,193 @@ export function updateChecklistUI(state) {
     </div>
     `;
 
-    container.innerHTML = listHtml + addHtml;
+    container.innerHTML = `
+        <div class="flex border-b border-[#d4c5a9] mb-4">
+            <button onclick="window.appActions.switchChecklistTab('tasks')" id="tab-tasks-btn" class="px-4 py-2 text-xs font-bold uppercase tracking-widest border-b-2 border-amber-600 text-amber-900">Tasks</button>
+            <button onclick="window.appActions.switchChecklistTab('quests')" id="tab-quests-btn" class="px-4 py-2 text-xs font-bold uppercase tracking-widest border-b-2 border-transparent text-stone-500 hover:text-stone-800 transition">Quests</button>
+        </div>
+        <div id="checklist-tasks-content">${listHtml + addHtml}</div>
+        <div id="checklist-quests-content" class="hidden">
+            ${renderQuestLogUI(state)}
+        </div>
+    `;
+}
+
+// --- QUEST LOG UI ---
+export function renderQuestLogUI(state) {
+    const camp = state.activeCampaign;
+    const quests = camp.quests || [];
+    
+    // Categorize
+    const categories = {
+        'Current Arc': [],
+        'General': [],
+        'Personal': [],
+        'Previous Arcs': []
+    };
+    
+    quests.forEach(q => {
+        if (categories[q.category]) categories[q.category].push(q);
+        else categories['General'].push(q);
+    });
+
+    let html = `<div class="space-y-4">`;
+    Object.entries(categories).forEach(([cat, items]) => {
+        html += `<h4 class="text-[10px] uppercase font-bold text-stone-500 tracking-widest mb-1 mt-4">${cat}</h4>`;
+        if (items.length === 0) html += `<p class="text-[10px] text-stone-400 italic">No quests in this category.</p>`;
+        else items.forEach(q => {
+            const progress = q.objectives.filter(o => o.progress >= o.max).length;
+            const total = q.objectives.length;
+            const percent = total > 0 ? (progress / total) * 100 : 0;
+            
+            html += `
+            <div class="bg-white p-3 border border-[#d4c5a9] rounded-sm shadow-sm cursor-pointer hover:border-amber-400" onclick="window.appActions.openQuestDetails('${q.id}')">
+                <div class="flex justify-between items-center mb-1">
+                    <span class="font-bold text-stone-900 text-xs">${q.name}</span>
+                    <span class="text-[9px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">${q.status}</span>
+                </div>
+                <div class="w-full bg-stone-200 h-1.5 rounded-full overflow-hidden mt-1.5">
+                    <div class="bg-emerald-600 h-full transition-all" style="width: ${percent}%"></div>
+                </div>
+            </div>`;
+        });
+    });
+    
+    html += `
+        <button onclick="window.appActions.openQuestDetails(null)" class="w-full mt-4 py-2 bg-stone-900 text-amber-50 rounded-sm font-bold uppercase tracking-wider text-[10px] hover:bg-stone-800 transition shadow-md">
+            <i class="fa-solid fa-plus mr-1.5"></i> Record New Quest
+        </button>
+    </div>`;
+    return html;
+}
+
+// --- QUEST UI ACTIONS ---
+if (typeof window !== 'undefined') {
+    window.appActions = window.appActions || {};
+    
+    window.appActions.switchChecklistTab = (tab) => {
+        const tasks = document.getElementById('checklist-tasks-content');
+        const quests = document.getElementById('checklist-quests-content');
+        const tasksBtn = document.getElementById('tab-tasks-btn');
+        const questsBtn = document.getElementById('tab-quests-btn');
+        
+        if (tab === 'tasks') {
+            tasks.classList.remove('hidden');
+            quests.classList.add('hidden');
+            tasksBtn.className = "px-4 py-2 text-xs font-bold uppercase tracking-widest border-b-2 border-amber-600 text-amber-900";
+            questsBtn.className = "px-4 py-2 text-xs font-bold uppercase tracking-widest border-b-2 border-transparent text-stone-500 hover:text-stone-800 transition";
+        } else {
+            tasks.classList.add('hidden');
+            quests.classList.remove('hidden');
+            tasksBtn.className = "px-4 py-2 text-xs font-bold uppercase tracking-widest border-b-2 border-transparent text-stone-500 hover:text-stone-800 transition";
+            questsBtn.className = "px-4 py-2 text-xs font-bold uppercase tracking-widest border-b-2 border-amber-600 text-amber-900";
+        }
+    };
+
+    window.appActions.openQuestDetails = (id) => {
+        const camp = window.appData.activeCampaign;
+        const quest = camp.quests?.find(q => q.id === id) || { id: generateId(), name: '', objectives: [], giver: { name: '', loc: '' }, status: 'Active', rewards: '', clues: '', category: 'General' };
+
+        const container = document.getElementById('global-popup-container');
+        container.innerHTML = `
+        <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[20000] backdrop-blur-sm animate-in">
+            <div class="bg-[#f4ebd8] p-5 sm:p-8 rounded-sm border-2 border-stone-800 shadow-2xl max-w-xl w-full relative max-h-[90vh] overflow-y-auto custom-scrollbar">
+                <input type="hidden" id="q-id" value="${quest.id}">
+                <div class="mb-4">
+                    <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Quest Name</label>
+                    <input type="text" id="q-name" value="${quest.name.replace(/"/g, '&quot;')}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 bg-white shadow-inner">
+                </div>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Category</label>
+                        <select id="q-cat" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 bg-white">
+                            <option value="Current Arc" ${quest.category==='Current Arc'?'selected':''}>Current Arc</option>
+                            <option value="General" ${quest.category==='General'?'selected':''}>General</option>
+                            <option value="Personal" ${quest.category==='Personal'?'selected':''}>Personal</option>
+                            <option value="Previous Arcs" ${quest.category==='Previous Arcs'?'selected':''}>Previous Arcs</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Status</label>
+                        <select id="q-stat" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 bg-white">
+                            <option value="Active" ${quest.status==='Active'?'selected':''}>Active</option>
+                            <option value="Completed" ${quest.status==='Completed'?'selected':''}>Completed</option>
+                            <option value="Failed" ${quest.status==='Failed'?'selected':''}>Failed</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Giver Name</label>
+                        <input type="text" id="q-giver" value="${quest.giver.name}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 bg-white shadow-inner">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Giver Location</label>
+                        <input type="text" id="q-giver-loc" value="${quest.giver.loc}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-amber-600 bg-white shadow-inner">
+                    </div>
+                </div>
+                
+                <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Objectives</label>
+                <div id="q-objectives" class="mb-4 space-y-2">
+                    ${quest.objectives.map((o, i) => `
+                    <div class="flex gap-2 items-center">
+                        <input type="text" class="obj-desc flex-grow p-2 border border-[#d4c5a9] rounded-sm text-xs bg-white" value="${o.desc}">
+                        <input type="number" class="obj-prog w-16 p-2 border border-[#d4c5a9] rounded-sm text-xs bg-white" value="${o.progress}">
+                        <span class="text-xs">/</span>
+                        <input type="number" class="obj-max w-16 p-2 border border-[#d4c5a9] rounded-sm text-xs bg-white" value="${o.max}">
+                    </div>
+                    `).join('')}
+                </div>
+                <button onclick="window.appActions.addQuestObjective()" class="w-full py-1.5 border border-dashed border-stone-400 text-[10px] uppercase font-bold text-stone-500 mb-6">+ Add Objective</button>
+
+                <div class="flex justify-end gap-2">
+                    <button onclick="document.getElementById('global-popup-container').innerHTML = ''" class="px-4 py-2 text-stone-600 text-xs font-bold uppercase tracking-wider">Cancel</button>
+                    <button onclick="window.appActions.saveQuest()" class="px-5 py-2 bg-stone-900 text-amber-50 rounded-sm text-xs font-bold uppercase tracking-wider">Save Quest</button>
+                </div>
+            </div>
+        </div>
+        `;
+    };
+
+    window.appActions.addQuestObjective = () => {
+        document.getElementById('q-objectives').insertAdjacentHTML('beforeend', `
+            <div class="flex gap-2 items-center animate-in fade-in">
+                <input type="text" class="obj-desc flex-grow p-2 border border-[#d4c5a9] rounded-sm text-xs bg-white" placeholder="Objective description...">
+                <input type="number" class="obj-prog w-16 p-2 border border-[#d4c5a9] rounded-sm text-xs bg-white" value="0">
+                <span class="text-xs">/</span>
+                <input type="number" class="obj-max w-16 p-2 border border-[#d4c5a9] rounded-sm text-xs bg-white" value="1">
+            </div>
+        `);
+    };
+
+    window.appActions.saveQuest = async () => {
+        updateDerivedState();
+        const camp = window.appData.activeCampaign;
+        const qId = document.getElementById('q-id').value;
+        const name = document.getElementById('q-name').value.trim();
+        const category = document.getElementById('q-cat').value;
+        const status = document.getElementById('q-stat').value;
+        const giver = { name: document.getElementById('q-giver').value, loc: document.getElementById('q-giver-loc').value };
+        
+        const objectives = Array.from(document.querySelectorAll('.obj-desc')).map((descEl, i) => {
+            const row = descEl.parentElement;
+            return {
+                desc: descEl.value,
+                progress: parseInt(row.querySelector('.obj-prog').value) || 0,
+                max: parseInt(row.querySelector('.obj-max').value) || 1
+            };
+        });
+
+        const quest = { id: qId, name, category, status, giver, objectives };
+        
+        const existingIdx = (camp.quests || []).findIndex(q => q.id === qId);
+        if (existingIdx > -1) camp.quests[existingIdx] = quest;
+        else camp.quests = [...(camp.quests || []), quest];
+
+        await saveCampaign(camp);
+        document.getElementById('global-popup-container').innerHTML = '';
+        reRender(true);
+    };
 }
 
 // --- MAIN RENDERER ---
@@ -476,15 +663,10 @@ export function renderApp(state) {
     const container = document.getElementById('app-container');
     if (!container) return;
 
-    // Only reset scroll position if we are NOT on the Atlas view 
-    // (Leaflet needs to retain its drag position when the DOM re-renders)
     if (state.currentView !== 'atlas') {
         container.scrollTo({ top: 0, behavior: 'instant' });
     }
 
-    // --- NEW: LEAFLET DOM PRESERVATION ---
-    // If we are already on the Atlas view and the DOM is built, 
-    // DO NOT overwrite innerHTML! This prevents the map from disappearing or flickering.
     if (state.currentView === 'atlas' && document.getElementById('atlas-wrapper')) {
         if (window.appActions && window.appActions.refreshAtlasEntities) {
             window.appActions.refreshAtlasEntities();
@@ -508,10 +690,12 @@ export function renderApp(state) {
         case 'journal': html = getJournalHTML(state); break;
         case 'codex': html = getCodexHTML(state); break;
         case 'bazaar': html = getBazaarHTML(state); break;
+        case 'databases': html = getDatabasesHTML(state); break;
         case 'storefront': html = getStorefrontHTML(state); break;
         case 'shop-backroom': html = getShopBackroomHTML(state); break;
         case 'calendar': html = getCalendarHTML(state); break;
         case 'rules': html = getRulesHTML(state); break;
+        case 'tables': html = getTablesHTML(state); break;
         case 'webs': html = getWebsHTML(state); break; 
         case 'atlas': html = getAtlasHTML(state); break; 
         case 'activity-log': html = getActivityLogHTML(state); break;
@@ -520,7 +704,6 @@ export function renderApp(state) {
 
     container.innerHTML = html;
 
-    // Post-render UI adjustments (Handles the new mobile-first elements)
     updateHeaderUI(state);
     updateDockUI(state);
     updateChecklistUI(state);
@@ -528,8 +711,6 @@ export function renderApp(state) {
 
     if (state.currentView === 'session-edit') {
         updateSessionTabUI('session');
-        
-        // Ensure the budget UI initializes its values immediately upon loading the editor
         if (window.appActions && window.appActions.updateSessionBudget) {
             window.appActions.updateSessionBudget();
         }
@@ -606,7 +787,6 @@ window.filterCodex = function() {
         });
 
         if (query !== '') {
-            // If searching, hide empty folders, expand folders with results
             if (hasVisibleCard) {
                 folder.style.display = 'block';
                 content.classList.remove('hidden');
@@ -616,7 +796,6 @@ window.filterCodex = function() {
                 folder.style.display = 'none';
             }
         } else {
-            // If search is cleared, show all folders again
             folder.style.display = 'block';
         }
     });
