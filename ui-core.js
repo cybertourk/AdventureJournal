@@ -9,6 +9,8 @@ import { getWebsHTML } from './ui-webs.js';
 import { getBazaarHTML, getStorefrontHTML, getShopBackroomHTML } from './ui-shops.js';
 import { getTablesHTML } from './ui-tables.js';
 import { getDatabasesHTML } from './ui-databases.js';
+import { generateId, reRender } from './state.js';
+import { saveCampaign, notify } from './firebase-manager.js';
 
 // --- CONSTANTS & HELPERS ---
 export const BUDGET_BY_LEVEL = { 
