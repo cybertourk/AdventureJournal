@@ -322,7 +322,7 @@ export function updatePlayerResourceBar(state) {
                     <i class="fa-solid fa-dice-d20 ${inspPulse} text-sm sm:text-lg transition-all duration-300"></i>
                     <span class="${currentInsp > 0 ? 'text-amber-500' : 'text-stone-600'}">Insp <span class="text-white">${currentInsp}</span><span class="text-stone-600">/${maxInsp}</span></span>
                 </div>
-                <div class="w-px h-5 bg-stone-800"></div>
+                <div class="w-px h-5 bg-stone-900"></div>
                 <div class="flex items-center gap-2" title="Auto-Success Available">
                     <i class="fa-solid fa-check-double ${autoPulse} text-sm sm:text-lg transition-all duration-300"></i>
                     <span class="${autoSuccess > 0 ? 'text-emerald-500' : 'text-stone-600'}">Auto <span class="text-white">${autoSuccess}</span></span>
@@ -435,7 +435,7 @@ export function updateChecklistUI(state) {
                     const resolvedUids = item.resolvedBy || [];
                     const resolvedNames = resolvedUids.map(uid => camp.playerNames[uid] || 'Unknown').join(', ');
                     
-                    const resolvedText = resolvedNames 
+                    const textDisplay = resolvedNames 
                         ? `<span class="text-[9px] text-emerald-700 font-bold bg-emerald-100 px-1.5 py-0.5 rounded mr-auto truncate max-w-[140px] sm:max-w-[200px]" title="Completed by: ${resolvedNames}"><i class="fa-solid fa-check-double mr-1"></i> ${resolvedNames}</span>` 
                         : `<span class="text-[9px] text-stone-400 italic mr-auto">No completions yet</span>`;
 
@@ -447,7 +447,7 @@ export function updateChecklistUI(state) {
                     }
 
                     controlsHtml = `
-                        ${resolvedText}
+                        ${textDisplay}
                         <div class="flex items-center gap-1 ml-auto">
                             ${resolveBtn}
                             <div class="w-px h-4 bg-stone-300 mx-1"></div>
@@ -532,6 +532,20 @@ export function updateChecklistUI(state) {
                                 <label class="block text-[9px] uppercase font-bold text-stone-500 tracking-wider mb-1">Quest Title</label>
                                 <input type="text" id="edit-quest-name-${q.id}" value="${escapeHTML(q.name)}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none bg-white">
                             </div>
+                            
+                            <!-- Description Box Editor with formatting toolbar -->
+                            <div>
+                                <div class="flex justify-between items-end mb-1">
+                                    <label class="block text-[9px] uppercase font-bold text-stone-500 tracking-wider">Description</label>
+                                    <div class="flex gap-1 bg-stone-200 p-0.5 rounded-sm border border-[#d4c5a9]">
+                                        <button type="button" onclick="window.appActions.formatText('edit-quest-desc-${q.id}', 'bold')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm"><i class="fa-solid fa-bold"></i></button>
+                                        <button type="button" onclick="window.appActions.formatText('edit-quest-desc-${q.id}', 'italic')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm"><i class="fa-solid fa-italic"></i></button>
+                                        <button type="button" onclick="window.appActions.insertImagePlaceholder('edit-quest-desc-${q.id}')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm" title="Insert Image"><i class="fa-solid fa-image"></i></button>
+                                    </div>
+                                </div>
+                                <textarea id="edit-quest-desc-${q.id}" oninput="window.appActions.handleSmartInput(this)" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs text-stone-900 outline-none bg-white font-serif h-24 custom-scrollbar" placeholder="Scribe details, goals, background lore...">${escapeHTML(q.description || '')}</textarea>
+                            </div>
+
                             <div class="grid grid-cols-2 gap-3">
                                 <div>
                                     <label class="block text-[9px] uppercase font-bold text-stone-500 tracking-wider mb-1">Quest Giver</label>
@@ -559,7 +573,7 @@ export function updateChecklistUI(state) {
                                 </div>
                                 <div id="edit-quest-objectives-container-${q.id}" class="space-y-2">
                                     ${(q.objectives || []).map((obj, oIdx) => `
-                                        <div class="flex gap-2 items-center edit-objective-row-${q.id} objective-input-row">
+                                        <div class="flex gap-2 items-center edit-objective-row-${q.id} objective-input-row flex-row">
                                             <input type="text" class="edit-obj-input-text flex-grow p-1.5 border border-[#d4c5a9] rounded text-[11px] text-stone-900 outline-none bg-white" value="${escapeHTML(obj.text)}" placeholder="Objective">
                                             <div class="flex items-center gap-1 shrink-0">
                                                 <input type="number" class="edit-obj-input-current w-12 p-1.5 border border-[#d4c5a9] rounded text-[11px] text-stone-900 outline-none bg-white text-center" value="${obj.current || 0}" title="Current Progress" placeholder="Current">
@@ -635,7 +649,7 @@ export function updateChecklistUI(state) {
                         let trackerHtml = '';
                         if (isProgress) {
                             trackerHtml = `
-                            <div class="flex items-center gap-2 mt-1.5 shrink-0 select-none">
+                            <div class="flex items-center gap-2 mt-1.5 shrink-0 select-none" onclick="event.stopPropagation()">
                                 <button onclick="window.updateQuestProgress('${q.id}', ${idx}, -1)" class="w-5 h-5 bg-stone-200 border border-stone-300 hover:bg-stone-300 text-stone-700 font-bold rounded flex items-center justify-center transition shadow-sm active:scale-90"><i class="fa-solid fa-minus text-[8px]"></i></button>
                                 <span class="text-[10px] font-mono font-bold text-stone-800 bg-white border border-stone-300 px-2 py-0.5 rounded shadow-inner min-w-[34px] text-center">${obj.current} / ${obj.target}</span>
                                 <button onclick="window.updateQuestProgress('${q.id}', ${idx}, 1)" class="w-5 h-5 bg-stone-200 border border-stone-300 hover:bg-stone-300 text-stone-700 font-bold rounded flex items-center justify-center transition shadow-sm active:scale-95"><i class="fa-solid fa-plus text-[8px]"></i></button>
@@ -643,7 +657,7 @@ export function updateChecklistUI(state) {
                             `;
                         } else {
                             trackerHtml = `
-                            <button onclick="window.updateQuestProgress('${q.id}', ${idx}, ${isComplete ? 0 : 1})" class="shrink-0 flex items-center justify-center w-5 h-5 border-2 rounded transition-colors ${isComplete ? 'bg-emerald-500 border-emerald-600 text-white shadow-inner' : 'bg-white border-stone-300 shadow-sm'}">
+                            <button onclick="window.updateQuestProgress('${q.id}', ${idx}, ${isComplete ? 0 : 1})" class="shrink-0 flex items-center justify-center w-5 h-5 border-2 rounded transition-colors ${isComplete ? 'bg-emerald-500 border-emerald-600 text-white shadow-inner' : 'bg-white border-stone-300 shadow-sm'}" onclick="event.stopPropagation()">
                                 ${isComplete ? '<i class="fa-solid fa-check text-[9px]"></i>' : ''}
                             </button>
                             `;
@@ -664,14 +678,37 @@ export function updateChecklistUI(state) {
                     objectivesHtml += `</div>`;
                 }
 
+                // Expandable Details Section
+                const isExpanded = window.appData.expandedQuestIds?.has(q.id);
+                const collapsibleDetailHtml = isExpanded ? `
+                <div class="mt-3 pt-3 border-t border-stone-200 space-y-3 animate-in">
+                    <!-- Description -->
+                    <div>
+                        <span class="block text-[9px] uppercase font-bold text-stone-400 mb-1 tracking-wider"><i class="fa-solid fa-align-left text-amber-600/60 mr-1"></i> Description</span>
+                        <div class="text-xs text-stone-700 font-serif leading-relaxed bg-[#fdfbf7] p-2.5 rounded border border-stone-200/50 shadow-inner">
+                            ${window.appActions.parseSmartText(q.description || 'No description provided.')}
+                        </div>
+                    </div>
+                    
+                    <!-- Rewards & Clues (Moved inside expansion!) -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] text-stone-700">
+                        ${q.rewards ? `<div class="bg-[#fdfbf7] p-2 rounded border border-amber-600/10"><span class="font-bold text-stone-900 block uppercase tracking-wider text-[8px] mb-0.5"><i class="fa-solid fa-gift text-amber-500 mr-1"></i>Rewards</span>${q.rewards}</div>` : ''}
+                        ${q.clues ? `<div class="bg-[#fdfbf7] p-2 rounded border border-amber-600/10"><span class="font-bold text-stone-900 block uppercase tracking-wider text-[8px] mb-0.5"><i class="fa-solid fa-key text-amber-500 mr-1"></i>Clues & Info</span>${q.clues}</div>` : ''}
+                    </div>
+                </div>
+                ` : '';
+
                 questListHtml += `
                 <div class="bg-white border border-[#d4c5a9] rounded-sm p-4 shadow-sm flex flex-col gap-3 hover:border-amber-400 transition-colors relative group mb-3 last:mb-0 animate-in">
                     <div class="flex justify-between items-start border-b border-stone-200 pb-2 gap-2">
-                        <div class="min-w-0">
-                            <h4 class="font-serif font-bold text-sm sm:text-base text-stone-900 leading-tight">${q.name}</h4>
-                            <span class="text-[9px] text-stone-400 font-bold block mt-1"><i class="fa-solid fa-user-circle mr-1"></i>From: ${q.giver || 'Unspecified'} (${q.giverLocation || 'Unspecified'})</span>
+                        <div class="min-w-0 flex-grow cursor-pointer select-none hover:opacity-80 transition-opacity flex gap-2 items-start" onclick="window.toggleQuestExpand('${q.id}')">
+                            <i class="fa-solid fa-chevron-down mt-1 text-stone-400 text-xs transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}"></i>
+                            <div class="min-w-0">
+                                <h4 class="font-serif font-bold text-sm sm:text-base text-stone-900 leading-tight">${q.name}</h4>
+                                <span class="text-[9px] text-stone-400 font-bold block mt-1"><i class="fa-solid fa-user-circle mr-1"></i>From: ${q.giver || 'Unspecified'} (${q.giverLocation || 'Unspecified'})</span>
+                            </div>
                         </div>
-                        <div class="flex items-center gap-1.5 shrink-0 select-none">
+                        <div class="flex items-center gap-1.5 shrink-0 select-none" onclick="event.stopPropagation()">
                             ${visBadge}
                             ${statusBadges}
                             ${isDM ? `
@@ -683,14 +720,10 @@ export function updateChecklistUI(state) {
                     </div>
                     
                     ${objectivesHtml}
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1 text-[10px] text-stone-700">
-                        ${q.rewards ? `<div class="bg-[#fdfbf7] p-2 rounded border border-amber-600/10"><span class="font-bold text-stone-900 block uppercase tracking-wider text-[8px] mb-0.5"><i class="fa-solid fa-gift text-amber-500 mr-1"></i>Rewards</span>${q.rewards}</div>` : ''}
-                        ${q.clues ? `<div class="bg-[#fdfbf7] p-2 rounded border border-amber-600/10"><span class="font-bold text-stone-900 block uppercase tracking-wider text-[8px] mb-0.5"><i class="fa-solid fa-key text-amber-500 mr-1"></i>Clues & Info</span>${q.clues}</div>` : ''}
-                    </div>
+                    ${collapsibleDetailHtml}
 
                     ${isDM ? `
-                    <div class="flex gap-1.5 pt-2 border-t border-stone-200 justify-end select-none">
+                    <div class="flex gap-1.5 pt-2 border-t border-stone-200 justify-end select-none" onclick="event.stopPropagation()">
                         <button onclick="window.toggleQuestStatus('${q.id}', 'active')" class="px-2 py-1 rounded border text-[8px] font-bold uppercase tracking-wider bg-emerald-50 border-emerald-200 text-emerald-800">Active</button>
                         <button onclick="window.toggleQuestStatus('${q.id}', 'completed')" class="px-2 py-1 rounded border text-[8px] font-bold uppercase tracking-wider bg-blue-50 border-blue-200 text-blue-800">Complete</button>
                         <button onclick="window.toggleQuestStatus('${q.id}', 'failed')" class="px-2 py-1 rounded border text-[8px] font-bold uppercase tracking-wider bg-red-50 border-red-200 text-red-800">Failed</button>
@@ -712,6 +745,19 @@ export function updateChecklistUI(state) {
                     <div>
                         <label class="block text-[9px] uppercase font-bold text-stone-500 tracking-wider mb-1">Quest Title</label>
                         <input type="text" id="new-quest-name" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 shadow-inner outline-none bg-white focus:border-amber-600" placeholder="e.g. Cleansing the Grotto...">
+                    </div>
+
+                    <!-- Description Scribe Form field with Toolbar -->
+                    <div>
+                        <div class="flex justify-between items-end mb-1">
+                            <label class="block text-[9px] uppercase font-bold text-stone-500 tracking-wider">Description</label>
+                            <div class="flex gap-1 bg-stone-200 p-0.5 rounded-sm border border-[#d4c5a9]">
+                                <button type="button" onclick="window.appActions.formatText('new-quest-desc', 'bold')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm"><i class="fa-solid fa-bold"></i></button>
+                                <button type="button" onclick="window.appActions.formatText('new-quest-desc', 'italic')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm"><i class="fa-solid fa-italic"></i></button>
+                                <button type="button" onclick="window.appActions.insertImagePlaceholder('new-quest-desc')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm" title="Insert Image"><i class="fa-solid fa-image"></i></button>
+                            </div>
+                        </div>
+                        <textarea id="new-quest-desc" oninput="window.appActions.handleSmartInput(this)" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs text-stone-900 outline-none bg-white font-serif h-24 custom-scrollbar" placeholder="Scribe details, goals, background lore..."></textarea>
                     </div>
                     
                     <div class="grid grid-cols-2 gap-3">
@@ -782,241 +828,6 @@ export function updateChecklistUI(state) {
     }
 
     container.innerHTML = tabNav + contentHtml;
-}
-
-if (typeof window !== 'undefined') {
-    window.appData = window.appData || {};
-    window.appActions = window.appActions || {};
-
-    // Bind navigation
-    window.appActions.navigateBack = navigateBack;
-    window.appActions.toggleActionMenu = toggleActionMenu;
-    
-    // Direct global handlers bypassing data.js override issues
-    window.switchChecklistTab = (tab) => {
-        window.appData.activeChecklistTab = tab;
-        reRender(true);
-    };
-
-    window.switchQuestCategory = (cat) => {
-        window.appData.activeQuestCategory = cat;
-        reRender(true);
-    };
-
-    window.addQuestObjectiveField = () => {
-        const container = document.getElementById('new-quest-objectives-container');
-        if (!container) return;
-        const html = `
-        <div class="flex gap-2 items-center objective-input-row animate-in">
-            <input type="text" class="obj-input-text flex-grow p-1.5 border border-[#d4c5a9] rounded text-[11px] text-stone-900 outline-none bg-white" placeholder="Objective (e.g. Find key)">
-            <input type="number" class="obj-input-target w-16 p-1.5 border border-[#d4c5a9] rounded text-[11px] text-stone-900 outline-none bg-white text-center" placeholder="Qty" value="1" min="1">
-            <button onclick="this.closest('.objective-input-row').remove()" class="text-stone-400 hover:text-red-700 transition p-1 shrink-0"><i class="fa-solid fa-trash text-[10px]"></i></button>
-        </div>`;
-        container.insertAdjacentHTML('beforeend', html);
-    };
-
-    window.toggleQuestVisPlayers = (value, elementId) => {
-        const el = document.getElementById(elementId);
-        if (el) {
-            if (value === 'specific') el.classList.remove('hidden');
-            else el.classList.add('hidden');
-        }
-    };
-
-    window.startEditQuest = (questId) => {
-        window.appData.editingQuestId = questId;
-        reRender(true);
-    };
-
-    window.cancelEditQuest = () => {
-        window.appData.editingQuestId = null;
-        reRender(true);
-    };
-
-    window.addEditObjectiveField = (questId) => {
-        const container = document.getElementById(`edit-quest-objectives-container-${questId}`);
-        if (!container) return;
-        const html = `
-        <div class="flex gap-2 items-center edit-objective-row-${questId} objective-input-row animate-in">
-            <input type="text" class="edit-obj-input-text flex-grow p-1.5 border border-[#d4c5a9] rounded text-[11px] text-stone-900 outline-none bg-white" placeholder="Objective">
-            <div class="flex items-center gap-1 shrink-0">
-                <input type="number" class="edit-obj-input-current w-12 p-1.5 border border-[#d4c5a9] rounded text-[11px] text-stone-900 outline-none bg-white text-center" value="0" placeholder="Current">
-                <span class="text-stone-400 text-xs">/</span>
-                <input type="number" class="edit-obj-input-target w-12 p-1.5 border border-[#d4c5a9] rounded text-[11px] text-stone-900 outline-none bg-white text-center" value="1" placeholder="Target">
-            </div>
-            <button onclick="this.closest('.objective-input-row').remove()" class="text-stone-400 hover:text-red-700 transition p-1 shrink-0"><i class="fa-solid fa-trash text-[10px]"></i></button>
-        </div>`;
-        container.insertAdjacentHTML('beforeend', html);
-    };
-
-    window.saveEditQuest = async (questId) => {
-        const name = document.getElementById(`edit-quest-name-${questId}`).value.trim();
-        const giver = document.getElementById(`edit-quest-giver-${questId}`).value.trim();
-        const giverLoc = document.getElementById(`edit-quest-giver-loc-${questId}`).value.trim();
-        const rewards = document.getElementById(`edit-quest-rewards-${questId}`).value.trim();
-        const clues = document.getElementById(`edit-quest-clues-${questId}`).value.trim();
-        const visMode = document.getElementById(`edit-quest-vis-mode-${questId}`).value;
-
-        const visibleTo = [];
-        if (visMode === 'specific') {
-            document.querySelectorAll(`.edit-quest-player-cb-${questId}:checked`).forEach(cb => {
-                visibleTo.push(cb.value);
-            });
-        }
-
-        const objectives = [];
-        document.querySelectorAll(`.edit-objective-row-${questId}`).forEach(row => {
-            const text = row.querySelector('.edit-obj-input-text').value.trim();
-            const target = parseInt(row.querySelector('.edit-obj-input-target').value) || 1;
-            const current = parseInt(row.querySelector('.edit-obj-input-current').value) || 0;
-            const completed = current >= target;
-            if (text) {
-                objectives.push({ text, current, target, completed });
-            }
-        });
-
-        const camp = window.appData.activeCampaign;
-        if (!camp) return;
-
-        camp.quests = (camp.quests || []).map(q => {
-            if (q.id === questId) {
-                return {
-                    ...q,
-                    name,
-                    giver,
-                    giverLocation: giverLoc,
-                    rewards,
-                    clues,
-                    objectives,
-                    visibility: { mode: visMode, visibleTo }
-                };
-            }
-            return q;
-        });
-
-        await saveCampaign(camp);
-        window.appData.editingQuestId = null;
-        notify("Quest updated successfully.", "success");
-        reRender(true);
-    };
-
-    window.saveQuest = async () => {
-        const nameIn = document.getElementById('new-quest-name');
-        const giverIn = document.getElementById('new-quest-giver');
-        const giverLocIn = document.getElementById('new-quest-giver-loc');
-        const rewardsIn = document.getElementById('new-quest-rewards');
-        const cluesIn = document.getElementById('new-quest-clues');
-        const visMode = document.getElementById('new-quest-vis-mode').value;
-
-        if (!nameIn || !nameIn.value.trim()) {
-            notify("Quest title cannot be empty.", "error");
-            return;
-        }
-
-        const camp = window.appData.activeCampaign;
-        if (!camp) return;
-
-        const visibleTo = [];
-        if (visMode === 'specific') {
-            document.querySelectorAll('.new-quest-player-cb:checked').forEach(cb => {
-                visibleTo.push(cb.value);
-            });
-        }
-
-        // Parse objectives
-        const objectives = [];
-        document.querySelectorAll('.objective-input-row').forEach(row => {
-            const text = row.querySelector('.obj-input-text').value.trim();
-            const target = parseInt(row.querySelector('.obj-input-target').value) || 1;
-            if (text) {
-                objectives.push({
-                    text,
-                    current: 0,
-                    target,
-                    completed: false
-                });
-            }
-        });
-
-        const newQuest = {
-            id: 'quest_' + generateId(),
-            name: nameIn.value.trim(),
-            giver: giverIn ? giverIn.value.trim() : '',
-            giverLocation: giverLocIn ? giverLocIn.value.trim() : '',
-            rewards: rewardsIn ? rewardsIn.value.trim() : '',
-            clues: cluesIn ? cluesIn.value.trim() : '',
-            category: window.appData.activeQuestCategory || 'current',
-            status: 'active',
-            objectives,
-            visibility: { mode: visMode, visibleTo }
-        };
-
-        camp.quests = [...(camp.quests || []), newQuest];
-        await saveCampaign(camp);
-
-        notify(`Quest '${newQuest.name}' created!`, "success");
-        reRender(true);
-    };
-
-    window.updateQuestProgress = async (questId, objIdx, delta) => {
-        const camp = window.appData.activeCampaign;
-        if (!camp) return;
-
-        const quest = (camp.quests || []).find(q => q.id === questId);
-        if (!quest || !quest.objectives || !quest.objectives[objIdx]) return;
-
-        const obj = quest.objectives[objIdx];
-        const isProgress = parseInt(obj.target) > 1;
-
-        if (isProgress) {
-            obj.current = Math.min(parseInt(obj.target), Math.max(0, parseInt(obj.current) + delta));
-            if (obj.current >= parseInt(obj.target)) {
-                obj.completed = true;
-            } else {
-                obj.completed = false;
-            }
-        } else {
-            obj.completed = delta > 0;
-            obj.current = obj.completed ? 1 : 0;
-        }
-
-        // Auto-complete check: If all objectives are completed, optionally tag quest as completed
-        const allDone = quest.objectives.every(o => o.completed);
-        if (allDone && quest.status === 'active') {
-            quest.status = 'completed';
-            notify(`Quest '${quest.name}' completed!`, "success");
-        }
-
-        await saveCampaign(camp);
-        reRender(true);
-    };
-
-    window.toggleQuestStatus = async (questId, status) => {
-        const camp = window.appData.activeCampaign;
-        if (!camp) return;
-
-        const quest = (camp.quests || []).find(q => q.id === questId);
-        if (!quest) return;
-
-        quest.status = status;
-        await saveCampaign(camp);
-
-        notify(`Quest status updated to: ${status}`, "info");
-        reRender(true);
-    };
-
-    window.deleteQuest = async (questId) => {
-        if (!confirm("Permanently erase this quest record?")) return;
-
-        const camp = window.appData.activeCampaign;
-        if (!camp) return;
-
-        camp.quests = (camp.quests || []).filter(q => q.id !== questId);
-        await saveCampaign(camp);
-
-        notify("Quest erased from log.", "success");
-        reRender(true);
-    };
 }
 
 export function renderApp(state) {
@@ -1121,42 +932,289 @@ export function updateBudgetUI(totalBudget, totalLoot, remaining, calculatedLoot
     }
 }
 
-// --- GLOBAL WINDOW BINDINGS FOR INLINE HTML ---
+if (typeof window !== 'undefined') {
+    window.appData = window.appData || {};
+    window.appData.expandedQuestIds = window.appData.expandedQuestIds || new Set();
+    window.appActions = window.appActions || {};
 
-window.filterCodex = function() {
-    const input = document.getElementById('codex-search');
-    if(!input) return;
-    const query = input.value.toLowerCase().trim();
-    const folders = document.querySelectorAll('.codex-folder');
+    // Bind navigation
+    window.appActions.navigateBack = navigateBack;
+    window.appActions.toggleActionMenu = toggleActionMenu;
     
-    folders.forEach(folder => {
-        const cards = folder.querySelectorAll('.codex-card');
-        const content = folder.querySelector('.folder-content');
-        const chevron = folder.querySelector('.folder-chevron');
-        const button = folder.querySelector('button');
-        let hasVisibleCard = false;
+    // Direct global handlers bypassing data.js override issues
+    window.switchChecklistTab = (tab) => {
+        window.appData.activeChecklistTab = tab;
+        reRender(true);
+    };
 
-        cards.forEach(card => {
-            const searchData = card.getAttribute('data-search') || '';
-            if (query === '' || searchData.includes(query)) {
-                card.style.display = 'flex';
-                hasVisibleCard = true;
-            } else {
-                card.style.display = 'none';
+    window.toggleQuestExpand = (questId) => {
+        if (window.appData.expandedQuestIds.has(questId)) {
+            window.appData.expandedQuestIds.delete(questId);
+        } else {
+            window.appData.expandedQuestIds.add(questId);
+        }
+        reRender(true);
+    };
+
+    window.switchQuestCategory = (questId) => {
+        window.appData.activeQuestCategory = questId;
+        reRender(true);
+    };
+
+    window.addQuestObjectiveField = () => {
+        const container = document.getElementById('new-quest-objectives-container');
+        if (!container) return;
+        const html = `
+        <div class="flex gap-2 items-center objective-input-row animate-in flex-row">
+            <input type="text" class="obj-input-text flex-grow p-1.5 border border-[#d4c5a9] rounded text-[11px] text-stone-900 outline-none bg-white" placeholder="Objective (e.g. Find key)">
+            <input type="number" class="obj-input-target w-16 p-1.5 border border-[#d4c5a9] rounded text-[11px] text-stone-900 outline-none bg-white text-center" placeholder="Qty" value="1" min="1">
+            <button onclick="this.closest('.objective-input-row').remove()" class="text-stone-400 hover:text-red-700 transition p-1 shrink-0"><i class="fa-solid fa-trash text-[10px]"></i></button>
+        </div>`;
+        container.insertAdjacentHTML('beforeend', html);
+    };
+
+    window.toggleQuestVisPlayers = (value, elementId) => {
+        const el = document.getElementById(elementId);
+        if (el) {
+            if (value === 'specific') el.classList.remove('hidden');
+            else el.classList.add('hidden');
+        }
+    };
+
+    window.startEditQuest = (questId) => {
+        window.appData.editingQuestId = questId;
+        reRender(true);
+    };
+
+    window.cancelEditQuest = () => {
+        window.appData.editingQuestId = null;
+        reRender(true);
+    };
+
+    window.addEditObjectiveField = (questId) => {
+        const container = document.getElementById(`edit-quest-objectives-container-${questId}`);
+        if (!container) return;
+        const html = `
+        <div class="flex gap-2 items-center edit-objective-row-${questId} objective-input-row animate-in flex-row">
+            <input type="text" class="edit-obj-input-text flex-grow p-1.5 border border-[#d4c5a9] rounded text-[11px] text-stone-900 outline-none bg-white" placeholder="Objective">
+            <div class="flex items-center gap-1 shrink-0">
+                <input type="number" class="edit-obj-input-current w-12 p-1.5 border border-[#d4c5a9] rounded text-[11px] text-stone-900 outline-none bg-white text-center" value="0" placeholder="Current">
+                <span class="text-stone-400 text-xs">/</span>
+                <input type="number" class="edit-obj-input-target w-12 p-1.5 border border-[#d4c5a9] rounded text-[11px] text-stone-900 outline-none bg-white text-center" value="1" placeholder="Target">
+            </div>
+            <button onclick="this.closest('.objective-input-row').remove()" class="text-stone-400 hover:text-red-700 transition p-1 shrink-0"><i class="fa-solid fa-trash text-[10px]"></i></button>
+        </div>`;
+        container.insertAdjacentHTML('beforeend', html);
+    };
+
+    window.saveEditQuest = async (questId) => {
+        const name = document.getElementById(`edit-quest-name-${questId}`).value.trim();
+        const description = document.getElementById(`edit-quest-desc-${questId}`).value.trim();
+        const giver = document.getElementById(`edit-quest-giver-${questId}`).value.trim();
+        const giverLoc = document.getElementById(`edit-quest-giver-loc-${questId}`).value.trim();
+        const rewards = document.getElementById(`edit-quest-rewards-${questId}`).value.trim();
+        const clues = document.getElementById(`edit-quest-clues-${questId}`).value.trim();
+        const visMode = document.getElementById(`edit-quest-vis-mode-${questId}`).value;
+
+        const visibleTo = [];
+        if (visMode === 'specific') {
+            document.querySelectorAll(`.edit-quest-player-cb-${questId}:checked`).forEach(cb => {
+                visibleTo.push(cb.value);
+            });
+        }
+
+        const objectives = [];
+        document.querySelectorAll(`.edit-objective-row-${questId}`).forEach(row => {
+            const text = row.querySelector('.edit-obj-input-text').value.trim();
+            const target = parseInt(row.querySelector('.edit-obj-input-target').value) || 1;
+            const current = parseInt(row.querySelector('.edit-obj-input-current').value) || 0;
+            const completed = current >= target;
+            if (text) {
+                objectives.push({ text, current, target, completed });
             }
         });
 
-        if (query !== '') {
-            if (hasVisibleCard) {
-                folder.style.display = 'block';
-                content.classList.remove('hidden');
-                chevron.classList.add('rotate-180');
-                button.classList.add('border-stone-700');
+        const camp = window.appData.activeCampaign;
+        if (!camp) return;
+
+        camp.quests = (camp.quests || []).map(q => {
+            if (q.id === questId) {
+                return {
+                    ...q,
+                    name,
+                    description,
+                    giver,
+                    giverLocation: giverLoc,
+                    rewards,
+                    clues,
+                    objectives,
+                    visibility: { mode: visMode, visibleTo }
+                };
+            }
+            return q;
+        });
+
+        await saveCampaign(camp);
+        window.appData.editingQuestId = null;
+        notify("Quest updated successfully.", "success");
+        reRender(true);
+    };
+
+    window.saveQuest = async () => {
+        const nameIn = document.getElementById('new-quest-name');
+        const descIn = document.getElementById('new-quest-desc');
+        const giverIn = document.getElementById('new-quest-giver');
+        const giverLocIn = document.getElementById('new-quest-giver-loc');
+        const rewardsIn = document.getElementById('new-quest-rewards');
+        const cluesIn = document.getElementById('new-quest-clues');
+        const visMode = document.getElementById('new-quest-vis-mode').value;
+
+        if (!nameIn || !nameIn.value.trim()) {
+            notify("Quest title cannot be empty.", "error");
+            return;
+        }
+
+        const camp = window.appData.activeCampaign;
+        if (!camp) return;
+
+        const visibleTo = [];
+        if (visMode === 'specific') {
+            document.querySelectorAll('.new-quest-player-cb:checked').forEach(cb => {
+                visibleTo.push(cb.value);
+            });
+        }
+
+        // Parse objectives
+        const objectives = [];
+        document.querySelectorAll('.objective-input-row').forEach(row => {
+            const text = row.querySelector('.obj-input-text').value.trim();
+            const target = parseInt(row.querySelector('.obj-input-target').value) || 1;
+            if (text) {
+                objectives.push({
+                    text,
+                    current: 0,
+                    target,
+                    completed: false
+                });
+            }
+        });
+
+        const newQuest = {
+            id: 'quest_' + generateId(),
+            name: nameIn.value.trim(),
+            description: descIn ? descIn.value.trim() : '',
+            giver: giverIn ? giverIn.value.trim() : '',
+            giverLocation: giverLocIn ? giverLocIn.value.trim() : '',
+            rewards: rewardsIn ? rewardsIn.value.trim() : '',
+            clues: cluesIn ? cluesIn.value.trim() : '',
+            category: window.appData.activeQuestCategory || 'current',
+            status: 'active',
+            objectives,
+            visibility: { mode: visMode, visibleTo }
+        };
+
+        camp.quests = [...(camp.quests || []), newQuest];
+        await saveCampaign(camp);
+
+        notify(`Quest '${newQuest.name}' created!`, "success");
+        reRender(true);
+    };
+
+    window.updateQuestProgress = async (questId, objIdx, delta) => {
+        const camp = window.appData.activeCampaign;
+        if (!camp) return;
+
+        const quest = (camp.quests || []).find(q => q.id === questId);
+        if (!quest || !quest.objectives || !quest.objectives[objIdx]) return;
+
+        const obj = quest.objectives[objIdx];
+        const isProgress = parseInt(obj.target) > 1;
+
+        if (isProgress) {
+            obj.current = Math.min(parseInt(obj.target), Math.max(0, parseInt(obj.current) + delta));
+            if (obj.current >= parseInt(obj.target)) {
+                obj.completed = true;
             } else {
-                folder.style.display = 'none';
+                obj.completed = false;
             }
         } else {
-            folder.style.display = 'block';
+            obj.completed = delta > 0;
+            obj.current = obj.completed ? 1 : 0;
         }
-    });
-};
+
+        // Auto-complete check: If all objectives are completed, optionally tag quest as completed
+        const allDone = quest.objectives.every(o => o.completed);
+        if (allDone && quest.status === 'active') {
+            quest.status = 'completed';
+            notify(`Quest '${quest.name}' completed!`, "success");
+        }
+
+        await saveCampaign(camp);
+        reRender(true);
+    };
+
+    window.toggleQuestStatus = async (questId, status) => {
+        const camp = window.appData.activeCampaign;
+        if (!camp) return;
+
+        const quest = (camp.quests || []).find(q => q.id === questId);
+        if (!quest) return;
+
+        quest.status = status;
+        await saveCampaign(camp);
+
+        notify(`Quest status updated to: ${status}`, "info");
+        reRender(true);
+    };
+
+    window.deleteQuest = async (questId) => {
+        if (!confirm("Permanently erase this quest record?")) return;
+
+        const camp = window.appData.activeCampaign;
+        if (!camp) return;
+
+        camp.quests = (camp.quests || []).filter(q => q.id !== questId);
+        await saveCampaign(camp);
+
+        notify("Quest erased from log.", "success");
+        reRender(true);
+    };
+
+    window.filterCodex = function() {
+        const input = document.getElementById('codex-search');
+        if(!input) return;
+        const query = input.value.toLowerCase().trim();
+        const folders = document.querySelectorAll('.codex-folder');
+        
+        folders.forEach(folder => {
+            const cards = folder.querySelectorAll('.codex-card');
+            const content = folder.querySelector('.folder-content');
+            const chevron = folder.querySelector('.folder-chevron');
+            const button = folder.querySelector('button');
+            let hasVisibleCard = false;
+
+            cards.forEach(card => {
+                const searchData = card.getAttribute('data-search') || '';
+                if (query === '' || searchData.includes(query)) {
+                    card.style.display = 'flex';
+                    hasVisibleCard = true;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+
+            if (query !== '') {
+                if (hasVisibleCard) {
+                    folder.style.display = 'block';
+                    content.classList.remove('hidden');
+                    chevron.classList.add('rotate-180');
+                    button.classList.add('border-stone-700');
+                } else {
+                    folder.style.display = 'none';
+                }
+            } else {
+                folder.style.display = 'block';
+            }
+        });
+    };
+}
