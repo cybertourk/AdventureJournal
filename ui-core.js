@@ -12,6 +12,9 @@ import { getDatabasesHTML } from './ui-databases.js';
 import { generateId, reRender } from './state.js';
 import { saveCampaign, notify } from './firebase-manager.js';
 
+// IMPORT PATTERN NEXUS VIEW
+import { getPatternNexusHTML } from './ui-pattern-magic.js';
+
 // --- CONSTANTS & HELPERS ---
 export const BUDGET_BY_LEVEL = { 
     1: 0, 2: 100, 3: 200, 4: 400, 5: 700, 6: 3000, 7: 5400, 8: 8600, 
@@ -124,6 +127,12 @@ export function updateHeaderUI(state) {
 
     if (!titleEl) return;
 
+    // Reset default icon state if modified by the Pattern Nexus shift
+    if (iconEl) {
+        iconEl.innerHTML = `<i class="fa-solid fa-scroll text-xl"></i>`;
+        iconEl.className = "bg-red-900 w-10 h-10 rounded-sm shadow-inner border border-red-950 flex items-center justify-center text-amber-50 transform -rotate-3 flex-shrink-0";
+    }
+
     if (state.currentView === 'home' || !state.activeCampaign) {
         if (dockContainer) dockContainer.classList.add('translate-y-32', 'opacity-0');
         titleEl.textContent = 'Adventure Journal';
@@ -163,16 +172,28 @@ export function updateHeaderUI(state) {
             showBack = true; 
             break;
         case 'activity-log': breadcrumbText = 'Activity Log'; showBack = true; break;
+        case 'pattern-nexus':
+            // THEMATIC HEADER MORPH FOR THE ALTERNATE REALITY VIEW
+            if (titleEl) titleEl.innerHTML = `<span class="glow-cyan font-mono tracking-widest text-cyan-400">THE PATTERN NEXUS</span>`;
+            if (breadcrumbEl) breadcrumbEl.innerHTML = `<span class="font-mono tracking-tighter text-[9px] text-cyan-500/50">IDENTITY SYNC ACTIVE // DIMENSIONAL SHIFT</span>`;
+            if (iconEl) {
+                iconEl.innerHTML = `<i class="fa-solid fa-compass-drafting text-xl text-cyan-400 animate-pulse"></i>`;
+                iconEl.className = "bg-stone-950 border border-cyan-500/30 w-10 h-10 rounded-full flex items-center justify-center shadow-[0_0_12px_rgba(6,182,212,0.4)] flex-shrink-0";
+            }
+            showBack = true;
+            break;
     }
 
-    if (breadcrumbEl) breadcrumbEl.textContent = breadcrumbText;
+    if (breadcrumbEl && state.currentView !== 'pattern-nexus') {
+        breadcrumbEl.textContent = breadcrumbText;
+    }
 
     if (showBack) {
         if (backBtn) backBtn.classList.remove('hidden');
-        if (iconEl) iconEl.classList.add('hidden');
+        if (iconEl && state.currentView !== 'pattern-nexus') iconEl.classList.add('hidden');
     } else {
         if (backBtn) backBtn.classList.add('hidden');
-        if (iconEl) iconEl.classList.remove('hidden');
+        if (iconEl && state.currentView !== 'pattern-nexus') iconEl.classList.remove('hidden');
     }
 }
 
@@ -190,7 +211,7 @@ export function updateDockUI(state) {
     let activeTab = 'campaign';
     if (['calendar'].includes(state.currentView)) activeTab = 'calendar';
     if (['pc-manager', 'pc-edit'].includes(state.currentView)) activeTab = 'pc-manager';
-    if (['codex', 'rules', 'tables', 'webs', 'databases', 'bazaar', 'storefront', 'shop-backroom', 'atlas'].includes(state.currentView)) activeTab = 'codex';
+    if (['codex', 'rules', 'tables', 'webs', 'databases', 'bazaar', 'storefront', 'shop-backroom', 'atlas', 'pattern-nexus'].includes(state.currentView)) activeTab = 'codex';
     
     if (state.currentView === 'journal' && !state.activeAdventureId && !state.activeSessionId) {
         activeTab = 'codex'; 
@@ -229,6 +250,7 @@ export const navigateBack = () => {
         case 'session-edit': window.appActions.setView('adventure'); break;
         case 'pc-edit': window.appActions.setView('pc-manager'); break;
         case 'activity-log': window.appActions.setView('campaign'); break;
+        case 'pattern-nexus': window.appActions.setView('adventure'); break;
         case 'journal': 
             if (state.activeSessionId) { 
                 window.appData.activeSessionId = null; 
@@ -281,12 +303,19 @@ export function updatePlayerResourceBar(state) {
 
     const camp = state.activeCampaign;
     
-    if (!camp || state.currentView === 'home' || camp._isDM) {
+    // Hide bar on home view, or for DM except inside the specialized Pattern Nexus dashboard
+    if (!camp || state.currentView === 'home' || (camp._isDM && state.currentView !== 'pattern-nexus')) {
         bar.innerHTML = '';
         return;
     }
 
-    const myPc = camp.playerCharacters?.find(p => p.playerId === state.currentUserUid);
+    // MULTIPLE CHARACTERS RESOLUTION: Select appropriate active PC based on player or DM override
+    let myPc = camp.playerCharacters?.find(p => p.playerId === state.currentUserUid);
+    if (camp._isDM) {
+        const activePcId = state.activePatternPcId || (camp.playerCharacters?.[0]?.id) || '';
+        myPc = camp.playerCharacters?.find(p => p.id === activePcId) || myPc;
+    }
+
     if (!myPc) {
         bar.innerHTML = '';
         return;
@@ -312,6 +341,29 @@ export function updatePlayerResourceBar(state) {
     const inspPulse = currentInsp > 0 ? 'animate-pulse text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]' : 'text-stone-600';
     const autoPulse = autoSuccess > 0 ? 'animate-pulse text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'text-stone-600';
 
+    // PATTERN COGNIZANCE & PORTAL GENERATION
+    const pm = myPc.patternMagic || {};
+    const totalRanks = pm ? ['spatia', 'wyird', 'dynamis', 'vitar', 'formus', 'mentis', 'arcani', 'umbrus', 'tempus'].reduce((sum, key) => sum + (pm[key] || 0), 0) : 0;
+    const hasPatternAccess = myPc.patternMagicUnlocked === true || totalRanks > 0;
+
+    let portalGlyphHtml = '';
+    if (hasPatternAccess || camp._isDM) {
+        const isCurrentlyInNexus = state.currentView === 'pattern-nexus';
+        const glyphClickAction = isCurrentlyInNexus 
+            ? `window.appActions.setView('adventure')` 
+            : `window.appActions.setView('pattern-nexus')`;
+        
+        const pulseClass = isCurrentlyInNexus ? 'text-amber-500 animate-spin' : 'text-cyan-400 animate-pulse';
+        const borderGlow = isCurrentlyInNexus ? 'border-amber-500 shadow-[0_0_8px_#f59e0b]' : 'border-cyan-500 shadow-[0_0_12px_#06b6d4]';
+        const titleText = isCurrentlyInNexus ? "Return to Campaign Scroll" : "Shift to The Pattern Nexus";
+
+        portalGlyphHtml = `
+            <button onclick="${glyphClickAction}" class="ml-3 w-8 h-8 rounded-full border bg-stone-950 flex items-center justify-center hover:scale-105 transition-all ${borderGlow}" title="${titleText}" onclick="event.stopPropagation();">
+                <i class="fa-solid fa-compass-drafting text-xs ${pulseClass}"></i>
+            </button>
+        `;
+    }
+
     bar.innerHTML = `
         <div class="bg-[#292524] border-b-2 border-stone-800 p-3 px-5 flex flex-col sm:flex-row justify-between items-center gap-3 shadow-inner bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')]">
             <div class="font-serif font-bold text-amber-500 text-sm sm:text-base truncate flex items-center">
@@ -327,6 +379,10 @@ export function updatePlayerResourceBar(state) {
                     <i class="fa-solid fa-check-double ${autoPulse} text-sm sm:text-lg transition-all duration-300"></i>
                     <span class="${autoSuccess > 0 ? 'text-emerald-500' : 'text-stone-600'}">Auto <span class="text-white">${autoSuccess}</span></span>
                 </div>
+                ${portalGlyphHtml ? `
+                <div class="w-px h-5 bg-stone-900"></div>
+                ${portalGlyphHtml}
+                ` : ''}
             </div>
         </div>
     `;
@@ -870,6 +926,7 @@ export function renderApp(state) {
         case 'webs': html = getWebsHTML(state); break; 
         case 'atlas': html = getAtlasHTML(state); break; 
         case 'activity-log': html = getActivityLogHTML(state); break;
+        case 'pattern-nexus': html = getPatternNexusHTML(state); break; 
         default: html = `<div class="text-center text-red-500">Unknown View: ${state.currentView}</div>`;
     }
 
