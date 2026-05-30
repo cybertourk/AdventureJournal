@@ -173,7 +173,7 @@ export function updateHeaderUI(state) {
             break;
         case 'activity-log': breadcrumbText = 'Activity Log'; showBack = true; break;
         case 'pattern-nexus':
-            // THEMATIC HEADER MORPH FOR THE ALTERNATE REALITY VIEW
+            // RADICAL THEMATIC HEADER MORPH FOR THE ALTERNATE REALITY VIEW
             if (titleEl) titleEl.innerHTML = `<span class="glow-cyan font-mono tracking-widest text-cyan-400">THE PATTERN NEXUS</span>`;
             if (breadcrumbEl) breadcrumbEl.innerHTML = `<span class="font-mono tracking-tighter text-[9px] text-cyan-500/50">IDENTITY SYNC ACTIVE // DIMENSIONAL SHIFT</span>`;
             if (iconEl) {
@@ -303,8 +303,8 @@ export function updatePlayerResourceBar(state) {
 
     const camp = state.activeCampaign;
     
-    // Hide bar on home view, or for DM except inside the specialized Pattern Nexus dashboard
-    if (!camp || state.currentView === 'home' || (camp._isDM && state.currentView !== 'pattern-nexus')) {
+    // Hide bar on home view, or if there is no active campaign selected
+    if (!camp || state.currentView === 'home') {
         bar.innerHTML = '';
         return;
     }
@@ -746,7 +746,7 @@ export function updateChecklistUI(state) {
                         </div>
                     </div>
                     
-                    <!-- Rewards & Clues (Moved inside expansion!) -->
+                    <!-- Rewards & Clues -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] text-stone-700">
                         ${q.rewards ? `<div class="bg-[#fdfbf7] p-2 rounded border border-amber-600/10"><span class="font-bold text-stone-900 block uppercase tracking-wider text-[8px] mb-0.5"><i class="fa-solid fa-gift text-amber-500 mr-1"></i>Rewards</span>${q.rewards}</div>` : ''}
                         ${q.clues ? `<div class="bg-[#fdfbf7] p-2 rounded border border-amber-600/10"><span class="font-bold text-stone-900 block uppercase tracking-wider text-[8px] mb-0.5"><i class="fa-solid fa-key text-amber-500 mr-1"></i>Clues & Info</span>${q.clues}</div>` : ''}
@@ -1220,7 +1220,7 @@ if (typeof window !== 'undefined') {
         quest.status = status;
         await saveCampaign(camp);
 
-        notify(`Quest status updated to: ${status}`, "info");
+        notify("Quest status updated.", "info");
         reRender(true);
     };
 
