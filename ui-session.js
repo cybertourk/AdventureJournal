@@ -1,7 +1,6 @@
 import { renderLevelOptions, renderSmartField } from './ui-core.js';
 import { reRender } from './state.js';
 
-
 // Helper to generate the visibility toggle button
 function renderVisToggle(visObj) {
     const mode = visObj?.mode || 'hidden'; // Default to hidden for new notes so they are private between author and DM
@@ -75,7 +74,7 @@ function renderChronicleLog(session, camp, myUid, adv) {
 
     let html = '<div class="space-y-3 mb-4" id="chronicle-feed">';
     if (entries.length === 0) {
-        html += `<div class="p-6 text-center border border-dashed border-stone-400 bg-stone-50 rounded-sm"><p class="text-stone-500 italic text-sm font-serif">The chronicle is silent. Add an entry below to begin the collaborative record.</p></div>`;
+        html += `<div class="p-6 text-center border border-dashed border-stone-400 bg-stone-50 disabled-bg rounded-sm"><p class="text-stone-500 italic text-sm font-serif">The chronicle is silent. Add an entry below to begin the collaborative record.</p></div>`;
     } else {
         entries.forEach(entry => {
             const isAuthor = entry.authorId === myUid;
@@ -138,7 +137,7 @@ function renderChronicleLog(session, camp, myUid, adv) {
         <input type="hidden" id="edit-chronicle-id" value="">
         
         <div class="flex flex-wrap justify-between items-end mb-1 gap-2">
-            <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest"><i class="fa-solid fa-comment-dots mr-1"></i> Contribute to Chronicle</label>
+            <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest"><i class="fa-solid fa-comment-dots mr-1"></i> Scribe to Chronicle</label>
             <div class="flex gap-1 bg-stone-200 p-1 rounded-sm border border-[#d4c5a9] shadow-sm ml-auto overflow-x-auto hide-scrollbar">
                 <button type="button" onclick="window.appActions.formatText('new-chronicle-input', 'bold')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-700 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bold"><i class="fa-solid fa-bold"></i></button>
                 <button type="button" onclick="window.appActions.formatText('new-chronicle-input', 'italic')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-700 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Italic"><i class="fa-solid fa-italic"></i></button>
@@ -202,112 +201,104 @@ export function getSessionEditHTML(state) {
             return false;
         };
 
-        // Render tab content based on active state
-        let activeTabContentHtml = '';
-
-        if (activeTab === 'narrative') {
-            let dmNarrativeHtml = '';
-            // Render Scenes
-            if (session.scenes && session.scenes.length > 0) {
-                const visibleScenes = session.scenes.filter(s => isVisible(s.visibility) && s.text.trim());
-                if (visibleScenes.length > 0) {
-                    dmNarrativeHtml += `<h4 class="font-serif font-bold text-lg text-stone-800 mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-masks-theater text-red-900 mr-2"></i>The Story Unfolds</h4><div class="space-y-4 mb-6">`;
-                    visibleScenes.forEach((scene, idx) => {
-                        const parsed = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(scene.text) : scene.text;
-                        dmNarrativeHtml += `<div class="bg-white p-4 border border-[#d4c5a9] rounded-sm shadow-sm text-sm text-stone-800 font-serif leading-relaxed"><span class="text-[10px] font-bold uppercase tracking-widest text-stone-400 block mb-2">Scene ${scene.id || idx + 1}</span>${parsed}</div>`;
-                    });
-                    dmNarrativeHtml += `</div>`;
-                }
+        // RENDER PLAYER TABS CONCURRENTLY TO SECURE PERSISTENCE
+        
+        // Tab 1: Narrative
+        let dmNarrativeHtml = '';
+        if (session.scenes && session.scenes.length > 0) {
+            const visibleScenes = session.scenes.filter(s => isVisible(s.visibility) && s.text.trim());
+            if (visibleScenes.length > 0) {
+                dmNarrativeHtml += `<h4 class="font-serif font-bold text-lg text-stone-800 mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-masks-theater text-red-900 mr-2"></i>The Story Unfolds</h4><div class="space-y-4 mb-6">`;
+                visibleScenes.forEach((scene, idx) => {
+                    const parsed = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(scene.text) : scene.text;
+                    dmNarrativeHtml += `<div class="bg-white p-4 border border-[#d4c5a9] rounded-sm shadow-sm text-sm text-stone-800 font-serif leading-relaxed"><span class="text-[10px] font-bold uppercase tracking-widest text-stone-400 block mb-2">Scene ${scene.id || idx + 1}</span>${parsed}</div>`;
+                });
+                dmNarrativeHtml += `</div>`;
             }
+        }
 
-            // Render DM Notes / Epilogue
-            if (session.notes && session.notes.trim() && isVisible(session.notesVisibility)) {
-                const parsed = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(session.notes) : session.notes;
-                dmNarrativeHtml += `<h4 class="font-serif font-bold text-lg text-stone-800 mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-book text-stone-500 mr-2"></i>Epilogue & Notes</h4>`;
-                dmNarrativeHtml += `<div class="bg-white p-4 border border-[#d4c5a9] rounded-sm shadow-sm text-sm text-stone-800 font-serif leading-relaxed mb-6">${parsed}</div>`;
+        if (session.notes && session.notes.trim() && isVisible(session.notesVisibility)) {
+            const parsed = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(session.notes) : session.notes;
+            dmNarrativeHtml += `<h4 class="font-serif font-bold text-lg text-stone-800 mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-book text-stone-500 mr-2"></i>Epilogue & Notes</h4>`;
+            dmNarrativeHtml += `<div class="bg-white p-4 border border-[#d4c5a9] rounded-sm shadow-sm text-sm text-stone-800 font-serif leading-relaxed mb-6">${parsed}</div>`;
+        }
+        const narrativeContentHtml = dmNarrativeHtml || `<p class="text-stone-500 italic text-sm py-4">No public narrative chronicles recorded for this session.</p>`;
+
+        // Tab 2: Clues & Discoveries & Shared Loot
+        let cluesTabHtml = `<h4 class="font-serif font-bold text-lg text-stone-800 mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-magnifying-glass text-amber-700 mr-2"></i>Discoveries & Objectives</h4>`;
+        cluesTabHtml += `<ul class="space-y-2 mb-3">`;
+        
+        let cluesListHtml = '';
+        if (session.clues && session.clues.length > 0) {
+            const visibleClues = session.clues.filter(c => isVisible(c.visibility) && c.text.trim());
+            if (visibleClues.length > 0) {
+                visibleClues.forEach(clue => {
+                    const parsed = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(clue.text) : clue.text;
+                    const isDMClue = clue.authorId === camp.dmId || !clue.authorId;
+                    const authorName = isDMClue ? 'DM' : (camp.playerNames?.[clue.authorId] || 'Player');
+                    const authorBadge = isDMClue ? '' : `<span class="ml-2 text-[9px] font-bold uppercase tracking-widest text-blue-700 bg-blue-100 border border-blue-200 px-1.5 py-0.5 rounded-sm shrink-0 whitespace-nowrap align-middle"><i class="fa-solid fa-user mr-1"></i>${authorName}</span>`;
+                    
+                    let deleteBtn = '';
+                    if (clue.authorId === myUid) {
+                        deleteBtn = `<button type="button" onclick="window.appActions.deleteSessionClue('${clue.id}')" class="ml-2 text-stone-400 hover:text-red-600 transition p-1"><i class="fa-solid fa-trash text-[10px]"></i></button>`;
+                    }
+
+                    cluesListHtml += `
+                    <li class="bg-white p-3 border border-[#d4c5a9] rounded-sm shadow-sm text-sm text-stone-800 flex justify-between items-start gap-3 group">
+                        <div class="flex gap-3 items-start min-w-0">
+                            <i class="fa-solid fa-magnifying-glass text-amber-600 mt-1 shrink-0"></i> 
+                            <div class="leading-relaxed break-words">${parsed} ${authorBadge}</div>
+                        </div>
+                        <div class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                            ${deleteBtn}
+                        </div>
+                    </li>`;
+                });
             }
+        }
 
-            activeTabContentHtml = dmNarrativeHtml || `<p class="text-stone-500 italic text-sm py-4">No public narrative chronicles recorded for this session.</p>`;
+        cluesTabHtml += cluesListHtml || `<li class="text-stone-500 italic text-sm py-2 px-3">No public discoveries have been revealed.</li>`;
+        cluesTabHtml += `</ul>`;
+        
+        cluesTabHtml += `
+            <div class="mt-4 flex gap-2 items-center bg-stone-100 p-2 border border-[#d4c5a9] rounded-sm shadow-inner mb-2">
+                <input type="text" id="new-player-clue" class="flex-grow p-2 text-xs sm:text-sm border border-[#d4c5a9] rounded-sm focus:border-amber-600 outline-none shadow-sm bg-white font-sans placeholder:italic placeholder:text-stone-400" placeholder="Log a new discovery or objective..." onkeydown="if(event.key === 'Enter') { window.appActions.submitSessionClue(); }">
+                <button type="button" onclick="window.appActions.submitSessionClue()" class="px-4 py-2 bg-amber-700 text-amber-50 rounded-sm hover:bg-amber-600 transition text-[10px] font-bold uppercase tracking-wider shadow-md whitespace-nowrap flex items-center h-full"><i class="fa-solid fa-plus sm:mr-1"></i> <span class="hidden sm:inline">Add Clue</span></button>
+            </div>
+        `;
 
-        } else if (activeTab === 'clues') {
-            let cluesTabHtml = `<h4 class="font-serif font-bold text-lg text-stone-800 mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-magnifying-glass text-amber-700 mr-2"></i>Discoveries & Objectives</h4>`;
-            cluesTabHtml += `<ul class="space-y-2 mb-3">`;
-            
-            let cluesListHtml = '';
-            if (session.clues && session.clues.length > 0) {
-                const visibleClues = session.clues.filter(c => isVisible(c.visibility) && c.text.trim());
-                if (visibleClues.length > 0) {
-                    visibleClues.forEach(clue => {
-                        const parsed = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(clue.text) : clue.text;
-                        const isDMClue = clue.authorId === camp.dmId || !clue.authorId;
-                        const authorName = isDMClue ? 'DM' : (camp.playerNames?.[clue.authorId] || 'Player');
-                        const authorBadge = isDMClue ? '' : `<span class="ml-2 text-[9px] font-bold uppercase tracking-widest text-blue-700 bg-blue-100 border border-blue-200 px-1.5 py-0.5 rounded-sm shrink-0 whitespace-nowrap align-middle"><i class="fa-solid fa-user mr-1"></i>${authorName}</span>`;
-                        
-                        let deleteBtn = '';
-                        if (clue.authorId === myUid) {
-                            deleteBtn = `<button type="button" onclick="window.appActions.deleteSessionClue('${clue.id}')" class="ml-2 text-stone-400 hover:text-red-600 transition p-1"><i class="fa-solid fa-trash text-[10px]"></i></button>`;
-                        }
+        if (session.lootText && session.lootText.trim() && isVisible(session.lootVisibility)) {
+            const parsedLoot = (window.appActions && window.appActions.parseSmartText) 
+                ? window.appActions.parseSmartText(session.lootText) 
+                : session.lootText;
 
-                        cluesListHtml += `
-                        <li class="bg-white p-3 border border-[#d4c5a9] rounded-sm shadow-sm text-sm text-stone-800 flex justify-between items-start gap-3 group">
-                            <div class="flex gap-3 items-start min-w-0">
-                                <i class="fa-solid fa-magnifying-glass text-amber-600 mt-1 shrink-0"></i> 
-                                <div class="leading-relaxed break-words">${parsed} ${authorBadge}</div>
-                            </div>
-                            <div class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
-                                ${deleteBtn}
-                            </div>
-                        </li>`;
-                    });
-                }
-            }
-
-            cluesTabHtml += cluesListHtml || `<li class="text-stone-500 italic text-sm py-2 px-3">No public discoveries have been revealed.</li>`;
-            cluesTabHtml += `</ul>`;
-            
-            // Add Clue Input
             cluesTabHtml += `
-                <div class="mt-4 flex gap-2 items-center bg-stone-100 p-2 border border-[#d4c5a9] rounded-sm shadow-inner mb-2">
-                    <input type="text" id="new-player-clue" class="flex-grow p-2 text-xs sm:text-sm border border-[#d4c5a9] rounded-sm focus:border-amber-600 outline-none shadow-sm bg-white font-sans placeholder:italic placeholder:text-stone-400" placeholder="Log a new discovery or objective..." onkeydown="if(event.key === 'Enter') { window.appActions.submitSessionClue(); }">
-                    <button type="button" onclick="window.appActions.submitSessionClue()" class="px-4 py-2 bg-amber-700 text-amber-50 rounded-sm hover:bg-amber-600 transition text-[10px] font-bold uppercase tracking-wider shadow-md whitespace-nowrap flex items-center h-full"><i class="fa-solid fa-plus sm:mr-1"></i> <span class="hidden sm:inline">Add Clue</span></button>
+            <div class="mt-8 pt-5 border-t border-[#d4c5a9]">
+                <h4 class="font-serif font-bold text-lg text-stone-900 mb-3 flex items-center"><i class="fa-solid fa-coins text-amber-500 mr-2"></i>Loot & Rewards</h4>
+                <div class="bg-amber-50/40 p-4 border border-[#d4c5a9] rounded-sm shadow-inner text-sm text-stone-800 font-serif leading-relaxed">
+                    ${parsedLoot}
                 </div>
-            `;
-
-            // --- INJECT DISTRIBUTED LOOT & REWARDS REDESIGN ---
-            if (session.lootText && session.lootText.trim() && isVisible(session.lootVisibility)) {
-                const parsedLoot = (window.appActions && window.appActions.parseSmartText) 
-                    ? window.appActions.parseSmartText(session.lootText) 
-                    : session.lootText;
-
-                cluesTabHtml += `
-                <div class="mt-8 pt-5 border-t border-[#d4c5a9]">
-                    <h4 class="font-serif font-bold text-lg text-stone-900 mb-3 flex items-center"><i class="fa-solid fa-coins text-amber-500 mr-2"></i>Loot & Rewards</h4>
-                    <div class="bg-amber-50/40 p-4 border border-[#d4c5a9] rounded-sm shadow-inner text-sm text-stone-800 font-serif leading-relaxed">
-                        ${parsedLoot}
-                    </div>
-                </div>
-                `;
-            }
-
-            activeTabContentHtml = cluesTabHtml;
-
-        } else if (activeTab === 'chronicle') {
-            activeTabContentHtml = `
-                <div class="mb-4">
-                    <h4 class="font-serif font-bold text-lg text-stone-900 border-b border-[#d4c5a9] pb-1 mb-3"><i class="fa-solid fa-users text-amber-600 mr-2"></i> Collaborative Chronicle</h4>
-                    <p class="text-stone-500 text-[10px] uppercase tracking-widest font-bold mb-4">A shared record of events, quotes, and memories.</p>
-                    ${renderChronicleLog(session, camp, myUid, adv)}
-                </div>
-            `;
-        } else if (activeTab === 'journal') {
-            activeTabContentHtml = `
-                <div class="mb-4">
-                    <h4 class="font-serif font-bold text-lg text-stone-900 border-b border-[#d4c5a9] pb-1 mb-3"><i class="fa-solid fa-lock text-stone-500 mr-2"></i> Private Details</h4>
-                    <p class="text-stone-500 text-xs sm:text-sm mb-4 italic border-l-2 border-blue-500 pl-3">Record your private thoughts, inventory updates, or quest notes for this session. By default, these are only visible to you and the Dungeon Master.</p>
-                    ${renderSmartFieldWithVis(`player-note-${myUid}`, `<i class="fa-solid fa-book-open mr-2 text-stone-500"></i> My Hero's Journal`, myNoteData.text, myNoteData.visibility, 'Scribe your personal notes here... Codex names link automatically.', 8, false)}
-                </div>
+            </div>
             `;
         }
+
+        // Tab 3: Chronicle
+        const chronicleTabHtml = `
+            <div class="mb-4">
+                <h4 class="font-serif font-bold text-lg text-stone-900 border-b border-[#d4c5a9] pb-1 mb-3"><i class="fa-solid fa-users text-amber-600 mr-2"></i> Collaborative Chronicle</h4>
+                <p class="text-stone-500 text-[10px] uppercase tracking-widest font-bold mb-4">A shared record of events, quotes, and memories.</p>
+                ${renderChronicleLog(session, camp, myUid, adv)}
+            </div>
+        `;
+
+        // Tab 4: Private Journal
+        const journalTabHtml = `
+            <div class="mb-4">
+                <h4 class="font-serif font-bold text-lg text-stone-900 border-b border-[#d4c5a9] pb-1 mb-3"><i class="fa-solid fa-lock text-stone-500 mr-2"></i> Private Details</h4>
+                <p class="text-stone-500 text-xs sm:text-sm mb-4 italic border-l-2 border-blue-500 pl-3">Record your private thoughts, inventory updates, or quest notes for this session. By default, these are only visible to you and the Dungeon Master.</p>
+                ${renderSmartFieldWithVis(`player-note-${myUid}`, `<i class="fa-solid fa-book-open mr-2 text-stone-500"></i> My Hero's Journal`, myNoteData.text, myNoteData.visibility, 'Scribe your personal notes here... Codex names link automatically.', 8, false)}
+            </div>
+        `;
 
         const getPlayerTabClass = (tabId) => {
             if (tabId === activeTab) {
@@ -344,7 +335,20 @@ export function getSessionEditHTML(state) {
             <div class="flex-grow overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 bg-[#fdfbf7]">
                 <div class="max-w-3xl mx-auto">
                     <h3 class="w-full pb-3 mb-5 text-stone-900 font-serif font-bold text-2xl border-b border-[#d4c5a9]">${session.name || 'Session'}</h3>
-                    ${activeTabContentHtml}
+                    
+                    <!-- TAB CONTAINER PANELS (Shown/Hidden via CSS) -->
+                    <div id="p-tab-panel-narrative" class="${activeTab === 'narrative' ? '' : 'hidden'}">
+                        ${narrativeContentHtml}
+                    </div>
+                    <div id="p-tab-panel-clues" class="${activeTab === 'clues' ? '' : 'hidden'}">
+                        ${cluesTabHtml}
+                    </div>
+                    <div id="p-tab-panel-chronicle" class="${activeTab === 'chronicle' ? '' : 'hidden'}">
+                        ${chronicleTabHtml}
+                    </div>
+                    <div id="p-tab-panel-journal" class="${activeTab === 'journal' ? '' : 'hidden'}">
+                        ${journalTabHtml}
+                    </div>
                 </div>
             </div>
 
@@ -470,130 +474,133 @@ export function getSessionEditHTML(state) {
     // Default DM sub-tab state
     const activeDmSubTab = state.activeDmSessionTab || 'setup';
 
-    let dmSubTabContentHtml = '';
-    if (activeDmSubTab === 'setup') {
-        dmSubTabContentHtml = `
-            <div class="space-y-4">
-                <input type="text" id="draft-name" value="${defaultName}" class="w-full p-2 bg-transparent border-b-2 border-stone-400 text-stone-900 font-serif font-bold text-2xl outline-none focus:border-red-900 mb-4 transition-colors" placeholder="Session Title...">
-
-                <!-- Dates Configuration -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div>
-                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1"><i class="fa-regular fa-calendar text-stone-400 mr-1"></i> Real-World Date</label>
-                        <input type="date" id="draft-real-date" value="${defaultRealDate}" class="w-full p-2 bg-transparent border-b-2 border-stone-400 text-stone-900 font-serif text-sm outline-none focus:border-red-900 transition-colors">
-                    </div>
-                    
-                    <div class="md:row-span-2">
-                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1"><i class="fa-solid fa-moon text-stone-400 mr-1"></i> In-Game Dates</label>
-                        <div class="bg-stone-50 border border-stone-300 rounded-sm p-3 shadow-inner">
-                            
-                            <!-- Start Date -->
-                            <div class="flex items-center gap-1 mb-2">
-                                <span class="text-[10px] uppercase font-bold text-stone-400 w-8">Start</span>
-                                <input type="number" id="draft-ingame-y" value="${igY}" onchange="window.appActions.syncSessionDates('startdate')" class="w-16 p-1.5 bg-white border border-[#d4c5a9] rounded-sm text-stone-900 font-serif text-xs outline-none focus:border-red-900 text-center shadow-sm">
-                                <select id="draft-ingame-m" onchange="window.updateDayOptions(this.value, 'draft-ingame-d'); window.appActions.syncSessionDates('startdate')" class="flex-grow p-1.5 bg-white border border-[#d4c5a9] rounded-sm text-stone-900 font-serif text-xs outline-none focus:border-red-900 shadow-sm">
-                                    ${(camp.calendar?.months || []).map((m, idx) => {
-                                        let mName = m.name;
-                                        if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
-                                        return `<option value="${idx}" ${idx === igM ? 'selected' : ''}>${mName}</option>`;
-                                    }).join('')}
-                                </select>
-                                <select id="draft-ingame-d" onchange="window.appActions.syncSessionDates('startdate')" class="w-14 p-1.5 bg-white border border-[#d4c5a9] rounded-sm text-stone-900 font-serif text-xs outline-none focus:border-red-900 text-center shadow-sm">
-                                    ${Array.from({ length: Math.max(1, parseInt(camp.calendar?.months[igM]?.days || 1, 10)) }).map((_, i) => `<option value="${i+1}" ${i+1 === igD ? 'selected' : ''}>${i+1}</option>`).join('')}
-                                </select>
-                            </div>
-
-                            <!-- End Date -->
-                            <div class="flex items-center gap-1 mb-2">
-                                <span class="text-[10px] uppercase font-bold text-stone-400 w-8">End</span>
-                                <input type="number" id="draft-ingame-end-y" value="${igEndY}" onchange="window.appActions.syncSessionDates('enddate')" class="w-16 p-1.5 bg-white border border-[#d4c5a9] rounded-sm text-stone-900 font-serif text-xs outline-none focus:border-red-900 text-center shadow-sm">
-                                <select id="draft-ingame-end-m" onchange="window.updateDayOptions(this.value, 'draft-ingame-end-d'); window.appActions.syncSessionDates('enddate')" class="flex-grow p-1.5 bg-white border border-[#d4c5a9] rounded-sm text-stone-900 font-serif text-xs outline-none focus:border-red-900 shadow-sm">
-                                    ${(camp.calendar?.months || []).map((m, idx) => {
-                                        let mName = m.name;
-                                        if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
-                                        return `<option value="${idx}" ${idx === igEndM ? 'selected' : ''}>${mName}</option>`;
-                                    }).join('')}
-                                </select>
-                                <select id="draft-ingame-end-d" onchange="window.appActions.syncSessionDates('enddate')" class="w-14 p-1.5 bg-white border border-[#d4c5a9] rounded-sm text-stone-900 font-serif text-xs outline-none focus:border-red-900 text-center shadow-sm">
-                                    ${Array.from({ length: Math.max(1, parseInt(camp.calendar?.months[igEndM]?.days || 1, 10)) }).map((_, i) => `<option value="${i+1}" ${i+1 === igEndD ? 'selected' : ''}>${i+1}</option>`).join('')}
-                                </select>
-                            </div>
-                            
-                            <!-- Duration -->
-                            <div class="flex justify-end items-center gap-2 pt-2 border-t border-stone-200">
-                                <span class="text-[10px] uppercase font-bold text-stone-400">Duration</span>
-                                <input type="number" id="draft-ingame-dur" value="${igDur}" min="1" oninput="window.appActions.syncSessionDates('duration')" class="w-16 p-1.5 bg-white border border-[#d4c5a9] rounded-sm text-stone-900 font-bold text-xs outline-none focus:border-red-900 text-center shadow-sm">
-                                <span class="text-[10px] uppercase font-bold text-stone-400">Days</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Banner Image Configuration -->
-                    <div>
-                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1"><i class="fa-solid fa-image text-stone-400 mr-1"></i> Banner Image URL <span class="text-stone-400 normal-case font-normal">(Optional)</span></label>
-                        <input type="text" id="draft-image" value="${(session.image || '').replace(/"/g, '&quot;')}" class="w-full p-2 bg-transparent border-b-2 border-stone-400 text-stone-900 font-serif text-sm outline-none focus:border-red-900 transition-colors" placeholder="https://example.com/session-banner.jpg">
-                    </div>
-                </div>
-
-                <!-- Dynamic Scenes -->
-                <div class="mt-6">
-                    <div class="flex justify-between items-center mb-3">
-                        <h3 class="text-sm font-bold text-stone-800 uppercase tracking-widest flex items-center border-b border-stone-300 w-full pb-1"><i class="fa-solid fa-masks-theater mr-2 text-stone-500"></i> Narrative Scenes</h3>
-                    </div>
-                    <div id="container-scenes" class="min-h-[10px]">
-                        ${scenesHtml}
-                    </div>
-                    <button type="button" onclick="window.appActions.addLogScene()" class="w-full py-3 border border-dashed border-stone-400 text-stone-500 hover:text-stone-800 hover:border-stone-600 hover:bg-stone-200 transition rounded-sm text-xs font-bold uppercase tracking-wider flex items-center justify-center">
-                        <i class="fa-solid fa-plus mr-2"></i> Add Scene
-                    </button>
-                </div>
-            </div>
-        `;
-    } else if (activeDmSubTab === 'clues') {
-        dmSubTabContentHtml = `
-            <div class="space-y-6">
-                <!-- Dynamic Clues -->
-                <div>
-                    <div class="flex justify-between items-center mb-3">
-                        <h3 class="text-sm font-bold text-stone-800 uppercase tracking-widest flex items-center border-b border-stone-300 w-full pb-1"><i class="fa-solid fa-magnifying-glass mr-2 text-stone-500"></i> Investigation & Clues</h3>
-                    </div>
-                    <div id="container-clues" class="min-h-[10px]">
-                        ${cluesHtml}
-                    </div>
-                    <button type="button" onclick="window.appActions.addLogClue()" class="w-full py-2.5 border border-dashed border-stone-400 text-stone-500 hover:text-stone-800 hover:border-stone-600 hover:bg-stone-200 transition rounded-sm text-xs font-bold uppercase tracking-wider flex items-center justify-center mt-2">
-                        <i class="fa-solid fa-plus mr-2"></i> Add Clue
-                    </button>
-                </div>
-
-                <!-- Loot & Rewards -->
-                <div class="pt-4">
-                    ${renderSmartFieldWithVis('draft-loot', `<i class="fa-solid fa-coins mr-2 text-stone-500"></i> Loot & Rewards`, session.lootText, session.lootVisibility, 'Describe the treasure found...', 4)}
-                </div>
-            </div>
-        `;
-    } else if (activeDmSubTab === 'notes') {
-        dmSubTabContentHtml = `
-            <div class="space-y-6">
-                ${renderSmartFieldWithVis('draft-notes', `<i class="fa-solid fa-book mr-2 text-stone-500"></i> DM Overview & Context`, session.notes, session.notesVisibility, 'The primary summary or hidden DM notes...', 4)}
-                ${renderSmartFieldWithVis(`player-note-${myUid}`, `<i class="fa-solid fa-feather mr-2 text-stone-500"></i> My Personal Notes`, myNoteData.text, myNoteData.visibility, 'Record your private DM/player thoughts here...', 4)}
-            </div>
-        `;
-    } else if (activeDmSubTab === 'chronicle') {
-        dmSubTabContentHtml = `
-            <div class="mb-4">
-                <h3 class="text-sm font-bold text-stone-800 uppercase tracking-widest flex items-center border-b border-stone-300 w-full pb-1 mb-3"><i class="fa-solid fa-users mr-2 text-stone-500"></i> Collaborative Chronicle</h3>
-                <p class="text-stone-500 text-[10px] uppercase tracking-widest font-bold mb-4">A shared record of events, quotes, and memories.</p>
-                ${renderChronicleLog(session, camp, myUid, adv)}
-            </div>
-        `;
-    }
-
     const getDmSubTabClass = (subTabId) => {
         if (subTabId === activeDmSubTab) {
             return "px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider rounded-sm bg-white text-stone-900 border border border-[#d4c5a9] shadow-sm";
         }
         return "px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider rounded-sm text-stone-500 hover:text-stone-800 transition";
     };
+
+    // RENDER ALL DM SUB-TABS CONCURRENTLY TO RETAIN STATE IN THE DOM AT ALL TIMES
+    
+    // Sub-Tab 1: Setup & Scenes
+    const setupSubTabHtml = `
+        <div id="subtab-panel-setup" class="${activeDmSubTab === 'setup' ? '' : 'hidden'} space-y-4">
+            <input type="text" id="draft-name" value="${defaultName}" class="w-full p-2 bg-transparent border-b-2 border-stone-400 text-stone-900 font-serif font-bold text-2xl outline-none focus:border-red-900 mb-4 transition-colors" placeholder="Session Title...">
+
+            <!-- Dates Configuration -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1"><i class="fa-regular fa-calendar text-stone-400 mr-1"></i> Real-World Date</label>
+                    <input type="date" id="draft-real-date" value="${defaultRealDate}" class="w-full p-2 bg-transparent border-b-2 border-stone-400 text-stone-900 font-serif text-sm outline-none focus:border-red-900 transition-colors">
+                </div>
+                
+                <div class="md:row-span-2">
+                    <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1"><i class="fa-solid fa-moon text-stone-400 mr-1"></i> In-Game Dates</label>
+                    <div class="bg-stone-50 border border-stone-300 rounded-sm p-3 shadow-inner">
+                        
+                        <!-- Start Date -->
+                        <div class="flex items-center gap-1 mb-2">
+                            <span class="text-[10px] uppercase font-bold text-stone-400 w-8">Start</span>
+                            <input type="number" id="draft-ingame-y" value="${igY}" onchange="window.appActions.syncSessionDates('startdate')" class="w-16 p-1.5 bg-white border border-[#d4c5a9] rounded-sm text-stone-900 font-serif text-xs outline-none focus:border-red-900 text-center shadow-sm">
+                            <select id="draft-ingame-m" onchange="window.updateDayOptions(this.value, 'draft-ingame-d'); window.appActions.syncSessionDates('startdate')" class="flex-grow p-1.5 bg-white border border-[#d4c5a9] rounded-sm text-stone-900 font-serif text-xs outline-none focus:border-red-900 shadow-sm">
+                                ${(camp.calendar?.months || []).map((m, idx) => {
+                                    let mName = m.name;
+                                    if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
+                                    return `<option value="${idx}" ${idx === igM ? 'selected' : ''}>${mName}</option>`;
+                                }).join('')}
+                            </select>
+                            <select id="draft-ingame-d" onchange="window.appActions.syncSessionDates('startdate')" class="w-14 p-1.5 bg-white border border-[#d4c5a9] rounded-sm text-stone-900 font-serif text-xs outline-none focus:border-red-900 text-center shadow-sm">
+                                ${Array.from({ length: Math.max(1, parseInt(camp.calendar?.months[igM]?.days || 1, 10)) }).map((_, i) => `<option value="${i+1}" ${i+1 === igD ? 'selected' : ''}>${i+1}</option>`).join('')}
+                            </select>
+                        </div>
+
+                        <!-- End Date -->
+                        <div class="flex items-center gap-1 mb-2">
+                            <span class="text-[10px] uppercase font-bold text-stone-400 w-8">End</span>
+                            <input type="number" id="draft-ingame-end-y" value="${igEndY}" onchange="window.appActions.syncSessionDates('enddate')" class="w-16 p-1.5 bg-white border border-[#d4c5a9] rounded-sm text-stone-900 font-serif text-xs outline-none focus:border-red-900 text-center shadow-sm">
+                            <select id="draft-ingame-end-m" onchange="window.updateDayOptions(this.value, 'draft-ingame-end-d'); window.appActions.syncSessionDates('enddate')" class="flex-grow p-1.5 bg-white border border-[#d4c5a9] rounded-sm text-stone-900 font-serif text-xs outline-none focus:border-red-900 shadow-sm">
+                                ${(camp.calendar?.months || []).map((m, idx) => {
+                                    let mName = m.name;
+                                    if (m.nickname === undefined && m.lore === undefined && mName.includes('(')) mName = mName.split('(')[0].trim();
+                                    return `<option value="${idx}" ${idx === igEndM ? 'selected' : ''}>${mName}</option>`;
+                                }).join('')}
+                            </select>
+                            <select id="draft-ingame-end-d" onchange="window.appActions.syncSessionDates('enddate')" class="w-14 p-1.5 bg-white border border-[#d4c5a9] rounded-sm text-stone-900 font-serif text-xs outline-none focus:border-red-900 text-center shadow-sm">
+                                ${Array.from({ length: Math.max(1, parseInt(camp.calendar?.months[igEndM]?.days || 1, 10)) }).map((_, i) => `<option value="${i+1}" ${i+1 === igEndD ? 'selected' : ''}>${i+1}</option>`).join('')}
+                            </select>
+                        </div>
+                        
+                        <!-- Duration -->
+                        <div class="flex justify-end items-center gap-2 pt-2 border-t border-stone-200">
+                            <span class="text-[10px] uppercase font-bold text-stone-400">Duration</span>
+                            <input type="number" id="draft-ingame-dur" value="${igDur}" min="1" oninput="window.appActions.syncSessionDates('duration')" class="w-16 p-1.5 bg-white border border-[#d4c5a9] rounded-sm text-stone-900 font-bold text-xs outline-none focus:border-red-900 text-center shadow-sm">
+                            <span class="text-[10px] uppercase font-bold text-stone-400">Days</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Banner Image Configuration -->
+                <div>
+                    <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1"><i class="fa-solid fa-image text-stone-400 mr-1"></i> Banner Image URL <span class="text-stone-400 normal-case font-normal">(Optional)</span></label>
+                    <input type="text" id="draft-image" value="${(session.image || '').replace(/"/g, '&quot;')}" class="w-full p-2 bg-transparent border-b-2 border-stone-400 text-stone-900 font-serif text-sm outline-none focus:border-red-900 transition-colors" placeholder="https://example.com/session-banner.jpg">
+                </div>
+            </div>
+
+            <!-- Dynamic Scenes -->
+            <div class="mt-6">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-sm font-bold text-stone-800 uppercase tracking-widest flex items-center border-b border-stone-300 w-full pb-1"><i class="fa-solid fa-masks-theater mr-2 text-stone-500"></i> Narrative Scenes</h3>
+                </div>
+                <div id="container-scenes" class="min-h-[10px]">
+                    ${scenesHtml}
+                </div>
+                <button type="button" onclick="window.appActions.addLogScene()" class="w-full py-3 border border-dashed border-stone-400 text-stone-500 hover:text-stone-800 hover:border-stone-600 hover:bg-stone-200 transition rounded-sm text-xs font-bold uppercase tracking-wider flex items-center justify-center">
+                    <i class="fa-solid fa-plus mr-2"></i> Add Scene
+                </button>
+            </div>
+        </div>
+    `;
+
+    // Sub-Tab 2: Clues & Loot
+    const cluesSubTabHtml = `
+        <div id="subtab-panel-clues" class="${activeDmSubTab === 'clues' ? '' : 'hidden'} space-y-6">
+            <!-- Dynamic Clues -->
+            <div>
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-sm font-bold text-stone-800 uppercase tracking-widest flex items-center border-b border-stone-300 w-full pb-1"><i class="fa-solid fa-magnifying-glass mr-2 text-stone-500"></i> Investigation & Clues</h3>
+                </div>
+                <div id="container-clues" class="min-h-[10px]">
+                    ${cluesHtml}
+                </div>
+                <button type="button" onclick="window.appActions.addLogClue()" class="w-full py-2.5 border border-dashed border-stone-400 text-stone-500 hover:text-stone-800 hover:border-stone-600 hover:bg-stone-200 transition rounded-sm text-xs font-bold uppercase tracking-wider flex items-center justify-center mt-2">
+                    <i class="fa-solid fa-plus mr-2"></i> Add Clue
+                </button>
+            </div>
+
+            <!-- Loot & Rewards -->
+            <div class="pt-4">
+                ${renderSmartFieldWithVis('draft-loot', `<i class="fa-solid fa-coins mr-2 text-stone-500"></i> Loot & Rewards`, session.lootText, session.lootVisibility, 'Describe the treasure found...', 4)}
+            </div>
+        </div>
+    `;
+
+    // Sub-Tab 3: DM Notes
+    const notesSubTabHtml = `
+        <div id="subtab-panel-notes" class="${activeDmSubTab === 'notes' ? '' : 'hidden'} space-y-6">
+            ${renderSmartFieldWithVis('draft-notes', `<i class="fa-solid fa-book mr-2 text-stone-500"></i> DM Overview & Context`, session.notes, session.notesVisibility, 'The primary summary or hidden DM notes...', 4)}
+            ${renderSmartFieldWithVis(`player-note-${myUid}`, `<i class="fa-solid fa-feather mr-2 text-stone-500"></i> My Personal Notes`, myNoteData.text, myNoteData.visibility, 'Record your private DM/player thoughts here...', 4)}
+        </div>
+    `;
+
+    // Sub-Tab 4: Collaborative Chronicle
+    const chronicleSubTabHtml = `
+        <div id="subtab-panel-chronicle" class="${activeDmSubTab === 'chronicle' ? '' : 'hidden'} mb-4">
+            <h3 class="text-sm font-bold text-stone-800 uppercase tracking-widest flex items-center border-b border-stone-300 w-full pb-1 mb-3"><i class="fa-solid fa-users mr-2 text-stone-500"></i> Collaborative Chronicle</h3>
+            <p class="text-stone-500 text-[10px] uppercase tracking-widest font-bold mb-4">A shared record of events, quotes, and memories.</p>
+            ${renderChronicleLog(session, camp, myUid, adv)}
+        </div>
+    `;
 
     return `
     <div class="animate-in slide-in-from-bottom-4 duration-300 bg-[#fdfbf7] rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col max-w-4xl mx-auto h-[calc(100vh-100px)] sm:h-[calc(100vh-120px)] relative">
@@ -629,7 +636,11 @@ export function getSessionEditHTML(state) {
                     <button type="button" onclick="window.switchDmSessionSubTab('chronicle')" class="${getDmSubTabClass('chronicle')} flex-1">Chronicle</button>
                 </div>
 
-                ${dmSubTabContentHtml}
+                <!-- ALL SUB-TABS RENDERED CONCURRENTLY AND REVEALED BY VISIBILITY CLASSES -->
+                ${setupSubTabHtml}
+                ${cluesSubTabHtml}
+                ${notesSubTabHtml}
+                ${chronicleSubTabHtml}
             </div>
         </div>
 
@@ -671,19 +682,19 @@ export function getSessionEditHTML(state) {
                     <h3 class="text-sm font-bold text-stone-800 uppercase tracking-widest mb-4 border-b border-[#d4c5a9] pb-2"><i class="fa-solid fa-scale-balanced mr-2 text-amber-700"></i> Arc Budget & Settings</h3>
                     <div class="grid grid-cols-3 gap-4 mb-5">
                         <div>
-                            <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Start Level</label>
+                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Start Level</label>
                             <select id="draft-start-level" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs bg-white outline-none focus:ring-2 focus:ring-red-900 shadow-inner" onchange="window.appActions.updateSessionBudget()">
                                 ${renderLevelOptions(adv.startLevel || 1)}
                             </select>
                         </div>
                         <div>
-                            <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">End Level</label>
+                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">End Level</label>
                             <select id="draft-end-level" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs bg-white outline-none focus:ring-2 focus:ring-red-900 shadow-inner" onchange="window.appActions.updateSessionBudget()">
                                 ${renderLevelOptions(adv.endLevel || 2)}
                             </select>
                         </div>
                         <div>
-                            <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Party Size</label>
+                            <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Party Size</label>
                             <input type="number" id="draft-num-players" value="${adv.numPlayers || 4}" min="1" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs bg-white outline-none focus:ring-2 focus:ring-red-900 shadow-inner" oninput="window.appActions.updateSessionBudget()">
                         </div>
                     </div>
@@ -728,7 +739,7 @@ export function getSessionEditHTML(state) {
     `;
 }
 
-// --- BIND JAVASCRIPT LOGIC TO GLOBAL WINDOW DIRECTLY ---
+// --- GLOBALS ---
 if (typeof window !== 'undefined') {
     window.appData = window.appData || {};
     
