@@ -38,7 +38,7 @@ export const PATTERN_CONFIG = {
         },
         activation: { name: "Activation Time", mandatory: true, tiers: [ { text: "None", cost: 0 }, { text: "10 Minutes", cost: 1 }, { text: "1 Minute", cost: 2 }, { text: "1 Round", cost: 3 }, { text: "1 Action", cost: 4 }, { text: "Instantaneous", cost: 5 } ] },
         areaTargets: { name: "Area/Targets", mandatory: true, tiers: [ { text: "None", cost: 0 }, { text: "Personal or 1 Target", cost: 1 }, { text: "5-foot radius or 3 targets", cost: 2 }, { text: "10-foot radius or 6 targets", cost: 3 }, { text: "20-foot radius or 10 targets", cost: 4 }, { text: "30-foot radius or 15 targets", cost: 5 } ] },
-        damageHealing: { name: "Damage/Healing", mandatory: false, tiers: [ { text: "None", cost: 0 }, { text: "Minor (2d6 Dmg / 2d4 Heal)", cost: 1 }, { text: "Weak (3d6 Dmg / 3d4 Heal)", cost: 2 }, { text: "Moderate (4d6 Dmg / 4d4 Heal)", cost: 3 }, { text: "Strong (6d6 Dmg / 6d4 Heal)", cost: 4 }, { text: "Extreme (8d6 Dmg / 8d4 Heal)", cost: 5 ] },
+        damageHealing: { name: "Damage/Healing", mandatory: false, tiers: [ { text: "None", cost: 0 }, { text: "Minor (2d6 Dmg / 2d4 Heal)", cost: 1 }, { text: "Weak (3d6 Dmg / 3d4 Heal)", cost: 2 }, { text: "Moderate (4d6 Dmg / 4d4 Heal)", cost: 3 }, { text: "Strong (6d6 Dmg / 6d4 Heal)", cost: 4 }, { text: "Extreme (8d6 Dmg / 8d4 Heal)", cost: 5 } ] },
         augmentia: {
             name: "Augmentia",
             mandatory: false,
@@ -456,7 +456,7 @@ export const resolvePatternBacklash = async (pcId, primaryPattern, cardId) => {
     }
 
     const responseMarkdown = `
-<div class="mt-3 p-3 bg-red-950/40 text-stone-100 border border-red-900 rounded-sm text-xs relative z-10" onclick="event.stopPropagation();">
+<div class="mt-3 p-3 bg-red-955/40 text-stone-100 border border-red-900 rounded-sm text-xs relative z-10" onclick="event.stopPropagation();">
     <h5 class="font-bold text-red-500 uppercase tracking-widest text-[9px] border-b border-red-900/30 pb-1 mb-2"><i class="fa-solid fa-burst"></i> Backlash Consequence (d4 = ${roll})</h5>
     <p class="font-serif leading-relaxed mb-1">${resultText}</p>
     ${damageDetails ? `<p class="font-black text-red-400 font-mono mt-1">${damageDetails}</p>` : ''}
