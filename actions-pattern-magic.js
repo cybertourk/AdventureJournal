@@ -37,7 +37,7 @@ export const PATTERN_CONFIG = {
             invertedTiers: [ { text: "None", cost: 0 }, { text: "Instantaneous", cost: 1 }, { text: "1 Round", cost: 2 }, { text: "1 Minute", cost: 3 }, { text: "1 Hour", cost: 4 }, { text: "8 Hours", cost: 5 } ]
         },
         activation: { name: "Activation Time", mandatory: true, tiers: [ { text: "None", cost: 0 }, { text: "10 Minutes", cost: 1 }, { text: "1 Minute", cost: 2 }, { text: "1 Round", cost: 3 }, { text: "1 Action", cost: 4 }, { text: "Instantaneous", cost: 5 } ] },
-        areaTargets: { name: "Area/Targets", mandatory: true, tiers: [ { text: "None", cost: 0 }, { text: "Personal or 1 Target", cost: 1 }, { text: "5-foot radius or 3 targets", cost: 2 }, { text: "10-foot radius or 6 targets", cost: 3 }, { text: "20-foot radius or 10 targets", cost: 4 }, { text: "30-foot radius or 15 targets", cost: 5 ] },
+        areaTargets: { name: "Area/Targets", mandatory: true, tiers: [ { text: "None", cost: 0 }, { text: "Personal or 1 Target", cost: 1 }, { text: "5-foot radius or 3 targets", cost: 2 }, { text: "10-foot radius or 6 targets", cost: 3 }, { text: "20-foot radius or 10 targets", cost: 4 }, { text: "30-foot radius or 15 targets", cost: 5 } ] },
         damageHealing: { name: "Damage/Healing", mandatory: false, tiers: [ { text: "None", cost: 0 }, { text: "Minor (2d6 Dmg / 2d4 Heal)", cost: 1 }, { text: "Weak (3d6 Dmg / 3d4 Heal)", cost: 2 }, { text: "Moderate (4d6 Dmg / 4d4 Heal)", cost: 3 }, { text: "Strong (6d6 Dmg / 6d4 Heal)", cost: 4 }, { text: "Extreme (8d6 Dmg / 8d4 Heal)", cost: 5 ] },
         augmentia: {
             name: "Augmentia",
@@ -535,7 +535,7 @@ export const resolvePatternSanityCheck = async (pcId, dc, spellDC, cardId) => {
                 { range: [71, 80], flaw: "I am sure powerful enemies are watching and hunting me at all times." },
                 { range: [81, 85], flaw: "I trust only one person. And only I can see this special friend." },
                 { range: [86, 95], flaw: "I can’t take anything seriously. The more serious, the funnier I find it." },
-                { range: [96, 100], flaw: "I’ve discovered that I really like killing people." }
+                { range: [86, 100], flaw: "I’ve discovered that I really like killing people." }
             ];
             const match = table.find(e => d100 >= e.range[0] && d100 <= e.range[1]);
             effect = `**Flaw:** "${match?.flaw || 'Murderous urges'}"`;
