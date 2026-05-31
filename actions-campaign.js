@@ -766,6 +766,48 @@ export const savePCEdit = async () => {
       return fallback || '';
   };
 
+  // Gather Pattern Magic Configuration (DM Only)
+  let pmUnlockedFlag = existingPC.patternMagicUnlocked || false;
+  let pmData = existingPC.patternMagic || {
+      spatia: 0, wyird: 0, dynamis: 0, vitar: 0, formus: 0,
+      mentis: 0, arcani: 0, umbrus: 0, tempus: 0,
+      essentia: 0, patternPoints: 0, rotes: []
+  };
+
+  if (isDM) {
+      pmUnlockedFlag = document.getElementById('pc-edit-pm-unlocked')?.checked || false;
+      
+      const spatiaVal = parseInt(document.getElementById('pc-edit-pm-spatia')?.value) || 0;
+      const wyirdVal = parseInt(document.getElementById('pc-edit-pm-wyird')?.value) || 0;
+      const dynamisVal = parseInt(document.getElementById('pc-edit-pm-dynamis')?.value) || 0;
+      const vitarVal = parseInt(document.getElementById('pc-edit-pm-vitar')?.value) || 0;
+      const formusVal = parseInt(document.getElementById('pc-edit-pm-formus')?.value) || 0;
+      const mentisVal = parseInt(document.getElementById('pc-edit-pm-mentis')?.value) || 0;
+      const arcaniVal = parseInt(document.getElementById('pc-edit-pm-arcani')?.value) || 0;
+      const umbrusVal = parseInt(document.getElementById('pc-edit-pm-umbrus')?.value) || 0;
+      const tempusVal = parseInt(document.getElementById('pc-edit-pm-tempus')?.value) || 0;
+      const pmPointsVal = parseInt(document.getElementById('pc-edit-pm-points')?.value) || 0;
+
+      pmData = {
+          ...pmData,
+          spatia: spatiaVal,
+          wyird: wyirdVal,
+          dynamis: dynamisVal,
+          vitar: vitarVal,
+          formus: formusVal,
+          mentis: mentisVal,
+          arcani: arcaniVal,
+          umbrus: umbrusVal,
+          tempus: tempusVal,
+          patternPoints: pmPointsVal
+      };
+
+      // Recalculate max Essentia dynamically just in case DM changed ranks: Total Ranks * 4
+      const totalRanks = spatiaVal + wyirdVal + dynamisVal + vitarVal + formusVal + mentisVal + arcaniVal + umbrusVal + tempusVal;
+      const maxEssentia = totalRanks * 4;
+      pmData.essentia = Math.min(pmData.essentia || 0, maxEssentia);
+  }
+
   // Gather Inputs safely based on access level
   const updatedPC = {
       ...existingPC,
@@ -828,7 +870,11 @@ export const savePCEdit = async () => {
       boon1stBday: isDM ? getVal('pc-edit-boon-1st', existingPC.boon1stBday) : (existingPC.boon1stBday || ''),
       boon2ndBday: isDM ? getVal('pc-edit-boon-2nd', existingPC.boon2ndBday) : (existingPC.boon2ndBday || ''),
       extraBdayBoons: isDM ? extraBdayBoons : (existingPC.extraBdayBoons || []),
-      availableDowntime: isDM ? (parseInt(document.getElementById('pc-edit-downtime')?.value) || 0) : (parseInt(existingPC.availableDowntime) || 0)
+      availableDowntime: isDM ? (parseInt(document.getElementById('pc-edit-downtime')?.value) || 0) : (parseInt(existingPC.availableDowntime) || 0),
+      
+      // Pattern Magic Bindings
+      patternMagicUnlocked: pmUnlockedFlag,
+      patternMagic: pmData
   };
 
   const isNew = !camp.playerCharacters?.some(p => p.id === pcId);
