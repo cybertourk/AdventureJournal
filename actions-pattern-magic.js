@@ -1,6 +1,25 @@
 import { generateId, updateDerivedState, reRender } from './state.js';
 import { saveCampaign, notify } from './firebase-manager.js';
-import { logPlayerActivity } from './actions-campaign.js';
+
+// Inline helper to prevent circular dependencies with actions-campaign.js
+const logPlayerActivity = (camp, myUid, message, icon = 'fa-clock-rotate-left') => {
+    if (!camp || camp.dmId === myUid) return camp;
+    
+    const pName = camp.playerNames ? (camp.playerNames[myUid] || 'Unknown Player') : 'Unknown Player';
+    const fullMessage = `<span class="font-bold text-stone-900">${pName}</span> ${message}`;
+    
+    const newLog = {
+        id: generateId(),
+        timestamp: Date.now(),
+        text: fullMessage,
+        icon: icon
+    };
+    
+    return {
+        ...camp,
+        activityLog: [newLog, ...(camp.activityLog || [])].slice(0, 100)
+    };
+};
 
 // =========================================================================
 // Pattern Magic Core Rules Configuration
