@@ -338,6 +338,9 @@ import {
 // --- APP ACTIONS HUB --- 
 if (typeof window !== 'undefined') {
     window.appActions = { 
+      // Preserve already assigned actions (like Pattern Magic and Auth UI)
+      ...(window.appActions || {}),
+
       reRender, 
       
       // Navigation & UI Core
