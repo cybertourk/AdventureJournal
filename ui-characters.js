@@ -828,7 +828,7 @@ export const savePCEdit = async () => {
       skin: getVal('pc-edit-skin', existingPC.skin),
       // Core Stats
       str: getVal('pc-edit-str', existingPC.str),
-      text: getVal('pc-edit-dex', existingPC.dex),
+      dex: getVal('pc-edit-dex', existingPC.dex),
       con: getVal('pc-edit-con', existingPC.con),
       int: getVal('pc-edit-int', existingPC.int),
       wis: getVal('pc-edit-wis', existingPC.wis),
@@ -1438,7 +1438,6 @@ if (typeof window !== 'undefined') {
     window.appActions.savePCEdit = savePCEdit;
     window.appActions.deletePC = deletePC;
     window.appActions.kickPlayer = kickPlayer;
-    window.appActions.openPCEdit = openPCEdit;
     window.appActions.calculateBirthdaysLive = calculateBirthdaysLive;
     
     // DDB Integration Imports
