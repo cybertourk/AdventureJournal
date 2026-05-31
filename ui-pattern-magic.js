@@ -14,7 +14,7 @@ import {
 // ZEB: UPDATE THIS URL TO POINT DIRECTLY TO YOUR GITHUB FOLDER!
 // Example: "https://raw.githubusercontent.com/YourName/YourRepo/main/"
 // =========================================================================
-const PATTERN_ASSET_BASE_URL = "https://raw.githubusercontent.com/YOUR_GITHUB_NAME/YOUR_REPO_NAME/main/";
+const PATTERN_ASSET_BASE_URL = "https://raw.githubusercontent.com/cybertourk/AdventureJournal/main/";
 
 // =========================================================================
 // CSS Injection for Arcane Tapestry & Loom Effects
