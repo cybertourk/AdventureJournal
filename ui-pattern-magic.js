@@ -14,7 +14,7 @@ import {
 // ZEB: UPDATE THIS URL TO POINT DIRECTLY TO YOUR GITHUB FOLDER!
 // Example: "https://raw.githubusercontent.com/YourName/YourRepo/main/"
 // =========================================================================
-const PATTERN_ASSET_BASE_URL = "https://raw.githubusercontent.com/cybertourk/AdventureJournal/main/";
+const PATTERN_ASSET_BASE_URL = "https://raw.githubusercontent.com/YOUR_GITHUB_NAME/YOUR_REPO_NAME/main/";
 
 // =========================================================================
 // CSS Injection for Arcane Tapestry & Loom Effects
@@ -40,11 +40,6 @@ const injectTapestryStyles = () => {
             border: 2px solid #1c1917;
             box-shadow: inset 0 0 15px rgba(0,0,0,0.8), 0 10px 15px -3px rgba(0, 0, 0, 0.5);
         }
-        .loom-circle {
-            background: radial-gradient(circle, rgba(28,25,23,0.8) 0%, rgba(41,37,36,0.95) 100%);
-            box-shadow: inset 0 0 30px rgba(0,0,0,0.8), 0 0 15px rgba(217, 119, 6, 0.15);
-            border: 2px solid #78350f;
-        }
         .sigil-glow {
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
@@ -55,19 +50,19 @@ const injectTapestryStyles = () => {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        .pulse-prime-sigil {
+        .pulse-prime-sigil img {
             animation: pulsePrimeSigil 3s ease-in-out infinite alternate;
         }
         @keyframes pulsePrimeSigil {
-            0% { box-shadow: 0 0 15px rgba(217, 119, 6, 0.4), inset 0 0 10px rgba(217, 119, 6, 0.4); border-color: #d97706; }
-            100% { box-shadow: 0 0 35px rgba(217, 119, 6, 0.8), inset 0 0 20px rgba(217, 119, 6, 0.6); border-color: #f59e0b; }
+            0% { transform: scale(1.1); }
+            100% { transform: scale(1.2); }
         }
-        .pulse-support-sigil {
+        .pulse-support-sigil img {
             animation: pulseSupportSigil 4s ease-in-out infinite alternate;
         }
         @keyframes pulseSupportSigil {
-            0% { box-shadow: 0 0 5px currentColor, inset 0 0 5px currentColor; }
-            100% { box-shadow: 0 0 15px currentColor, inset 0 0 10px currentColor; }
+            0% { transform: scale(1); }
+            100% { transform: scale(1.05); }
         }
     `;
     document.head.appendChild(style);
@@ -137,25 +132,25 @@ function renderSpellWheelHTML(pc, pm, draft) {
         // State A: No Primary selected. Render all 9 threads equidistant in an outer circle.
         patternsList.forEach((key, index) => {
             const angle = (index * (360 / 9) - 90) * (Math.PI / 180);
-            const x = cx + radius * Math.cos(angle) - 24; // offset by half button width (48px)
-            const y = cy + radius * Math.sin(angle) - 24;
+            const x = cx + radius * Math.cos(angle);
+            const y = cy + radius * Math.sin(angle);
             const theme = PATTERN_THEME[key];
             const rank = pm[key] || 0;
 
             wheelNodesHtml += `
                 <button type="button" 
                         onclick="window.appActions.toggleWheelPattern('${key}')"
-                        style="left: ${x}px; top: ${y}px; border-color: ${theme.color}60; color: ${theme.color};"
-                        class="absolute w-12 h-12 rounded-full border-2 bg-[#1c1917] flex flex-col items-center justify-center text-stone-400 hover:scale-110 hover:shadow-[0_0_15px_currentColor] sigil-glow z-20 hover:z-[100] group">
+                        style="left: ${x}px; top: ${y}px;"
+                        class="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center transition-all duration-300 group z-20 hover:z-[100] w-16 h-20 outline-none">
                     
-                    <img src="${PATTERN_ASSET_BASE_URL}${key}.webp" alt="${theme.label}" class="w-6 h-6 object-contain opacity-70 group-hover:opacity-100 transition-opacity" style="filter: drop-shadow(0 0 3px ${theme.color});" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                    <span class="hidden text-[10px] font-serif font-bold tracking-widest leading-none drop-shadow-md text-stone-300 group-hover:text-white" style="color: ${theme.color};">${key.substring(0,3).toUpperCase()}</span>
+                    <img src="${PATTERN_ASSET_BASE_URL}${key}.webp" alt="${theme.label}" 
+                         class="w-12 h-12 object-contain transition-all duration-300 grayscale-[60%] opacity-60 group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-110" 
+                         style="filter: drop-shadow(0 0 3px rgba(0,0,0,0.3));" 
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <span class="hidden text-xs font-serif font-bold text-stone-600">${theme.label}</span>
                     
-                    <span class="text-[9px] font-black leading-none mt-1 text-stone-500">${rank}</span>
-                    <!-- Dynamic Tooltip -->
-                    <span class="absolute hidden group-hover:block bottom-14 bg-[#292524] border border-[#d4c5a9] text-[10px] px-3 py-1.5 rounded-sm text-[#f4ebd8] font-serif tracking-wide whitespace-nowrap shadow-xl z-50">
-                        <i class="fa-solid fa-star mr-1" style="color:${theme.color};"></i> ${theme.label} (Rank ${rank})
-                    </span>
+                    <span class="text-[11px] font-serif font-bold mt-1 text-stone-600 transition-colors group-hover:text-stone-900">${theme.label}</span>
+                    <span class="text-[9px] font-bold text-stone-400 leading-none mt-0.5">Rank ${rank}</span>
                 </button>
             `;
         });
@@ -166,56 +161,60 @@ function renderSpellWheelHTML(pc, pm, draft) {
         // Render Primary Sigil in center
         const primeTheme = PATTERN_THEME[primary];
         const primeRank = pm[primary] || 0;
-        const primeFlashClass = isConvergence ? 'pulse-prime-sigil scale-110' : 'pulse-prime-sigil';
+        const primeFlashClass = isConvergence ? 'pulse-prime-sigil' : 'pulse-prime-sigil';
 
         wheelNodesHtml += `
             <button type="button"
                     onclick="window.appActions.toggleWheelPattern('${primary}')"
-                    style="left: calc(50% - 32px); top: calc(50% - 32px); background-color: ${primeTheme.color}20;"
-                    class="absolute w-16 h-16 rounded-full border-2 bg-[#1c1917] flex flex-col items-center justify-center text-white ${primeFlashClass} sigil-glow z-30 hover:z-[100] group">
+                    style="left: 50%; top: 50%;"
+                    class="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center transition-all duration-300 group z-30 hover:z-[100] w-24 h-24 outline-none ${primeFlashClass}">
                 
-                <img src="${PATTERN_ASSET_BASE_URL}${primary}.webp" alt="${primeTheme.label}" class="w-10 h-10 object-contain drop-shadow-lg" style="filter: drop-shadow(0 0 5px ${primeTheme.color});" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                <span class="hidden text-xs font-serif font-black tracking-widest drop-shadow-lg" style="color: ${primeTheme.color};">${primary.substring(0,4).toUpperCase()}</span>
+                <img src="${PATTERN_ASSET_BASE_URL}${primary}.webp" alt="${primeTheme.label}" 
+                     class="w-16 h-16 object-contain transition-all duration-300 drop-shadow-md" 
+                     style="filter: drop-shadow(0 0 8px ${primeTheme.color});" 
+                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <span class="hidden text-sm font-serif font-black" style="color: ${primeTheme.color};">${primeTheme.label}</span>
                 
-                <span class="text-[10px] font-black leading-none mt-1 text-stone-200">${primeRank}</span>
-                <span class="absolute hidden group-hover:block bottom-20 bg-[#292524] border-2 border-amber-600 text-[10px] px-3 py-1.5 rounded-sm text-amber-400 font-serif font-bold tracking-widest uppercase pointer-events-none whitespace-nowrap shadow-xl z-50">
-                    Primary Thread: ${primeTheme.label}
-                </span>
+                <span class="text-xs font-serif font-black mt-1" style="color: ${primeTheme.color};">${primeTheme.label}</span>
+                <span class="text-[9px] font-bold text-stone-500 leading-none mt-0.5">Rank ${primeRank}</span>
             </button>
         `;
 
         // Render remaining 8 orbiting sigils
         orbitsList.forEach((key, index) => {
             const angle = (index * (360 / 8) - 90) * (Math.PI / 180);
-            const x = cx + radius * Math.cos(angle) - 22; // half of 44px
-            const y = cy + radius * Math.sin(angle) - 22;
+            const x = cx + radius * Math.cos(angle);
+            const y = cy + radius * Math.sin(angle);
             const theme = PATTERN_THEME[key];
             const rank = pm[key] || 0;
 
             const isSupported = supports.includes(key);
-            let borderStyle = `border-color: ${theme.color}40; color: ${theme.color};`;
-            let glowClass = 'text-stone-500 bg-[#1c1917] hover:scale-110 hover:shadow-[0_0_10px_currentColor]';
-            let imgOpacity = 'opacity-50 group-hover:opacity-80';
             
+            let imgClass = "w-10 h-10 object-contain transition-all duration-300 grayscale-[70%] opacity-50 group-hover:grayscale-0 group-hover:opacity-80 group-hover:scale-110";
+            let imgStyle = `filter: drop-shadow(0 0 2px rgba(0,0,0,0.2));`;
+            let textClass = "text-[10px] font-serif font-bold mt-1 text-stone-400 transition-colors group-hover:text-stone-700";
+            let glowClass = "";
+
             if (isSupported) {
-                borderStyle = `border-color: ${theme.color}; color: ${theme.color};`;
-                glowClass = 'text-stone-100 bg-[#292524] pulse-support-sigil scale-105';
-                imgOpacity = 'opacity-100';
+                imgClass = "w-12 h-12 object-contain transition-all duration-300 grayscale-0 opacity-100 group-hover:scale-110";
+                imgStyle = `filter: drop-shadow(0 0 6px ${theme.color});`;
+                textClass = `text-[11px] font-serif font-bold mt-1 transition-colors`;
+                glowClass = "pulse-support-sigil";
             }
 
             wheelNodesHtml += `
                 <button type="button"
                         onclick="window.appActions.toggleWheelPattern('${key}')"
-                        style="left: ${x}px; top: ${y}px; ${borderStyle}"
-                        class="absolute w-11 h-11 rounded-full border-2 flex flex-col items-center justify-center sigil-glow z-20 hover:z-[100] group ${glowClass}">
+                        style="left: ${x}px; top: ${y}px;"
+                        class="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center transition-all duration-300 group z-20 hover:z-[100] w-16 h-16 outline-none ${glowClass}">
                     
-                    <img src="${PATTERN_ASSET_BASE_URL}${key}.webp" alt="${theme.label}" class="w-5 h-5 object-contain transition-opacity ${imgOpacity}" style="filter: drop-shadow(0 0 2px ${theme.color});" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                    <span class="hidden text-[9px] font-serif font-bold tracking-widest leading-none drop-shadow-md text-stone-300 group-hover:text-white" style="color: ${theme.color};">${key.substring(0,3).toUpperCase()}</span>
+                    <img src="${PATTERN_ASSET_BASE_URL}${key}.webp" alt="${theme.label}" 
+                         class="${imgClass}" 
+                         style="${imgStyle}" 
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <span class="hidden text-[10px] font-serif font-bold text-stone-600">${theme.label}</span>
                     
-                    <span class="text-[8px] font-black leading-none mt-1 opacity-70">${rank}</span>
-                    <span class="absolute hidden group-hover:block bottom-14 bg-[#292524] border border-[#d4c5a9] text-[10px] px-3 py-1.5 rounded-sm text-[#f4ebd8] font-serif tracking-wide whitespace-nowrap shadow-xl z-50">
-                        <i class="fa-solid ${isSupported ? 'fa-link' : 'fa-star'} mr-1" style="color:${theme.color};"></i> ${theme.label} ${isSupported ? '(Support)' : ''}
-                    </span>
+                    <span class="${textClass}" ${isSupported ? `style="color: ${theme.color};"` : ''}>${theme.label}</span>
                 </button>
             `;
         });
@@ -224,19 +223,17 @@ function renderSpellWheelHTML(pc, pm, draft) {
     const convergenceSpinClass = isConvergence ? 'spin-loom-slow' : '';
 
     return `
-    <div class="relative w-[320px] h-[320px] rounded-full flex items-center justify-center p-4 mx-auto mb-6 shrink-0 loom-circle">
-        <!-- SVG Loom Threads in Background -->
+    <div class="relative w-[320px] h-[320px] flex items-center justify-center p-4 mx-auto mb-6 shrink-0">
+        <!-- SVG Loom Threads in Background (Light/Subtle) -->
         <svg class="absolute inset-0 w-full h-full pointer-events-none ${convergenceSpinClass}" viewBox="0 0 320 320">
-            <!-- Outer binding ring -->
-            <circle cx="160" cy="160" r="105" fill="none" stroke="#b45309" stroke-width="1.5" stroke-dasharray="4 6" opacity="0.4" />
-            <!-- Inner focus ring -->
-            <circle cx="160" cy="160" r="60" fill="none" stroke="#d4c5a9" stroke-width="1" opacity="0.2" />
+            <!-- Subtle Outer binding ring -->
+            <circle cx="160" cy="160" r="105" fill="none" stroke="#d4c5a9" stroke-width="1" stroke-dasharray="4 6" opacity="0.6" />
             
             ${primary ? Array.from({ length: 8 }).map((_, i) => {
                 const angle = (i * (360 / 8) - 90) * (Math.PI / 180);
                 const x2 = 160 + radius * Math.cos(angle);
                 const y2 = 160 + radius * Math.sin(angle);
-                return `<line x1="160" y1="160" x2="${x2}" y2="${y2}" stroke="#d4c5a9" stroke-width="1" stroke-dasharray="2 4" opacity="0.3" />`;
+                return `<line x1="160" y1="160" x2="${x2}" y2="${y2}" stroke="#d4c5a9" stroke-width="1" stroke-dasharray="2 4" opacity="0.4" />`;
             }).join('') : ''}
         </svg>
 
@@ -606,8 +603,8 @@ export function getPatternNexusHTML(state) {
 
     // Ability casting selector (Vertically stacked to fit panel bounds cleanly)
     const abilitySelectorHtml = `
-        <div class="w-full">
-            <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Attuned Attribute</label>
+        <div class="w-full flex flex-col gap-1.5">
+            <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest">Attuned Attribute</label>
             <select onchange="window.appActions.updateDraftField('ability', this.value)" class="w-full bg-white border border-[#d4c5a9] rounded-sm p-2.5 text-sm text-stone-900 font-bold font-sans outline-none shadow-sm focus:border-amber-600 transition-colors cursor-pointer uppercase tracking-wider">
                 <option value="int" ${draft.ability === 'int' ? 'selected' : ''}>Intelligence (${activePc.int || 10})</option>
                 <option value="wis" ${draft.ability === 'wis' ? 'selected' : ''}>Wisdom (${activePc.wis || 10})</option>
