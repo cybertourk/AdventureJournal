@@ -11,10 +11,11 @@ import {
 } from './actions-pattern-magic.js';
 
 // =========================================================================
-// ZEB: THIS URL POINTS DIRECTLY TO YOUR GITHUB REPO MAIN BRANCH!
-// Images must be named exactly: spatia.webp, wyird.webp, dynamis.webp, etc.
+// ZEB: UPDATE LINE 18 WITH YOUR ACTUAL GITHUB USERNAME AND REPO NAME!
+// Because you put the images in the main repository, it should look like this:
+// "https://raw.githubusercontent.com/ZebsUsername/ZebsRepoName/main/"
 // =========================================================================
-const PATTERN_ASSET_BASE_URL = "https://raw.githubusercontent.com/cybertourk/AdventureJournal/main/";
+const PATTERN_ASSET_BASE_URL = "https://raw.githubusercontent.com/YOUR_GITHUB_NAME/YOUR_REPO_NAME/main/";
 
 // =========================================================================
 // CSS Injection for Arcane Tapestry & Loom Effects
@@ -152,8 +153,8 @@ function renderSpellWheelHTML(pc, pm, draft) {
                     <span class="hidden text-[10px] font-serif font-bold tracking-widest leading-none drop-shadow-md text-stone-300 group-hover:text-white" style="color: ${theme.color};">${key.substring(0,3).toUpperCase()}</span>
                     
                     <span class="text-[9px] font-black leading-none mt-1 text-stone-500">${rank}</span>
-                    <!-- Dynamic Tooltip -->
-                    <span class="absolute hidden group-hover:block bottom-14 bg-[#292524] border border-[#d4c5a9] text-[10px] px-3 py-1.5 rounded-sm text-[#f4ebd8] font-serif tracking-wide whitespace-nowrap z-50 shadow-xl">
+                    <!-- Dynamic Tooltip perfectly centered -->
+                    <span class="absolute hidden group-hover:block bottom-14 left-1/2 -translate-x-1/2 bg-[#292524] border border-[#d4c5a9] text-[10px] px-3 py-1.5 rounded-sm text-[#f4ebd8] font-serif tracking-wide whitespace-nowrap z-50 shadow-xl">
                         <i class="fa-solid fa-star mr-1" style="color:${theme.color};"></i> ${theme.label} (Rank ${rank})
                     </span>
                 </button>
@@ -178,7 +179,8 @@ function renderSpellWheelHTML(pc, pm, draft) {
                 <span class="hidden text-xs font-serif font-black tracking-widest drop-shadow-lg" style="color: ${primeTheme.color};">${primary.substring(0,4).toUpperCase()}</span>
                 
                 <span class="text-[10px] font-black leading-none mt-1 text-stone-200">${primeRank}</span>
-                <span class="absolute bottom-20 bg-[#292524] border-2 border-amber-600 text-[10px] px-3 py-1.5 rounded-sm text-amber-400 font-serif font-bold tracking-widest uppercase pointer-events-none whitespace-nowrap z-50 shadow-xl">
+                <!-- Primary Tooltip perfectly centered and elevated z-index -->
+                <span class="absolute bottom-20 left-1/2 -translate-x-1/2 bg-[#292524] border-2 border-amber-600 text-[10px] px-3 py-1.5 rounded-sm text-amber-400 font-serif font-bold tracking-widest uppercase pointer-events-none whitespace-nowrap z-[100] shadow-xl">
                     Primary Thread: ${primeTheme.label}
                 </span>
             </button>
@@ -213,7 +215,8 @@ function renderSpellWheelHTML(pc, pm, draft) {
                     <span class="hidden text-[9px] font-serif font-bold tracking-widest leading-none drop-shadow-md text-stone-300 group-hover:text-white" style="color: ${theme.color};">${key.substring(0,3).toUpperCase()}</span>
                     
                     <span class="text-[8px] font-black leading-none mt-1 opacity-70">${rank}</span>
-                    <span class="absolute hidden group-hover:block bottom-14 bg-[#292524] border border-[#d4c5a9] text-[10px] px-3 py-1.5 rounded-sm text-[#f4ebd8] font-serif tracking-wide whitespace-nowrap z-50 shadow-xl">
+                    <!-- Orbiting Support Tooltip perfectly centered -->
+                    <span class="absolute hidden group-hover:block bottom-14 left-1/2 -translate-x-1/2 bg-[#292524] border border-[#d4c5a9] text-[10px] px-3 py-1.5 rounded-sm text-[#f4ebd8] font-serif tracking-wide whitespace-nowrap z-50 shadow-xl">
                         <i class="fa-solid ${isSupported ? 'fa-link' : 'fa-star'} mr-1" style="color:${theme.color};"></i> ${theme.label} ${isSupported ? '(Support)' : ''}
                     </span>
                 </button>
@@ -224,7 +227,8 @@ function renderSpellWheelHTML(pc, pm, draft) {
     const convergenceSpinClass = isConvergence ? 'spin-loom-slow' : '';
 
     return `
-    <div class="relative w-[320px] h-[320px] rounded-full flex items-center justify-center p-4 mx-auto mb-6 shrink-0 overflow-hidden loom-circle">
+    <!-- Removed overflow-hidden to allow tooltips to beautifully escape the bounding circle -->
+    <div class="relative w-[320px] h-[320px] rounded-full flex items-center justify-center p-4 mx-auto mb-6 shrink-0 loom-circle">
         <!-- SVG Loom Threads in Background -->
         <svg class="absolute inset-0 w-full h-full pointer-events-none ${convergenceSpinClass}" viewBox="0 0 320 320">
             <!-- Outer binding ring -->
@@ -409,6 +413,7 @@ export function getPatternNexusHTML(state) {
         `;
     }
 
+    // Dynamic Math Cost Output box
     const metrics = calculateAffinityLimitsAndCosts(activePc, pm, draft);
 
     // Build the dynamic effects forms UI
@@ -603,11 +608,11 @@ export function getPatternNexusHTML(state) {
         `;
     }
 
-    // Ability casting selector
+    // Ability casting selector (Vertically stacked to fit panel bounds cleanly)
     const abilitySelectorHtml = `
-        <div class="flex items-center gap-2 bg-stone-100 px-3 py-2 rounded-sm border border-[#d4c5a9] shadow-inner">
-            <span class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Attuned Attribute:</span>
-            <select onchange="window.appActions.updateDraftField('ability', this.value)" class="bg-white border border-[#d4c5a9] shadow-sm rounded text-stone-900 text-xs font-bold font-sans outline-none cursor-pointer uppercase tracking-wider p-1">
+        <div class="w-full">
+            <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Attuned Attribute</label>
+            <select onchange="window.appActions.updateDraftField('ability', this.value)" class="w-full bg-white border border-[#d4c5a9] rounded-sm p-2.5 text-sm text-stone-900 font-bold font-sans outline-none shadow-sm focus:border-amber-600 transition-colors cursor-pointer uppercase tracking-wider">
                 <option value="int" ${draft.ability === 'int' ? 'selected' : ''}>Intelligence (${activePc.int || 10})</option>
                 <option value="wis" ${draft.ability === 'wis' ? 'selected' : ''}>Wisdom (${activePc.wis || 10})</option>
                 <option value="cha" ${draft.ability === 'cha' ? 'selected' : ''}>Charisma (${activePc.cha || 10})</option>
@@ -774,7 +779,7 @@ export function getPatternNexusHTML(state) {
 
                         <!-- Draft Spell Identity -->
                         <div class="grid grid-cols-1 sm:grid-cols-12 gap-4 mb-5">
-                            <div class="sm:col-span-8">
+                            <div class="sm:col-span-7">
                                 <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Tapestry Designation (Name)</label>
                                 <input type="text" 
                                        id="draft-spell-name" 
@@ -783,7 +788,7 @@ export function getPatternNexusHTML(state) {
                                        placeholder="Provide a name for this spell..." 
                                        class="w-full bg-white border border-[#d4c5a9] rounded-sm p-2.5 text-sm text-stone-900 font-bold font-serif outline-none shadow-sm focus:border-amber-600 transition-colors">
                             </div>
-                            <div class="sm:col-span-4 flex items-end">
+                            <div class="sm:col-span-5">
                                 ${abilitySelectorHtml}
                             </div>
                         </div>
