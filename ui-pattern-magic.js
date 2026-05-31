@@ -11,11 +11,10 @@ import {
 } from './actions-pattern-magic.js';
 
 // =========================================================================
-// ZEB: UPDATE LINE 18 WITH YOUR ACTUAL GITHUB USERNAME AND REPO NAME!
-// Because you put the images in the main repository, it should look like this:
-// "https://raw.githubusercontent.com/ZebsUsername/ZebsRepoName/main/"
+// ZEB: UPDATE THIS URL TO POINT DIRECTLY TO YOUR GITHUB FOLDER!
+// Example: "https://raw.githubusercontent.com/YourName/YourRepo/main/"
 // =========================================================================
-const PATTERN_ASSET_BASE_URL = "https://raw.githubusercontent.com/YOUR_GITHUB_NAME/YOUR_REPO_NAME/main/";
+const PATTERN_ASSET_BASE_URL = "https://raw.githubusercontent.com/cybertourk/AdventureJournal/main/";
 
 // =========================================================================
 // CSS Injection for Arcane Tapestry & Loom Effects
@@ -147,14 +146,14 @@ function renderSpellWheelHTML(pc, pm, draft) {
                 <button type="button" 
                         onclick="window.appActions.toggleWheelPattern('${key}')"
                         style="left: ${x}px; top: ${y}px; border-color: ${theme.color}60; color: ${theme.color};"
-                        class="absolute w-12 h-12 rounded-full border-2 bg-[#1c1917] flex flex-col items-center justify-center text-stone-400 hover:scale-110 hover:shadow-[0_0_15px_currentColor] sigil-glow z-20 group">
+                        class="absolute w-12 h-12 rounded-full border-2 bg-[#1c1917] flex flex-col items-center justify-center text-stone-400 hover:scale-110 hover:shadow-[0_0_15px_currentColor] sigil-glow z-20 hover:z-[100] group">
                     
                     <img src="${PATTERN_ASSET_BASE_URL}${key}.webp" alt="${theme.label}" class="w-6 h-6 object-contain opacity-70 group-hover:opacity-100 transition-opacity" style="filter: drop-shadow(0 0 3px ${theme.color});" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                     <span class="hidden text-[10px] font-serif font-bold tracking-widest leading-none drop-shadow-md text-stone-300 group-hover:text-white" style="color: ${theme.color};">${key.substring(0,3).toUpperCase()}</span>
                     
                     <span class="text-[9px] font-black leading-none mt-1 text-stone-500">${rank}</span>
-                    <!-- Dynamic Tooltip perfectly centered -->
-                    <span class="absolute hidden group-hover:block bottom-14 left-1/2 -translate-x-1/2 bg-[#292524] border border-[#d4c5a9] text-[10px] px-3 py-1.5 rounded-sm text-[#f4ebd8] font-serif tracking-wide whitespace-nowrap z-50 shadow-xl">
+                    <!-- Dynamic Tooltip -->
+                    <span class="absolute hidden group-hover:block bottom-14 bg-[#292524] border border-[#d4c5a9] text-[10px] px-3 py-1.5 rounded-sm text-[#f4ebd8] font-serif tracking-wide whitespace-nowrap shadow-xl z-50">
                         <i class="fa-solid fa-star mr-1" style="color:${theme.color};"></i> ${theme.label} (Rank ${rank})
                     </span>
                 </button>
@@ -173,14 +172,13 @@ function renderSpellWheelHTML(pc, pm, draft) {
             <button type="button"
                     onclick="window.appActions.toggleWheelPattern('${primary}')"
                     style="left: calc(50% - 32px); top: calc(50% - 32px); background-color: ${primeTheme.color}20;"
-                    class="absolute w-16 h-16 rounded-full border-2 bg-[#1c1917] flex flex-col items-center justify-center text-white ${primeFlashClass} sigil-glow z-30 group">
+                    class="absolute w-16 h-16 rounded-full border-2 bg-[#1c1917] flex flex-col items-center justify-center text-white ${primeFlashClass} sigil-glow z-30 hover:z-[100] group">
                 
                 <img src="${PATTERN_ASSET_BASE_URL}${primary}.webp" alt="${primeTheme.label}" class="w-10 h-10 object-contain drop-shadow-lg" style="filter: drop-shadow(0 0 5px ${primeTheme.color});" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                 <span class="hidden text-xs font-serif font-black tracking-widest drop-shadow-lg" style="color: ${primeTheme.color};">${primary.substring(0,4).toUpperCase()}</span>
                 
                 <span class="text-[10px] font-black leading-none mt-1 text-stone-200">${primeRank}</span>
-                <!-- Primary Tooltip perfectly centered and elevated z-index -->
-                <span class="absolute bottom-20 left-1/2 -translate-x-1/2 bg-[#292524] border-2 border-amber-600 text-[10px] px-3 py-1.5 rounded-sm text-amber-400 font-serif font-bold tracking-widest uppercase pointer-events-none whitespace-nowrap z-[100] shadow-xl">
+                <span class="absolute hidden group-hover:block bottom-20 bg-[#292524] border-2 border-amber-600 text-[10px] px-3 py-1.5 rounded-sm text-amber-400 font-serif font-bold tracking-widest uppercase pointer-events-none whitespace-nowrap shadow-xl z-50">
                     Primary Thread: ${primeTheme.label}
                 </span>
             </button>
@@ -209,14 +207,13 @@ function renderSpellWheelHTML(pc, pm, draft) {
                 <button type="button"
                         onclick="window.appActions.toggleWheelPattern('${key}')"
                         style="left: ${x}px; top: ${y}px; ${borderStyle}"
-                        class="absolute w-11 h-11 rounded-full border-2 flex flex-col items-center justify-center sigil-glow z-20 group ${glowClass}">
+                        class="absolute w-11 h-11 rounded-full border-2 flex flex-col items-center justify-center sigil-glow z-20 hover:z-[100] group ${glowClass}">
                     
                     <img src="${PATTERN_ASSET_BASE_URL}${key}.webp" alt="${theme.label}" class="w-5 h-5 object-contain transition-opacity ${imgOpacity}" style="filter: drop-shadow(0 0 2px ${theme.color});" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                     <span class="hidden text-[9px] font-serif font-bold tracking-widest leading-none drop-shadow-md text-stone-300 group-hover:text-white" style="color: ${theme.color};">${key.substring(0,3).toUpperCase()}</span>
                     
                     <span class="text-[8px] font-black leading-none mt-1 opacity-70">${rank}</span>
-                    <!-- Orbiting Support Tooltip perfectly centered -->
-                    <span class="absolute hidden group-hover:block bottom-14 left-1/2 -translate-x-1/2 bg-[#292524] border border-[#d4c5a9] text-[10px] px-3 py-1.5 rounded-sm text-[#f4ebd8] font-serif tracking-wide whitespace-nowrap z-50 shadow-xl">
+                    <span class="absolute hidden group-hover:block bottom-14 bg-[#292524] border border-[#d4c5a9] text-[10px] px-3 py-1.5 rounded-sm text-[#f4ebd8] font-serif tracking-wide whitespace-nowrap shadow-xl z-50">
                         <i class="fa-solid ${isSupported ? 'fa-link' : 'fa-star'} mr-1" style="color:${theme.color};"></i> ${theme.label} ${isSupported ? '(Support)' : ''}
                     </span>
                 </button>
@@ -227,7 +224,6 @@ function renderSpellWheelHTML(pc, pm, draft) {
     const convergenceSpinClass = isConvergence ? 'spin-loom-slow' : '';
 
     return `
-    <!-- Removed overflow-hidden to allow tooltips to beautifully escape the bounding circle -->
     <div class="relative w-[320px] h-[320px] rounded-full flex items-center justify-center p-4 mx-auto mb-6 shrink-0 loom-circle">
         <!-- SVG Loom Threads in Background -->
         <svg class="absolute inset-0 w-full h-full pointer-events-none ${convergenceSpinClass}" viewBox="0 0 320 320">
@@ -491,7 +487,7 @@ export function getPatternNexusHTML(state) {
                             <span class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Custom Effect Detail</span>
                             <input type="text" 
                                    id="draft-aug-custom-${activeTier}"
-                                   oninput="window.appActions.updateDraftField('effectTiers.augmentiaCustom', this.value)" 
+                                   oninput="window.appActions.updateDraftField('effectTiers.augmentiaCustom', this.value, false)" 
                                    value="${draft.effectTiers.augmentiaCustom || ''}" 
                                    placeholder="Or describe a custom alteration..." 
                                    class="w-full bg-white border border-[#d4c5a9] rounded-sm p-2 text-xs text-stone-900 outline-none font-serif shadow-sm focus:border-amber-600 transition-colors">
@@ -503,7 +499,7 @@ export function getPatternNexusHTML(state) {
                     <div class="mt-2.5 flex flex-col gap-1.5 bg-stone-100 px-3 py-2 rounded-sm border border-[#d4c5a9] shadow-inner">
                         <span class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Custom Effect Detail:</span>
                         <input type="text" 
-                               oninput="window.appActions.updateDraftField('effectTiers.augmentiaCustom', this.value)" 
+                               oninput="window.appActions.updateDraftField('effectTiers.augmentiaCustom', this.value, false)" 
                                value="${draft.effectTiers.augmentiaCustom || ''}" 
                                placeholder="Describe the alteration..." 
                                class="w-full bg-white border border-[#d4c5a9] rounded-sm p-2 text-xs text-stone-900 outline-none font-serif shadow-sm focus:border-amber-600 transition-colors">
@@ -779,16 +775,16 @@ export function getPatternNexusHTML(state) {
 
                         <!-- Draft Spell Identity -->
                         <div class="grid grid-cols-1 sm:grid-cols-12 gap-4 mb-5">
-                            <div class="sm:col-span-7">
+                            <div class="sm:col-span-8">
                                 <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Tapestry Designation (Name)</label>
                                 <input type="text" 
                                        id="draft-spell-name" 
-                                       oninput="window.appActions.updateDraftField('name', this.value)" 
+                                       oninput="window.appActions.updateDraftField('name', this.value, false)" 
                                        value="${draft.name || ''}" 
                                        placeholder="Provide a name for this spell..." 
                                        class="w-full bg-white border border-[#d4c5a9] rounded-sm p-2.5 text-sm text-stone-900 font-bold font-serif outline-none shadow-sm focus:border-amber-600 transition-colors">
                             </div>
-                            <div class="sm:col-span-5">
+                            <div class="sm:col-span-4 flex items-end">
                                 ${abilitySelectorHtml}
                             </div>
                         </div>
@@ -796,7 +792,7 @@ export function getPatternNexusHTML(state) {
                         <div class="mb-6">
                             <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Intent & Visualization</label>
                             <textarea id="draft-spell-desc" 
-                                      oninput="window.appActions.updateDraftField('description', this.value)" 
+                                      oninput="window.appActions.updateDraftField('description', this.value, false)" 
                                       placeholder="Describe the aesthetic and physical ripples of your magic..." 
                                       class="w-full bg-white border border-[#d4c5a9] rounded-sm p-3 text-sm text-stone-800 outline-none font-serif focus:border-amber-600 resize-y min-h-[80px] shadow-sm custom-scrollbar">${draft.description || ''}</textarea>
                         </div>
@@ -892,7 +888,8 @@ if (typeof window !== 'undefined') {
     };
 
     // Updates a key-value value inside the draft Spell configuration
-    window.appActions.updateDraftField = (path, value) => {
+    // NEW: added shouldRender = true, used by 'oninput' triggers so typing doesn't force a DOM reload!
+    window.appActions.updateDraftField = (path, value, shouldRender = true) => {
         const draft = getOrInitDraftState();
         if (path.startsWith('effectTiers.')) {
             const field = path.split('.')[1];
@@ -900,7 +897,7 @@ if (typeof window !== 'undefined') {
         } else {
             draft[path] = value;
         }
-        reRender(true);
+        if (shouldRender) reRender(true);
     };
 
     // Toggle selected Pattern keys on the interactive circular SVG wheel (handles Orbit & Convergence)
