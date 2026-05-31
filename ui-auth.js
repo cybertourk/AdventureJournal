@@ -6,6 +6,12 @@ if (typeof window !== 'undefined') {
     window.appActions.logoutUser = logoutUser;
     
     window.appActions.showAuthenticatedReadyState = (user) => {
+        // DEFENSIVE SAFETY GUARD: If no user is authenticated, force-restore standard login fields
+        if (!user) {
+            window.appActions.resetAuthUI();
+            return;
+        }
+        
         const loginForm = document.getElementById('login-form');
         if (loginForm) {
             // Flag the form so the submit event knows we are just "entering" the app
