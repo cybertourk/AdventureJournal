@@ -11,11 +11,11 @@ import {
 } from './actions-pattern-magic.js';
 
 // =========================================================================
-// ZEB: UPDATE LINE 18 WITH YOUR ACTUAL GITHUB USERNAME AND REPO NAME!
-// Because you put the images in the main repository, it should look like this:
-// "https://raw.githubusercontent.com/ZebsUsername/ZebsRepoName/main/"
+// ZEB: UPDATE THIS URL TO POINT DIRECTLY TO YOUR GITHUB FOLDER!
+// Example: "https://raw.githubusercontent.com/YourName/YourRepo/main/assets/patterns/"
+// Ensure the trailing slash '/' is included.
 // =========================================================================
-const PATTERN_ASSET_BASE_URL = "https://https://github.com/cybertourk/AdventureJournal/main/";
+const PATTERN_ASSET_BASE_URL = "https://raw.githubusercontent.com/cybertourk/AdventureJournal/main/";
 
 // =========================================================================
 // CSS Injection for Arcane Tapestry & Loom Effects
