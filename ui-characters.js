@@ -50,7 +50,7 @@ export function getPCManagerHTML(state) {
                 <button onclick="window.appActions.openDndBeyondImportModal()" class="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-stone-800 text-amber-50 border border-stone-900 rounded-sm hover:bg-stone-700 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md">
                     <i class="fa-solid fa-file-import mr-2"></i> Import Hero
                 </button>
-                <button onclick="window.appActions.openPCEdit(null)" class="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-red-900 text-amber-50 border border-red-950 rounded-sm hover:bg-red-800 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md">
+                <button onclick="window.appActions.openPCEdit(null)" class="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-red-950 text-amber-50 border border-red-950 rounded-sm hover:bg-red-900 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md">
                     <i class="fa-solid fa-user-plus mr-2"></i> Enroll Hero
                 </button>
                 ` : ''}
