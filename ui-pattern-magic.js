@@ -567,13 +567,14 @@ export function getPatternNexusHTML(state) {
         
         const rankText = rank > 0 ? `(Rank ${rank})` : `(Unlearned)`;
 
+        // NOTE: ADDED pointer-events-none TO IMG AND SPAN TO PREVENT GLOBAL LIGHTBOX HIJACKING
         loomHtml += `
             <button id="sigil-btn-${key}" type="button" 
                     onclick="window.appActions.toggleWheelPattern('${key}')"
                     style="left: ${x}px; top: ${y}px; transform: scale(${scale}); color: ${theme.color};"
                     class="sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer hover:z-[100] group loom-entrance ${z >= 90 ? 'z-[90]' : 'z-20'} ${opacity} ${pulseClass}">
-                <img src="${PATTERN_ASSET_BASE_URL}${key}.webp" alt="${theme.label}" class="w-10 h-10 object-contain transition-all duration-500" style="filter: ${dropShadow};" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                <span class="text-[11px] font-serif font-bold text-stone-900 mt-1 leading-none drop-shadow-md absolute -bottom-5 whitespace-nowrap bg-[#fdfbf7] px-2 py-0.5 border border-[#d4c5a9] rounded-sm shadow-sm hidden group-hover:block z-[200]">${theme.label} ${rankText}</span>
+                <img src="${PATTERN_ASSET_BASE_URL}${key}.webp" alt="${theme.label}" class="w-10 h-10 object-contain transition-all duration-500 pointer-events-none" style="filter: ${dropShadow};" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <span class="text-[11px] font-serif font-bold text-stone-900 mt-1 leading-none drop-shadow-md absolute -bottom-5 whitespace-nowrap bg-[#fdfbf7] px-2 py-0.5 border border-[#d4c5a9] rounded-sm shadow-sm hidden group-hover:block z-[200] pointer-events-none">${theme.label} ${rankText}</span>
             </button>
         `;
     });
