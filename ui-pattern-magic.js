@@ -11,9 +11,8 @@ import {
 } from './actions-pattern-magic.js';
 
 // =========================================================================
-// ZEB: UPDATE THIS URL TO POINT DIRECTLY TO YOUR GITHUB FOLDER!
-// Example: "https://raw.githubusercontent.com/YourName/YourRepo/main/assets/patterns/"
-// Ensure the trailing slash '/' is included.
+// ZEB: THIS URL POINTS DIRECTLY TO YOUR GITHUB REPO MAIN BRANCH!
+// Images must be named exactly: spatia.webp, wyird.webp, dynamis.webp, etc.
 // =========================================================================
 const PATTERN_ASSET_BASE_URL = "https://raw.githubusercontent.com/cybertourk/AdventureJournal/main/";
 
@@ -410,7 +409,6 @@ export function getPatternNexusHTML(state) {
         `;
     }
 
-    // Dynamic Math Cost Output box
     const metrics = calculateAffinityLimitsAndCosts(activePc, pm, draft);
 
     // Build the dynamic effects forms UI
@@ -426,6 +424,8 @@ export function getPatternNexusHTML(state) {
             : effectData.tiers;
 
         let optionsSelectHtml = '';
+        
+        // --- DAMAGE & HEALING CONFIGURATOR ---
         if (category === 'damageHealing' && activeTier > 0) {
             // ELEMENT FILTER: Scan active patterns to only allow elemental types they align with
             const activePatterns = draft.patterns;
@@ -435,46 +435,83 @@ export function getPatternNexusHTML(state) {
                 types.forEach(t => { if (!allowedTypes.includes(t)) allowedTypes.push(t); });
             });
 
+            // Always ensure healing is available if vitar is present
+            if (activePatterns.includes('vitar') && !allowedTypes.includes('healing')) {
+                allowedTypes.push('healing');
+            }
+
             optionsSelectHtml = `
                 <div class="mt-2.5 flex items-center gap-2 bg-stone-100 px-3 py-2 rounded-sm border border-[#d4c5a9] shadow-inner">
-                    <span class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Energy Type:</span>
-                    <select onchange="window.appActions.updateDraftField('effectTiers.damageType', this.value)" class="bg-white border border-[#d4c5a9] rounded-sm text-stone-900 text-xs font-bold font-serif outline-none p-1 flex-grow shadow-sm capitalize">
+                    <span class="text-[10px] font-bold text-stone-500 uppercase tracking-widest"><i class="fa-solid fa-bolt mr-1.5 text-amber-600"></i> Energy Type:</span>
+                    <select onchange="window.appActions.updateDraftField('effectTiers.damageType', this.value)" class="bg-white border border-[#d4c5a9] rounded-sm text-stone-900 text-xs font-bold font-serif outline-none p-1 flex-grow shadow-sm capitalize hover:border-amber-400 transition-colors cursor-pointer">
                         ${allowedTypes.map(t => `<option value="${t}" ${draft.effectTiers.damageType === t ? 'selected' : ''}>${t}</option>`).join('')}
                     </select>
                 </div>
             `;
         }
 
+        // --- BOLSTER & HINDER CONFIGURATOR ---
         if (category === 'bolsterHinder' && activeTier > 0) {
             const allowedOptions = effectData.tiers[activeTier].options || ['Skill Check'];
             optionsSelectHtml = `
                 <div class="mt-2.5 flex items-center gap-2 bg-stone-100 px-3 py-2 rounded-sm border border-[#d4c5a9] shadow-inner">
-                    <span class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Target:</span>
-                    <select onchange="window.appActions.updateDraftField('effectTiers.bolsterHinderTarget', this.value)" class="bg-white border border-[#d4c5a9] rounded-sm text-stone-900 text-xs font-bold font-serif outline-none p-1 flex-grow shadow-sm">
+                    <span class="text-[10px] font-bold text-stone-500 uppercase tracking-widest"><i class="fa-solid fa-shield-halved mr-1.5 text-amber-600"></i> Target:</span>
+                    <select onchange="window.appActions.updateDraftField('effectTiers.bolsterHinderTarget', this.value)" class="bg-white border border-[#d4c5a9] rounded-sm text-stone-900 text-xs font-bold font-serif outline-none p-1 flex-grow shadow-sm hover:border-amber-400 transition-colors cursor-pointer">
                         ${allowedOptions.map(opt => `<option value="${opt}" ${draft.effectTiers.bolsterHinderTarget === opt ? 'selected' : ''}>${opt}</option>`).join('')}
                     </select>
                 </div>
             `;
         }
 
+        // --- AUGMENTIA EXAMPLES CONFIGURATOR ---
         if (category === 'augmentia' && activeTier > 0) {
-            optionsSelectHtml = `
-                <div class="mt-2.5 flex flex-col gap-1.5 bg-stone-100 px-3 py-2 rounded-sm border border-[#d4c5a9] shadow-inner">
-                    <span class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Custom Effect Detail:</span>
-                    <input type="text" 
-                           oninput="window.appActions.updateDraftField('effectTiers.augmentiaCustom', this.value)" 
-                           value="${draft.effectTiers.augmentiaCustom || ''}" 
-                           placeholder="Describe the alteration..." 
-                           class="w-full bg-white border border-[#d4c5a9] rounded-sm p-2 text-xs text-stone-900 outline-none font-serif shadow-sm focus:border-amber-600">
-                </div>
-            `;
+            const examples = effectData.tiers[activeTier].examples || [];
+            let exampleOptionsHtml = '<option value="">-- Select an Example --</option>';
+            
+            if (examples.length > 0) {
+                examples.forEach(ex => {
+                    const sanitizedTip = (ex.tip || '').replace(/"/g, '&quot;');
+                    exampleOptionsHtml += `<option value="${ex.name}" title="${sanitizedTip}">${ex.name}</option>`;
+                });
+                
+                optionsSelectHtml = `
+                    <div class="mt-2.5 flex flex-col gap-2 bg-stone-100 px-3 py-2.5 rounded-sm border border-[#d4c5a9] shadow-inner">
+                        <div class="flex flex-col gap-1">
+                            <span class="text-[10px] font-bold text-stone-500 uppercase tracking-widest flex items-center"><i class="fa-solid fa-lightbulb mr-1.5 text-amber-500"></i> Known Alterations</span>
+                            <select onchange="document.getElementById('draft-aug-custom-${activeTier}').value = this.value; window.appActions.updateDraftField('effectTiers.augmentiaCustom', this.value);" class="w-full bg-white border border-[#d4c5a9] rounded-sm p-1.5 text-xs text-stone-900 outline-none font-serif shadow-sm cursor-pointer hover:border-amber-400 transition-colors">
+                                ${exampleOptionsHtml}
+                            </select>
+                        </div>
+                        <div class="flex flex-col gap-1 mt-1 border-t border-[#d4c5a9] pt-2">
+                            <span class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Custom Effect Detail</span>
+                            <input type="text" 
+                                   id="draft-aug-custom-${activeTier}"
+                                   oninput="window.appActions.updateDraftField('effectTiers.augmentiaCustom', this.value)" 
+                                   value="${draft.effectTiers.augmentiaCustom || ''}" 
+                                   placeholder="Or describe a custom alteration..." 
+                                   class="w-full bg-white border border-[#d4c5a9] rounded-sm p-2 text-xs text-stone-900 outline-none font-serif shadow-sm focus:border-amber-600 transition-colors">
+                        </div>
+                    </div>
+                `;
+            } else {
+                 optionsSelectHtml = `
+                    <div class="mt-2.5 flex flex-col gap-1.5 bg-stone-100 px-3 py-2 rounded-sm border border-[#d4c5a9] shadow-inner">
+                        <span class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Custom Effect Detail:</span>
+                        <input type="text" 
+                               oninput="window.appActions.updateDraftField('effectTiers.augmentiaCustom', this.value)" 
+                               value="${draft.effectTiers.augmentiaCustom || ''}" 
+                               placeholder="Describe the alteration..." 
+                               class="w-full bg-white border border-[#d4c5a9] rounded-sm p-2 text-xs text-stone-900 outline-none font-serif shadow-sm focus:border-amber-600 transition-colors">
+                    </div>
+                `;
+            }
         }
 
         // Add special custom duration inverted checkbox toggle
         let specialToggleHtml = '';
         if (category === 'duration') {
             specialToggleHtml = `
-                <label class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-stone-600 cursor-pointer select-none">
+                <label class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-stone-600 cursor-pointer select-none hover:text-amber-700 transition-colors">
                     <input type="checkbox" 
                            onchange="window.appActions.toggleDurationInversion(this.checked)" 
                            ${draft.effectTiers.durationInverted ? 'checked' : ''} 
