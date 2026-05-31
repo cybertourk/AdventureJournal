@@ -322,7 +322,6 @@ function buildEffectsHTML(metrics, draft, pm, activePc) {
         });
 
         const labelColorClass = maxTierAllowed > 0 ? 'text-stone-900' : 'text-stone-500';
-        const subtextColorClass = maxTierAllowed > 0 ? 'text-amber-700' : 'text-stone-400';
 
         html += `
             <div class="p-4 bg-white border border-[#d4c5a9] rounded-sm shadow-sm">
@@ -524,7 +523,7 @@ export function getPatternNexusHTML(state) {
             <button id="sigil-btn-${key}" type="button" 
                     onclick="window.appActions.toggleWheelPattern('${key}')"
                     style="left: 128px; top: 128px; transform: scale(0) rotate(-180deg); opacity: 0; color: ${theme.color};"
-                    class="sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-20 opacity-60 grayscale hover:grayscale-0 hover:opacity-100 loom-appear-anim group">
+                    class="sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-20 opacity-60 grayscale hover:grayscale-0 hover:opacity-100 hover:z-[100] loom-appear-anim group">
                 <img src="${PATTERN_ASSET_BASE_URL}${key}.webp" alt="${theme.label}" class="w-10 h-10 object-contain drop-shadow-md transition-all duration-500" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                 <span class="text-[11px] font-serif font-bold text-stone-800 mt-1 leading-none">${theme.label}</span>
                 <span class="text-[9px] font-black text-stone-500 mt-0.5 leading-none">${rank}</span>
@@ -571,12 +570,6 @@ export function getPatternNexusHTML(state) {
                         <h3 class="text-sm font-bold text-amber-900 uppercase tracking-widest font-serif border-b border-[#d4c5a9] pb-2 mb-6 text-center"><i class="fa-solid fa-dharmachakra mr-1.5 text-amber-600"></i> The Loom of Reality</h3>
                         
                         <div class="relative w-[320px] h-[320px] flex items-center justify-center p-4 mx-auto mb-6 shrink-0">
-                            <!-- Background guides (optional subtle rings) -->
-                            <svg class="absolute inset-0 w-full h-full pointer-events-none opacity-20" viewBox="0 0 320 320">
-                                <circle cx="160" cy="160" r="105" fill="none" stroke="#78350f" stroke-width="1" stroke-dasharray="2 4" />
-                                <circle cx="160" cy="160" r="60" fill="none" stroke="#d4c5a9" stroke-width="1" />
-                            </svg>
-
                             <!-- Node buttons -->
                             <div class="absolute inset-0">
                                 ${loomHtml}
@@ -774,7 +767,7 @@ if (typeof window !== 'undefined') {
                     btn.style.left = `${x}px`;
                     btn.style.top = `${y}px`;
                     btn.style.transform = 'scale(1)';
-                    btn.className = 'sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-20 opacity-60 grayscale hover:grayscale-0 hover:opacity-100 group';
+                    btn.className = 'sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-20 opacity-60 grayscale hover:grayscale-0 hover:opacity-100 hover:z-[100] group';
                     const img = btn.querySelector('img');
                     if(img) img.style.filter = 'none';
                 }
@@ -813,10 +806,10 @@ if (typeof window !== 'undefined') {
                     const img = btn.querySelector('img');
                     
                     if (isSupported) {
-                        btn.className = 'sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-[90] opacity-100 grayscale-0 group';
+                        btn.className = 'sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-[90] hover:z-[100] opacity-100 grayscale-0 group';
                         if(img) img.style.filter = `drop-shadow(0 0 5px ${theme.color})`;
                     } else {
-                        btn.className = 'sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-10 opacity-40 grayscale hover:grayscale-0 hover:opacity-100 group';
+                        btn.className = 'sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-10 hover:z-[100] opacity-40 grayscale hover:grayscale-0 hover:opacity-100 group';
                         if(img) img.style.filter = 'none';
                     }
                 }
