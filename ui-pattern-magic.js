@@ -348,7 +348,7 @@ export function getPatternNexusHTML(state) {
                 <i class="fa-solid fa-triangle-exclamation text-red-500 text-3xl mb-4 animate-pulse"></i>
                 <h3 class="font-serif font-black text-xl text-stone-200 uppercase tracking-widest mb-2">No Active Matrix Found</h3>
                 <p class="text-xs leading-relaxed mb-6">Before you can establish a connection with the Pattern, a Player Character must be initialized and linked to your account.</p>
-                <button onclick="window.appActions.setView('characters')" class="px-5 py-2.5 bg-red-950 text-red-200 border border-red-700/40 rounded uppercase tracking-wider text-xs font-bold hover:bg-red-900 transition-all">Go to Characters</button>
+                <button onclick="window.appActions.setView('pc-manager')" class="px-5 py-2.5 bg-red-950 text-red-200 border border-red-700/40 rounded uppercase tracking-wider text-xs font-bold hover:bg-red-900 transition-all">Go to Characters</button>
             </div>
         </div>
         `;
