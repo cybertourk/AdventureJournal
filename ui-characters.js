@@ -179,7 +179,7 @@ export function getPCManagerHTML(state) {
 
         html += `
         <div class="mt-12 border-t-2 border-stone-800 pt-8 mb-8">
-            <h3 class="text-xl font-serif font-bold text-amber-500 mb-4 flex items-center">
+            <h3 class="text-xl font-serif font-bold text-amber-50 mb-4 flex items-center">
                 <i class="fa-solid fa-users mr-3 text-red-900"></i> Connected Players
             </h3>
             <div class="bg-[#f4ebd8] p-4 sm:p-6 rounded-sm border border-[#d4c5a9] shadow-inner">
@@ -646,6 +646,32 @@ export function getPCEditHTML(state) {
 
                     </div>
                 </div>
+
+                <!-- PATTERN MAGIC CONFIGURATION (DM ONLY) -->
+                <div class="mt-6 bg-stone-900 text-stone-100 p-4 sm:p-5 rounded-sm border border-stone-800 shadow-inner">
+                    <h3 class="text-xs sm:text-sm font-bold text-cyan-400 font-mono mb-3 border-b border-stone-800 pb-1 flex items-center">
+                        <i class="fa-solid fa-compass-drafting mr-2 animate-pulse"></i> Pattern Magic Configuration (DM Override)
+                    </h3>
+                    <div class="flex items-center gap-2 mb-4 bg-stone-950 p-2.5 rounded border border-stone-850">
+                        <input type="checkbox" id="pc-edit-pm-unlocked" ${pc.patternMagicUnlocked ? 'checked' : ''} class="w-4 h-4 text-cyan-500 rounded focus:ring-cyan-500 bg-stone-800 border-stone-700 cursor-pointer">
+                        <label class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-cyan-400 cursor-pointer font-mono" for="pc-edit-pm-unlocked">Unlock Dimensional Pattern Access</label>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1.5 font-mono">Unspent Pattern Points</label>
+                        <input type="number" id="pc-edit-pm-points" value="${pc.patternMagic?.patternPoints || 0}" min="0" class="w-24 p-2 bg-stone-950 border border-stone-850 rounded text-sm text-center font-bold text-stone-200 focus:border-cyan-500/40 font-mono outline-none">
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        ${['spatia', 'wyird', 'dynamis', 'vitar', 'formus', 'mentis', 'arcani', 'umbrus', 'tempus'].map(d => {
+                            const val = pc.patternMagic?.[d] || 0;
+                            return `
+                            <div class="bg-stone-950/50 border border-stone-850 p-2.5 rounded flex flex-col">
+                                <label class="text-[9px] font-bold text-stone-400 uppercase tracking-wider font-mono capitalize" for="pc-edit-pm-${d}">${d}</label>
+                                <input type="number" id="pc-edit-pm-${d}" value="${val}" min="0" max="5" class="w-full mt-1.5 p-1.5 bg-stone-950 border border-stone-850 rounded text-center text-xs font-bold text-cyan-400 focus:border-cyan-500/40 font-mono outline-none">
+                            </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
                 ` : ''}
 
                 ${isDM ? renderSmartField('pc-edit-dmnotes', `<i class="fa-solid fa-eye text-red-900 mr-2"></i> DM's Secret Notes`, pc.dmNotes || '', 'Hooks, secrets, curses, or background ties...', 4, 'bg-stone-200 border border-[#d4c5a9] shadow-inner border-l-4 border-l-red-900', false) : ''}
@@ -735,6 +761,48 @@ export const savePCEdit = async () => {
       return fallback || '';
   };
 
+  // Gather Pattern Magic Configuration (DM Only)
+  let pmUnlockedFlag = existingPC.patternMagicUnlocked || false;
+  let pmData = existingPC.patternMagic || {
+      spatia: 0, wyird: 0, dynamis: 0, vitar: 0, formus: 0,
+      mentis: 0, arcani: 0, umbrus: 0, tempus: 0,
+      essentia: 0, patternPoints: 0, rotes: []
+  };
+
+  if (isDM) {
+      pmUnlockedFlag = document.getElementById('pc-edit-pm-unlocked')?.checked || false;
+      
+      const spatiaVal = parseInt(document.getElementById('pc-edit-pm-spatia')?.value) || 0;
+      const wyirdVal = parseInt(document.getElementById('pc-edit-pm-wyird')?.value) || 0;
+      const dynamisVal = parseInt(document.getElementById('pc-edit-pm-dynamis')?.value) || 0;
+      const vitarVal = parseInt(document.getElementById('pc-edit-pm-vitar')?.value) || 0;
+      const formusVal = parseInt(document.getElementById('pc-edit-pm-formus')?.value) || 0;
+      const mentisVal = parseInt(document.getElementById('pc-edit-pm-mentis')?.value) || 0;
+      const arcaniVal = parseInt(document.getElementById('pc-edit-pm-arcani')?.value) || 0;
+      const umbrusVal = parseInt(document.getElementById('pc-edit-pm-umbrus')?.value) || 0;
+      const tempusVal = parseInt(document.getElementById('pc-edit-pm-tempus')?.value) || 0;
+      const pmPointsVal = parseInt(document.getElementById('pc-edit-pm-points')?.value) || 0;
+
+      pmData = {
+          ...pmData,
+          spatia: spatiaVal,
+          wyird: wyirdVal,
+          dynamis: dynamisVal,
+          vitar: vitarVal,
+          formus: formusVal,
+          mentis: mentisVal,
+          arcani: arcaniVal,
+          umbrus: umbrusVal,
+          tempus: tempusVal,
+          patternPoints: pmPointsVal
+      };
+
+      // Recalculate max Essentia dynamically just in case DM changed ranks: Total Ranks * 4
+      const totalRanks = spatiaVal + wyirdVal + dynamisVal + vitarVal + formusVal + mentisVal + arcaniVal + umbrusVal + tempusVal;
+      const maxEssentia = totalRanks * 4;
+      pmData.essentia = Math.min(pmData.essentia || 0, maxEssentia);
+  }
+
   // Gather Inputs safely based on access level
   const updatedPC = {
       ...existingPC,
@@ -760,7 +828,7 @@ export const savePCEdit = async () => {
       skin: getVal('pc-edit-skin', existingPC.skin),
       // Core Stats
       str: getVal('pc-edit-str', existingPC.str),
-      dex: getVal('pc-edit-dex', existingPC.dex),
+      text: getVal('pc-edit-dex', existingPC.dex),
       con: getVal('pc-edit-con', existingPC.con),
       int: getVal('pc-edit-int', existingPC.int),
       wis: getVal('pc-edit-wis', existingPC.wis),
@@ -797,7 +865,11 @@ export const savePCEdit = async () => {
       boon1stBday: isDM ? getVal('pc-edit-boon-1st', existingPC.boon1stBday) : (existingPC.boon1stBday || ''),
       boon2ndBday: isDM ? getVal('pc-edit-boon-2nd', existingPC.boon2ndBday) : (existingPC.boon2ndBday || ''),
       extraBdayBoons: isDM ? extraBdayBoons : (existingPC.extraBdayBoons || []),
-      availableDowntime: isDM ? (parseInt(document.getElementById('pc-edit-downtime')?.value) || 0) : (parseInt(existingPC.availableDowntime) || 0)
+      availableDowntime: isDM ? (parseInt(document.getElementById('pc-edit-downtime')?.value) || 0) : (parseInt(existingPC.availableDowntime) || 0),
+      
+      // Pattern Magic Bindings
+      patternMagicUnlocked: pmUnlockedFlag,
+      patternMagic: pmData
   };
 
   const isNew = !camp.playerCharacters?.some(p => p.id === pcId);
@@ -816,24 +888,32 @@ export const savePCEdit = async () => {
   let updatedCodexArray = [...(camp.codex || [])];
   const existingCodexEntry = updatedCodexArray.find(c => c.id === pcId);
 
+  // Core generated tags for the Hero
+  const baseTags = ['Hero', updatedPC.race, updatedPC.classLevel].filter(Boolean);
+  
   if (!existingCodexEntry) {
       updatedCodexArray.push({
           id: pcId,
           name: updatedPC.name,
           type: 'PC',
-          tags: ['Hero', updatedPC.race, updatedPC.classLevel].filter(Boolean),
+          tags: baseTags,
           desc: 'Rumors and public knowledge surrounding this hero are yet to be penned.',
           visibility: codexVisibility,
           image: updatedPC.image
       });
   } else {
+      // PRESERVE CUSTOM TAGS: Get any tags currently on the codex entry, merge with the base tags, and deduplicate.
+      // This is the Safe Tag Merge logic ensuring manual adjustments to PC tags are retained safely.
+      const existingTags = existingCodexEntry.tags || [];
+      const mergedTags = [...new Set([...baseTags, ...existingTags])];
+
       updatedCodexArray = updatedCodexArray.map(c => {
           if (c.id === pcId) {
               return {
                   ...c,
                   name: updatedPC.name,
                   type: 'PC',
-                  tags: ['Hero', updatedPC.race, updatedPC.classLevel].filter(Boolean),
+                  tags: mergedTags,
                   visibility: codexVisibility,
                   image: updatedPC.image
               };
@@ -858,3 +938,512 @@ export const savePCEdit = async () => {
   window.appActions.setView('pc-manager');
   notify("Hero profile inscribed.", "success");
 };
+
+export const deletePC = async (pcId) => {
+  updateDerivedState();
+  const camp = window.appData.activeCampaign;
+  if (!camp || !camp._isDM) {
+    notify("Only the DM can remove heroes.", "error");
+    return;
+  }
+  
+  if (!confirm("Are you sure you want to remove this hero from the campaign?")) return;
+  
+  const updatedCamp = {
+    ...camp,
+    playerCharacters: camp.playerCharacters.filter(pc => pc.id !== pcId),
+    codex: (camp.codex || []).filter(c => c.id !== pcId) 
+  };
+  
+  await saveCampaign(updatedCamp);
+  notify("Hero removed.", "success");
+  
+  if (window.appData.activePcId === pcId) {
+      window.appActions.setView('pc-manager');
+  } else {
+      reRender(true);
+  }
+};
+
+export const kickPlayer = async (uid) => {
+  updateDerivedState();
+  const camp = window.appData.activeCampaign;
+  if (!camp || !camp._isDM) return;
+  
+  if (!confirm("Exile this player from the campaign? They will lose access to the tome.")) return;
+  
+  const updatedPlayers = (camp.activePlayers || []).filter(id => id !== uid);
+  
+  const updatedNames = { ...camp.playerNames };
+  delete updatedNames[uid];
+  
+  const updatedBirthdays = { ...camp.playerBirthdays };
+  delete updatedBirthdays[uid];
+  
+  const updatedPCs = (camp.playerCharacters || []).map(pc => {
+    if (pc.playerId === uid) return { ...pc, playerId: '' };
+    return pc;
+  });
+  
+  const updatedCamp = {
+    ...camp,
+    activePlayers: updatedPlayers,
+    playerNames: updatedNames,
+    playerBirthdays: updatedBirthdays,
+    playerCharacters: updatedPCs
+  };
+  
+  await saveCampaign(updatedCamp);
+  notify("Player exiled from the campaign.", "success");
+  reRender(true);
+};
+
+// ============================================================================
+// --- D&D BEYOND IMPORT ENGINE ---
+// ============================================================================
+
+const parseDDBCharacter = (charData) => {
+    const statModMap = { 'strength-score': 1, 'dexterity-score': 2, 'constitution-score': 3, 'intelligence-score': 4, 'wisdom-score': 5, 'charisma-score': 6 };
+    const skillAbilities = {
+        'athletics': 1, 'acrobatics': 2, 'sleight-of-hand': 2, 'stealth': 2,
+        'arcana': 4, 'history': 4, 'indigo-success': 4, 'nature': 4, 'religion': 4,
+        'animal-handling': 5, 'insight': 5, 'medicine': 5, 'perception': 5, 'survival': 5,
+        'deception': 6, 'intimidation': 6, 'performance': 6, 'persuasion': 6
+    };
+    
+    const formatName = (str) => str.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    const stripHtml = (html) => html ? html.replace(/<[^>]*>?/gm, '').trim() : '';
+
+    const alignmentMap = { 1: 'Lawful Good', 2: 'Neutral Good', 3: 'Chaotic Good', 4: 'Lawful Neutral', 5: 'True Neutral', 6: 'Chaotic Neutral', 7: 'Lawful Evil', 8: 'Neutral Evil', 9: 'Chaotic Evil' };
+    const sizeMap = { 2: 'Tiny', 3: 'Small', 4: 'Medium', 5: 'Large', 6: 'Huge', 7: 'Gargantuan' };
+
+    const stats = { 1: {base: 10, bonus: 0, override: 0}, 2: {base: 10, bonus: 0, override: 0}, 3: {base: 10, bonus: 0, override: 0}, 4: {base: 10, bonus: 0, override: 0}, 5: {base: 10, bonus: 0, override: 0}, 6: {base: 10, bonus: 0, override: 0} };
+    charData.stats?.forEach(s => { if(stats[s.id]) stats[s.id].base = s.value; });
+    charData.overrideStats?.forEach(s => { if(stats[s.id] && s.value) stats[s.id].override = s.value; });
+    
+    let proficiencies = { saves: {}, skills: {}, weapons: [], armor: [], tools: [], languages: [] };
+
+    Object.values(charData.modifiers || {}).forEach(modArr => {
+        if (Array.isArray(modArr)) {
+            modArr.forEach(mod => {
+                const subType = mod.subType || '';
+                const type = mod.type || '';
+                const friendlyName = mod.friendlySubtypeName || formatName(subType);
+
+                if (type === 'bonus' && statModMap[subType]) {
+                    stats[statModMap[subType]].bonus += mod.value;
+                }
+                
+                if (type === 'proficiency' || type === 'expertise') {
+                    const profVal = type === 'expertise' ? 2 : 1;
+                    if (subType.includes('saving-throws')) {
+                        const statId = statModMap[subType.replace('-saving-throws', '-score')];
+                        if (statId) proficiencies.saves[statId] = profVal;
+                    } else if (skillAbilities[subType]) {
+                        proficiencies.skills[subType] = Math.max(proficiencies.skills[subType] || 0, profVal);
+                    } else if (type === 'language') {
+                         proficiencies.languages.push(friendlyName);
+                    } else if (subType.includes('armor') || subType === 'shields') {
+                        proficiencies.armor.push(friendlyName);
+                    } else if (subType.includes('weapons') || subType.includes('sword') || subType.includes('bow') || subType.includes('axe') || subType.includes('hammer') || subType.includes('mace') || subType.includes('crossbow')) {
+                         proficiencies.weapons.push(friendlyName);
+                    } else if (subType.includes('tools') || subType.includes('kit') || subType.includes('supplies') || subType.includes('instrument') || subType.includes('vehicles') || subType.includes('utensils')) {
+                         proficiencies.tools.push(friendlyName);
+                    } else {
+                        if (friendlyName.includes('Armor') || friendlyName.includes('Shield')) proficiencies.armor.push(friendlyName);
+                        else if (friendlyName.includes('Weapons') || friendlyName.includes('Sword') || friendlyName.includes('Bow')) proficiencies.weapons.push(friendlyName);
+                    }
+                } else if (type === 'language') {
+                     proficiencies.languages.push(friendlyName);
+                }
+            });
+        }
+    });
+
+    for(let i=1; i<=6; i++) {
+        stats[i].total = stats[i].override || (stats[i].base + stats[i].bonus);
+    }
+
+    const equippedItems = [];
+    const backpackItems = [];
+    let wealth = charData.currencies || { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 };
+    
+    if (charData.inventory && Array.isArray(charData.inventory)) {
+        charData.inventory.forEach(item => {
+            const name = item.definition?.name || 'Unknown Item';
+            const qty = item.quantity > 1 ? ` (x${item.quantity})` : '';
+            if (item.equipped) equippedItems.push(`${name}${qty}`);
+            else backpackItems.push(`${name}${qty}`);
+        });
+    }
+
+    const savesArr = [];
+    const statNames = {1:'STR', 2:'DEX', 3:'CON', 4:'INT', 5:'WIS', 6:'CHA'};
+    for (let i = 1; i <= 6; i++) { if (proficiencies.saves[i]) savesArr.push(statNames[i]); }
+
+    const skillsArr = [];
+    Object.keys(skillAbilities).forEach(skillKey => {
+        if (proficiencies.skills[skillKey]) skillsArr.push(formatName(skillKey));
+    });
+
+    const sizeId = charData.race?.sizeId || charData.sizeId;
+    const finalSize = sizeMap[sizeId] || charData.size || '';
+
+    return {
+        name: charData.name || 'Unknown',
+        race: charData.race?.fullName || charData.race?.baseName || '',
+        classLevel: charData.classes?.map(c => `${c.definition?.name} ${c.level}`).join(' / ') || '',
+        background: charData.background?.definition?.name || (charData.background?.customBackground ? charData.background.customBackground.name : ''),
+        alignment: alignmentMap[charData.alignmentId] || '', 
+        faith: charData.faith || '',
+        gender: charData.gender || '',
+        age: charData.age || '',
+        size: finalSize,
+        height: charData.height || '',
+        weight: charData.weight || '',
+        eyes: charData.eyes || '',
+        hair: charData.hair || '',
+        skin: charData.skin || '',
+        image: '', 
+        str: stats[1].total, dex: stats[2].total, con: stats[3].total, 
+        int: stats[4].total, wis: stats[5].total, cha: stats[6].total,
+        saves: savesArr.join(', '),
+        skills: skillsArr.join(', '),
+        proficiencies: [...new Set([...proficiencies.weapons, ...proficiencies.armor, ...proficiencies.tools, ...proficiencies.languages])].join(', '),
+        wealth: `${wealth.cp}cp, ${wealth.sp}sp, ${wealth.ep}ep, ${wealth.gp}gp, ${wealth.pp}pp`,
+        equipped: equippedItems.join('\n'),
+        backpack: backpackItems.join('\n'),
+        traits: stripHtml(charData.traits?.personalityTraits),
+        ideals: stripHtml(charData.traits?.ideals),
+        bonds: stripHtml(charData.traits?.bonds),
+        flaws: stripHtml(charData.traits?.flaws),
+        appearance: stripHtml(charData.traits?.appearance),
+        backstory: stripHtml(charData.notes?.backstory),
+        organizations: stripHtml(charData.notes?.organizations),
+        allies: stripHtml(charData.notes?.allies),
+        enemies: stripHtml(charData.notes?.enemies)
+    };
+};
+
+// --- NEW PROXY CASCADE ENGINE ---
+const fetchWithProxyCascade = async (targetUrl) => {
+    const proxies = [
+        `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
+        `https://thingproxy.freeboard.io/fetch/${targetUrl}`
+    ];
+
+    let lastError = null;
+    for (const proxy of proxies) {
+        try {
+            console.log(`Attempting D&D Beyond fetch via: ${proxy.split('/')[2]}`);
+            const response = await fetch(proxy, { headers: { 'Cache-Control': 'no-cache' } });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP Error: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            return data;
+            
+        } catch (err) {
+            console.warn(`Proxy failed: ${proxy.split('/')[2]}`, err);
+            lastError = err;
+        }
+    }
+    
+    // If we exhaust the loop, all proxies failed
+    throw new Error("All CORS proxies failed. D&D Beyond might be down, or you are being rate-limited. Please try again later.");
+};
+
+
+export const openDndBeyondImportModal = () => {
+    const container = document.getElementById('global-popup-container');
+    if (!container) return;
+
+    container.innerHTML = `
+        <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[18000] backdrop-blur-sm animate-in">
+            <div class="bg-[#f4ebd8] rounded-sm w-full max-w-4xl border border-[#d4c5a9] shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
+                <div class="bg-stone-900 p-4 border-b-4 border-red-900 shadow-md shrink-0 flex justify-between items-center text-amber-50">
+                    <h2 class="text-lg font-serif font-bold flex items-center"><i class="fa-solid fa-file-import mr-2 text-red-500"></i> D&D Beyond Importer</h2>
+                    <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="text-stone-400 hover:text-white transition"><i class="fa-solid fa-times text-xl"></i></button>
+                </div>
+                <div class="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-grow bg-[#fdfbf7] flex flex-col gap-4">
+                    <div class="bg-amber-50 border border-amber-200 p-4 rounded-sm shadow-sm text-amber-900 text-sm leading-snug">
+                        <i class="fa-solid fa-circle-info mr-1 text-amber-600"></i> Paste the full URL to your public D&D Beyond character sheet. The app will fetch the data and extract your hero's attributes, classes, and lore automatically.
+                    </div>
+                    
+                    <div class="flex gap-2 w-full max-w-2xl mx-auto mt-2">
+                        <input type="text" id="ddb-url-input" class="flex-grow p-3 border border-[#d4c5a9] rounded-sm text-sm font-bold bg-white shadow-inner focus:border-red-900 outline-none" placeholder="e.g. https://www.dndbeyond.com/characters/12345678">
+                        <button id="ddb-fetch-btn" onclick="window.appActions.fetchAndAnalyzeDndBeyond()" class="px-6 py-3 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-xs shadow-md shrink-0 whitespace-nowrap"><i class="fa-solid fa-cloud-arrow-down mr-2"></i> Fetch & Analyze</button>
+                    </div>
+
+                    <div id="ddb-analysis-output" class="hidden flex-grow bg-stone-900 text-green-400 p-4 rounded-sm font-mono text-[10px] sm:text-xs overflow-auto custom-scrollbar min-h-[300px] border border-stone-700 shadow-inner whitespace-pre-wrap mt-4"></div>
+                </div>
+            </div>
+        </div>
+    `;
+};
+
+export const fetchAndAnalyzeDndBeyond = async () => {
+    const input = document.getElementById('ddb-url-input').value.trim();
+    const output = document.getElementById('ddb-analysis-output');
+    const btn = document.getElementById('ddb-fetch-btn');
+    
+    if (!input) {
+        notify("Please enter a valid D&D Beyond character URL.", "error");
+        return;
+    }
+
+    const match = input.match(/\/characters?\/(\d+)/i) || input.match(/^(\d+)$/);
+    if (!match) {
+        notify("Could not find a character ID. Please ensure it looks like dndbeyond.com/characters/12345678", "error");
+        return;
+    }
+    const characterId = match[1];
+
+    const originalBtnHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Fetching...';
+    btn.disabled = true;
+    output.classList.add('hidden');
+
+    try {
+        const cacheBust = new Date().getTime();
+        const apiUrl = `https://character-service.dndbeyond.com/character/v5/character/${characterId}?cb=${cacheBust}`;
+        
+        // Execute the new Proxy Cascade!
+        const ddbData = await fetchWithProxyCascade(apiUrl);
+        
+        if (!ddbData || !ddbData.success || !ddbData.data) {
+            throw new Error("D&D Beyond returned an unexpected data structure. Ensure the character is set to Public.");
+        }
+
+        const parsedData = parseDDBCharacter(ddbData.data);
+        
+        window.appData.tempDdbImport = {
+            ...parsedData,
+            id: generateId(),
+            ddbId: characterId,
+            playerId: '', inspiration: 0, automaticSuccess: false, availableDowntime: 0, downtimeLog: ''
+        };
+
+        let analysis = `✅ Character Successfully Fetched via API.\n\n`;
+        analysis += `Name: ${parsedData.name}\n`;
+        analysis += `Race: ${parsedData.race}\n`;
+        analysis += `Class: ${parsedData.classLevel}\n\n`;
+        
+        analysis += `STR: ${parsedData.str} | DEX: ${parsedData.dex} | CON: ${parsedData.con}\n`;
+        analysis += `INT: ${parsedData.int} | WIS: ${parsedData.wis} | CHA: ${parsedData.cha}\n\n`;
+        
+        analysis += `Saving Throws: ${parsedData.saves || 'None'}\n`;
+        analysis += `Skills: ${parsedData.skills || 'None'}\n`;
+        analysis += `Proficiencies: ${parsedData.proficiencies || 'None'}\n\n`;
+        
+        analysis += `Wealth: ${parsedData.wealth}\n`;
+        
+        const eqCount = parsedData.equipped ? parsedData.equipped.split('\n').length : 0;
+        const bpCount = parsedData.backpack ? parsedData.backpack.split('\n').length : 0;
+        analysis += `Equipment: ${eqCount} items equipped, ${bpCount} in backpack.\n`;
+
+        output.innerHTML = `
+            <div class="text-green-400 whitespace-pre-wrap mb-4">${analysis}</div>
+            <button onclick="window.appActions.executeDndBeyondImport()" class="w-full py-3 bg-emerald-700 text-white rounded-sm hover:bg-emerald-600 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md">
+                <i class="fa-solid fa-user-check mr-2"></i> Import ${parsedData.name} into Campaign
+            </button>
+        `;
+        
+        output.classList.remove('hidden');
+        output.classList.remove('text-red-500');
+        output.classList.add('text-green-400');
+        
+    } catch (e) {
+        output.textContent = "Error parsing D&D Beyond data: \n" + e.message;
+        output.classList.remove('hidden');
+        output.classList.remove('text-green-400');
+        output.classList.add('text-red-500');
+    } finally {
+        btn.innerHTML = originalBtnHtml;
+        btn.disabled = false;
+    }
+};
+
+export const executeDndBeyondImport = async () => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    if (!camp) return;
+
+    const newPC = window.appData.tempDdbImport;
+    if (!newPC) {
+        notify("No character data found to import.", "error");
+        return;
+    }
+
+    const newPCs = [...(camp.playerCharacters || []), newPC];
+
+    let updatedCodexArray = [...(camp.codex || [])];
+    updatedCodexArray.push({
+        id: newPC.id,
+        name: newPC.name,
+        type: 'PC',
+        tags: ['Hero', newPC.race, newPC.classLevel].filter(Boolean),
+        desc: 'Rumors and public knowledge surrounding this hero are yet to be penned.',
+        visibility: { mode: 'public' },
+        image: newPC.image
+    });
+
+    let updatedCamp = { ...camp, playerCharacters: newPCs, codex: updatedCodexArray };
+    updatedCamp = logPlayerActivity(updatedCamp, window.appData.currentUserUid, `imported a new hero: <span class="font-bold text-amber-700">${newPC.name}</span>.`, 'fa-file-import');
+
+    await saveCampaign(updatedCamp);
+
+    document.getElementById('global-popup-container').innerHTML = '';
+    window.appData.tempDdbImport = null;
+    notify("Hero imported successfully.", "success");
+    reRender(true);
+};
+
+export const quickSyncDDB = async (pcId) => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    if (!camp) return;
+
+    let ddbIdToUse = "";
+    const isEditView = window.appData.currentView === 'pc-edit';
+    
+    if (isEditView) {
+        const inputEl = document.getElementById('pc-edit-ddb-id');
+        if (inputEl && inputEl.value.trim()) {
+            ddbIdToUse = inputEl.value.trim();
+        }
+    } 
+    
+    if (!ddbIdToUse) {
+        const pc = camp.playerCharacters?.find(p => p.id === pcId);
+        if (pc && pc.ddbId) {
+            ddbIdToUse = pc.ddbId;
+        }
+    }
+
+    if (!ddbIdToUse) {
+        notify("No D&D Beyond ID or URL found for this hero. Enter one and try again.", "error");
+        return;
+    }
+
+    const match = ddbIdToUse.match(/\/characters?\/(\d+)/i) || ddbIdToUse.match(/^(\d+)$/);
+    if (!match) {
+        notify("Invalid D&D Beyond ID or URL format.", "error");
+        return;
+    }
+    const characterId = match[1];
+
+    notify("Syncing with D&D Beyond...", "info");
+
+    try {
+        const cacheBust = new Date().getTime();
+        const apiUrl = `https://character-service.dndbeyond.com/character/v5/character/${characterId}?cb=${cacheBust}`;
+        
+        // Execute the new Proxy Cascade!
+        const ddbData = await fetchWithProxyCascade(apiUrl);
+
+        if (!ddbData || !ddbData.success || !ddbData.data) {
+            throw new Error("D&D Beyond returned an unexpected data structure.");
+        }
+
+        const parsedData = parseDDBCharacter(ddbData.data);
+        parsedData.ddbId = characterId;
+
+        if (isEditView) {
+            const setVal = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined) el.value = val; };
+            
+            setVal('pc-edit-name', parsedData.name);
+            setVal('pc-edit-race', parsedData.race);
+            setVal('pc-edit-class', parsedData.classLevel);
+            setVal('pc-edit-background', parsedData.background);
+            setVal('pc-edit-alignment', parsedData.alignment);
+            setVal('pc-edit-faith', parsedData.faith);
+            setVal('pc-edit-gender', parsedData.gender);
+            setVal('pc-edit-age', parsedData.age);
+            setVal('pc-edit-size', parsedData.size);
+            setVal('pc-edit-height', parsedData.height);
+            setVal('pc-edit-weight', parsedData.weight);
+            setVal('pc-edit-eyes', parsedData.eyes);
+            setVal('pc-edit-hair', parsedData.hair);
+            setVal('pc-edit-skin', parsedData.skin);
+            
+            setVal('pc-edit-str', parsedData.str);
+            setVal('pc-edit-dex', parsedData.dex);
+            setVal('pc-edit-con', parsedData.con);
+            setVal('pc-edit-int', parsedData.int);
+            setVal('pc-edit-wis', parsedData.wis);
+            setVal('pc-edit-cha', parsedData.cha);
+            
+            setVal('pc-edit-saves', parsedData.saves);
+            setVal('pc-edit-skills', parsedData.skills);
+            setVal('pc-edit-proficiencies', parsedData.proficiencies);
+            setVal('pc-edit-wealth', parsedData.wealth);
+            
+            setVal('input-pc-edit-traits', parsedData.traits);
+            setVal('input-pc-edit-ideals', parsedData.ideals);
+            setVal('input-pc-edit-bonds', parsedData.bonds);
+            setVal('input-pc-edit-flaws', parsedData.flaws);
+            setVal('input-pc-edit-appearance', parsedData.appearance);
+            setVal('input-pc-edit-backstory', parsedData.backstory);
+            setVal('input-pc-edit-organizations', parsedData.organizations);
+            setVal('input-pc-edit-allies', parsedData.allies);
+            setVal('input-pc-edit-enemies', parsedData.enemies);
+            setVal('input-pc-edit-equipped', parsedData.equipped);
+            setVal('input-pc-edit-backpack', parsedData.backpack);
+            
+            notify("Fields populated! Click 'Inscribe' when ready to save.", "success");
+            
+            const zenDivs = ['traits', 'ideals', 'bonds', 'flaws', 'appearance', 'backstory', 'organizations', 'allies', 'enemies', 'equipped', 'backpack'];
+            zenDivs.forEach(z => {
+                const viewDiv = document.getElementById(`view-input-pc-edit-${z}`);
+                if (viewDiv) viewDiv.innerHTML = parsedData[z] ? window.appActions.parseSmartText(parsedData[z]) : '<span class="text-stone-400 italic">No entry provided...</span>';
+            });
+        } 
+        else {
+            const pc = camp.playerCharacters?.find(p => p.id === pcId);
+            if (!pc) return;
+
+            const mergedPC = {
+                ...pc,
+                ...parsedData,
+                image: pc.image || '', 
+                appearance: parsedData.appearance || pc.appearance || '',
+                backstory: parsedData.backstory || pc.backstory || '',
+            };
+
+            const updatedPCs = camp.playerCharacters.map(p => p.id === pcId ? mergedPC : p);
+            
+            let updatedCamp = { ...camp, playerCharacters: updatedPCs };
+            updatedCamp = logPlayerActivity(updatedCamp, window.appData.currentUserUid, `synced <span class="font-bold text-amber-700">${mergedPC.name}</span> with D&D Beyond.`, 'fa-cloud-arrow-down');
+
+            await saveCampaign(updatedCamp);
+            notify(`${mergedPC.name} synced perfectly.`, "success");
+            reRender(true);
+        }
+
+    } catch (e) {
+        console.error(e);
+        notify("Failed to sync: " + e.message, "error");
+    }
+};
+
+if (typeof window !== 'undefined') {
+    window.appActions = window.appActions || {};
+    
+    // Bind General Actions
+    window.appActions.savePCEdit = savePCEdit;
+    window.appActions.deletePC = deletePC;
+    window.appActions.kickPlayer = kickPlayer;
+    window.appActions.openPCEdit = openPCEdit;
+    window.appActions.calculateBirthdaysLive = calculateBirthdaysLive;
+    
+    // DDB Integration Imports
+    window.appActions.openDndBeyondImportModal = openDndBeyondImportModal;
+    window.appActions.fetchAndAnalyzeDndBeyond = fetchAndAnalyzeDndBeyond;
+    window.appActions.executeDndBeyondImport = executeDndBeyondImport;
+    window.appActions.quickSyncDDB = quickSyncDDB;
+}
