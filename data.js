@@ -335,16 +335,9 @@ import {
     renderDatabaseResults
 } from './ui-databases.js';
 
-// --- PATTERN MAGIC IMPORTS ---
-import './actions-pattern-magic.js';
-import './ui-pattern-magic.js';
-
 // --- APP ACTIONS HUB --- 
 if (typeof window !== 'undefined') {
     window.appActions = { 
-      // Defensive Copy to protect already assigned actions
-      ...(window.appActions || {}),
-      
       reRender, 
       
       // Navigation & UI Core
