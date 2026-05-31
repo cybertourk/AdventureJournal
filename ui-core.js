@@ -886,12 +886,20 @@ export function updateChecklistUI(state) {
     container.innerHTML = tabNav + contentHtml;
 }
 
+export let lastRenderedView = null;
+let savedScrollPos = 0;
+
 export function renderApp(state) {
     const container = document.getElementById('app-container');
     if (!container) return;
 
+    const isSameView = lastRenderedView === state.currentView;
+    
+    // Memorize scroll position if we are redrawing the same screen (e.g. typing or toggling a dropdown)
     if (state.currentView !== 'atlas') {
-        container.scrollTo({ top: 0, behavior: 'instant' });
+        if (isSameView) {
+            savedScrollPos = container.scrollTop;
+        }
     }
 
     if (state.currentView === 'atlas' && document.getElementById('atlas-wrapper')) {
@@ -902,6 +910,7 @@ export function renderApp(state) {
         updateDockUI(state);
         updateChecklistUI(state);
         updatePlayerResourceBar(state);
+        lastRenderedView = state.currentView;
         return; 
     }
 
@@ -943,6 +952,20 @@ export function renderApp(state) {
             window.appActions.updateSessionBudget();
         }
     }
+
+    if (state.currentView !== 'atlas') {
+        if (isSameView) {
+            // Restore scroll position after the DOM is fully painted
+            requestAnimationFrame(() => {
+                if (container) container.scrollTop = savedScrollPos;
+            });
+        } else {
+            // It's a new view entirely; reset scroll to top
+            container.scrollTo({ top: 0, behavior: 'instant' });
+        }
+    }
+
+    lastRenderedView = state.currentView;
 }
 
 // --- UI HELPER FUNCTIONS ---
