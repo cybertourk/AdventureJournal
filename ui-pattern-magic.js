@@ -40,29 +40,23 @@ const injectTapestryStyles = () => {
             border: 2px solid #1c1917;
             box-shadow: inset 0 0 15px rgba(0,0,0,0.8), 0 10px 15px -3px rgba(0, 0, 0, 0.5);
         }
-        .sigil-glow {
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .spin-loom-slow {
-            animation: spinLoom 40s linear infinite;
-        }
-        @keyframes spinLoom {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .sigil-btn {
+            /* Springy, smooth animation for gliding around the loom */
+            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
         .pulse-prime-sigil img {
             animation: pulsePrimeSigil 3s ease-in-out infinite alternate;
         }
         @keyframes pulsePrimeSigil {
-            0% { transform: scale(1.1); }
-            100% { transform: scale(1.2); }
+            0% { filter: drop-shadow(0 0 8px currentColor); }
+            100% { filter: drop-shadow(0 0 18px currentColor); }
         }
-        .pulse-support-sigil img {
-            animation: pulseSupportSigil 4s ease-in-out infinite alternate;
+        @keyframes loomAppear {
+            0% { transform: rotate(-180deg) scale(0); left: calc(50% - 32px); top: calc(50% - 32px); opacity: 0; }
+            100% { opacity: 1; }
         }
-        @keyframes pulseSupportSigil {
-            0% { transform: scale(1); }
-            100% { transform: scale(1.05); }
+        .loom-appear-anim {
+            animation: loomAppear 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
         }
     `;
     document.head.appendChild(style);
@@ -109,141 +103,6 @@ const getOrInitDraftState = () => {
     }
     return window.appData.patternSpellDraft;
 };
-
-// =========================================================================
-// Loom of Reality Engine & Dynamic Renderer
-// =========================================================================
-function renderSpellWheelHTML(pc, pm, draft) {
-    const patternsList = Object.keys(PATTERN_THEME);
-    const primary = draft.patterns[0] || null;
-    const supports = draft.patterns.slice(1);
-    const isConvergence = draft.patterns.length === 9;
-
-    let wheelNodesHtml = '';
-    
-    // Circle math parameters
-    const width = 320;
-    const height = 320;
-    const radius = 105;
-    const cx = width / 2;
-    const cy = height / 2;
-
-    if (!primary) {
-        // State A: No Primary selected. Render all 9 threads equidistant in an outer circle.
-        patternsList.forEach((key, index) => {
-            const angle = (index * (360 / 9) - 90) * (Math.PI / 180);
-            const x = cx + radius * Math.cos(angle);
-            const y = cy + radius * Math.sin(angle);
-            const theme = PATTERN_THEME[key];
-            const rank = pm[key] || 0;
-
-            wheelNodesHtml += `
-                <button type="button" 
-                        onclick="window.appActions.toggleWheelPattern('${key}')"
-                        style="left: ${x}px; top: ${y}px;"
-                        class="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center transition-all duration-300 group z-20 hover:z-[100] w-16 h-20 outline-none">
-                    
-                    <img src="${PATTERN_ASSET_BASE_URL}${key}.webp" alt="${theme.label}" 
-                         class="w-12 h-12 object-contain transition-all duration-300 grayscale-[60%] opacity-60 group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-110" 
-                         style="filter: drop-shadow(0 0 3px rgba(0,0,0,0.3));" 
-                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                    <span class="hidden text-xs font-serif font-bold text-stone-600">${theme.label}</span>
-                    
-                    <span class="text-[11px] font-serif font-bold mt-1 text-stone-600 transition-colors group-hover:text-stone-900">${theme.label}</span>
-                    <span class="text-[9px] font-bold text-stone-400 leading-none mt-0.5">Rank ${rank}</span>
-                </button>
-            `;
-        });
-    } else {
-        // State B: Primary Selected. Sits perfectly in the center. Others form an 8-node orbit.
-        const orbitsList = patternsList.filter(k => k !== primary);
-        
-        // Render Primary Sigil in center
-        const primeTheme = PATTERN_THEME[primary];
-        const primeRank = pm[primary] || 0;
-        const primeFlashClass = isConvergence ? 'pulse-prime-sigil' : 'pulse-prime-sigil';
-
-        wheelNodesHtml += `
-            <button type="button"
-                    onclick="window.appActions.toggleWheelPattern('${primary}')"
-                    style="left: 50%; top: 50%;"
-                    class="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center transition-all duration-300 group z-30 hover:z-[100] w-24 h-24 outline-none ${primeFlashClass}">
-                
-                <img src="${PATTERN_ASSET_BASE_URL}${primary}.webp" alt="${primeTheme.label}" 
-                     class="w-16 h-16 object-contain transition-all duration-300 drop-shadow-md" 
-                     style="filter: drop-shadow(0 0 8px ${primeTheme.color});" 
-                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                <span class="hidden text-sm font-serif font-black" style="color: ${primeTheme.color};">${primeTheme.label}</span>
-                
-                <span class="text-xs font-serif font-black mt-1" style="color: ${primeTheme.color};">${primeTheme.label}</span>
-                <span class="text-[9px] font-bold text-stone-500 leading-none mt-0.5">Rank ${primeRank}</span>
-            </button>
-        `;
-
-        // Render remaining 8 orbiting sigils
-        orbitsList.forEach((key, index) => {
-            const angle = (index * (360 / 8) - 90) * (Math.PI / 180);
-            const x = cx + radius * Math.cos(angle);
-            const y = cy + radius * Math.sin(angle);
-            const theme = PATTERN_THEME[key];
-            const rank = pm[key] || 0;
-
-            const isSupported = supports.includes(key);
-            
-            let imgClass = "w-10 h-10 object-contain transition-all duration-300 grayscale-[70%] opacity-50 group-hover:grayscale-0 group-hover:opacity-80 group-hover:scale-110";
-            let imgStyle = `filter: drop-shadow(0 0 2px rgba(0,0,0,0.2));`;
-            let textClass = "text-[10px] font-serif font-bold mt-1 text-stone-400 transition-colors group-hover:text-stone-700";
-            let glowClass = "";
-
-            if (isSupported) {
-                imgClass = "w-12 h-12 object-contain transition-all duration-300 grayscale-0 opacity-100 group-hover:scale-110";
-                imgStyle = `filter: drop-shadow(0 0 6px ${theme.color});`;
-                textClass = `text-[11px] font-serif font-bold mt-1 transition-colors`;
-                glowClass = "pulse-support-sigil";
-            }
-
-            wheelNodesHtml += `
-                <button type="button"
-                        onclick="window.appActions.toggleWheelPattern('${key}')"
-                        style="left: ${x}px; top: ${y}px;"
-                        class="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center transition-all duration-300 group z-20 hover:z-[100] w-16 h-16 outline-none ${glowClass}">
-                    
-                    <img src="${PATTERN_ASSET_BASE_URL}${key}.webp" alt="${theme.label}" 
-                         class="${imgClass}" 
-                         style="${imgStyle}" 
-                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                    <span class="hidden text-[10px] font-serif font-bold text-stone-600">${theme.label}</span>
-                    
-                    <span class="${textClass}" ${isSupported ? `style="color: ${theme.color};"` : ''}>${theme.label}</span>
-                </button>
-            `;
-        });
-    }
-
-    const convergenceSpinClass = isConvergence ? 'spin-loom-slow' : '';
-
-    return `
-    <div class="relative w-[320px] h-[320px] flex items-center justify-center p-4 mx-auto mb-6 shrink-0">
-        <!-- SVG Loom Threads in Background (Light/Subtle) -->
-        <svg class="absolute inset-0 w-full h-full pointer-events-none ${convergenceSpinClass}" viewBox="0 0 320 320">
-            <!-- Subtle Outer binding ring -->
-            <circle cx="160" cy="160" r="105" fill="none" stroke="#d4c5a9" stroke-width="1" stroke-dasharray="4 6" opacity="0.6" />
-            
-            ${primary ? Array.from({ length: 8 }).map((_, i) => {
-                const angle = (i * (360 / 8) - 90) * (Math.PI / 180);
-                const x2 = 160 + radius * Math.cos(angle);
-                const y2 = 160 + radius * Math.sin(angle);
-                return `<line x1="160" y1="160" x2="${x2}" y2="${y2}" stroke="#d4c5a9" stroke-width="1" stroke-dasharray="2 4" opacity="0.4" />`;
-            }).join('') : ''}
-        </svg>
-
-        <!-- Node buttons layout container -->
-        <div class="absolute inset-0">
-            ${wheelNodesHtml}
-        </div>
-    </div>
-    `;
-}
 
 // =========================================================================
 // Real-time Affinity and Cost Calculation Engines
@@ -326,91 +185,12 @@ function calculateAffinityLimitsAndCosts(pc, pm, draft) {
 }
 
 // =========================================================================
-// Main Pattern Tapestry HTML Render
+// Dynamic Forms Builder (Extracted for Seamless Updates)
 // =========================================================================
-export function getPatternNexusHTML(state) {
-    injectTapestryStyles();
-    const camp = state.activeCampaign;
-    if (!camp) return '';
+function buildEffectsHTML(metrics, draft, pm, activePc) {
+    let html = '';
+    const primary = draft.patterns[0] || null;
 
-    const myUid = state.currentUserUid;
-    const isDM = camp._isDM;
-
-    // Check if the Nexus has been unlocked by resolving the current PC selection
-    const activePcId = state.activePatternPcId || (camp.playerCharacters?.find(p => p.playerId === myUid)?.id) || '';
-    const activePc = camp.playerCharacters?.find(p => p.id === activePcId);
-    
-    // Safety Fallback: If no PC exists, display clean prompt to create one first
-    if (!activePc) {
-        return `
-        <div class="arcane-tapestry-bg min-h-screen flex flex-col items-center justify-center p-8 font-serif">
-            <div class="max-w-md text-center p-8 parchment-panel rounded-sm relative">
-                <i class="fa-solid fa-book-journal-whills text-amber-700 text-4xl mb-4"></i>
-                <h3 class="font-bold text-2xl text-stone-900 mb-2">No Hero Available</h3>
-                <p class="text-sm text-stone-600 leading-relaxed mb-6">Before you can weave the threads of reality, a hero must be initialized and bound to your account.</p>
-                <button onclick="window.appActions.setView('pc-manager')" class="px-6 py-2 bg-stone-900 text-amber-50 rounded-sm uppercase tracking-wider text-xs font-bold shadow-md hover:bg-stone-800 transition-all">Open Roster</button>
-            </div>
-        </div>
-        `;
-    }
-
-    const pm = getOrInitPatternState(activePc);
-    const draft = getOrInitDraftState();
-
-    // Verify unlocked state or DM overrides
-    const isUnlocked = activePc.patternMagicUnlocked === true || (pm.spatia + pm.wyird + pm.dynamis + pm.vitar + pm.formus + pm.mentis + pm.arcani + pm.umbrus + pm.tempus > 0);
-    
-    if (!isUnlocked && !isDM) {
-        return `
-        <div class="arcane-tapestry-bg min-h-screen flex flex-col items-center justify-center p-8 font-serif">
-            <div class="max-w-md text-center p-8 parchment-panel rounded-sm relative">
-                <i class="fa-solid fa-eye-slash text-stone-400 text-4xl mb-4"></i>
-                <h3 class="font-bold text-2xl text-stone-900 mb-2">The Tapestry is Hidden</h3>
-                <p class="text-sm text-stone-600 leading-relaxed mb-6">Your mind has not yet awakened to the Patterns of reality. The Dungeon Master must unlock this potential within your character sheet.</p>
-                <button onclick="window.appActions.setView('adventure')" class="px-6 py-2 bg-stone-900 text-amber-50 rounded-sm uppercase tracking-wider text-xs font-bold shadow-md hover:bg-stone-800 transition-all">Return to Campaign</button>
-            </div>
-        </div>
-        `;
-    }
-
-    // Character Switching Interface
-    const pcSelectorHtml = `
-        <div class="flex items-center gap-2 bg-[#fdfbf7] px-3 py-1.5 border border-[#d4c5a9] rounded-sm shadow-sm">
-            <span class="text-[10px] uppercase tracking-widest text-stone-500 font-bold"><i class="fa-solid fa-user-circle mr-1"></i> Weaver:</span>
-            <select onchange="window.appActions.switchPatternPc(this.value)" class="bg-transparent text-stone-900 border-none outline-none text-sm font-bold font-serif cursor-pointer py-0.5">
-                ${camp.playerCharacters?.map(p => {
-                    const hasAccess = p.patternMagicUnlocked || isDM;
-                    if (!hasAccess) return '';
-                    const isSelected = p.id === activePcId ? 'selected' : '';
-                    return `<option value="${p.id}" ${isSelected}>${p.name}</option>`;
-                }).join('')}
-            </select>
-        </div>
-    `;
-
-    // Calculate maximum Essentia
-    const totalRanks = Object.keys(PATTERN_CONFIG.PatternAttributes).reduce((sum, key) => sum + (pm[key] || 0), 0);
-    const maxEssentia = totalRanks * 4;
-
-    // Build Essentia Gem Gauge
-    let pipsHtml = '';
-    for (let i = 1; i <= maxEssentia; i++) {
-        const isFilled = pm.essentia >= i;
-        const color = isFilled ? 'bg-amber-500 border-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.8)]' : 'bg-stone-800 border-stone-600 shadow-inner';
-        pipsHtml += `
-            <button type="button" 
-                    onclick="window.appActions.setPcEssentia('${activePc.id}', ${i})"
-                    class="w-4 h-4 rounded-full border-2 ${color} transition-all duration-300 hover:scale-125"
-                    title="Set Essentia to ${i}/${maxEssentia}">
-            </button>
-        `;
-    }
-
-    // Dynamic Math Cost Output box
-    const metrics = calculateAffinityLimitsAndCosts(activePc, pm, draft);
-
-    // Build the dynamic effects forms UI
-    let effectsConfigurationHtml = '';
     Object.entries(PATTERN_CONFIG.Effects).forEach(([category, effectData]) => {
         const activeTier = draft.effectTiers[category] || 0;
         const maxTierAllowed = metrics.limits[category];
@@ -421,22 +201,26 @@ export function getPatternNexusHTML(state) {
             ? effectData.invertedTiers 
             : effectData.tiers;
 
+        // Affinity Star Logic!
+        let starHtml = '';
+        if (primary) {
+            const primAff = PATTERN_CONFIG.Affinities[primary];
+            if (primAff.primary.includes(category)) {
+                starHtml = `<i class="fa-solid fa-star text-amber-500 ml-2" title="Primary Affinity"></i>`;
+            } else if (primAff.secondary.includes(category)) {
+                starHtml = `<i class="fa-regular fa-star text-amber-500 ml-2" title="Secondary Affinity"></i>`;
+            }
+        }
+
         let optionsSelectHtml = '';
-        
-        // --- DAMAGE & HEALING CONFIGURATOR ---
         if (category === 'damageHealing' && activeTier > 0) {
-            // ELEMENT FILTER: Scan active patterns to only allow elemental types they align with
             const activePatterns = draft.patterns;
-            let allowedTypes = ['force']; // Base element
+            let allowedTypes = ['force']; 
             activePatterns.forEach(pat => {
                 const types = PATTERN_CONFIG.DamageTypesByPattern[pat] || [];
                 types.forEach(t => { if (!allowedTypes.includes(t)) allowedTypes.push(t); });
             });
-
-            // Always ensure healing is available if vitar is present
-            if (activePatterns.includes('vitar') && !allowedTypes.includes('healing')) {
-                allowedTypes.push('healing');
-            }
+            if (activePatterns.includes('vitar') && !allowedTypes.includes('healing')) allowedTypes.push('healing');
 
             optionsSelectHtml = `
                 <div class="mt-2.5 flex items-center gap-2 bg-stone-100 px-3 py-2 rounded-sm border border-[#d4c5a9] shadow-inner">
@@ -448,7 +232,6 @@ export function getPatternNexusHTML(state) {
             `;
         }
 
-        // --- BOLSTER & HINDER CONFIGURATOR ---
         if (category === 'bolsterHinder' && activeTier > 0) {
             const allowedOptions = effectData.tiers[activeTier].options || ['Skill Check'];
             optionsSelectHtml = `
@@ -461,17 +244,14 @@ export function getPatternNexusHTML(state) {
             `;
         }
 
-        // --- AUGMENTIA EXAMPLES CONFIGURATOR ---
         if (category === 'augmentia' && activeTier > 0) {
             const examples = effectData.tiers[activeTier].examples || [];
             let exampleOptionsHtml = '<option value="">-- Select an Example --</option>';
-            
             if (examples.length > 0) {
                 examples.forEach(ex => {
                     const sanitizedTip = (ex.tip || '').replace(/"/g, '&quot;');
                     exampleOptionsHtml += `<option value="${ex.name}" title="${sanitizedTip}">${ex.name}</option>`;
                 });
-                
                 optionsSelectHtml = `
                     <div class="mt-2.5 flex flex-col gap-2 bg-stone-100 px-3 py-2.5 rounded-sm border border-[#d4c5a9] shadow-inner">
                         <div class="flex flex-col gap-1">
@@ -484,7 +264,7 @@ export function getPatternNexusHTML(state) {
                             <span class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Custom Effect Detail</span>
                             <input type="text" 
                                    id="draft-aug-custom-${activeTier}"
-                                   oninput="window.appActions.updateDraftField('effectTiers.augmentiaCustom', this.value, false)" 
+                                   oninput="window.appActions.updateDraftField('effectTiers.augmentiaCustom', this.value)" 
                                    value="${draft.effectTiers.augmentiaCustom || ''}" 
                                    placeholder="Or describe a custom alteration..." 
                                    class="w-full bg-white border border-[#d4c5a9] rounded-sm p-2 text-xs text-stone-900 outline-none font-serif shadow-sm focus:border-amber-600 transition-colors">
@@ -496,7 +276,7 @@ export function getPatternNexusHTML(state) {
                     <div class="mt-2.5 flex flex-col gap-1.5 bg-stone-100 px-3 py-2 rounded-sm border border-[#d4c5a9] shadow-inner">
                         <span class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Custom Effect Detail:</span>
                         <input type="text" 
-                               oninput="window.appActions.updateDraftField('effectTiers.augmentiaCustom', this.value, false)" 
+                               oninput="window.appActions.updateDraftField('effectTiers.augmentiaCustom', this.value)" 
                                value="${draft.effectTiers.augmentiaCustom || ''}" 
                                placeholder="Describe the alteration..." 
                                class="w-full bg-white border border-[#d4c5a9] rounded-sm p-2 text-xs text-stone-900 outline-none font-serif shadow-sm focus:border-amber-600 transition-colors">
@@ -505,7 +285,6 @@ export function getPatternNexusHTML(state) {
             }
         }
 
-        // Add special custom duration inverted checkbox toggle
         let specialToggleHtml = '';
         if (category === 'duration') {
             specialToggleHtml = `
@@ -519,7 +298,6 @@ export function getPatternNexusHTML(state) {
             `;
         }
 
-        // Tier options selector
         let tierButtonsHtml = '';
         tiersList.forEach((tier, index) => {
             const isDisabled = index > maxTierAllowed;
@@ -546,12 +324,12 @@ export function getPatternNexusHTML(state) {
         const labelColorClass = maxTierAllowed > 0 ? 'text-stone-900' : 'text-stone-500';
         const subtextColorClass = maxTierAllowed > 0 ? 'text-amber-700' : 'text-stone-400';
 
-        effectsConfigurationHtml += `
+        html += `
             <div class="p-4 bg-white border border-[#d4c5a9] rounded-sm shadow-sm">
                 <div class="flex justify-between items-start mb-3 gap-2 flex-wrap border-b border-[#d4c5a9] pb-2">
-                    <div>
+                    <div class="flex items-center">
                         <h4 class="text-sm font-bold font-serif ${labelColorClass}">${labelText}</h4>
-                        <span class="text-[9px] font-sans uppercase font-bold tracking-widest ${subtextColorClass}">${subtext}</span>
+                        ${starHtml}
                     </div>
                     ${specialToggleHtml}
                 </div>
@@ -562,8 +340,85 @@ export function getPatternNexusHTML(state) {
             </div>
         `;
     });
+    return html;
+}
 
-    // Rotes List Sidebar (Grimoire Styling)
+// =========================================================================
+// Main Pattern Tapestry HTML Render
+// =========================================================================
+export function getPatternNexusHTML(state) {
+    injectTapestryStyles();
+    const camp = state.activeCampaign;
+    if (!camp) return '';
+
+    const myUid = state.currentUserUid;
+    const isDM = camp._isDM;
+
+    const activePcId = state.activePatternPcId || (camp.playerCharacters?.find(p => p.playerId === myUid)?.id) || '';
+    const activePc = camp.playerCharacters?.find(p => p.id === activePcId);
+    
+    if (!activePc) {
+        return `
+        <div class="arcane-tapestry-bg min-h-screen flex flex-col items-center justify-center p-8 font-serif">
+            <div class="max-w-md text-center p-8 parchment-panel rounded-sm relative">
+                <i class="fa-solid fa-book-journal-whills text-amber-700 text-4xl mb-4"></i>
+                <h3 class="font-bold text-2xl text-stone-900 mb-2">No Hero Available</h3>
+                <p class="text-sm text-stone-600 leading-relaxed mb-6">Before you can weave the threads of reality, a hero must be initialized and bound to your account.</p>
+                <button onclick="window.appActions.setView('pc-manager')" class="px-6 py-2 bg-stone-900 text-amber-50 rounded-sm uppercase tracking-wider text-xs font-bold shadow-md hover:bg-stone-800 transition-all">Open Roster</button>
+            </div>
+        </div>
+        `;
+    }
+
+    const pm = getOrInitPatternState(activePc);
+    const draft = getOrInitDraftState();
+    const metrics = calculateAffinityLimitsAndCosts(activePc, pm, draft);
+
+    const isUnlocked = activePc.patternMagicUnlocked === true || (pm.spatia + pm.wyird + pm.dynamis + pm.vitar + pm.formus + pm.mentis + pm.arcani + pm.umbrus + pm.tempus > 0);
+    
+    if (!isUnlocked && !isDM) {
+        return `
+        <div class="arcane-tapestry-bg min-h-screen flex flex-col items-center justify-center p-8 font-serif">
+            <div class="max-w-md text-center p-8 parchment-panel rounded-sm relative">
+                <i class="fa-solid fa-eye-slash text-stone-400 text-4xl mb-4"></i>
+                <h3 class="font-bold text-2xl text-stone-900 mb-2">The Tapestry is Hidden</h3>
+                <p class="text-sm text-stone-600 leading-relaxed mb-6">Your mind has not yet awakened to the Patterns of reality. The Dungeon Master must unlock this potential within your character sheet.</p>
+                <button onclick="window.appActions.setView('adventure')" class="px-6 py-2 bg-stone-900 text-amber-50 rounded-sm uppercase tracking-wider text-xs font-bold shadow-md hover:bg-stone-800 transition-all">Return to Campaign</button>
+            </div>
+        </div>
+        `;
+    }
+
+    const pcSelectorHtml = `
+        <div class="flex items-center gap-2 bg-[#fdfbf7] px-3 py-1.5 border border-[#d4c5a9] rounded-sm shadow-sm">
+            <span class="text-[10px] uppercase tracking-widest text-stone-500 font-bold"><i class="fa-solid fa-user-circle mr-1"></i> Weaver:</span>
+            <select onchange="window.appActions.switchPatternPc(this.value)" class="bg-transparent text-stone-900 border-none outline-none text-sm font-bold font-serif cursor-pointer py-0.5">
+                ${camp.playerCharacters?.map(p => {
+                    const hasAccess = p.patternMagicUnlocked || isDM;
+                    if (!hasAccess) return '';
+                    const isSelected = p.id === activePcId ? 'selected' : '';
+                    return `<option value="${p.id}" ${isSelected}>${p.name}</option>`;
+                }).join('')}
+            </select>
+        </div>
+    `;
+
+    const totalRanks = Object.keys(PATTERN_CONFIG.PatternAttributes).reduce((sum, key) => sum + (pm[key] || 0), 0);
+    const maxEssentia = totalRanks * 4;
+
+    let pipsHtml = '';
+    for (let i = 1; i <= maxEssentia; i++) {
+        const isFilled = pm.essentia >= i;
+        const color = isFilled ? 'bg-amber-500 border-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.8)]' : 'bg-stone-800 border-stone-600 shadow-inner';
+        pipsHtml += `
+            <button type="button" 
+                    onclick="window.appActions.setPcEssentia('${activePc.id}', ${i})"
+                    class="w-4 h-4 rounded-full border-2 ${color} transition-all duration-300 hover:scale-125"
+                    title="Set Essentia to ${i}/${maxEssentia}">
+            </button>
+        `;
+    }
+
     const memorizedRotesList = pm.rotes || [];
     let rotesTabHtml = '';
     if (memorizedRotesList.length === 0) {
@@ -601,11 +456,11 @@ export function getPatternNexusHTML(state) {
         `;
     }
 
-    // Ability casting selector (Vertically stacked to fit panel bounds cleanly)
+    // Ability casting selector (Stacked Vertically)
     const abilitySelectorHtml = `
-        <div class="w-full flex flex-col gap-1.5">
-            <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest">Attuned Attribute</label>
-            <select onchange="window.appActions.updateDraftField('ability', this.value)" class="w-full bg-white border border-[#d4c5a9] rounded-sm p-2.5 text-sm text-stone-900 font-bold font-sans outline-none shadow-sm focus:border-amber-600 transition-colors cursor-pointer uppercase tracking-wider">
+        <div class="w-full">
+            <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Attuned Attribute</label>
+            <select onchange="window.appActions.updateDraftField('ability', this.value, false)" class="w-full bg-white border border-[#d4c5a9] rounded-sm p-2.5 text-sm text-stone-900 font-bold font-sans outline-none shadow-sm focus:border-amber-600 transition-colors cursor-pointer uppercase tracking-wider">
                 <option value="int" ${draft.ability === 'int' ? 'selected' : ''}>Intelligence (${activePc.int || 10})</option>
                 <option value="wis" ${draft.ability === 'wis' ? 'selected' : ''}>Wisdom (${activePc.wis || 10})</option>
                 <option value="cha" ${draft.ability === 'cha' ? 'selected' : ''}>Charisma (${activePc.cha || 10})</option>
@@ -613,11 +468,9 @@ export function getPatternNexusHTML(state) {
         </div>
     `;
 
-    // DM Administration View
     let dmAdministrationPanelHtml = '';
     if (isDM) {
         dmAdministrationPanelHtml = `
-            <!-- DM Administration Layer -->
             <div class="p-5 bg-stone-900 border border-stone-700 rounded-sm mb-8 shadow-md">
                 <h3 class="text-sm font-bold font-serif text-amber-500 uppercase tracking-widest flex items-center border-b border-stone-700 pb-2 mb-5">
                     <i class="fa-solid fa-crown text-amber-600 mr-2"></i> Dungeon Master's Loom Control
@@ -660,11 +513,36 @@ export function getPatternNexusHTML(state) {
         `;
     }
 
+    // Generate initial Loom Buttons wrapped in the appear animation
+    const patternsList = Object.keys(PATTERN_THEME);
+    let loomHtml = '';
+    patternsList.forEach(key => {
+        const theme = PATTERN_THEME[key];
+        const rank = pm[key] || 0;
+        // They spawn unselected, in the center, and spiral out via initialization hook
+        loomHtml += `
+            <button id="sigil-btn-${key}" type="button" 
+                    onclick="window.appActions.toggleWheelPattern('${key}')"
+                    style="left: 128px; top: 128px; transform: scale(0) rotate(-180deg); opacity: 0; color: ${theme.color};"
+                    class="sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-20 opacity-60 grayscale hover:grayscale-0 hover:opacity-100 loom-appear-anim group">
+                <img src="${PATTERN_ASSET_BASE_URL}${key}.webp" alt="${theme.label}" class="w-10 h-10 object-contain drop-shadow-md transition-all duration-500" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <span class="text-[11px] font-serif font-bold text-stone-800 mt-1 leading-none">${theme.label}</span>
+                <span class="text-[9px] font-black text-stone-500 mt-0.5 leading-none">${rank}</span>
+            </button>
+        `;
+    });
+
+    // We trigger the client-side UI sync immediately after the DOM parses this string
+    setTimeout(() => {
+        if (window.appActions && window.appActions.refreshTapestryUI) {
+            window.appActions.refreshTapestryUI();
+        }
+    }, 50);
+
     return `
     <div class="arcane-tapestry-bg min-h-screen text-stone-900 p-4 sm:p-6 lg:p-8 font-sans border-2 border-stone-900 shadow-2xl relative">
         <div class="max-w-6xl mx-auto">
             
-            <!-- Header Block -->
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 border-b border-[#78350f] pb-5">
                 <div>
                     <div class="flex items-center gap-3">
@@ -681,28 +559,33 @@ export function getPatternNexusHTML(state) {
                 </div>
             </div>
 
-            <!-- DM Configuration Overseer Area -->
             ${dmAdministrationPanelHtml}
 
-            <!-- Main Layout Grid -->
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
                 
-                <!-- Left Panel: Tapestry Loom & Attunement -->
+                <!-- Left Panel -->
                 <div class="lg:col-span-5 space-y-6">
                     
-                    <!-- Circular SVG Loom Widget -->
+                    <!-- Clean Parchment Loom Widget (No Circles) -->
                     <div class="p-6 parchment-panel rounded-sm relative">
                         <h3 class="text-sm font-bold text-amber-900 uppercase tracking-widest font-serif border-b border-[#d4c5a9] pb-2 mb-6 text-center"><i class="fa-solid fa-dharmachakra mr-1.5 text-amber-600"></i> The Loom of Reality</h3>
                         
-                        ${renderSpellWheelHTML(activePc, pm, draft)}
+                        <div class="relative w-[320px] h-[320px] flex items-center justify-center p-4 mx-auto mb-6 shrink-0">
+                            <!-- Background guides (optional subtle rings) -->
+                            <svg class="absolute inset-0 w-full h-full pointer-events-none opacity-20" viewBox="0 0 320 320">
+                                <circle cx="160" cy="160" r="105" fill="none" stroke="#78350f" stroke-width="1" stroke-dasharray="2 4" />
+                                <circle cx="160" cy="160" r="60" fill="none" stroke="#d4c5a9" stroke-width="1" />
+                            </svg>
+
+                            <!-- Node buttons -->
+                            <div class="absolute inset-0">
+                                ${loomHtml}
+                            </div>
+                        </div>
 
                         <div class="p-4 bg-stone-50 border border-[#d4c5a9] rounded-sm text-center text-xs text-stone-600 shadow-inner">
-                            <p class="font-serif leading-relaxed italic">
-                                ${draft.patterns.length === 0 
-                                    ? `Select a thread from the outer ring to designate as your Primary Sigil.` 
-                                    : draft.patterns.length === 9 
-                                    ? `🚨 <span class="text-amber-700 font-bold">ALL THREADS WOVEN.</span> The Loom sings with absolute cosmic power!` 
-                                    : `Select orbiting sigils to weave Support threads. Active threads define your capabilities.`}
+                            <p id="loom-hint-text" class="font-serif leading-relaxed italic">
+                                Select a thread from the outer ring to designate as your Primary Sigil.
                             </p>
                         </div>
                     </div>
@@ -750,7 +633,6 @@ export function getPatternNexusHTML(state) {
                 <!-- Right Panel: Cast Configuration Engine -->
                 <div class="lg:col-span-7 space-y-6">
                     
-                    <!-- Essentia Reservoir -->
                     <div class="p-5 leather-panel rounded-sm relative text-stone-200">
                         <div class="flex justify-between items-center border-b border-stone-700 pb-3 mb-4">
                             <h3 class="text-sm font-bold text-amber-500 uppercase tracking-widest font-serif flex items-center">
@@ -763,7 +645,6 @@ export function getPatternNexusHTML(state) {
                         </div>
                     </div>
 
-                    <!-- Spell Form Formulation Engine -->
                     <div class="p-5 sm:p-6 parchment-panel rounded-sm relative">
                         <h3 class="text-sm font-bold text-amber-900 uppercase tracking-widest font-serif border-b border-[#d4c5a9] pb-2 mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <span><i class="fa-solid fa-wand-sparkles mr-1.5 text-amber-600"></i> Weaving the Threads</span>
@@ -795,8 +676,8 @@ export function getPatternNexusHTML(state) {
                         </div>
 
                         <!-- Active Effects Scaffolding -->
-                        <div class="space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar pr-2 mb-6">
-                            ${effectsConfigurationHtml}
+                        <div id="effects-scaffolding-container" class="space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar pr-2 mb-6">
+                            ${buildEffectsHTML(metrics, draft, pm, activePc)}
                         </div>
 
                         <!-- Cost Outputs & Casting Trigger Card -->
@@ -808,7 +689,7 @@ export function getPatternNexusHTML(state) {
                                     <span class="block text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Essentia Fuel Required</span>
                                     <div class="flex items-center gap-2">
                                         <i class="fa-solid fa-droplet text-amber-500 text-xl"></i>
-                                        <strong class="text-3xl font-black font-serif text-amber-400 drop-shadow-md">
+                                        <strong id="tapestry-cost-out" class="text-3xl font-black font-serif text-amber-400 drop-shadow-md">
                                             ${metrics.finalCost}
                                         </strong>
                                     </div>
@@ -817,12 +698,11 @@ export function getPatternNexusHTML(state) {
                                 <div class="text-right">
                                     <span class="block text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Weaving Difficulty</span>
                                     <strong class="text-2xl font-black font-serif text-stone-100 bg-stone-800 px-4 py-2 rounded-sm border border-stone-600 shadow-inner">
-                                        DC ${metrics.dc}
+                                        DC <span id="tapestry-dc-out">${metrics.dc}</span>
                                     </strong>
                                 </div>
                             </div>
 
-                            <!-- Save Rote Form -->
                             <div class="mt-5 pt-4 border-t border-stone-700 flex flex-col sm:flex-row gap-3 items-center pl-3">
                                 <input type="text" 
                                        id="input-rote-memorize-name" 
@@ -835,9 +715,9 @@ export function getPatternNexusHTML(state) {
                                 </button>
                             </div>
 
-                            <!-- Weave Spell Trigger -->
                             <div class="mt-4 pl-3">
                                 <button type="button" 
+                                        id="tapestry-cast-btn"
                                         onclick="window.appActions.castCurrentPatternSpell('${activePc.id}')"
                                         class="w-full py-3.5 bg-amber-700 text-stone-950 hover:bg-amber-600 transition-all text-sm font-black uppercase tracking-widest rounded-sm shadow-[0_0_15px_rgba(217,119,6,0.3)] border border-amber-500 flex items-center justify-center gap-2 active:scale-95">
                                     <i class="fa-solid fa-burst text-lg animate-pulse"></i> Unleash the Pattern
@@ -846,7 +726,6 @@ export function getPatternNexusHTML(state) {
                         </div>
                     </div>
 
-                    <!-- Memorized Rotes Bank (Grimoire) -->
                     <div class="p-5 sm:p-6 parchment-panel rounded-sm relative">
                         <h3 class="text-sm font-bold text-amber-900 uppercase tracking-widest font-serif border-b border-[#d4c5a9] pb-2 mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <span><i class="fa-solid fa-book-journal-whills mr-1.5 text-amber-600"></i> Memorized Grimoire</span>
@@ -862,31 +741,141 @@ export function getPatternNexusHTML(state) {
 }
 
 // =========================================================================
-// UI EVENT BINDINGS & ACTIONS
+// UI EVENT BINDINGS & ACTIONS (Seamless Updates bypassing reRender)
 // =========================================================================
 if (typeof window !== 'undefined') {
     window.appActions = window.appActions || {};
 
-    // Handles selection of a different character (multiple characters requirement)
-    window.appActions.switchPatternPc = (pcId) => {
-        window.appData.activePatternPcId = pcId;
-        reRender(true);
+    // The core seamless updater function!
+    window.appActions.refreshTapestryUI = () => {
+        const camp = window.appData.activeCampaign;
+        const activePcId = window.appData.activePatternPcId || (camp.playerCharacters?.find(p => p.playerId === window.appData.currentUserUid)?.id) || '';
+        const activePc = camp.playerCharacters?.find(p => p.id === activePcId);
+        if (!activePc) return;
+        
+        const pm = getOrInitPatternState(activePc);
+        const draft = getOrInitDraftState();
+        const primary = draft.patterns[0] || null;
+        const supports = draft.patterns.slice(1);
+        
+        const cx = 160; const cy = 160; const radius = 105;
+        const patternsList = Object.keys(PATTERN_THEME);
+        
+        // 1. ANIMATE THE LOOM
+        if (!primary) {
+            patternsList.forEach((key, index) => {
+                const angle = (index * (360 / 9) - 90) * (Math.PI / 180);
+                const x = cx + radius * Math.cos(angle) - 32; 
+                const y = cy + radius * Math.sin(angle) - 32;
+                
+                const btn = document.getElementById(`sigil-btn-${key}`);
+                if (btn) {
+                    btn.classList.remove('loom-appear-anim', 'pulse-prime-sigil');
+                    btn.style.left = `${x}px`;
+                    btn.style.top = `${y}px`;
+                    btn.style.transform = 'scale(1)';
+                    btn.className = 'sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-20 opacity-60 grayscale hover:grayscale-0 hover:opacity-100 group';
+                    const img = btn.querySelector('img');
+                    if(img) img.style.filter = 'none';
+                }
+            });
+        } else {
+            const orbitsList = patternsList.filter(k => k !== primary);
+            
+            // Primary Sigil glides to center and gets large
+            const primeBtn = document.getElementById(`sigil-btn-${primary}`);
+            if (primeBtn) {
+                primeBtn.classList.remove('loom-appear-anim');
+                primeBtn.style.left = `calc(50% - 32px)`;
+                primeBtn.style.top = `calc(50% - 40px)`;
+                primeBtn.style.transform = 'scale(1.4)';
+                const theme = PATTERN_THEME[primary];
+                primeBtn.className = 'sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-[100] opacity-100 grayscale-0 pulse-prime-sigil group';
+                const img = primeBtn.querySelector('img');
+                if(img) img.style.filter = `drop-shadow(0 0 8px ${theme.color})`;
+            }
+
+            // Orbits glide into 8-point ring
+            orbitsList.forEach((key, index) => {
+                const angle = (index * (360 / 8) - 90) * (Math.PI / 180);
+                const x = cx + radius * Math.cos(angle) - 32;
+                const y = cy + radius * Math.sin(angle) - 32;
+                
+                const btn = document.getElementById(`sigil-btn-${key}`);
+                const isSupported = supports.includes(key);
+                const theme = PATTERN_THEME[key];
+                
+                if (btn) {
+                    btn.classList.remove('loom-appear-anim', 'pulse-prime-sigil');
+                    btn.style.left = `${x}px`;
+                    btn.style.top = `${y}px`;
+                    btn.style.transform = 'scale(0.9)';
+                    const img = btn.querySelector('img');
+                    
+                    if (isSupported) {
+                        btn.className = 'sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-[90] opacity-100 grayscale-0 group';
+                        if(img) img.style.filter = `drop-shadow(0 0 5px ${theme.color})`;
+                    } else {
+                        btn.className = 'sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-10 opacity-40 grayscale hover:grayscale-0 hover:opacity-100 group';
+                        if(img) img.style.filter = 'none';
+                    }
+                }
+            });
+        }
+        
+        // 2. UPDATE FORMS & METRICS (No page reload)
+        const metrics = calculateAffinityLimitsAndCosts(activePc, pm, draft);
+        const formsContainer = document.getElementById('effects-scaffolding-container');
+        if (formsContainer) {
+            formsContainer.innerHTML = buildEffectsHTML(metrics, draft, pm, activePc);
+        }
+        
+        const costEl = document.getElementById('tapestry-cost-out');
+        if (costEl) costEl.innerText = metrics.finalCost;
+        
+        const dcEl = document.getElementById('tapestry-dc-out');
+        if (dcEl) dcEl.innerText = metrics.dc;
+        
+        const hintEl = document.getElementById('loom-hint-text');
+        if (hintEl) {
+            if (draft.patterns.length === 0) hintEl.innerHTML = 'Select a thread from the outer ring to designate as your Primary Sigil.';
+            else if (draft.patterns.length === 9) hintEl.innerHTML = '🚨 <span class="text-amber-700 font-bold">ALL THREADS WOVEN.</span> The Loom sings with absolute cosmic power!';
+            else hintEl.innerHTML = 'Select orbiting sigils to weave Support threads. Active threads define your capabilities.';
+        }
+
+        const castBtn = document.getElementById('tapestry-cast-btn');
+        if (castBtn) {
+            let isValid = primary !== null;
+            if (isValid) {
+                for (const [cat, data] of Object.entries(PATTERN_CONFIG.Effects)) {
+                    if (data.mandatory && (draft.effectTiers[cat] || 0) === 0) {
+                        isValid = false;
+                        break;
+                    }
+                }
+            }
+            castBtn.disabled = !isValid && !draft.isRote;
+            if(castBtn.disabled) castBtn.classList.add('opacity-50', 'cursor-not-allowed', 'grayscale');
+            else castBtn.classList.remove('opacity-50', 'cursor-not-allowed', 'grayscale');
+        }
     };
 
-    // Toggles the DM Campaign unlock access for this PC
+    window.appActions.switchPatternPc = (pcId) => {
+        window.appData.activePatternPcId = pcId;
+        reRender(true); // Hard reload is fine for character switching
+    };
+
     window.appActions.toggleCampaignPcAccess = async (pcId, checked) => {
         const camp = window.appData.activeCampaign;
         if (!camp || !camp._isDM) return;
         const pc = camp.playerCharacters?.find(p => p.id === pcId);
         if (pc) {
             pc.patternMagicUnlocked = checked;
-            await window.appActions.adjustPatternParameter(pcId, 'patternPoints', 0); // triggers Firebase update
+            await window.appActions.adjustPatternParameter(pcId, 'patternPoints', 0);
         }
     };
 
-    // Updates a key-value value inside the draft Spell configuration
-    // NEW: added shouldRender = true, used by 'oninput' triggers so typing doesn't force a DOM reload!
-    window.appActions.updateDraftField = (path, value, shouldRender = true) => {
+    window.appActions.updateDraftField = (path, value, shouldRender = false) => {
         const draft = getOrInitDraftState();
         if (path.startsWith('effectTiers.')) {
             const field = path.split('.')[1];
@@ -894,56 +883,49 @@ if (typeof window !== 'undefined') {
         } else {
             draft[path] = value;
         }
+        
         if (shouldRender) reRender(true);
+        else window.appActions.refreshTapestryUI(); // Silent update!
     };
 
-    // Toggle selected Pattern keys on the interactive circular SVG wheel (handles Orbit & Convergence)
     window.appActions.toggleWheelPattern = (patternKey) => {
         const draft = getOrInitDraftState();
         const prim = draft.patterns[0];
 
         if (!prim) {
-            // First click: Element becomes Primary Vector
             draft.patterns = [patternKey];
             draft.isRote = false;
             draft.selectedRoteId = '';
         } else if (prim === patternKey) {
-            // Clicking Primary again: Disbands vectors entirely
             draft.patterns = [];
             draft.isRote = false;
             draft.selectedRoteId = '';
         } else {
-            // Toggles supporting vectors on orbit nodes
             const index = draft.patterns.indexOf(patternKey);
-            if (index > -1) {
-                draft.patterns.splice(index, 1);
-            } else {
-                draft.patterns.push(patternKey);
-            }
+            if (index > -1) draft.patterns.splice(index, 1);
+            else draft.patterns.push(patternKey);
+            
             draft.isRote = false;
             draft.selectedRoteId = '';
         }
-        reRender(true);
+        window.appActions.refreshTapestryUI(); // Seamless animation!
     };
 
-    // Standardizes duration inversion configuration in spell mechanics
     window.appActions.toggleDurationInversion = (checked) => {
         const draft = getOrInitDraftState();
         draft.effectTiers.durationInverted = checked;
-        draft.effectTiers.duration = 0; // reset tier selection
-        reRender(true);
+        draft.effectTiers.duration = 0;
+        window.appActions.refreshTapestryUI();
     };
 
-    // Set configured effect tier
     window.appActions.setEffectTier = (category, tierIndex) => {
         const draft = getOrInitDraftState();
         draft.effectTiers[category] = tierIndex;
         draft.isRote = false;
         draft.selectedRoteId = '';
-        reRender(true);
+        window.appActions.refreshTapestryUI();
     };
 
-    // Commits the current configured draft spell as a saved Rote to the active PC
     window.appActions.memorizeCurrentDraftAsRote = async (pcId) => {
         const nameInput = document.getElementById('input-rote-memorize-name');
         const name = nameInput ? nameInput.value.trim() : '';
@@ -963,7 +945,6 @@ if (typeof window !== 'undefined') {
         const pc = camp?.playerCharacters?.find(p => p.id === pcId);
         if (!pc) return;
 
-        // Verify that draft configuration meets limit boundaries before saving!
         const pm = getOrInitPatternState(pc);
         const metrics = calculateAffinityLimitsAndCosts(pc, pm, draft);
 
@@ -977,11 +958,10 @@ if (typeof window !== 'undefined') {
             return;
         }
 
-        // Setup the Rote structure payload
         const rotePayload = {
             name: name,
             primaryPattern: draft.patterns[0],
-            essentiaCost: metrics.totalBaseCost - Math.floor(metrics.totalBaseCost / 3), // locked discounted cost
+            essentiaCost: metrics.totalBaseCost - Math.floor(metrics.totalBaseCost / 3), 
             description: draft.description,
             ability: draft.ability,
             patterns: [...draft.patterns],
@@ -994,7 +974,6 @@ if (typeof window !== 'undefined') {
         }
     };
 
-    // Load saved Rote from active PC into active casting draft container
     window.appActions.loadRoteToDraft = (roteId) => {
         const camp = window.appData.activeCampaign;
         const pc = camp?.playerCharacters?.find(p => p.id === (window.appData.activePatternPcId || ''));
@@ -1013,10 +992,9 @@ if (typeof window !== 'undefined') {
         draft.roteName = rote.name;
         draft.selectedRoteId = rote.id;
 
-        reRender(true);
+        reRender(true); // Hard reload is fine for loading full Rotes
     };
 
-    // Trigger the actual casting mechanics roll
     window.appActions.castCurrentPatternSpell = async (pcId) => {
         const draft = getOrInitDraftState();
         if (draft.patterns.length === 0) {
@@ -1036,7 +1014,6 @@ if (typeof window !== 'undefined') {
             return;
         }
 
-        // Build config payload for roll actions
         const castConfig = {
             name: draft.name || 'Unlabeled Spell',
             description: draft.description,
@@ -1050,7 +1027,6 @@ if (typeof window !== 'undefined') {
 
         await window.appActions.castPatternSpell(pcId, castConfig);
 
-        // Reset temporary non-rote draft casting parameters after successful cast!
         if (!draft.isRote) {
             draft.name = '';
             draft.description = '';
