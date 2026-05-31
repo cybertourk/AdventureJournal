@@ -41,7 +41,7 @@ if (typeof window !== 'undefined') {
             if (!switchBtn) {
                 switchBtn = document.createElement('div');
                 switchBtn.id = 'auth-switch-account-btn';
-                switchBtn.className = 'text-center mt-5 animate-in fade-in';
+                switchBtn.className = 'text-center mt-5';
                 switchBtn.innerHTML = `<button type="button" onclick="window.appActions.logoutUser()" class="text-stone-500 hover:text-red-900 text-[10px] font-bold uppercase tracking-widest transition"><i class="fa-solid fa-right-from-bracket mr-1.5"></i> Sign Out / Switch Account</button>`;
                 loginForm.appendChild(switchBtn);
             } else {
@@ -153,12 +153,6 @@ export function initAuthUI() {
 
             try {
                 await loginUser(emailInput.value, passwordInput.value);
-                passwordInput.value = '';
-                
-                // NEW: Automatically push the user into the app upon successful manual login
-                if (window.appActions && window.appActions.enterApp) {
-                    window.appActions.enterApp();
-                }
             } catch (error) {
                 // If login fails, let the user try again
                 submitBtn.textContent = originalText;
@@ -190,11 +184,6 @@ export function initAuthUI() {
                 const bDay = birthDayInput ? birthDayInput.value : null;
 
                 await registerUser(emailInput.value, passwordInput.value, displayNameInput.value, bMonth, bDay, 'user');
-                
-                // NEW: Automatically push the user into the app upon successful registration
-                if (window.appActions && window.appActions.enterApp) {
-                    window.appActions.enterApp();
-                }
             } catch (error) {
                 // If registration fails, reset the button
                 submitBtn.textContent = originalText;
