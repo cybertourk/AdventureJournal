@@ -337,10 +337,14 @@ import {
 
 // --- APP ACTIONS HUB --- 
 if (typeof window !== 'undefined') {
-    window.appActions = { 
-      // Preserve already assigned actions (like Pattern Magic and Auth UI)
-      ...(window.appActions || {}),
+    // 1. Capture and preserve existing app actions (like Pattern Magic)
+    const preservedActions = { ...(window.appActions || {}) };
+    
+    // 2. DISCARD the buggy showAuthenticatedReadyState to keep the login inputs visible
+    delete preservedActions.showAuthenticatedReadyState;
 
+    window.appActions = { 
+      ...preservedActions,
       reRender, 
       
       // Navigation & UI Core
