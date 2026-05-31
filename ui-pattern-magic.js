@@ -11,6 +11,13 @@ import {
 } from './actions-pattern-magic.js';
 
 // =========================================================================
+// ZEB: UPDATE THIS URL TO POINT DIRECTLY TO YOUR GITHUB FOLDER!
+// Example: "https://raw.githubusercontent.com/YourName/YourRepo/main/assets/patterns/"
+// Ensure the trailing slash '/' is included.
+// =========================================================================
+const PATTERN_ASSET_BASE_URL = "https://raw.githubusercontent.com/YOUR_GITHUB_NAME/YOUR_REPO_NAME/main/assets/patterns/";
+
+// =========================================================================
 // CSS Injection for Arcane Tapestry & Loom Effects
 // =========================================================================
 const injectTapestryStyles = () => {
@@ -141,7 +148,10 @@ function renderSpellWheelHTML(pc, pm, draft) {
                         onclick="window.appActions.toggleWheelPattern('${key}')"
                         style="left: ${x}px; top: ${y}px; border-color: ${theme.color}60; color: ${theme.color};"
                         class="absolute w-12 h-12 rounded-full border-2 bg-[#1c1917] flex flex-col items-center justify-center text-stone-400 hover:scale-110 hover:shadow-[0_0_15px_currentColor] sigil-glow z-20 group">
-                    <span class="text-[10px] font-serif font-bold tracking-widest leading-none drop-shadow-md text-stone-300 group-hover:text-white">${key.substring(0,3).toUpperCase()}</span>
+                    
+                    <img src="${PATTERN_ASSET_BASE_URL}${key}.webp" alt="${theme.label}" class="w-6 h-6 object-contain opacity-70 group-hover:opacity-100 transition-opacity" style="filter: drop-shadow(0 0 3px ${theme.color});" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <span class="hidden text-[10px] font-serif font-bold tracking-widest leading-none drop-shadow-md text-stone-300 group-hover:text-white" style="color: ${theme.color};">${key.substring(0,3).toUpperCase()}</span>
+                    
                     <span class="text-[9px] font-black leading-none mt-1 text-stone-500">${rank}</span>
                     <!-- Dynamic Tooltip -->
                     <span class="absolute hidden group-hover:block bottom-14 bg-[#292524] border border-[#d4c5a9] text-[10px] px-3 py-1.5 rounded-sm text-[#f4ebd8] font-serif tracking-wide whitespace-nowrap z-50 shadow-xl">
@@ -164,7 +174,10 @@ function renderSpellWheelHTML(pc, pm, draft) {
                     onclick="window.appActions.toggleWheelPattern('${primary}')"
                     style="left: calc(50% - 32px); top: calc(50% - 32px); background-color: ${primeTheme.color}20;"
                     class="absolute w-16 h-16 rounded-full border-2 bg-[#1c1917] flex flex-col items-center justify-center text-white ${primeFlashClass} sigil-glow z-30 group">
-                <span class="text-xs font-serif font-black tracking-widest drop-shadow-lg" style="color: ${primeTheme.color};">${primary.substring(0,4).toUpperCase()}</span>
+                
+                <img src="${PATTERN_ASSET_BASE_URL}${primary}.webp" alt="${primeTheme.label}" class="w-10 h-10 object-contain drop-shadow-lg" style="filter: drop-shadow(0 0 5px ${primeTheme.color});" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <span class="hidden text-xs font-serif font-black tracking-widest drop-shadow-lg" style="color: ${primeTheme.color};">${primary.substring(0,4).toUpperCase()}</span>
+                
                 <span class="text-[10px] font-black leading-none mt-1 text-stone-200">${primeRank}</span>
                 <span class="absolute bottom-20 bg-[#292524] border-2 border-amber-600 text-[10px] px-3 py-1.5 rounded-sm text-amber-400 font-serif font-bold tracking-widest uppercase pointer-events-none whitespace-nowrap z-50 shadow-xl">
                     Primary Thread: ${primeTheme.label}
@@ -183,10 +196,12 @@ function renderSpellWheelHTML(pc, pm, draft) {
             const isSupported = supports.includes(key);
             let borderStyle = `border-color: ${theme.color}40; color: ${theme.color};`;
             let glowClass = 'text-stone-500 bg-[#1c1917] hover:scale-110 hover:shadow-[0_0_10px_currentColor]';
+            let imgOpacity = 'opacity-50 group-hover:opacity-80';
             
             if (isSupported) {
                 borderStyle = `border-color: ${theme.color}; color: ${theme.color};`;
                 glowClass = 'text-stone-100 bg-[#292524] pulse-support-sigil scale-105';
+                imgOpacity = 'opacity-100';
             }
 
             wheelNodesHtml += `
@@ -194,7 +209,10 @@ function renderSpellWheelHTML(pc, pm, draft) {
                         onclick="window.appActions.toggleWheelPattern('${key}')"
                         style="left: ${x}px; top: ${y}px; ${borderStyle}"
                         class="absolute w-11 h-11 rounded-full border-2 flex flex-col items-center justify-center sigil-glow z-20 group ${glowClass}">
-                    <span class="text-[9px] font-serif font-bold tracking-widest leading-none drop-shadow-md text-stone-300 group-hover:text-white">${key.substring(0,3).toUpperCase()}</span>
+                    
+                    <img src="${PATTERN_ASSET_BASE_URL}${key}.webp" alt="${theme.label}" class="w-5 h-5 object-contain transition-opacity ${imgOpacity}" style="filter: drop-shadow(0 0 2px ${theme.color});" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <span class="hidden text-[9px] font-serif font-bold tracking-widest leading-none drop-shadow-md text-stone-300 group-hover:text-white" style="color: ${theme.color};">${key.substring(0,3).toUpperCase()}</span>
+                    
                     <span class="text-[8px] font-black leading-none mt-1 opacity-70">${rank}</span>
                     <span class="absolute hidden group-hover:block bottom-14 bg-[#292524] border border-[#d4c5a9] text-[10px] px-3 py-1.5 rounded-sm text-[#f4ebd8] font-serif tracking-wide whitespace-nowrap z-50 shadow-xl">
                         <i class="fa-solid ${isSupported ? 'fa-link' : 'fa-star'} mr-1" style="color:${theme.color};"></i> ${theme.label} ${isSupported ? '(Support)' : ''}
@@ -378,7 +396,7 @@ export function getPatternNexusHTML(state) {
     const totalRanks = Object.keys(PATTERN_CONFIG.PatternAttributes).reduce((sum, key) => sum + (pm[key] || 0), 0);
     const maxEssentia = totalRanks * 4;
 
-    // Build Essentia Gem Gauge (Replacing tech pips with magical gems)
+    // Build Essentia Gem Gauge
     let pipsHtml = '';
     for (let i = 1; i <= maxEssentia; i++) {
         const isFilled = pm.essentia >= i;
@@ -395,7 +413,7 @@ export function getPatternNexusHTML(state) {
     // Dynamic Math Cost Output box
     const metrics = calculateAffinityLimitsAndCosts(activePc, pm, draft);
 
-    // Build the dynamic effects forms UI (Parchment styled)
+    // Build the dynamic effects forms UI
     let effectsConfigurationHtml = '';
     Object.entries(PATTERN_CONFIG.Effects).forEach(([category, effectData]) => {
         const activeTier = draft.effectTiers[category] || 0;
@@ -1010,8 +1028,3 @@ if (typeof window !== 'undefined') {
         reRender(true);
     };
 }
-```
-
-The transformation replaces the harsh neon grid lines and cyber-glows with rich leathers, woven stardust lines, parchment textures, and glowing magical sigils. It fits flawlessly alongside your Campaign Tome and Codex styles now.
-
-*(Current Date & Time: Saturday, May 30, 2026 at 11:36 PM CDT)*
