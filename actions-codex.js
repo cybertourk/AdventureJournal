@@ -37,7 +37,11 @@ export const _canViewCodex = (id) => {
 
 export const parseSmartText = (text, contextId = null) => {
     if (!text) return "";
-    let safeText = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    
+    // STRIP INVISIBLE PLACEHOLDERS FIRST (Pattern Magic Resolutions)
+    let safeText = text.replace(/<!--\s*RESOLUTION_PLACEHOLDER_[a-zA-Z0-9_-]+\s*-->/gi, '');
+
+    safeText = safeText.replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
     // --- 0. PARSE EMBEDDED IMAGES ---
     // Matches Markdown image syntax: ![Alt Text](URL)
@@ -570,7 +574,7 @@ export const _openCodexModal = (entry) => {
             <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Faith</label><input type="text" id="cx-npc-faith" value="${entry.faith || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
             <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Gender</label><input type="text" id="cx-npc-gender" value="${entry.gender || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
             <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Age</label><input type="text" id="cx-npc-age" value="${entry.age || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
-            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Size</label><input type="text" id="cx-npc-size" value="${entry.size || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Size</label><input type="text" id="cx-npc-size" value="${entry.size || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm" placeholder="Medium"></div>
             <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Height</label><input type="text" id="cx-npc-height" value="${entry.height || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
             <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Weight</label><input type="text" id="cx-npc-weight" value="${entry.weight || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
             <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Eyes</label><input type="text" id="cx-npc-eyes" value="${entry.eyes || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-red-900 shadow-sm"></div>
@@ -741,7 +745,7 @@ export const _openCodexModal = (entry) => {
                     
                     <div class="mb-4">
                         <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Image URL</label>
-                        <input type="text" id="cx-modal-image" value="${image}" ${linkedPC ? 'readonly disabled title="Edit this hero\'s image in the PC Manager"' : ''} class="w-full ${linkedPC ? 'bg-stone-200 text-stone-500' : 'bg-white text-stone-900 focus:border-red-900'} border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner font-bold" placeholder="https://example.com/image.jpg">
+                        <input type="text" id="cx-modal-image" value="${image}" ${linkedPC ? 'readonly disabled title="Edit this hero\'s image in the PC Manager"' : ''} class="w-full ${linkedPC ? 'bg-stone-200 text-stone-500' : 'bg-white text-stone-900 focus:border-red-900'} border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner font-bold" placeholder="https://example.com/portrait.jpg">
                     </div>
 
                     <div class="mb-4">
