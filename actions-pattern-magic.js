@@ -427,14 +427,14 @@ export const castPatternSpell = async (pcId, castConfig) => {
                 }
                 if (key === 'augmentia') nextValText += ` (${castConfig.effectTiers.augmentiaCustom || 'Custom'})`;
                 
-                effectsListHtml += `<li class="ml-4 list-disc mb-1"><b>${effectData.name}:</b> <span class="line-through text-stone-500">${valText}</span> <i class="fa-solid fa-arrow-right text-emerald-500 mx-1"></i> <b class="text-emerald-400">${nextValText}</b></li>`;
+                effectsListHtml += `<li class="ml-4 list-disc mb-1"><b>${effectData.name}:</b> <span class="line-through text-stone-500">${valText}</span> <i class="fa-solid fa-arrow-right text-emerald-600 mx-1"></i> <b class="text-emerald-700">${nextValText}</b></li>`;
             } else {
                 effectsListHtml += `<li class="ml-4 list-disc mb-1"><b>${effectData.name}:</b> ${valText}</li>`;
             }
         }
     }
 
-    const listHtml = effectsListHtml ? `<ul class="mt-2 text-stone-300 font-sans">${effectsListHtml}</ul>` : '<p class="italic text-stone-500 mt-2">No specific effects configured.</p>';
+    const listHtml = effectsListHtml ? `<ul class="mt-2 text-stone-700 font-sans">${effectsListHtml}</ul>` : '<p class="italic text-stone-500 mt-2">No specific effects configured.</p>';
 
     // Build chronicle entries
     const cardId = generateId();
@@ -444,7 +444,7 @@ export const castPatternSpell = async (pcId, castConfig) => {
     let actionButtonsHtml = '';
     if (successType === 'critical_failure') {
         actionButtonsHtml += `
-            <button onclick="window.appActions.resolvePatternBacklash('${pcId}', '${primaryPattern}', '${cardId}')" id="btn-backlash-${cardId}" class="mt-3 w-full py-2 bg-red-900 hover:bg-red-800 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm transition">
+            <button onclick="window.appActions.resolvePatternBacklash('${pcId}', '${primaryPattern}', '${cardId}')" id="btn-backlash-${cardId}" class="mt-3 w-full py-2 bg-red-900 hover:bg-red-800 text-white rounded-sm font-bold uppercase text-[10px] tracking-widest shadow-md transition">
                 <i class="fa-solid fa-burst mr-1.5 animate-pulse"></i> Roll for Consequence
             </button>
         `;
@@ -452,7 +452,7 @@ export const castPatternSpell = async (pcId, castConfig) => {
     if (isSanityRequired) {
         const sanityDc = 10 + cost;
         actionButtonsHtml += `
-            <button onclick="window.appActions.resolvePatternSanityCheck('${pcId}', ${sanityDc}, ${dc}, '${cardId}')" id="btn-sanity-${cardId}" class="mt-2 w-full py-2 bg-[#292524] hover:bg-stone-800 text-amber-500 border border-amber-600/50 rounded font-bold uppercase text-[10px] tracking-widest shadow-sm transition">
+            <button onclick="window.appActions.resolvePatternSanityCheck('${pcId}', ${sanityDc}, ${dc}, '${cardId}')" id="btn-sanity-${cardId}" class="mt-2 w-full py-2 bg-stone-800 hover:bg-stone-700 text-amber-50 rounded-sm font-bold uppercase text-[10px] tracking-widest shadow-md transition">
                 <i class="fa-solid fa-brain mr-1.5"></i> Save vs Mental Strain (DC ${sanityDc})
             </button>
         `;
@@ -462,38 +462,38 @@ export const castPatternSpell = async (pcId, castConfig) => {
     const checkString = `1d20 (${d20}) + ${castConfig.ability.toUpperCase()} (${abilityMod >= 0 ? '+' : ''}${abilityMod}) + Ranks (${selectedRanksSum})`;
 
     let cardMarkdown = `
-<div class="pattern-magic-chat-card bg-stone-900 text-stone-100 p-4 rounded-sm border-l-4 border-l-cyan-500 shadow-lg font-sans relative z-10 text-left" onclick="event.stopPropagation();">
-    <div class="flex justify-between items-center border-b border-stone-800 pb-2 mb-3">
-        <h4 class="font-serif font-bold text-base text-cyan-400 flex items-center"><i class="fa-solid fa-sparkles mr-2 text-cyan-500"></i> ${isRoteText}</h4>
-        <span class="text-[10px] uppercase font-bold tracking-widest text-stone-500 bg-stone-950 px-2 py-1 rounded shadow-inner border border-stone-800">Check DC: ${dc}</span>
+<div class="pattern-magic-chat-card bg-[#fdfbf7] text-stone-800 p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-sm font-serif relative z-10 text-left" onclick="event.stopPropagation();">
+    <div class="flex justify-between items-start sm:items-center border-b border-[#d4c5a9] pb-2 mb-3 flex-col sm:flex-row gap-2 sm:gap-0">
+        <h4 class="font-bold text-lg text-amber-900 flex items-center"><i class="fa-solid fa-sparkles mr-2 text-amber-600"></i> ${isRoteText}</h4>
+        <span class="text-[10px] uppercase font-bold tracking-widest text-stone-500 bg-stone-100 px-2 py-1 rounded shadow-sm border border-stone-200">Check DC: ${dc}</span>
     </div>
     
-    <p class="text-xs text-stone-300 italic mb-4 font-serif border-l-2 border-stone-700 pl-3">"${castConfig.description || 'Weaving spell vectors...'}"</p>
+    <p class="text-sm text-stone-600 italic mb-4 border-l-2 border-amber-500 pl-3 leading-relaxed">"${castConfig.description || 'Weaving spell vectors...'}"</p>
     
-    <div class="bg-[#1c1917] p-3 rounded border border-stone-800 text-xs text-stone-400 mb-4 space-y-2">
-        <div class="flex justify-between border-b border-stone-800 pb-1.5">
-            <span>Caster:</span> <strong class="text-stone-200 font-serif">${pc.name}</strong>
+    <div class="bg-white p-3 rounded-sm border border-[#d4c5a9] text-xs text-stone-600 mb-4 space-y-2 shadow-inner">
+        <div class="flex justify-between border-b border-stone-100 pb-1.5">
+            <span class="uppercase tracking-widest text-[9px] font-bold text-stone-400">Caster:</span> <strong class="text-stone-900 text-sm">${pc.name}</strong>
         </div>
-        <div class="flex justify-between">
-            <span>Patterns:</span> <span class="text-cyan-300 font-bold uppercase tracking-wider text-[10px]">${castConfig.patterns.join(' + ')}</span>
+        <div class="flex justify-between items-center">
+            <span class="uppercase tracking-widest text-[9px] font-bold text-stone-400">Patterns:</span> <span class="text-amber-700 font-bold uppercase tracking-wider text-[10px]">${castConfig.patterns.join(' + ')}</span>
         </div>
-        <div class="flex justify-between">
-            <span>Essentia Spent:</span> <span class="text-stone-300 font-bold">${cost}</span>
+        <div class="flex justify-between items-center">
+            <span class="uppercase tracking-widest text-[9px] font-bold text-stone-400">Essentia Spent:</span> <span class="text-stone-900 font-bold">${cost}</span>
         </div>
-        <div class="flex justify-between border-t border-stone-800 pt-1.5">
-            <span>Roll Check:</span> <span class="text-stone-300">${checkString}</span>
+        <div class="flex justify-between items-center border-t border-stone-100 pt-1.5">
+            <span class="uppercase tracking-widest text-[9px] font-bold text-stone-400">Roll Check:</span> <span class="text-stone-600 font-sans">${checkString}</span>
         </div>
-        <div class="flex justify-between items-center text-sm font-black border-t border-stone-800 pt-1.5 mt-1">
-            <span>Total Result:</span> <span class="text-amber-400 text-lg drop-shadow-md">${totalRoll}</span>
+        <div class="flex justify-between items-center text-sm font-black border-t border-stone-100 pt-1.5 mt-1">
+            <span class="uppercase tracking-widest text-[10px] font-bold text-stone-500">Total Result:</span> <span class="text-amber-600 text-xl">${totalRoll}</span>
         </div>
     </div>
     
-    <div class="p-3 rounded border border-stone-700 text-xs bg-stone-800 text-stone-200 mb-4">
-        <h5 class="text-[10px] uppercase font-bold text-cyan-500 tracking-widest border-b border-stone-700 pb-1 mb-2">Spell Form Factors</h5>
+    <div class="p-3 rounded-sm border border-[#d4c5a9] text-xs bg-stone-50 text-stone-700 mb-4 shadow-inner">
+        <h5 class="text-[9px] uppercase font-bold text-amber-800 tracking-widest border-b border-[#d4c5a9] pb-1 mb-2">Spell Form Factors</h5>
         ${listHtml}
     </div>
 
-    <div class="p-3 rounded bg-stone-950 border border-stone-800 text-sm font-serif leading-relaxed text-stone-300 mb-2 shadow-inner">
+    <div class="p-3 rounded-sm bg-amber-50 border border-amber-200 text-sm leading-relaxed text-amber-900 mb-2 shadow-sm">
         ${messageText}
     </div>
     
@@ -544,7 +544,7 @@ export const castPatternSpell = async (pcId, castConfig) => {
         <div class="max-w-md w-full relative">
             ${cardMarkdown}
             <div class="mt-5 flex justify-center">
-                <button onclick="document.getElementById('pattern-result-modal').remove();" class="px-8 py-2.5 bg-stone-800 text-amber-50 hover:text-white hover:bg-stone-700 rounded-sm font-bold uppercase tracking-widest text-[10px] sm:text-xs shadow-lg border border-stone-600 transition ring-1 ring-white/10">Dismiss Result</button>
+                <button onclick="document.getElementById('pattern-result-modal').remove();" class="px-8 py-2.5 bg-[#fdfbf7] text-stone-800 hover:text-stone-900 hover:bg-white rounded-sm font-bold uppercase tracking-widest text-[10px] sm:text-xs shadow-lg border border-[#d4c5a9] transition">Dismiss Result</button>
             </div>
         </div>
     </div>`;
@@ -637,22 +637,22 @@ export const resolvePatternSanityCheck = async (pcId, dc, spellDC, cardId) => {
         }
 
         madnessHtml = `
-            <div class="mt-3 p-2 bg-[#1c1917] border border-red-900/40 rounded text-[11px] text-stone-300 shadow-inner">
-                <span class="block text-[9px] uppercase tracking-widest font-bold text-red-500 mb-1">${type} Madness (d100 = ${d100})</span>
+            <div class="mt-3 p-3 bg-red-50 border border-red-200 rounded-sm text-xs text-red-900 shadow-inner">
+                <span class="block text-[9px] uppercase tracking-widest font-bold text-red-700 mb-1">${type} Madness (d100 = ${d100})</span>
                 <p class="font-serif italic leading-relaxed text-sm">${window.appActions.parseSmartText ? window.appActions.parseSmartText(effect) : effect}</p>
-                <span class="block text-[9px] text-stone-500 font-bold mt-2 uppercase tracking-widest">Duration: ${duration}</span>
+                <span class="block text-[9px] text-red-800 font-bold mt-2 uppercase tracking-widest">Duration: ${duration}</span>
             </div>
         `;
     }
 
     const responseMarkdown = `
-<div class="mt-4 p-3 bg-stone-950/60 text-stone-100 border border-stone-700 rounded text-xs relative z-10 shadow-lg text-left" onclick="event.stopPropagation();">
-    <h5 class="font-bold text-cyan-400 uppercase tracking-widest text-[10px] border-b border-stone-800 pb-1.5 mb-2.5"><i class="fa-solid fa-brain mr-1.5"></i> Sanity Resolution</h5>
-    <div class="bg-[#1c1917] p-2.5 rounded text-xs text-stone-400 mb-3 font-mono shadow-inner border border-stone-800">
+<div class="mt-4 p-3 sm:p-4 bg-white border border-[#d4c5a9] rounded-sm text-xs relative z-10 shadow-sm text-left" onclick="event.stopPropagation();">
+    <h5 class="font-bold text-stone-500 uppercase tracking-widest text-[10px] border-b border-[#d4c5a9] pb-1.5 mb-2.5"><i class="fa-solid fa-brain mr-1.5 text-stone-400"></i> Sanity Resolution</h5>
+    <div class="bg-stone-50 p-2.5 rounded-sm text-xs text-stone-600 mb-3 font-mono shadow-inner border border-stone-200">
         Roll: 1d20 (${d20}) + WIS Mod (${wisMod >= 0 ? '+' : ''}${wisMod}) = <strong>${saveTotal}</strong> vs DC ${dc}
     </div>
-    <p class="font-serif font-bold text-sm ${isSuccess ? 'text-emerald-500' : 'text-red-500'} mb-1">${resultHeader}</p>
-    <p class="font-serif leading-relaxed text-xs text-stone-300">${resultBody}</p>
+    <p class="font-serif font-bold text-sm ${isSuccess ? 'text-emerald-700' : 'text-red-700'} mb-1">${resultHeader}</p>
+    <p class="font-serif leading-relaxed text-xs text-stone-600">${resultBody}</p>
     ${madnessHtml}
 </div>
 `;
@@ -735,10 +735,10 @@ export const resolvePatternBacklash = async (pcId, primaryPattern, cardId) => {
     }
 
     const responseMarkdown = `
-<div class="mt-4 p-3 bg-red-950/60 text-stone-100 border border-red-900 rounded text-xs relative z-10 shadow-lg text-left" onclick="event.stopPropagation();">
-    <h5 class="font-bold text-red-500 uppercase tracking-widest text-[10px] border-b border-red-900/40 pb-1.5 mb-2.5"><i class="fa-solid fa-burst mr-1.5"></i> Backlash Consequence (d4 = ${roll})</h5>
-    <p class="font-serif leading-relaxed text-sm text-stone-200">${resultText}</p>
-    ${damageDetails ? `<p class="font-mono font-bold text-red-400 mt-2 bg-red-950/50 p-2 rounded border border-red-900/50">${damageDetails}</p>` : ''}
+<div class="mt-4 p-3 sm:p-4 bg-red-50 text-red-900 border border-red-200 rounded-sm text-xs relative z-10 shadow-sm text-left" onclick="event.stopPropagation();">
+    <h5 class="font-bold text-red-700 uppercase tracking-widest text-[10px] border-b border-red-200 pb-1.5 mb-2.5"><i class="fa-solid fa-burst mr-1.5"></i> Backlash Consequence (d4 = ${roll})</h5>
+    <p class="font-serif leading-relaxed text-sm text-red-950">${resultText}</p>
+    ${damageDetails ? `<p class="font-mono font-bold text-red-700 mt-2 bg-white p-2 rounded-sm border border-red-200 shadow-inner">${damageDetails}</p>` : ''}
 </div>
 `;
 
