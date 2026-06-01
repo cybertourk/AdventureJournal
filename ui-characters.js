@@ -1511,17 +1511,7 @@ export const quickSyncDDB = async (pcId) => {
 
 if (typeof window !== 'undefined') {
     window.appActions = window.appActions || {};
-    
-    // Bind General Actions
     window.appActions.savePCEdit = savePCEdit;
     window.appActions.deletePC = deletePC;
     window.appActions.kickPlayer = kickPlayer;
-    window.appActions.openPCEdit = openPCEdit;
-    window.appActions.calculateBirthdaysLive = calculateBirthdaysLive;
-    
-    // DDB Integration Imports
-    window.appActions.openDndBeyondImportModal = openDndBeyondImportModal;
-    window.appActions.fetchAndAnalyzeDndBeyond = fetchAndAnalyzeDndBeyond;
-    window.appActions.executeDndBeyondImport = executeDndBeyondImport;
-    window.appActions.quickSyncDDB = quickSyncDDB;
 }
