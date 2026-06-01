@@ -22,7 +22,7 @@ const logPlayerActivity = (camp, myUid, message, icon = 'fa-clock-rotate-left') 
 };
 
 // =========================================================================
-// Pattern Magic Core Rules Configuration (Synced with Macro 2)
+// Pattern Magic Core Rules Configuration
 // =========================================================================
 export const PATTERN_CONFIG = {
     Affinities: {
@@ -358,6 +358,7 @@ export const castPatternSpell = async (pcId, castConfig) => {
     const session = window.appData.activeSession;
     if (!camp) return;
 
+    const myUid = window.appData.currentUserUid;
     const pcIndex = camp.playerCharacters?.findIndex(p => p.id === pcId);
     if (pcIndex === -1) return;
 
@@ -426,14 +427,14 @@ export const castPatternSpell = async (pcId, castConfig) => {
                 }
                 if (key === 'augmentia') nextValText += ` (${castConfig.effectTiers.augmentiaCustom || 'Custom'})`;
                 
-                effectsListHtml += `<li class="ml-4 list-disc"><b>${effectData.name}:</b> <span class="line-through text-stone-500">${valText}</span> <i class="fa-solid fa-arrow-right text-emerald-600 mx-1"></i> <b class="text-emerald-700">${nextValText}</b></li>`;
+                effectsListHtml += `<li class="ml-4 list-disc mb-1"><b>${effectData.name}:</b> <span class="line-through text-stone-500">${valText}</span> <i class="fa-solid fa-arrow-right text-emerald-500 mx-1"></i> <b class="text-emerald-400">${nextValText}</b></li>`;
             } else {
-                effectsListHtml += `<li class="ml-4 list-disc"><b>${effectData.name}:</b> ${valText}</li>`;
+                effectsListHtml += `<li class="ml-4 list-disc mb-1"><b>${effectData.name}:</b> ${valText}</li>`;
             }
         }
     }
 
-    const listHtml = effectsListHtml ? `<ul class="mt-2 text-stone-700">${effectsListHtml}</ul>` : '<p class="italic text-stone-500 mt-2">No specific effects configured.</p>';
+    const listHtml = effectsListHtml ? `<ul class="mt-2 text-stone-300 font-sans">${effectsListHtml}</ul>` : '<p class="italic text-stone-500 mt-2">No specific effects configured.</p>';
 
     // Build chronicle entries
     const cardId = generateId();
@@ -443,7 +444,7 @@ export const castPatternSpell = async (pcId, castConfig) => {
     let actionButtonsHtml = '';
     if (successType === 'critical_failure') {
         actionButtonsHtml += `
-            <button onclick="window.appActions.resolvePatternBacklash('${pcId}', '${primaryPattern}', '${cardId}')" id="btn-backlash-${cardId}" class="mt-3 w-full py-1.5 bg-red-900 hover:bg-red-800 text-white rounded font-bold uppercase text-[9px] tracking-widest shadow-sm">
+            <button onclick="window.appActions.resolvePatternBacklash('${pcId}', '${primaryPattern}', '${cardId}')" id="btn-backlash-${cardId}" class="mt-3 w-full py-2 bg-red-900 hover:bg-red-800 text-white rounded font-bold uppercase text-[10px] tracking-widest shadow-sm transition">
                 <i class="fa-solid fa-burst mr-1.5 animate-pulse"></i> Roll for Consequence
             </button>
         `;
@@ -451,7 +452,7 @@ export const castPatternSpell = async (pcId, castConfig) => {
     if (isSanityRequired) {
         const sanityDc = 10 + cost;
         actionButtonsHtml += `
-            <button onclick="window.appActions.resolvePatternSanityCheck('${pcId}', ${sanityDc}, ${dc}, '${cardId}')" id="btn-sanity-${cardId}" class="mt-2 w-full py-1.5 bg-[#292524] hover:bg-stone-800 text-amber-50 border border-amber-600/30 rounded font-bold uppercase text-[9px] tracking-widest shadow-sm">
+            <button onclick="window.appActions.resolvePatternSanityCheck('${pcId}', ${sanityDc}, ${dc}, '${cardId}')" id="btn-sanity-${cardId}" class="mt-2 w-full py-2 bg-[#292524] hover:bg-stone-800 text-amber-500 border border-amber-600/50 rounded font-bold uppercase text-[10px] tracking-widest shadow-sm transition">
                 <i class="fa-solid fa-brain mr-1.5"></i> Save vs Mental Strain (DC ${sanityDc})
             </button>
         `;
@@ -461,38 +462,38 @@ export const castPatternSpell = async (pcId, castConfig) => {
     const checkString = `1d20 (${d20}) + ${castConfig.ability.toUpperCase()} (${abilityMod >= 0 ? '+' : ''}${abilityMod}) + Ranks (${selectedRanksSum})`;
 
     let cardMarkdown = `
-<div class="pattern-magic-chat-card bg-stone-900 text-stone-100 p-4 rounded-sm border-l-4 border-l-amber-600 shadow-lg font-sans relative z-10" onclick="event.stopPropagation();">
-    <div class="flex justify-between items-center border-b border-stone-800 pb-1.5 mb-3">
-        <h4 class="font-serif font-bold text-sm text-amber-500 flex items-center"><i class="fa-solid fa-sparkles mr-2"></i> ${isRoteText}</h4>
-        <span class="text-[8px] uppercase font-bold tracking-wider text-stone-500">Check DC: ${dc}</span>
+<div class="pattern-magic-chat-card bg-stone-900 text-stone-100 p-4 rounded-sm border-l-4 border-l-cyan-500 shadow-lg font-sans relative z-10 text-left" onclick="event.stopPropagation();">
+    <div class="flex justify-between items-center border-b border-stone-800 pb-2 mb-3">
+        <h4 class="font-serif font-bold text-base text-cyan-400 flex items-center"><i class="fa-solid fa-sparkles mr-2 text-cyan-500"></i> ${isRoteText}</h4>
+        <span class="text-[10px] uppercase font-bold tracking-widest text-stone-500 bg-stone-950 px-2 py-1 rounded shadow-inner border border-stone-800">Check DC: ${dc}</span>
     </div>
     
-    <p class="text-[11px] text-stone-300 italic mb-3 font-serif">"${castConfig.description || 'Weaving spell vectors...'}"</p>
+    <p class="text-xs text-stone-300 italic mb-4 font-serif border-l-2 border-stone-700 pl-3">"${castConfig.description || 'Weaving spell vectors...'}"</p>
     
-    <div class="bg-[#1c1917] p-2.5 rounded border border-stone-800 text-xs text-stone-400 mb-3 space-y-1.5">
-        <div class="flex justify-between border-b border-stone-800 pb-1">
+    <div class="bg-[#1c1917] p-3 rounded border border-stone-800 text-xs text-stone-400 mb-4 space-y-2">
+        <div class="flex justify-between border-b border-stone-800 pb-1.5">
             <span>Caster:</span> <strong class="text-stone-200 font-serif">${pc.name}</strong>
         </div>
         <div class="flex justify-between">
-            <span>Patterns:</span> <span class="text-stone-300 font-bold">${castConfig.patterns.map(p => p.toUpperCase()).join(' + ')}</span>
+            <span>Patterns:</span> <span class="text-cyan-300 font-bold uppercase tracking-wider text-[10px]">${castConfig.patterns.join(' + ')}</span>
         </div>
         <div class="flex justify-between">
-            <span>Essentia Spent:</span> <span class="text-stone-300 font-bold">${cost} gp</span>
+            <span>Essentia Spent:</span> <span class="text-stone-300 font-bold">${cost}</span>
         </div>
-        <div class="flex justify-between border-t border-stone-800 pt-1">
+        <div class="flex justify-between border-t border-stone-800 pt-1.5">
             <span>Roll Check:</span> <span class="text-stone-300">${checkString}</span>
         </div>
-        <div class="flex justify-between items-center text-sm font-black border-t border-stone-800 pt-1">
-            <span>Total Result:</span> <span class="text-amber-400 text-base">${totalRoll}</span>
+        <div class="flex justify-between items-center text-sm font-black border-t border-stone-800 pt-1.5 mt-1">
+            <span>Total Result:</span> <span class="text-amber-400 text-lg drop-shadow-md">${totalRoll}</span>
         </div>
     </div>
     
-    <div class="p-2.5 rounded border border-stone-800 text-xs bg-white text-stone-800 mb-3 font-serif">
-        <h5 class="text-[9px] uppercase font-bold text-stone-400 tracking-widest border-b border-stone-200 pb-0.5 mb-1.5">Spell Form Factors</h5>
+    <div class="p-3 rounded border border-stone-700 text-xs bg-stone-800 text-stone-200 mb-4">
+        <h5 class="text-[10px] uppercase font-bold text-cyan-500 tracking-widest border-b border-stone-700 pb-1 mb-2">Spell Form Factors</h5>
         ${listHtml}
     </div>
 
-    <div class="p-2.5 rounded bg-stone-850 border border-stone-800 text-xs leading-relaxed text-stone-300 mb-1">
+    <div class="p-3 rounded bg-stone-950 border border-stone-800 text-sm font-serif leading-relaxed text-stone-300 mb-2 shadow-inner">
         ${messageText}
     </div>
     
@@ -500,7 +501,21 @@ export const castPatternSpell = async (pcId, castConfig) => {
 </div>
 `;
 
-    let updatedCamp = { ...camp };
+    // --- SAVE TO HERO'S PRIVATE PATTERN LOG ---
+    const timestampStr = new Date().toLocaleDateString();
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const logAddition = `\n\n---\n\n**Pattern: ${primaryPattern.toUpperCase()}**\n**Casted on ${timestampStr} at ${timeStr}**\n${cardMarkdown}`;
+
+    const updatedPCs = camp.playerCharacters.map(p => {
+        if (p.id === pcId) {
+            return { ...p, patternLog: (p.patternLog || '') + logAddition };
+        }
+        return p;
+    });
+
+    let updatedCamp = { ...camp, playerCharacters: updatedPCs };
+
+    // --- SAVE TO COLLABORATIVE CHRONICLE (IF IN SESSION) ---
     if (session) {
         const newChronicleEntry = {
             id: generateId(),
@@ -522,8 +537,20 @@ export const castPatternSpell = async (pcId, castConfig) => {
     }
 
     await saveCampaign(updatedCamp);
-    notify("Spell cast successfully! Result posted to Chronicle.", "success");
-    reRender();
+    
+    // --- DISPLAY THE POPUP MODAL UNTIL DISMISSED ---
+    const modalHtml = `
+    <div class="fixed inset-0 bg-stone-950/90 z-[30000] flex items-center justify-center p-4 backdrop-blur-sm animate-in pointer-events-auto" id="pattern-result-modal">
+        <div class="max-w-md w-full relative">
+            ${cardMarkdown}
+            <div class="mt-5 flex justify-center">
+                <button onclick="document.getElementById('pattern-result-modal').remove();" class="px-8 py-2.5 bg-stone-800 text-amber-50 hover:text-white hover:bg-stone-700 rounded-sm font-bold uppercase tracking-widest text-[10px] sm:text-xs shadow-lg border border-stone-600 transition ring-1 ring-white/10">Dismiss Result</button>
+            </div>
+        </div>
+    </div>`;
+    document.getElementById('global-popup-container').innerHTML = modalHtml;
+
+    reRender(true);
 };
 
 
@@ -532,7 +559,7 @@ export const resolvePatternSanityCheck = async (pcId, dc, spellDC, cardId) => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
     const session = window.appData.activeSession;
-    if (!camp || !session) return;
+    if (!camp) return;
 
     const pc = camp.playerCharacters?.find(p => p.id === pcId);
     if (!pc) return;
@@ -610,49 +637,70 @@ export const resolvePatternSanityCheck = async (pcId, dc, spellDC, cardId) => {
         }
 
         madnessHtml = `
-            <div class="mt-2.5 p-2 bg-[#1c1917] border border-red-900/30 rounded text-[11px] text-stone-300">
-                <span class="block text-[8px] uppercase tracking-wider font-bold text-red-500 mb-0.5">${type} Madness (d100 = ${d100})</span>
-                <p class="font-serif italic leading-relaxed">${effect}</p>
-                <span class="block text-[8px] text-stone-500 font-bold mt-1 uppercase">Duration: ${duration}</span>
+            <div class="mt-3 p-2 bg-[#1c1917] border border-red-900/40 rounded text-[11px] text-stone-300 shadow-inner">
+                <span class="block text-[9px] uppercase tracking-widest font-bold text-red-500 mb-1">${type} Madness (d100 = ${d100})</span>
+                <p class="font-serif italic leading-relaxed text-sm">${window.appActions.parseSmartText ? window.appActions.parseSmartText(effect) : effect}</p>
+                <span class="block text-[9px] text-stone-500 font-bold mt-2 uppercase tracking-widest">Duration: ${duration}</span>
             </div>
         `;
     }
 
     const responseMarkdown = `
-<div class="mt-3 p-3 bg-stone-950/40 text-stone-100 border border-stone-850 rounded-sm text-xs relative z-10" onclick="event.stopPropagation();">
-    <h5 class="font-bold text-amber-500 uppercase tracking-widest text-[9px] border-b border-stone-800 pb-1 mb-2"><i class="fa-solid fa-brain"></i> Sanity Resolution</h5>
-    <div class="bg-[#1c1917] p-2 rounded text-[11px] text-stone-400 mb-2 font-mono">
+<div class="mt-4 p-3 bg-stone-950/60 text-stone-100 border border-stone-700 rounded text-xs relative z-10 shadow-lg text-left" onclick="event.stopPropagation();">
+    <h5 class="font-bold text-cyan-400 uppercase tracking-widest text-[10px] border-b border-stone-800 pb-1.5 mb-2.5"><i class="fa-solid fa-brain mr-1.5"></i> Sanity Resolution</h5>
+    <div class="bg-[#1c1917] p-2.5 rounded text-xs text-stone-400 mb-3 font-mono shadow-inner border border-stone-800">
         Roll: 1d20 (${d20}) + WIS Mod (${wisMod >= 0 ? '+' : ''}${wisMod}) = <strong>${saveTotal}</strong> vs DC ${dc}
     </div>
-    <p class="font-sans font-bold text-xs ${isSuccess ? 'text-emerald-500' : 'text-red-500'}">${resultHeader}</p>
-    <p class="font-serif leading-relaxed text-[11px] mt-0.5">${resultBody}</p>
+    <p class="font-serif font-bold text-sm ${isSuccess ? 'text-emerald-500' : 'text-red-500'} mb-1">${resultHeader}</p>
+    <p class="font-serif leading-relaxed text-xs text-stone-300">${resultBody}</p>
     ${madnessHtml}
 </div>
 `;
 
-    const updatedAdventures = camp.adventures.map(a => {
-        if (a.id !== window.appData.activeAdventureId) return a;
-        return {
-            ...a,
-            sessions: a.sessions.map(s => {
-                if (s.id !== session.id) return s;
-                return {
-                    ...s,
-                    chronicle: s.chronicle.map(entry => {
-                        if (entry.text.includes(`id="btn-sanity-${cardId}"`)) {
-                            let text = entry.text.replace(new RegExp(`<button[^>]*id="btn-sanity-${cardId}"[^>]*>[\\s\\S]*?<\\/button>`), '');
-                            text += responseMarkdown;
-                            return { ...entry, text };
-                        }
-                        return entry;
-                    })
-                };
-            })
-        };
+    // 1. UPDATE DOM INSTANTLY IF IN THE POPUP MODAL
+    const btnDom = document.getElementById(`btn-sanity-${cardId}`);
+    if (btnDom) btnDom.outerHTML = responseMarkdown;
+
+    // 2. UPDATE PERSONAL PATTERN LOG
+    const updatedPCs = camp.playerCharacters.map(p => {
+        if (p.id === pcId) {
+            let text = p.patternLog || '';
+            if (text.includes(`id="btn-sanity-${cardId}"`)) {
+                text = text.replace(new RegExp(`<button[^>]*id="btn-sanity-${cardId}"[^>]*>[\\s\\S]*?<\\/button>`), responseMarkdown);
+            }
+            return { ...p, patternLog: text };
+        }
+        return p;
     });
 
-    await saveCampaign({ ...camp, adventures: updatedAdventures });
-    reRender();
+    let updatedCamp = { ...camp, playerCharacters: updatedPCs };
+
+    // 3. UPDATE CHRONICLE IF IN SESSION
+    if (session) {
+        const updatedAdventures = camp.adventures.map(a => {
+            if (a.id !== window.appData.activeAdventureId) return a;
+            return {
+                ...a,
+                sessions: a.sessions.map(s => {
+                    if (s.id !== session.id) return s;
+                    return {
+                        ...s,
+                        chronicle: s.chronicle.map(entry => {
+                            if (entry.text.includes(`id="btn-sanity-${cardId}"`)) {
+                                let text = entry.text.replace(new RegExp(`<button[^>]*id="btn-sanity-${cardId}"[^>]*>[\\s\\S]*?<\\/button>`), responseMarkdown);
+                                return { ...entry, text };
+                            }
+                            return entry;
+                        })
+                    };
+                })
+            };
+        });
+        updatedCamp.adventures = updatedAdventures;
+    }
+
+    await saveCampaign(updatedCamp);
+    // Silent save, no need to trigger full reRender since we patched the DOM directly
 };
 
 
@@ -661,7 +709,7 @@ export const resolvePatternBacklash = async (pcId, primaryPattern, cardId) => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
     const session = window.appData.activeSession;
-    if (!camp || !session) return;
+    if (!camp) return;
 
     const pc = camp.playerCharacters?.find(p => p.id === pcId);
     if (!pc) return;
@@ -687,36 +735,57 @@ export const resolvePatternBacklash = async (pcId, primaryPattern, cardId) => {
     }
 
     const responseMarkdown = `
-<div class="mt-3 p-3 bg-red-950/40 text-stone-100 border border-red-900 rounded-sm text-xs relative z-10" onclick="event.stopPropagation();">
-    <h5 class="font-bold text-red-500 uppercase tracking-widest text-[9px] border-b border-red-900/30 pb-1 mb-2"><i class="fa-solid fa-burst"></i> Backlash Consequence (d4 = ${roll})</h5>
-    <p class="font-serif leading-relaxed mb-1">${resultText}</p>
-    ${damageDetails ? `<p class="font-black text-red-400 font-mono mt-1">${damageDetails}</p>` : ''}
+<div class="mt-4 p-3 bg-red-950/60 text-stone-100 border border-red-900 rounded text-xs relative z-10 shadow-lg text-left" onclick="event.stopPropagation();">
+    <h5 class="font-bold text-red-500 uppercase tracking-widest text-[10px] border-b border-red-900/40 pb-1.5 mb-2.5"><i class="fa-solid fa-burst mr-1.5"></i> Backlash Consequence (d4 = ${roll})</h5>
+    <p class="font-serif leading-relaxed text-sm text-stone-200">${resultText}</p>
+    ${damageDetails ? `<p class="font-mono font-bold text-red-400 mt-2 bg-red-950/50 p-2 rounded border border-red-900/50">${damageDetails}</p>` : ''}
 </div>
 `;
 
-    const updatedAdventures = camp.adventures.map(a => {
-        if (a.id !== window.appData.activeAdventureId) return a;
-        return {
-            ...a,
-            sessions: a.sessions.map(s => {
-                if (s.id !== session.id) return s;
-                return {
-                    ...s,
-                    chronicle: s.chronicle.map(entry => {
-                        if (entry.text.includes(`id="btn-backlash-${cardId}"`)) {
-                            let text = entry.text.replace(new RegExp(`<button[^>]*id="btn-backlash-${cardId}"[^>]*>[\\s\\S]*?<\\/button>`), '');
-                            text += responseMarkdown;
-                            return { ...entry, text };
-                        }
-                        return entry;
-                    })
-                };
-            })
-        };
+    // 1. UPDATE DOM INSTANTLY IF IN THE POPUP MODAL
+    const btnDom = document.getElementById(`btn-backlash-${cardId}`);
+    if (btnDom) btnDom.outerHTML = responseMarkdown;
+
+    // 2. UPDATE PERSONAL PATTERN LOG
+    const updatedPCs = camp.playerCharacters.map(p => {
+        if (p.id === pcId) {
+            let text = p.patternLog || '';
+            if (text.includes(`id="btn-backlash-${cardId}"`)) {
+                text = text.replace(new RegExp(`<button[^>]*id="btn-backlash-${cardId}"[^>]*>[\\s\\S]*?<\\/button>`), responseMarkdown);
+            }
+            return { ...p, patternLog: text };
+        }
+        return p;
     });
 
-    await saveCampaign({ ...camp, adventures: updatedAdventures });
-    reRender();
+    let updatedCamp = { ...camp, playerCharacters: updatedPCs };
+
+    // 3. UPDATE CHRONICLE IF IN SESSION
+    if (session) {
+        const updatedAdventures = camp.adventures.map(a => {
+            if (a.id !== window.appData.activeAdventureId) return a;
+            return {
+                ...a,
+                sessions: a.sessions.map(s => {
+                    if (s.id !== session.id) return s;
+                    return {
+                        ...s,
+                        chronicle: s.chronicle.map(entry => {
+                            if (entry.text.includes(`id="btn-backlash-${cardId}"`)) {
+                                let text = entry.text.replace(new RegExp(`<button[^>]*id="btn-backlash-${cardId}"[^>]*>[\\s\\S]*?<\\/button>`), responseMarkdown);
+                                return { ...entry, text };
+                            }
+                            return entry;
+                        })
+                    };
+                })
+            };
+        });
+        updatedCamp.adventures = updatedAdventures;
+    }
+
+    await saveCampaign(updatedCamp);
+    // Silent save, no need to trigger full reRender since we patched the DOM directly
 };
 
 // ============================================================================
