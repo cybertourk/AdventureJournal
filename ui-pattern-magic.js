@@ -1,4 +1,5 @@
 import { reRender, generateId } from './state.js';
+import { notify } from './firebase-manager.js';
 import { 
     PATTERN_CONFIG, 
     getOrInitPatternState, 
@@ -441,7 +442,7 @@ export function getPatternNexusHTML(state) {
                     const listDisplay = r.patterns.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' + ');
 
                     return `
-                    <div class="p-3 border rounded-sm ${selectBorder} flex flex-col gap-2 transition cursor-pointer" onclick="window.appActions.loadRoteToDraft('${r.id}')">
+                    <div class="p-3 border rounded-sm ${selectBorder} flex flex-col gap-2 transition cursor-pointer group hover:border-amber-400" onclick="window.appActions.loadRoteToDraft('${activePc.id}', '${r.id}')">
                         <div class="flex justify-between items-start border-b border-[#d4c5a9] pb-1.5">
                             <h5 class="text-sm font-bold text-stone-900 font-serif leading-tight">
                                 <i class="fa-solid fa-scroll ${isSelected ? 'text-amber-600' : 'text-stone-400'} mr-1"></i> ${r.name}
@@ -450,9 +451,12 @@ export function getPatternNexusHTML(state) {
                                 <i class="fa-solid fa-trash text-xs"></i>
                             </button>
                         </div>
-                        <div class="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-stone-500">
-                            <span>${listDisplay}</span>
-                            <span class="text-amber-700 bg-amber-100 px-2 py-0.5 rounded-sm border border-amber-200 shadow-sm">${r.essentiaCost} E</span>
+                        <div class="flex flex-wrap gap-1 text-[9px] font-bold uppercase tracking-widest text-stone-500 mb-1">
+                            ${r.patterns.map(p => `<span class="bg-stone-100 border border-stone-200 px-1.5 py-0.5 rounded-sm">${p.charAt(0).toUpperCase() + p.slice(1)}</span>`).join('')}
+                        </div>
+                        <div class="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-stone-500 mt-1">
+                            <span class="text-amber-700 bg-amber-50 px-2 py-1 rounded-sm border border-amber-200 shadow-sm">${r.essentiaCost} Essentia</span>
+                            <button type="button" onclick="event.stopPropagation(); window.appActions.loadRoteToDraft('${activePc.id}', '${r.id}')" class="px-3 py-1 bg-stone-800 text-amber-50 hover:bg-amber-700 transition rounded-sm text-[9px] font-bold uppercase tracking-wider shadow-sm flex items-center group-hover:bg-amber-700"><i class="fa-solid fa-download mr-1.5"></i> Load Rote</button>
                         </div>
                     </div>
                     `;
@@ -991,13 +995,13 @@ if (typeof window !== 'undefined') {
         const name = nameInput ? nameInput.value.trim() : '';
 
         if (!name) {
-            window.appActions.notify("Your Grimoire requires a name for this Rote before scribing.", "error");
+            notify("Your Grimoire requires a name for this Rote before scribing.", "error");
             return;
         }
 
         const draft = getOrInitDraftState();
         if (draft.patterns.length === 0) {
-            window.appActions.notify("Weave threads on the Loom to configure a spell before saving.", "error");
+            notify("Weave threads on the Loom to configure a spell before saving.", "error");
             return;
         }
 
@@ -1015,7 +1019,7 @@ if (typeof window !== 'undefined') {
         });
 
         if (exceeds) {
-            window.appActions.notify("You cannot scribe a Rote containing elements that exceed your attuned Pattern Ranks.", "error");
+            notify("You cannot scribe a Rote containing elements that exceed your attuned Pattern Ranks.", "error");
             return;
         }
 
@@ -1030,18 +1034,20 @@ if (typeof window !== 'undefined') {
             effectTiers: { ...draft.effectTiers }
         };
 
-        const success = await window.appActions.saveRote(pcId, rotePayload);
+        const success = await saveRote(pcId, rotePayload);
         if (success) {
             if (nameInput) nameInput.value = '';
+            reRender(true);
         }
     };
 
-    window.appActions.loadRoteToDraft = (roteId) => {
+    window.appActions.loadRoteToDraft = (pcId, roteId) => {
         const camp = window.appData.activeCampaign;
-        const pc = camp?.playerCharacters?.find(p => p.id === (window.appData.activePatternPcId || ''));
+        const pc = camp?.playerCharacters?.find(p => p.id === pcId);
         if (!pc) return;
 
-        const rote = pc.patternMagic?.rotes?.find(r => r.id === roteId);
+        const pm = pc.patternMagic || {};
+        const rote = pm.rotes?.find(r => r.id === roteId);
         if (!rote) return;
 
         const draft = getOrInitDraftState();
@@ -1054,13 +1060,25 @@ if (typeof window !== 'undefined') {
         draft.roteName = rote.name;
         draft.selectedRoteId = rote.id;
 
-        reRender(true); // Hard reload is fine for loading full Rotes
+        // Use seamless update to fill the forms and animate the loom instantly
+        window.appActions.refreshTapestryUI(); 
+        
+        // Auto-scroll to the top of the form for convenience
+        document.getElementById('draft-spell-name')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+    
+    // Create an explicit binding for deleteRote that safely triggers reRender
+    window.appActions.deleteRote = async (pcId, roteId) => {
+        if(confirm("Are you sure you want to permanently erase this Rote from your Grimoire?")) {
+            const success = await deleteRote(pcId, roteId);
+            if (success) reRender(true);
+        }
     };
 
     window.appActions.castCurrentPatternSpell = async (pcId) => {
         const draft = getOrInitDraftState();
         if (draft.patterns.length === 0) {
-            window.appActions.notify("A Primary Thread must be woven into the Loom before unleashing magic.", "error");
+            notify("A Primary Thread must be woven into the Loom before unleashing magic.", "error");
             return;
         }
 
@@ -1072,7 +1090,7 @@ if (typeof window !== 'undefined') {
         const metrics = calculateAffinityLimitsAndCosts(pc, pm, draft);
 
         if (pm.essentia < metrics.finalCost) {
-            window.appActions.notify("Your Essentia Reservoir lacks the fuel required to weave this Pattern.", "error");
+            notify("Your Essentia Reservoir lacks the fuel required to weave this Pattern.", "error");
             return;
         }
 
@@ -1088,7 +1106,7 @@ if (typeof window !== 'undefined') {
             roteName: draft.roteName
         };
 
-        await window.appActions.castPatternSpell(pcId, castConfig);
+        await castPatternSpell(pcId, castConfig);
 
         // Reset temporary non-rote draft casting parameters after successful cast!
         if (!draft.isRote) {
