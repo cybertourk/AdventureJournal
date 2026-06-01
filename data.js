@@ -337,14 +337,13 @@ import {
 
 // --- APP ACTIONS HUB --- 
 if (typeof window !== 'undefined') {
-    // 1. Capture and preserve existing app actions (like Pattern Magic)
+    // 1. Capture and preserve existing app actions (like Pattern Magic UI bindings)
     const preservedActions = { ...(window.appActions || {}) };
     
     // 2. DISCARD the buggy showAuthenticatedReadyState to keep the login inputs visible
     delete preservedActions.showAuthenticatedReadyState;
 
     window.appActions = { 
-      ...preservedActions,
       reRender, 
       
       // Navigation & UI Core
@@ -696,7 +695,10 @@ if (typeof window !== 'undefined') {
       openItemJsonImporter,
       handleItemFileSelect,
       executeItemJsonImport,
-      renderDatabaseResults
+      renderDatabaseResults,
+
+      // 3. APPLY PRESERVED ACTIONS LAST TO OVERWRITE LEGACY IMPORTS
+      ...preservedActions
     };
 
     // Bind the table search filter directly to window as expected by the inline HTML oninput handler
