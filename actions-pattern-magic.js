@@ -559,7 +559,7 @@ export const resolvePatternBacklash = async (pcId, primaryPattern, cardId) => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
     const session = window.appData.activeSession;
-    if (!camp || !session) return;
+    if (!camp) return;
 
     const pc = camp.playerCharacters?.find(p => p.id === pcId);
     if (!pc) return;
@@ -601,25 +601,28 @@ export const resolvePatternBacklash = async (pcId, primaryPattern, cardId) => {
     if (damageDetails) mdBacklash += `\n${damageDetails}`;
     mdBacklash += `\n<!-- RESOLUTION_PLACEHOLDER_${cardId} -->`; // keep placeholder alive
 
-    const updatedAdventures = camp.adventures.map(a => {
-        if (a.id !== window.appData.activeAdventureId) return a;
-        return {
-            ...a,
-            sessions: a.sessions.map(s => {
-                if (s.id !== session.id) return s;
-                return {
-                    ...s,
-                    chronicle: s.chronicle.map(entry => {
-                        if (entry.text.includes(`<!-- RESOLUTION_PLACEHOLDER_${cardId} -->`)) {
-                            let text = entry.text.replace(`<!-- RESOLUTION_PLACEHOLDER_${cardId} -->`, mdBacklash);
-                            return { ...entry, text };
-                        }
-                        return entry;
-                    })
-                };
-            })
-        };
-    });
+    let updatedAdventures = camp.adventures || [];
+    if (session) {
+        updatedAdventures = camp.adventures.map(a => {
+            if (a.id !== window.appData.activeAdventureId) return a;
+            return {
+                ...a,
+                sessions: a.sessions.map(s => {
+                    if (s.id !== session.id) return s;
+                    return {
+                        ...s,
+                        chronicle: s.chronicle.map(entry => {
+                            if (entry.text.includes(`<!-- RESOLUTION_PLACEHOLDER_${cardId} -->`)) {
+                                let text = entry.text.replace(`<!-- RESOLUTION_PLACEHOLDER_${cardId} -->`, mdBacklash);
+                                return { ...entry, text };
+                            }
+                            return entry;
+                        })
+                    };
+                })
+            };
+        });
+    }
 
     const updatedPCs = camp.playerCharacters.map(p => {
         if (p.id === pcId) {
@@ -640,7 +643,7 @@ export const resolvePatternSanityCheck = async (pcId, dc, spellDC, cardId) => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
     const session = window.appData.activeSession;
-    if (!camp || !session) return;
+    if (!camp) return;
 
     const pc = camp.playerCharacters?.find(p => p.id === pcId);
     if (!pc) return;
@@ -751,25 +754,28 @@ export const resolvePatternSanityCheck = async (pcId, dc, spellDC, cardId) => {
     }
     mdSanity += `\n<!-- RESOLUTION_PLACEHOLDER_${cardId} -->`;
 
-    const updatedAdventures = camp.adventures.map(a => {
-        if (a.id !== window.appData.activeAdventureId) return a;
-        return {
-            ...a,
-            sessions: a.sessions.map(s => {
-                if (s.id !== session.id) return s;
-                return {
-                    ...s,
-                    chronicle: s.chronicle.map(entry => {
-                        if (entry.text.includes(`<!-- RESOLUTION_PLACEHOLDER_${cardId} -->`)) {
-                            let text = entry.text.replace(`<!-- RESOLUTION_PLACEHOLDER_${cardId} -->`, mdSanity);
-                            return { ...entry, text };
-                        }
-                        return entry;
-                    })
-                };
-            })
-        };
-    });
+    let updatedAdventures = camp.adventures || [];
+    if (session) {
+        updatedAdventures = camp.adventures.map(a => {
+            if (a.id !== window.appData.activeAdventureId) return a;
+            return {
+                ...a,
+                sessions: a.sessions.map(s => {
+                    if (s.id !== session.id) return s;
+                    return {
+                        ...s,
+                        chronicle: s.chronicle.map(entry => {
+                            if (entry.text.includes(`<!-- RESOLUTION_PLACEHOLDER_${cardId} -->`)) {
+                                let text = entry.text.replace(`<!-- RESOLUTION_PLACEHOLDER_${cardId} -->`, mdSanity);
+                                return { ...entry, text };
+                            }
+                            return entry;
+                        })
+                    };
+                })
+            };
+        });
+    }
 
     const updatedPCs = camp.playerCharacters.map(p => {
         if (p.id === pcId) {
