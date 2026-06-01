@@ -288,7 +288,7 @@ export const selectSuccessUpgradesAndCast = async (pc, pm, castConfig, differenc
         }
 
         const modal = document.createElement('div');
-        modal.className = 'fixed inset-0 bg-stone-950/80 z-[25000] flex items-center justify-center p-4 backdrop-blur-sm animate-in';
+        modal.className = 'fixed inset-0 bg-stone-950/80 z-[35000] flex items-center justify-center p-4 backdrop-blur-sm animate-in pointer-events-auto';
         modal.id = 'tapestry-success-upgrade-modal';
 
         let choicesDropdowns = '';
@@ -296,7 +296,7 @@ export const selectSuccessUpgradesAndCast = async (pc, pm, castConfig, differenc
             choicesDropdowns += `
                 <div>
                     <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Upgrade Option ${i + 1}</label>
-                    <select class="upgrade-category-select w-full p-2 border border-[#d4c5a9] rounded-sm text-xs font-serif bg-white text-stone-900 shadow-inner outline-none focus:border-amber-600">
+                    <select class="upgrade-category-select w-full p-2 border border-[#d4c5a9] rounded-sm text-xs font-serif bg-white text-stone-900 shadow-inner outline-none focus:border-amber-600 cursor-pointer">
                         <option value="">-- Choose Element --</option>
                         ${activeEffects.map(eff => `<option value="${eff.key}">${eff.name}</option>`).join('')}
                     </select>
@@ -436,7 +436,7 @@ export const castPatternSpell = async (pcId, castConfig) => {
     let actionButtonsHtml = '';
     if (successType === 'critical_failure') {
         actionButtonsHtml += `
-            <button onclick="window.appActions.resolvePatternBacklash('${pcId}', '${primaryPattern}', '${cardId}')" id="btn-backlash-${cardId}" class="mt-3 w-full py-2 bg-red-900 hover:bg-red-800 text-amber-50 rounded-sm font-bold uppercase text-[10px] tracking-widest shadow-md transition">
+            <button onclick="window.appActions.resolvePatternBacklash('${pcId}', '${primaryPattern}', '${cardId}')" id="btn-backlash-${cardId}" class="w-full py-2.5 bg-red-900 hover:bg-red-800 text-amber-50 rounded-sm font-bold uppercase text-[10px] tracking-widest shadow-md transition">
                 <i class="fa-solid fa-burst mr-1.5 animate-pulse"></i> Roll for Consequence
             </button>
         `;
@@ -444,7 +444,7 @@ export const castPatternSpell = async (pcId, castConfig) => {
     if (isSanityRequired) {
         const sanityDc = 10 + cost;
         actionButtonsHtml += `
-            <button onclick="window.appActions.resolvePatternSanityCheck('${pcId}', ${sanityDc}, ${dc}, '${cardId}')" id="btn-sanity-${cardId}" class="mt-2 w-full py-2 bg-stone-800 hover:bg-stone-700 text-amber-50 rounded-sm font-bold uppercase text-[10px] tracking-widest shadow-md transition">
+            <button onclick="window.appActions.resolvePatternSanityCheck('${pcId}', ${sanityDc}, ${dc}, '${cardId}')" id="btn-sanity-${cardId}" class="w-full py-2.5 bg-stone-800 hover:bg-stone-700 text-amber-50 rounded-sm font-bold uppercase text-[10px] tracking-widest shadow-md transition">
                 <i class="fa-solid fa-brain mr-1.5"></i> Save vs Mental Strain (DC ${sanityDc})
             </button>
         `;
@@ -498,52 +498,64 @@ export const castPatternSpell = async (pcId, castConfig) => {
     // 2. Generate BEAUTIFUL HTML for the Immediate Popup Modal (Safe from Markdown parsing)
     // ==============================================================================
     let cardHtml = `
-<div class="bg-[#fdfbf7] text-stone-900 p-5 rounded-sm border border-[#d4c5a9] shadow-2xl font-sans relative z-10 text-left border-t-4 border-t-amber-600" onclick="event.stopPropagation();">
-    <div class="flex justify-between items-center border-b border-[#d4c5a9] pb-2 mb-3">
-        <h4 class="font-serif font-bold text-lg text-amber-900 flex items-center"><i class="fa-solid fa-sparkles mr-2 text-amber-500"></i> ${isRoteText}</h4>
-        <span class="text-[10px] uppercase font-bold tracking-widest text-stone-500 bg-stone-100 px-2 py-1 rounded border border-stone-300 shadow-sm">Check DC: ${dc}</span>
-    </div>
-    
-    <p class="text-sm text-stone-600 italic mb-4 font-serif border-l-2 border-stone-400 pl-3">"${castConfig.description || 'Weaving spell vectors...'}"</p>
-    
-    <div class="bg-stone-50 p-3 rounded-sm border border-stone-200 text-xs text-stone-600 mb-4 space-y-2 shadow-inner">
-        <div class="flex justify-between border-b border-stone-200 pb-1.5">
-            <span>Caster:</span> <strong class="text-stone-900 font-serif">${pc.name}</strong>
+    <div class="bg-[#fdfbf7] text-stone-900 rounded-sm border border-[#d4c5a9] shadow-2xl font-sans relative z-10 text-left flex flex-col max-h-[85vh] w-full" onclick="event.stopPropagation();">
+        <!-- Fixed Header -->
+        <div class="bg-stone-900 p-3 sm:p-4 border-b-4 border-amber-600 shadow-md flex justify-between items-center text-amber-50 shrink-0 rounded-t-sm">
+            <h4 class="font-serif font-bold text-base flex items-center"><i class="fa-solid fa-sparkles mr-2 text-amber-500"></i> ${isRoteText}</h4>
+            <button onclick="document.getElementById('pattern-result-modal').remove();" class="text-stone-400 hover:text-white transition"><i class="fa-solid fa-xmark text-lg"></i></button>
         </div>
-        <div class="flex justify-between">
-            <span>Patterns:</span> <span class="text-stone-900 font-bold uppercase tracking-wider text-[10px]">${castConfig.patterns.join(' + ')}</span>
-        </div>
-        <div class="flex justify-between">
-            <span>Essentia Spent:</span> <span class="text-stone-900 font-bold">${cost}</span>
-        </div>
-        <div class="flex justify-between border-t border-stone-200 pt-1.5">
-            <span>Roll Check:</span> <span class="text-stone-700">${checkString}</span>
-        </div>
-        <div class="flex justify-between items-center text-sm font-black border-t border-stone-200 pt-1.5 mt-1">
-            <span>Total Result:</span> <span class="text-amber-600 text-lg drop-shadow-sm">${totalRoll}</span>
-        </div>
-    </div>
-    
-    <div class="p-3 rounded-sm border border-[#d4c5a9] text-xs bg-white text-stone-800 mb-4 shadow-sm">
-        <h5 class="text-[10px] uppercase font-bold text-amber-700 tracking-widest border-b border-[#d4c5a9] pb-1 mb-2">Spell Form Factors</h5>
-        ${listHtml}
-    </div>
+        
+        <!-- Scrollable Body -->
+        <div class="p-4 sm:p-5 overflow-y-auto custom-scrollbar flex-grow">
+            <div class="flex justify-end mb-3">
+                <span class="text-[10px] uppercase font-bold tracking-widest text-stone-500 bg-stone-100 px-2 py-1 rounded border border-stone-300 shadow-sm">Check DC: ${dc}</span>
+            </div>
 
-    <div class="p-3 rounded-sm bg-stone-100 border border-stone-300 text-sm font-serif leading-relaxed text-stone-800 mb-2 shadow-inner">
-        ${messageText}
+            <p class="text-sm text-stone-600 italic mb-5 font-serif border-l-2 border-stone-400 pl-3">"${castConfig.description || 'Weaving spell vectors...'}"</p>
+            
+            <div class="bg-stone-50 p-3.5 rounded-sm border border-stone-200 text-xs text-stone-600 mb-5 space-y-2 shadow-inner">
+                <div class="flex justify-between border-b border-stone-200 pb-1.5">
+                    <span>Caster:</span> <strong class="text-stone-900 font-serif">${pc.name}</strong>
+                </div>
+                <div class="flex justify-between">
+                    <span>Patterns:</span> <span class="text-stone-900 font-bold uppercase tracking-wider text-[10px]">${castConfig.patterns.join(' + ')}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Essentia Spent:</span> <span class="text-stone-900 font-bold">${cost}</span>
+                </div>
+                <div class="flex justify-between border-t border-stone-200 pt-1.5">
+                    <span>Roll Check:</span> <span class="text-stone-700">${checkString}</span>
+                </div>
+                <div class="flex justify-between items-center text-sm font-black border-t border-stone-200 pt-1.5 mt-1">
+                    <span>Total Result:</span> <span class="text-amber-600 text-lg drop-shadow-sm">${totalRoll}</span>
+                </div>
+            </div>
+            
+            <div class="p-3.5 rounded-sm border border-[#d4c5a9] text-xs bg-white text-stone-800 mb-5 shadow-sm">
+                <h5 class="text-[10px] uppercase font-bold text-amber-700 tracking-widest border-b border-[#d4c5a9] pb-1 mb-2">Spell Form Factors</h5>
+                ${listHtml}
+            </div>
+
+            <div class="p-3.5 rounded-sm bg-stone-100 border border-stone-300 text-sm font-serif leading-relaxed text-stone-800 mb-2 shadow-inner">
+                ${messageText}
+            </div>
+
+            <!-- Dynamic Results Container -->
+            <div id="resolution-results-container-${cardId}"></div>
+        </div>
+        
+        <!-- Fixed Footer Actions -->
+        <div class="bg-[#e8dec7] p-3 sm:p-4 border-t border-[#d4c5a9] flex flex-col gap-2 shrink-0 rounded-b-sm shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
+            ${actionButtonsHtml}
+            ${!actionButtonsHtml ? `<button onclick="document.getElementById('pattern-result-modal').remove();" class="w-full py-2 bg-stone-900 text-amber-50 rounded-sm font-bold uppercase tracking-wider text-[10px] shadow-md hover:bg-stone-800 transition">Dismiss</button>` : `<button onclick="document.getElementById('pattern-result-modal').remove();" class="w-full py-2 border border-stone-400 text-stone-600 rounded-sm font-bold uppercase tracking-wider text-[10px] shadow-sm hover:bg-stone-300 transition">Dismiss</button>`}
+        </div>
     </div>
-    
-    ${actionButtonsHtml}
-</div>
-`;
+    `;
 
     const modalHtml = `
     <div class="fixed inset-0 bg-stone-950/90 z-[30000] flex items-center justify-center p-4 backdrop-blur-sm animate-in pointer-events-auto" id="pattern-result-modal">
-        <div class="max-w-md w-full relative">
+        <div class="max-w-md w-full relative flex justify-center">
             ${cardHtml}
-            <div class="mt-5 flex justify-center">
-                <button onclick="document.getElementById('pattern-result-modal').remove();" class="px-8 py-2.5 bg-[#fdfbf7] text-stone-800 hover:text-stone-900 hover:bg-white rounded-sm font-bold uppercase tracking-widest text-[10px] sm:text-xs shadow-lg border border-[#d4c5a9] transition">Dismiss Result</button>
-            </div>
         </div>
     </div>`;
     
@@ -584,22 +596,32 @@ export const resolvePatternBacklash = async (pcId, primaryPattern, cardId) => {
         damageDetails = `(Backlash Damage: **${dmg} ${element}**)`;
     }
 
-    // 1. Generate HTML for the Popup Modal
+    // 1. Generate HTML for the Popup Modal and smoothly scroll to it
     const responseHtml = `
-<div class="mt-3 p-3 bg-red-50 text-red-900 border border-red-200 rounded-sm text-xs shadow-sm">
-    <h5 class="font-bold text-red-700 uppercase tracking-widest text-[10px] border-b border-red-200 pb-1 mb-2"><i class="fa-solid fa-burst"></i> Backlash Consequence</h5>
-    <p class="font-serif leading-relaxed mb-1">${resultText}</p>
-    ${damageDetails ? `<p class="font-black text-red-700 font-mono mt-1">${damageDetails}</p>` : ''}
-</div>`;
+    <div class="mt-3 p-3 bg-red-50 text-red-900 border border-red-200 rounded-sm text-xs shadow-sm animate-in">
+        <h5 class="font-bold text-red-700 uppercase tracking-widest text-[10px] border-b border-red-200 pb-1 mb-2"><i class="fa-solid fa-burst"></i> Backlash Consequence</h5>
+        <p class="font-serif leading-relaxed mb-1">${resultText}</p>
+        ${damageDetails ? `<p class="font-black text-red-700 font-mono mt-1">${damageDetails}</p>` : ''}
+    </div>`;
+
+    const resultsContainer = document.getElementById(`resolution-results-container-${cardId}`);
+    if (resultsContainer) {
+        resultsContainer.insertAdjacentHTML('beforeend', responseHtml);
+        resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
 
     const btnDom = document.getElementById(`btn-backlash-${cardId}`);
-    if (btnDom) btnDom.outerHTML = responseHtml;
+    if (btnDom) {
+        btnDom.disabled = true;
+        btnDom.classList.add('opacity-50', 'cursor-not-allowed');
+        btnDom.innerHTML = '<i class="fa-solid fa-check mr-1"></i> Consequence Applied';
+    }
 
     // 2. Generate Pure Markdown for the Database
     let plainResult = resultText.replace(/<b>(.*?)<\/b>/gi, '**$1**');
     let mdBacklash = `\n---\n\n### Backlash Consequence (d4 = ${roll})\n${plainResult}`;
     if (damageDetails) mdBacklash += `\n${damageDetails}`;
-    mdBacklash += `\n<!-- RESOLUTION_PLACEHOLDER_${cardId} -->`; // keep placeholder alive
+    mdBacklash += `\n<!-- RESOLUTION_PLACEHOLDER_${cardId} -->`; // keep placeholder alive for chained sanity checks
 
     let updatedAdventures = camp.adventures || [];
     if (session) {
@@ -636,7 +658,7 @@ export const resolvePatternBacklash = async (pcId, primaryPattern, cardId) => {
     });
 
     await saveCampaign({ ...camp, adventures: updatedAdventures, playerCharacters: updatedPCs });
-    reRender();
+    reRender(true);
 };
 
 export const resolvePatternSanityCheck = async (pcId, dc, spellDC, cardId) => {
@@ -732,20 +754,30 @@ export const resolvePatternSanityCheck = async (pcId, dc, spellDC, cardId) => {
         `;
     }
 
-    // 1. Generate HTML for the Popup Modal
+    // 1. Generate HTML for the Popup Modal and smoothly scroll to it
     const responseHtml = `
-<div class="mt-3 p-4 bg-white border border-[#d4c5a9] rounded-sm text-xs shadow-sm">
-    <h5 class="font-bold text-stone-500 uppercase tracking-widest text-[10px] border-b border-[#d4c5a9] pb-1 mb-2"><i class="fa-solid fa-brain"></i> Sanity Resolution</h5>
-    <div class="bg-stone-50 p-2 rounded text-[11px] text-stone-600 mb-2 font-mono shadow-inner border border-stone-200">
-        Roll: 1d20 (${d20}) + WIS Mod (${wisMod >= 0 ? '+' : ''}${wisMod}) = <strong>${saveTotal}</strong> vs DC ${dc}
-    </div>
-    <p class="font-sans font-bold text-sm ${isSuccess ? 'text-emerald-600' : 'text-red-600'}">${resultHeader}</p>
-    <p class="font-serif leading-relaxed text-xs mt-1 text-stone-700">${resultBody}</p>
-    ${madnessHtml}
-</div>`;
+    <div class="mt-3 p-4 bg-white border border-[#d4c5a9] rounded-sm text-xs shadow-sm animate-in">
+        <h5 class="font-bold text-stone-500 uppercase tracking-widest text-[10px] border-b border-[#d4c5a9] pb-1 mb-2"><i class="fa-solid fa-brain"></i> Sanity Resolution</h5>
+        <div class="bg-stone-50 p-2 rounded text-[11px] text-stone-600 mb-2 font-mono shadow-inner border border-stone-200">
+            Roll: 1d20 (${d20}) + WIS Mod (${wisMod >= 0 ? '+' : ''}${wisMod}) = <strong>${saveTotal}</strong> vs DC ${dc}
+        </div>
+        <p class="font-sans font-bold text-sm ${isSuccess ? 'text-emerald-600' : 'text-red-600'}">${resultHeader}</p>
+        <p class="font-serif leading-relaxed text-xs mt-1 text-stone-700">${resultBody}</p>
+        ${madnessHtml}
+    </div>`;
+
+    const resultsContainer = document.getElementById(`resolution-results-container-${cardId}`);
+    if (resultsContainer) {
+        resultsContainer.insertAdjacentHTML('beforeend', responseHtml);
+        resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
 
     const btnDom = document.getElementById(`btn-sanity-${cardId}`);
-    if (btnDom) btnDom.outerHTML = responseHtml;
+    if (btnDom) {
+        btnDom.disabled = true;
+        btnDom.classList.add('opacity-50', 'cursor-not-allowed');
+        btnDom.innerHTML = '<i class="fa-solid fa-check mr-1"></i> Sanity Checked';
+    }
 
     // 2. Generate Pure Markdown for the Database
     let mdSanity = `\n---\n\n### ${resultHeader}\n**Roll:** 1d20 (${d20}) + WIS Mod (${wisMod >= 0 ? '+' : ''}${wisMod}) = **${saveTotal}** vs DC ${dc}\n*${resultBody.replace(/\*/g, '')}*`;
@@ -789,7 +821,7 @@ export const resolvePatternSanityCheck = async (pcId, dc, spellDC, cardId) => {
     });
 
     await saveCampaign({ ...camp, adventures: updatedAdventures, playerCharacters: updatedPCs });
-    reRender();
+    reRender(true);
 };
 
 // ============================================================================
