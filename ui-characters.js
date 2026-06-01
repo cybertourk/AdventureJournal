@@ -216,10 +216,10 @@ export function getPCEditHTML(state) {
     const camp = state.activeCampaign;
     const isNew = !state.activePcId;
     
-    // Updated default structure to hold stats, equipment, and ddbId
+    // Updated default structure to hold stats, equipment, patternLog, and ddbId
     const pc = !isNew && camp?.playerCharacters 
         ? camp.playerCharacters.find(p => p.id === state.activePcId) 
-        : { name: '', race: '', classLevel: '', background: '', alignment: '', faith: '', gender: '', age: '', size: '', height: '', weight: '', eyes: '', hair: '', skin: '', traits: '', ideals: '', bonds: '', flaws: '', appearance: '', backstory: '', organizations: '', allies: '', enemies: '', dmNotes: '', playerId: '', image: '', boonBackstory: false, boon1stBday: '', boon2ndBday: '', extraBdayBoons: [], unlockAutoSuccess: false, availableDowntime: 0, downtimeLog: '', str: '', dex: '', con: '', int: '', wis: '', cha: '', saves: '', skills: '', proficiencies: '', wealth: '', equipped: '', backpack: '', ddbId: '', isPrivate: false };
+        : { name: '', race: '', classLevel: '', background: '', alignment: '', faith: '', gender: '', age: '', size: '', height: '', weight: '', eyes: '', hair: '', skin: '', traits: '', ideals: '', bonds: '', flaws: '', appearance: '', backstory: '', organizations: '', allies: '', enemies: '', dmNotes: '', playerId: '', image: '', boonBackstory: false, boon1stBday: '', boon2ndBday: '', extraBdayBoons: [], unlockAutoSuccess: false, availableDowntime: 0, downtimeLog: '', patternLog: '', str: '', dex: '', con: '', int: '', wis: '', cha: '', saves: '', skills: '', proficiencies: '', wealth: '', equipped: '', backpack: '', ddbId: '', isPrivate: false };
 
     if (!pc && !isNew) return `<div class="text-center text-red-500 p-8 font-serif font-bold text-xl">Hero not found in the archives.</div>`;
 
@@ -431,6 +431,81 @@ export function getPCEditHTML(state) {
     </div>
     `;
 
+    // --- DYNAMIC PATTERN MAGIC LOG PARSER ---
+    const hasPatternAccess = pc.patternMagicUnlocked === true || Object.values(pc.patternMagic || {}).some(v => typeof v === 'number' && v > 0);
+    let pmSectionHtml = '';
+
+    if (hasPatternAccess) {
+        const pmLogText = pc.patternLog || '';
+        const safePMLog = pmLogText.replace(/"/g, '&quot;').replace(/\n/g, '&#10;');
+        
+        let pmCategorizedLogs = {};
+        const pmEntries = pmLogText.split(/\n*---\n*/).map(e => e.trim()).filter(e => e);
+        
+        pmEntries.forEach(entry => {
+            let category = "General Casts";
+            const match = entry.match(/\*\*Pattern:\s*(.*?)\*\*/i);
+            if (match) category = match[1].trim();
+            
+            if (!pmCategorizedLogs[category]) pmCategorizedLogs[category] = [];
+            pmCategorizedLogs[category].push(entry);
+        });
+
+        const pmSortedCategories = Object.keys(pmCategorizedLogs).sort();
+
+        let pmAccordionHtml = '';
+        if (pmEntries.length === 0) {
+            pmAccordionHtml = `<p class="text-stone-500 italic text-sm p-4 text-center">No spells have been woven yet.</p>`;
+        } else {
+            pmSortedCategories.forEach(cat => {
+                const catEntries = pmCategorizedLogs[cat].reverse(); 
+                const badgeCount = `<span class="bg-cyan-900/30 text-cyan-400 text-[10px] font-bold px-2 py-0.5 rounded-full ml-2 border border-cyan-800">${catEntries.length}</span>`;
+                
+                let entriesHtml = catEntries.map(e => {
+                    const parsed = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(e) : e.replace(/\n/g, '<br>');
+                    return `<div class="mb-3 last:mb-0">${parsed}</div>`;
+                }).join('');
+
+                pmAccordionHtml += `
+                <div class="mb-3 bg-stone-950 border border-stone-800 rounded-sm overflow-hidden shadow-sm">
+                    <button type="button" class="w-full flex items-center justify-between p-3 sm:p-4 bg-stone-900 hover:bg-stone-800 transition-colors text-cyan-500 border-b border-transparent focus:outline-none" onclick="const content = this.nextElementSibling; content.classList.toggle('hidden'); this.querySelector('.fa-chevron-down').classList.toggle('rotate-180'); this.classList.toggle('border-stone-800');">
+                        <div class="flex items-center font-bold text-xs sm:text-sm uppercase tracking-widest font-mono">
+                            <i class="fa-solid fa-sparkles mr-2 text-cyan-400"></i> ${cat} ${badgeCount}
+                        </div>
+                        <i class="fa-solid fa-chevron-down text-cyan-500 transition-transform duration-200"></i>
+                    </button>
+                    <div class="hidden p-3 sm:p-4 bg-stone-950/50">
+                        ${entriesHtml}
+                    </div>
+                </div>`;
+            });
+        }
+
+        const dmPmEditBtn = isDM ? `
+            <button type="button" class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-cyan-500 hover:text-cyan-400 transition flex items-center bg-stone-800 px-3 py-1.5 rounded border border-stone-600 shadow-sm shrink-0" onclick="event.stopPropagation(); window.appActions.openUniversalEditor('input-pc-edit-patternlog', 'Pattern Magic Casting Log')">
+                <i class="fa-solid fa-pen mr-1.5"></i> <span class="hidden sm:inline">Edit Raw Log (DM)</span><span class="sm:hidden">Edit</span>
+            </button>
+        ` : '';
+
+        pmSectionHtml = `
+        <div class="mt-6 bg-stone-900 border border-stone-700 shadow-inner rounded-sm p-4 sm:p-6 flex flex-col">
+            <div class="flex justify-between items-center border-b border-stone-700 pb-3 mb-5 gap-2">
+                <div>
+                    <h3 class="text-sm sm:text-base font-bold text-cyan-400 font-mono flex items-center"><i class="fa-solid fa-book-journal-whills text-cyan-500 mr-2"></i> Casting Log</h3>
+                    <p class="text-[9px] sm:text-[10px] text-stone-500 uppercase tracking-widest font-bold mt-1 font-mono">Spells are sorted by Primary Pattern.</p>
+                </div>
+                ${dmPmEditBtn}
+            </div>
+            
+            <input type="hidden" id="input-pc-edit-patternlog" value="${safePMLog}">
+            
+            <div class="w-full text-stone-200">
+                ${pmAccordionHtml}
+            </div>
+        </div>
+        `;
+    }
+
     return `
     <div class="animate-in slide-in-from-bottom-4 duration-300 bg-[#f4ebd8] rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col max-w-4xl mx-auto mb-8">
         
@@ -593,6 +668,7 @@ export function getPCEditHTML(state) {
                 </div>
                 
                 ${dtSectionHtml}
+                ${pmSectionHtml}
 
                 ${isDM ? `
                 <div class="mt-6 bg-stone-100 p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-inner">
@@ -712,6 +788,7 @@ export const savePCEdit = async () => {
       extraBdayBoons: [],
       availableDowntime: 0,
       downtimeLog: '',
+      patternLog: '',
       str: '', dex: '', con: '', int: '', wis: '', cha: '',
       saves: '', skills: '', proficiencies: '',
       wealth: '', equipped: '', backpack: '', ddbId: '',
@@ -851,8 +928,9 @@ export const savePCEdit = async () => {
       equipped: getVal('input-pc-edit-equipped', existingPC.equipped),
       backpack: getVal('input-pc-edit-backpack', existingPC.backpack),
 
-      // Downtime Log (Explicitly allowing it to be cleared out)
+      // Logs
       downtimeLog: getVal('input-pc-edit-downtimelog', existingPC.downtimeLog),
+      patternLog: getVal('input-pc-edit-patternlog', existingPC.patternLog),
 
       // DM Restricted Administrative Fields
       playerId: isDM ? getVal('pc-edit-player-id', existingPC.playerId) : (existingPC.playerId || ''),
@@ -1438,6 +1516,8 @@ if (typeof window !== 'undefined') {
     window.appActions.savePCEdit = savePCEdit;
     window.appActions.deletePC = deletePC;
     window.appActions.kickPlayer = kickPlayer;
+    window.appActions.openPCEdit = openPCEdit;
+    window.appActions.calculateBirthdaysLive = calculateBirthdaysLive;
     
     // DDB Integration Imports
     window.appActions.openDndBeyondImportModal = openDndBeyondImportModal;
