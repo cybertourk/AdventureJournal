@@ -1,25 +1,6 @@
 import { generateId, updateDerivedState, reRender } from './state.js';
 import { saveCampaign, notify } from './firebase-manager.js';
-
-// Inline helper to prevent circular dependencies with actions-campaign.js
-const logPlayerActivity = (camp, myUid, message, icon = 'fa-clock-rotate-left') => {
-    if (!camp || camp.dmId === myUid) return camp;
-    
-    const pName = camp.playerNames ? (camp.playerNames[myUid] || 'Unknown Player') : 'Unknown Player';
-    const fullMessage = `<span class="font-bold text-stone-900">${pName}</span> ${message}`;
-    
-    const newLog = {
-        id: generateId(),
-        timestamp: Date.now(),
-        text: fullMessage,
-        icon: icon
-    };
-    
-    return {
-        ...camp,
-        activityLog: [newLog, ...(camp.activityLog || [])].slice(0, 100)
-    };
-};
+import { logPlayerActivity } from './actions-campaign.js';
 
 // =========================================================================
 // Pattern Magic Core Rules Configuration
@@ -404,8 +385,10 @@ export const castPatternSpell = async (pcId, castConfig) => {
         messageText = `✅ <b>Success!</b> You successfully weave the Pattern and the spell takes effect.`;
     }
 
-    // Format descriptive effects for card output
-    let effectsListHtml = '';
+    // Prepare arrays for both HTML formatting (Popup) and Markdown formatting (Database)
+    let htmlEffects = '';
+    let markdownEffects = '';
+
     for (const [key, effectData] of Object.entries(PATTERN_CONFIG.Effects)) {
         const tierIdx = castConfig.effectTiers[key] || 0;
         if (tierIdx > 0) {
@@ -427,16 +410,18 @@ export const castPatternSpell = async (pcId, castConfig) => {
                 }
                 if (key === 'augmentia') nextValText += ` (${castConfig.effectTiers.augmentiaCustom || 'Custom'})`;
                 
-                effectsListHtml += `<li class="ml-4 list-disc mb-1"><b>${effectData.name}:</b> <span class="line-through text-stone-500">${valText}</span> <i class="fa-solid fa-arrow-right text-emerald-600 mx-1"></i> <b class="text-emerald-700">${nextValText}</b></li>`;
+                htmlEffects += `<li class="ml-4 list-disc mb-1"><b>${effectData.name}:</b> <span class="line-through text-stone-500">${valText}</span> <i class="fa-solid fa-arrow-right text-emerald-600 mx-1"></i> <b class="text-emerald-700">${nextValText}</b></li>`;
+                markdownEffects += `- **${effectData.name}:** ~~${valText}~~ -> **${nextValText}**\n`;
             } else {
-                effectsListHtml += `<li class="ml-4 list-disc mb-1"><b>${effectData.name}:</b> ${valText}</li>`;
+                htmlEffects += `<li class="ml-4 list-disc mb-1"><b>${effectData.name}:</b> ${valText}</li>`;
+                markdownEffects += `- **${effectData.name}:** ${valText}\n`;
             }
         }
     }
 
-    const listHtml = effectsListHtml ? `<ul class="mt-2 text-stone-700 font-sans">${effectsListHtml}</ul>` : '<p class="italic text-stone-500 mt-2">No specific effects configured.</p>';
+    const listHtml = htmlEffects ? `<ul class="mt-2 text-stone-700 font-sans">${htmlEffects}</ul>` : '<p class="italic text-stone-500 mt-2">No specific effects configured.</p>';
 
-    // Build chronicle entries
+    // Build chronicle entry payload IDs
     const cardId = generateId();
     const primaryPattern = castConfig.patterns[0] || 'arcani';
     const isSanityRequired = d20 <= 5 || dc >= 20;
@@ -461,7 +446,10 @@ export const castPatternSpell = async (pcId, castConfig) => {
     const isRoteText = castConfig.isRote ? `Rote: "${castConfig.roteName}"` : `Pattern Magic`;
     const checkString = `1d20 (${d20}) + ${castConfig.ability.toUpperCase()} (${abilityMod >= 0 ? '+' : ''}${abilityMod}) + Ranks (${selectedRanksSum})`;
 
-    let cardMarkdown = `
+    // ==============================================================================
+    // 1. Generate Interactive HTML for the Popup Modal
+    // ==============================================================================
+    let cardHtml = `
 <div class="pattern-magic-chat-card bg-[#fdfbf7] text-stone-800 p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-sm font-serif relative z-10 text-left" onclick="event.stopPropagation();">
     <div class="flex justify-between items-start sm:items-center border-b border-[#d4c5a9] pb-2 mb-3 flex-col sm:flex-row gap-2 sm:gap-0">
         <h4 class="font-bold text-lg text-amber-900 flex items-center"><i class="fa-solid fa-sparkles mr-2 text-amber-600"></i> ${isRoteText}</h4>
@@ -501,10 +489,17 @@ export const castPatternSpell = async (pcId, castConfig) => {
 </div>
 `;
 
+    // ==============================================================================
+    // 2. Generate Pure Markdown for the Database Logs
+    // ==============================================================================
+    let plainMessage = messageText.replace(/<[^>]*>?/gm, ''); // Strip HTML from success message
+    
+    let logMarkdown = `### ${isRoteText}\n*"${castConfig.description || 'Weaving spell vectors...'}"*\n\n**Caster:** ${pc.name}\n**Patterns:** ${castConfig.patterns.join(' + ').toUpperCase()}\n**Essentia Spent:** ${cost}\n**Roll Check:** ${checkString}\n**Total Result: ${totalRoll}** vs DC ${dc}\n\n**Spell Form Factors:**\n${markdownEffects || 'None\n'}\n**Outcome:** ${plainMessage}\n<!-- RESOLUTION_PLACEHOLDER_${cardId} -->`;
+
     // --- SAVE TO HERO'S PRIVATE PATTERN LOG ---
     const timestampStr = new Date().toLocaleDateString();
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const logAddition = `\n\n---\n\n**Pattern: ${primaryPattern.toUpperCase()}**\n**Casted on ${timestampStr} at ${timeStr}**\n${cardMarkdown}`;
+    const logAddition = `\n\n---\n\n**Pattern: ${primaryPattern.toUpperCase()}**\n**Casted on ${timestampStr} at ${timeStr}**\n${logMarkdown}`;
 
     const updatedPCs = camp.playerCharacters.map(p => {
         if (p.id === pcId) {
@@ -518,8 +513,8 @@ export const castPatternSpell = async (pcId, castConfig) => {
     // --- SAVE TO COLLABORATIVE CHRONICLE (IF IN SESSION) ---
     if (session) {
         const newChronicleEntry = {
-            id: generateId(),
-            text: cardMarkdown,
+            id: cardId, // Tie the entry ID to the placeholder ID
+            text: logMarkdown,
             authorId: myUid,
             timestamp: Date.now()
         };
@@ -542,7 +537,7 @@ export const castPatternSpell = async (pcId, castConfig) => {
     const modalHtml = `
     <div class="fixed inset-0 bg-stone-950/90 z-[30000] flex items-center justify-center p-4 backdrop-blur-sm animate-in pointer-events-auto" id="pattern-result-modal">
         <div class="max-w-md w-full relative">
-            ${cardMarkdown}
+            ${cardHtml}
             <div class="mt-5 flex justify-center">
                 <button onclick="document.getElementById('pattern-result-modal').remove();" class="px-8 py-2.5 bg-[#fdfbf7] text-stone-800 hover:text-stone-900 hover:bg-white rounded-sm font-bold uppercase tracking-widest text-[10px] sm:text-xs shadow-lg border border-[#d4c5a9] transition">Dismiss Result</button>
             </div>
@@ -554,7 +549,7 @@ export const castPatternSpell = async (pcId, castConfig) => {
 };
 
 
-// Complete Sanity saving throw and full short-term/long-term/indefinite tables matching Macro 2
+// Complete Sanity saving throw and full short-term/long-term/indefinite tables
 export const resolvePatternSanityCheck = async (pcId, dc, spellDC, cardId) => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
@@ -570,19 +565,20 @@ export const resolvePatternSanityCheck = async (pcId, dc, spellDC, cardId) => {
     const saveTotal = d20 + wisMod;
 
     const isSuccess = saveTotal >= dc;
-    let resultHeader = isSuccess ? "✅ Sanity Check Succeeded!" : "❌ Sanity Check Failed!";
-    let resultBody = isSuccess ? `*Your mind withstands the dimensional pressure and the reality-bending strain fades.*` : `*Your sanity buckles under the strain.*`;
+    let plainResultHeader = isSuccess ? "✅ Sanity Check Succeeded!" : "❌ Sanity Check Failed!";
+    let plainResultBody = isSuccess ? "Your mind withstands the dimensional pressure and the reality-bending strain fades." : "Your sanity buckles under the strain.";
 
     let madnessHtml = '';
-    if (!isSuccess && spellDC >= 13) {
-        const d100 = Math.floor(Math.random() * 100) + 1;
-        let type = "Short-Term";
-        let duration = `${Math.floor(Math.random() * 10) + 1} minutes`;
-        let effect = "";
+    let effect = "";
+    let type = "";
+    let duration = "";
+    let d100 = 0;
 
+    if (!isSuccess && spellDC >= 13) {
+        d100 = Math.floor(Math.random() * 100) + 1;
+        
         if (spellDC >= 30) {
-            type = "Indefinite";
-            duration = "Until Cured";
+            type = "Indefinite"; duration = "Until Cured";
             const table = [
                 { range: [1, 15], flaw: "Being drunk keeps me sane." },
                 { range: [16, 25], flaw: "I keep whatever I find." },
@@ -600,8 +596,7 @@ export const resolvePatternSanityCheck = async (pcId, dc, spellDC, cardId) => {
             const match = table.find(e => d100 >= e.range[0] && d100 <= e.range[1]);
             effect = `**Flaw:** "${match?.flaw || 'Murderous urges'}"`;
         } else if (spellDC >= 20) {
-            type = "Long-Term";
-            duration = `${(Math.floor(Math.random() * 10) + 1) * 10} hours`;
+            type = "Long-Term"; duration = `${(Math.floor(Math.random() * 10) + 1) * 10} hours`;
             const table = [
                 { range: [1, 10], effect: "The character feels compelled to repeat a specific activity over and over..." },
                 { range: [11, 20], effect: "The character experiences vivid hallucinations and has disadvantage on ability checks." },
@@ -619,7 +614,7 @@ export const resolvePatternSanityCheck = async (pcId, dc, spellDC, cardId) => {
             const match = table.find(e => d100 >= e.range[0] && d100 <= e.range[1]);
             effect = `**Symptom:** ${match?.effect || 'Amnesia'}`;
         } else {
-            type = "Short-Term";
+            type = "Short-Term"; duration = `${Math.floor(Math.random() * 10) + 1} minutes`;
             const table = [
                 { range: [1, 20], effect: "The character retreats into his or her mind and becomes paralyzed. The effect ends if the character takes any damage." },
                 { range: [21, 30], effect: "The character becomes incapacitated and spends the duration screaming, laughing, or weeping." },
@@ -645,28 +640,36 @@ export const resolvePatternSanityCheck = async (pcId, dc, spellDC, cardId) => {
         `;
     }
 
-    const responseMarkdown = `
+    // HTML Output for replacing the button immediately in the modal popup
+    const responseHtml = `
 <div class="mt-4 p-3 sm:p-4 bg-white border border-[#d4c5a9] rounded-sm text-xs relative z-10 shadow-sm text-left" onclick="event.stopPropagation();">
     <h5 class="font-bold text-stone-500 uppercase tracking-widest text-[10px] border-b border-[#d4c5a9] pb-1.5 mb-2.5"><i class="fa-solid fa-brain mr-1.5 text-stone-400"></i> Sanity Resolution</h5>
     <div class="bg-stone-50 p-2.5 rounded-sm text-xs text-stone-600 mb-3 font-mono shadow-inner border border-stone-200">
         Roll: 1d20 (${d20}) + WIS Mod (${wisMod >= 0 ? '+' : ''}${wisMod}) = <strong>${saveTotal}</strong> vs DC ${dc}
     </div>
-    <p class="font-serif font-bold text-sm ${isSuccess ? 'text-emerald-700' : 'text-red-700'} mb-1">${resultHeader}</p>
-    <p class="font-serif leading-relaxed text-xs text-stone-600">${resultBody}</p>
+    <p class="font-serif font-bold text-sm ${isSuccess ? 'text-emerald-700' : 'text-red-700'} mb-1">${plainResultHeader}</p>
+    <p class="font-serif leading-relaxed text-xs text-stone-600">${plainResultBody}</p>
     ${madnessHtml}
 </div>
 `;
 
+    // Markdown Output for safely parsing back into the Database
+    let mdSanity = `\n---\n\n### ${plainResultHeader}\n**Roll:** 1d20 (${d20}) + WIS Mod (${wisMod >= 0 ? '+' : ''}${wisMod}) = **${saveTotal}** vs DC ${dc}\n*${plainResultBody}*`;
+    if (madnessHtml) {
+        mdSanity += `\n\n**${type} Madness (d100 = ${d100}):**\n${effect}\n*Duration: ${duration}*`;
+    }
+    mdSanity += `\n<!-- RESOLUTION_PLACEHOLDER_${cardId} -->`; // Keep placeholder alive for potential chained checks
+
     // 1. UPDATE DOM INSTANTLY IF IN THE POPUP MODAL
     const btnDom = document.getElementById(`btn-sanity-${cardId}`);
-    if (btnDom) btnDom.outerHTML = responseMarkdown;
+    if (btnDom) btnDom.outerHTML = responseHtml;
 
     // 2. UPDATE PERSONAL PATTERN LOG
     const updatedPCs = camp.playerCharacters.map(p => {
         if (p.id === pcId) {
             let text = p.patternLog || '';
-            if (text.includes(`id="btn-sanity-${cardId}"`)) {
-                text = text.replace(new RegExp(`<button[^>]*id="btn-sanity-${cardId}"[^>]*>[\\s\\S]*?<\\/button>`), responseMarkdown);
+            if (text.includes(`<!-- RESOLUTION_PLACEHOLDER_${cardId} -->`)) {
+                text = text.replace(`<!-- RESOLUTION_PLACEHOLDER_${cardId} -->`, mdSanity);
             }
             return { ...p, patternLog: text };
         }
@@ -686,8 +689,8 @@ export const resolvePatternSanityCheck = async (pcId, dc, spellDC, cardId) => {
                     return {
                         ...s,
                         chronicle: s.chronicle.map(entry => {
-                            if (entry.text.includes(`id="btn-sanity-${cardId}"`)) {
-                                let text = entry.text.replace(new RegExp(`<button[^>]*id="btn-sanity-${cardId}"[^>]*>[\\s\\S]*?<\\/button>`), responseMarkdown);
+                            if (entry.text.includes(`RESOLUTION_PLACEHOLDER_${cardId}`)) {
+                                let text = entry.text.replace(`<!-- RESOLUTION_PLACEHOLDER_${cardId} -->`, mdSanity);
                                 return { ...entry, text };
                             }
                             return entry;
@@ -700,7 +703,6 @@ export const resolvePatternSanityCheck = async (pcId, dc, spellDC, cardId) => {
     }
 
     await saveCampaign(updatedCamp);
-    // Silent save, no need to trigger full reRender since we patched the DOM directly
 };
 
 
@@ -734,7 +736,8 @@ export const resolvePatternBacklash = async (pcId, primaryPattern, cardId) => {
         damageDetails = `(Backlash Damage: **${dmg} ${element}**)`;
     }
 
-    const responseMarkdown = `
+    // HTML Output for replacing the button immediately in the modal popup
+    const responseHtml = `
 <div class="mt-4 p-3 sm:p-4 bg-red-50 text-red-900 border border-red-200 rounded-sm text-xs relative z-10 shadow-sm text-left" onclick="event.stopPropagation();">
     <h5 class="font-bold text-red-700 uppercase tracking-widest text-[10px] border-b border-red-200 pb-1.5 mb-2.5"><i class="fa-solid fa-burst mr-1.5"></i> Backlash Consequence (d4 = ${roll})</h5>
     <p class="font-serif leading-relaxed text-sm text-red-950">${resultText}</p>
@@ -742,16 +745,22 @@ export const resolvePatternBacklash = async (pcId, primaryPattern, cardId) => {
 </div>
 `;
 
+    // Markdown Output for safely parsing back into the Database
+    let plainResult = resultText.replace(/<b>(.*?)<\/b>/gi, '**$1**');
+    let mdBacklash = `\n---\n\n### Backlash Consequence (d4 = ${roll})\n${plainResult}`;
+    if (damageDetails) mdBacklash += `\n${damageDetails}`;
+    mdBacklash += `\n<!-- RESOLUTION_PLACEHOLDER_${cardId} -->`; // keep placeholder alive
+
     // 1. UPDATE DOM INSTANTLY IF IN THE POPUP MODAL
     const btnDom = document.getElementById(`btn-backlash-${cardId}`);
-    if (btnDom) btnDom.outerHTML = responseMarkdown;
+    if (btnDom) btnDom.outerHTML = responseHtml;
 
     // 2. UPDATE PERSONAL PATTERN LOG
     const updatedPCs = camp.playerCharacters.map(p => {
         if (p.id === pcId) {
             let text = p.patternLog || '';
-            if (text.includes(`id="btn-backlash-${cardId}"`)) {
-                text = text.replace(new RegExp(`<button[^>]*id="btn-backlash-${cardId}"[^>]*>[\\s\\S]*?<\\/button>`), responseMarkdown);
+            if (text.includes(`<!-- RESOLUTION_PLACEHOLDER_${cardId} -->`)) {
+                text = text.replace(`<!-- RESOLUTION_PLACEHOLDER_${cardId} -->`, mdBacklash);
             }
             return { ...p, patternLog: text };
         }
@@ -771,8 +780,8 @@ export const resolvePatternBacklash = async (pcId, primaryPattern, cardId) => {
                     return {
                         ...s,
                         chronicle: s.chronicle.map(entry => {
-                            if (entry.text.includes(`id="btn-backlash-${cardId}"`)) {
-                                let text = entry.text.replace(new RegExp(`<button[^>]*id="btn-backlash-${cardId}"[^>]*>[\\s\\S]*?<\\/button>`), responseMarkdown);
+                            if (entry.text.includes(`RESOLUTION_PLACEHOLDER_${cardId}`)) {
+                                let text = entry.text.replace(`<!-- RESOLUTION_PLACEHOLDER_${cardId} -->`, mdBacklash);
                                 return { ...entry, text };
                             }
                             return entry;
@@ -785,7 +794,6 @@ export const resolvePatternBacklash = async (pcId, primaryPattern, cardId) => {
     }
 
     await saveCampaign(updatedCamp);
-    // Silent save, no need to trigger full reRender since we patched the DOM directly
 };
 
 // ============================================================================
