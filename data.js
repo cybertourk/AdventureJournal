@@ -27,24 +27,20 @@ import {
     clearActivityLog, 
     openPCEdit, 
     calculateBirthdaysLive, 
+    savePCEdit, 
+    deletePC, 
+    kickPlayer, 
     openChecklistMenu, 
     closeChecklistMenu, 
     addSheetUpdate, 
     toggleSheetUpdateResolved, 
     toggleSheetUpdateVis, 
-    deleteSheetUpdate
-} from './actions-campaign.js'; 
-
-// Import Character Editing & DDB Integration
-import {
-    savePCEdit, 
-    deletePC, 
-    kickPlayer,
+    deleteSheetUpdate, 
     openDndBeyondImportModal, 
     fetchAndAnalyzeDndBeyond, 
     executeDndBeyondImport, 
     quickSyncDDB 
-} from './ui-characters.js';
+} from './actions-campaign.js'; 
 
 // Import Session, Narrative, & Visibility Controls 
 import { 
@@ -341,10 +337,14 @@ import {
 
 // --- APP ACTIONS HUB --- 
 if (typeof window !== 'undefined') {
+    // 1. Capture and preserve existing app actions (like Pattern Magic)
+    const preservedActions = { ...(window.appActions || {}) };
+    
+    // 2. DISCARD the buggy showAuthenticatedReadyState to keep the login inputs visible
+    delete preservedActions.showAuthenticatedReadyState;
+
     window.appActions = { 
-      // Defensive Copy to protect already assigned actions (like Pattern Magic and Auth UI)
-      ...(window.appActions || {}),
-      
+      ...preservedActions,
       reRender, 
       
       // Navigation & UI Core
@@ -483,7 +483,6 @@ if (typeof window !== 'undefined') {
       setAtlasMode,
       updateAtlasGridAndScale,
       updateAtlasDistanceCalc,
-      textUndoLastPoint: atlasUndoLastPoint, // backward compatibility mapping
       atlasUndoLastPoint,
       atlasFinishDrawing,
       confirmAtlasPin,
