@@ -1,4 +1,5 @@
 import { reRender, generateId } from './state.js';
+import { notify } from './firebase-manager.js';
 import { 
     PATTERN_CONFIG, 
     getOrInitPatternState, 
@@ -40,9 +41,7 @@ const injectTapestryStyles = () => {
             box-shadow: inset 0 0 15px rgba(0,0,0,0.8), 0 10px 15px -3px rgba(0, 0, 0, 0.5);
         }
         .sigil-btn {
-            /* Transform handles the spiral, Opacity handles the fade-in */
             transition: transform 1s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.8s ease;
-            /* Permanently pin all sigils perfectly to the center of the 320x320 SVG (160 - 32 = 128) */
             left: 128px; 
             top: 128px;
         }
@@ -64,17 +63,17 @@ const injectTapestryStyles = () => {
     document.head.appendChild(style);
 };
 
-// Map each of the 9 magical disciplines to its rich, esoteric dye/ink color and Lore
+// Map each of the 9 magical disciplines to its rich, esoteric dye/ink color
 const PATTERN_THEME = {
-    spatia: { label: "Spatia", desc: "Space & Dimensions", color: "#0d9488", longDesc: "The manipulation of space, distance, and dimensional connections." }, // Teal
-    wyird: { label: "Wyird", desc: "Fate & Chaos", color: "#9333ea", longDesc: "The forces of chance, fate, and entropy. Influences luck and probability." }, // Purple
-    dynamis: { label: "Dynamis", desc: "Energy & Elements", color: "#dc2626", longDesc: "The control over raw energy and elemental forces like fire, cold, and lightning." }, // Crimson
-    vitar: { label: "Vitar", desc: "Life & Healing", color: "#16a34a", longDesc: "The essence of life and biological processes. Used for healing, poisons, and physical enhancement." }, // Emerald
-    formus: { label: "Formus", desc: "Structure & Matter", color: "#475569", longDesc: "The shaping and transmutation of physical matter." }, // Slate
-    mentis: { label: "Mentis", desc: "Mind & Memory", color: "#db2777", longDesc: "The power to influence thoughts, emotions, and create illusions." }, // Rose
-    arcani: { label: "Arcani", desc: "Pure Force & Magic", color: "#2563eb", longDesc: "The study of magic itself. Used to sense, unravel, and modulate other magical effects." }, // Sapphire
-    umbrus: { label: "Umbrus", desc: "Shadow & Cold", color: "#312e81", longDesc: "The realm of spirits, shadows, and the boundaries between worlds." }, // Indigo
-    tempus: { label: "Tempus", desc: "Time & Entropy", color: "#d97706", longDesc: "The flow of time, causality, and temporal energies." }  // Topaz
+    spatia: { label: "Spatia", desc: "Space & Dimensions", color: "#0d9488", longDesc: "The manipulation of space, distance, and dimensional connections." },
+    wyird: { label: "Wyird", desc: "Fate & Chaos", color: "#9333ea", longDesc: "The forces of chance, fate, and entropy. Influences luck and probability." },
+    dynamis: { label: "Dynamis", desc: "Energy & Elements", color: "#dc2626", longDesc: "The control over raw energy and elemental forces like fire, cold, and lightning." },
+    vitar: { label: "Vitar", desc: "Life & Healing", color: "#16a34a", longDesc: "The essence of life and biological processes. Used for healing, poisons, and physical enhancement." },
+    formus: { label: "Formus", desc: "Structure & Matter", color: "#475569", longDesc: "The shaping and transmutation of physical matter." },
+    mentis: { label: "Mentis", desc: "Mind & Memory", color: "#db2777", longDesc: "The power to influence thoughts, emotions, and create illusions." },
+    arcani: { label: "Arcani", desc: "Pure Force & Magic", color: "#2563eb", longDesc: "The study of magic itself. Used to sense, unravel, and modulate other magical effects." },
+    umbrus: { label: "Umbrus", desc: "Shadow & Cold", color: "#312e81", longDesc: "The realm of spirits, shadows, and the boundaries between worlds." },
+    tempus: { label: "Tempus", desc: "Time & Entropy", color: "#d97706", longDesc: "The flow of time, causality, and temporal energies." }
 };
 
 const EFFECT_DESCRIPTIONS = {
@@ -268,7 +267,7 @@ function buildEffectsHTML(metrics, draft, pm, activePc) {
                     <div class="mt-2.5 flex flex-col gap-2 bg-stone-100 px-3 py-2.5 rounded-sm border border-[#d4c5a9] shadow-inner">
                         <div class="flex flex-col gap-1">
                             <span class="text-[10px] font-bold text-stone-500 uppercase tracking-widest flex items-center"><i class="fa-solid fa-lightbulb mr-1.5 text-amber-500"></i> Known Alterations</span>
-                            <select onchange="document.getElementById('draft-aug-custom-${activeTier}').value = this.value; window.appActions.updateDraftField('effectTiers.augmentiaCustom', this.value);" class="w-full bg-white border border-[#d4c5a9] rounded-sm p-1.5 text-xs text-stone-900 outline-none font-serif shadow-sm cursor-pointer hover:border-amber-400 transition-colors">
+                            <select onchange="document.getElementById('draft-aug-custom-${activeTier}').value = this.value; window.appActions.updateDraftField('effectTiers.augmentiaCustom', this.value, false, true);" class="w-full bg-white border border-[#d4c5a9] rounded-sm p-1.5 text-xs text-stone-900 outline-none font-serif shadow-sm cursor-pointer hover:border-amber-400 transition-colors">
                                 ${exampleOptionsHtml}
                             </select>
                         </div>
@@ -738,6 +737,7 @@ export function getPatternNexusHTML(state) {
                                         <strong id="tapestry-cost-out" class="text-3xl font-black font-serif text-amber-400 drop-shadow-md">
                                             ${metrics.finalCost}
                                         </strong>
+                                        ${draft.isRote ? `<span class="text-sm font-bold text-stone-500 line-through ml-2" title="Base Cost">${metrics.totalBaseCost}</span>` : ''}
                                     </div>
                                     ${draft.isRote ? `<span class="inline-block mt-2 text-[9px] text-emerald-400 bg-emerald-950/50 border border-emerald-900 px-2 py-1 rounded uppercase tracking-widest font-bold"><i class="fa-solid fa-check-circle mr-1"></i> Rote Discount Applied</span>` : ''}
                                 </div>
@@ -956,7 +956,7 @@ if (typeof window !== 'undefined') {
                     }
                 }
             }
-            castBtn.disabled = !isValid && !draft.isRote;
+            castBtn.disabled = !isValid;
             if(castBtn.disabled) castBtn.classList.add('opacity-50', 'cursor-not-allowed', 'grayscale');
             else castBtn.classList.remove('opacity-50', 'cursor-not-allowed', 'grayscale');
         }
@@ -1038,13 +1038,25 @@ if (typeof window !== 'undefined') {
         const name = nameInput ? nameInput.value.trim() : '';
 
         if (!name) {
-            window.appActions.notify("Your Grimoire requires a name for this Rote before scribing.", "error");
+            notify("Your Grimoire requires a name for this Rote before scribing.", "error");
             return;
         }
 
         const draft = getOrInitDraftState();
         if (draft.patterns.length === 0) {
-            window.appActions.notify("Weave threads on the Loom to configure a spell before saving.", "error");
+            notify("Weave threads on the Loom to configure a spell before saving.", "error");
+            return;
+        }
+
+        let isValid = true;
+        for (const [cat, data] of Object.entries(PATTERN_CONFIG.Effects)) {
+            if (data.mandatory && (draft.effectTiers[cat] || 0) === 0) {
+                isValid = false;
+                break;
+            }
+        }
+        if (!isValid) {
+            notify("All mandatory spell parameters (Range, Duration, Activation Time, Area/Targets) must be defined before scribing.", "error");
             return;
         }
 
@@ -1062,7 +1074,7 @@ if (typeof window !== 'undefined') {
         });
 
         if (exceeds) {
-            window.appActions.notify("You cannot scribe a Rote containing elements that exceed your attuned Pattern Ranks.", "error");
+            notify("You cannot scribe a Rote containing elements that exceed your attuned Pattern Ranks.", "error");
             return;
         }
 
@@ -1077,9 +1089,10 @@ if (typeof window !== 'undefined') {
             effectTiers: { ...draft.effectTiers }
         };
 
-        const success = await window.appActions.saveRote(pcId, rotePayload);
+        const success = await saveRote(pcId, rotePayload);
         if (success) {
             if (nameInput) nameInput.value = '';
+            reRender(true);
         }
     };
 
@@ -1120,7 +1133,7 @@ if (typeof window !== 'undefined') {
     window.appActions.castCurrentPatternSpell = async (pcId) => {
         const draft = getOrInitDraftState();
         if (draft.patterns.length === 0) {
-            window.appActions.notify("A Primary Thread must be woven into the Loom before unleashing magic.", "error");
+            notify("A Primary Thread must be woven into the Loom before unleashing magic.", "error");
             return;
         }
 
@@ -1132,7 +1145,7 @@ if (typeof window !== 'undefined') {
         const metrics = calculateAffinityLimitsAndCosts(pc, pm, draft);
 
         if (pm.essentia < metrics.finalCost) {
-            window.appActions.notify("Your Essentia Reservoir lacks the fuel required to weave this Pattern.", "error");
+            notify("Your Essentia Reservoir lacks the fuel required to weave this Pattern.", "error");
             return;
         }
 
@@ -1144,6 +1157,7 @@ if (typeof window !== 'undefined') {
             patterns: [...draft.patterns],
             effectTiers: { ...draft.effectTiers },
             essentiaCost: metrics.finalCost,
+            baseCost: metrics.totalBaseCost,
             isRote: draft.isRote,
             roteName: draft.roteName
         };
