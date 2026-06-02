@@ -536,8 +536,8 @@ export function getPatternNexusHTML(state) {
         const angleDeg = index * (360 / 9) - 90;
         const startAngle = angleDeg - 360; 
         
-        // Pin to center, no X translation, fully reversed rotation
-        const initialTransform = `rotate(${startAngle}deg) translateX(0px) rotate(-${startAngle}deg) scale(0.1)`;
+        // Pin to center, no X translation, fully reversed rotation using valid JS template math
+        const initialTransform = `rotate(${startAngle}deg) translateX(0px) rotate(${-startAngle}deg) scale(0.1)`;
 
         loomHtml += `
             <button id="sigil-btn-${key}" type="button" 
@@ -807,7 +807,7 @@ if (typeof window !== 'undefined') {
                 if (btn) {
                     btn.classList.remove('pulse-prime-sigil');
                     // Setting these styles natively triggers the CSS transition!
-                    btn.style.transform = `rotate(${angleDeg}deg) translateX(${radius}px) rotate(-${angleDeg}deg) scale(1)`;
+                    btn.style.transform = `rotate(${angleDeg}deg) translateX(${radius}px) rotate(${-angleDeg}deg) scale(1)`;
                     btn.className = 'sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-20 opacity-40 hover:opacity-100 hover:z-[100] group';
                     const img = btn.querySelector('img');
                     if(img) img.style.filter = 'none';
@@ -837,7 +837,7 @@ if (typeof window !== 'undefined') {
                 
                 if (btn) {
                     btn.classList.remove('pulse-prime-sigil');
-                    btn.style.transform = `rotate(${angleDeg}deg) translateX(${radius}px) rotate(-${angleDeg}deg) scale(0.9)`;
+                    btn.style.transform = `rotate(${angleDeg}deg) translateX(${radius}px) rotate(${-angleDeg}deg) scale(0.9)`;
                     const img = btn.querySelector('img');
                     
                     if (isSupported) {
