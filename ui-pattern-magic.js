@@ -123,15 +123,7 @@ function calculateAffinityLimitsAndCosts(pc, pm, draft) {
     const supports = draft.patterns.slice(1);
     
     const results = {
-        limits: {}, // category: max allowable tier
-        costs: {},  // category: active cost
-        totalBaseCost: 0,
-        finalCost: 0,
-        dc: 10,
-        affinitiesActiveText: {}
-    };
-
-    // Calculate maximum allowable tiers for all 7 effect categories
+        // Calculate maximum allowable tiers for all 7 effect categories
     Object.keys(PATTERN_CONFIG.Effects).forEach(category => {
         let maxTier = 0;
         let activeAffText = 'Restricted (Tier 0)';
@@ -162,6 +154,14 @@ function calculateAffinityLimitsAndCosts(pc, pm, draft) {
                     }
                 }
             });
+        }
+
+        // Apply Mandatory Baseline rule: All mandatory effects are guaranteed at least Tier 1
+        if (PATTERN_CONFIG.Effects[category].mandatory && maxTier < 1) {
+            maxTier = 1;
+            if (activeAffText === 'Restricted (Tier 0)') {
+                activeAffText = 'Baseline Available (Max Tier 1)';
+            }
         }
 
         results.limits[category] = maxTier;
