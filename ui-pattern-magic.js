@@ -521,11 +521,9 @@ export function getPatternNexusHTML(state) {
 
     const patternsList = Object.keys(PATTERN_THEME);
     const primary = draft.patterns[0] || null;
-    const supports = draft.patterns.slice(1);
     const isConvergence = draft.patterns.length === 9;
 
     let loomHtml = '';
-    const radius = 105;
 
     // INITIAL HTML STATE: Pinned to absolute center, scaled down, and rotated backward 
     // to force a true 360-degree CSS spiral entrance sequence!
