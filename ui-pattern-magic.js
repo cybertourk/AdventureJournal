@@ -12,8 +12,7 @@ import {
 } from './actions-pattern-magic.js';
 
 // =========================================================================
-// ASSET CONFIGURATION
-// Points directly to the root of your GitHub repository where the .webp files live
+// ZEB: UPDATE LINE 18 WITH YOUR ACTUAL GITHUB USERNAME!
 // =========================================================================
 const PATTERN_ASSET_BASE_URL = "https://raw.githubusercontent.com/cybertourk/AdventureJournal/main/";
 
@@ -42,7 +41,7 @@ const injectTapestryStyles = () => {
             box-shadow: inset 0 0 15px rgba(0,0,0,0.8), 0 10px 15px -3px rgba(0, 0, 0, 0.5);
         }
         .sigil-btn {
-            transition: left 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+            transition: left 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.5s ease;
         }
         .pulse-prime-sigil img {
             animation: pulsePrimeSigil 3s ease-in-out infinite alternate;
@@ -50,13 +49,6 @@ const injectTapestryStyles = () => {
         @keyframes pulsePrimeSigil {
             0% { filter: drop-shadow(0 0 8px currentColor); transform: scale(1); }
             100% { filter: drop-shadow(0 0 16px currentColor); transform: scale(1.05); }
-        }
-        @keyframes loomAppear {
-            0% { opacity: 0; filter: blur(4px); }
-            100% { opacity: 1; filter: blur(0px); }
-        }
-        .loom-entrance {
-            animation: loomAppear 0.8s ease-out forwards;
         }
         .spin-loom-slow {
             animation: spinLoom 40s linear infinite;
@@ -259,6 +251,7 @@ function buildEffectsHTML(metrics, draft, pm, activePc) {
                     const sanitizedTip = (ex.tip || '').replace(/"/g, '&quot;');
                     exampleOptionsHtml += `<option value="${ex.name}" title="${sanitizedTip}">${ex.name}</option>`;
                 });
+                
                 optionsSelectHtml = `
                     <div class="mt-2.5 flex flex-col gap-2 bg-stone-100 px-3 py-2.5 rounded-sm border border-[#d4c5a9] shadow-inner">
                         <div class="flex flex-col gap-1">
@@ -465,7 +458,6 @@ export function getPatternNexusHTML(state) {
         `;
     }
 
-    // Ability casting selector (Stacked Vertically)
     const abilitySelectorHtml = `
         <div class="w-full">
             <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Attuned Attribute</label>
@@ -522,69 +514,6 @@ export function getPatternNexusHTML(state) {
         `;
     }
 
-    const patternsList = Object.keys(PATTERN_THEME);
-    const primary = draft.patterns[0] || null;
-    const supports = draft.patterns.slice(1);
-    const isConvergence = draft.patterns.length === 9;
-
-    let loomHtml = '';
-    const cx = 160; const cy = 160; const radius = 105;
-
-    // Generate Layout Positions synchronously so they never appear invisible!
-    patternsList.forEach((key, index) => {
-        const theme = PATTERN_THEME[key];
-        const rank = pm[key] || 0;
-        
-        let x, y, scale, z, opacity, pulseClass = '';
-        
-        if (!primary) {
-            // Orbit mode (unselected)
-            const angle = (index * (360 / 9) - 90) * (Math.PI / 180);
-            x = cx + radius * Math.cos(angle) - 32;
-            y = cy + radius * Math.sin(angle) - 32;
-            scale = 1;
-            z = 20;
-            opacity = 'opacity-40 hover:opacity-100'; // Pure transparency, no grayscale
-        } else if (key === primary) {
-            // Center
-            x = cx - 32; 
-            y = cy - 40; 
-            scale = 1.4;
-            z = 100;
-            opacity = 'opacity-100';
-            pulseClass = 'pulse-prime-sigil';
-        } else {
-            // Orbit mode (supporting)
-            const orbitsList = patternsList.filter(k => k !== primary);
-            const supportIndex = orbitsList.indexOf(key);
-            const angle = (supportIndex * (360 / 8) - 90) * (Math.PI / 180);
-            x = cx + radius * Math.cos(angle) - 32;
-            y = cy + radius * Math.sin(angle) - 32;
-            scale = 0.9;
-            z = supports.includes(key) ? 90 : 10;
-            opacity = supports.includes(key) ? 'opacity-100' : 'opacity-40 hover:opacity-100';
-        }
-        
-        const dropShadow = (key === primary || supports.includes(key)) 
-            ? `drop-shadow(0 0 8px ${theme.color})` 
-            : 'none';
-        
-        const rankText = rank > 0 ? `(Rank ${rank})` : `(Unlearned)`;
-
-        // NOTE: ADDED pointer-events-none TO IMG AND SPAN TO PREVENT GLOBAL LIGHTBOX HIJACKING
-        loomHtml += `
-            <button id="sigil-btn-${key}" type="button" 
-                    onclick="window.appActions.toggleWheelPattern('${key}')"
-                    style="left: ${x}px; top: ${y}px; transform: scale(${scale}); color: ${theme.color};"
-                    class="sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer hover:z-[100] group loom-entrance ${z >= 90 ? 'z-[90]' : 'z-20'} ${opacity} ${pulseClass}">
-                <img src="${PATTERN_ASSET_BASE_URL}${key}.webp" alt="${theme.label}" class="w-10 h-10 object-contain transition-all duration-500 pointer-events-none" style="filter: ${dropShadow};" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                <span class="text-[11px] font-serif font-bold text-stone-900 mt-1 leading-none drop-shadow-md absolute -bottom-5 whitespace-nowrap bg-[#fdfbf7] px-2 py-0.5 border border-[#d4c5a9] rounded-sm shadow-sm hidden group-hover:block z-[200] pointer-events-none">${theme.label} ${rankText}</span>
-            </button>
-        `;
-    });
-
-    const convergenceSpinClass = isConvergence ? 'spin-loom-slow' : '';
-
     return `
     <div class="arcane-tapestry-bg min-h-screen text-stone-900 p-4 sm:p-6 lg:p-8 font-sans border-2 border-stone-900 shadow-2xl relative">
         <div class="max-w-6xl mx-auto">
@@ -612,44 +541,47 @@ export function getPatternNexusHTML(state) {
                 <!-- Left Panel -->
                 <div class="lg:col-span-5 space-y-6">
                     
-                    <!-- Clean Parchment Loom Widget (No Circles) -->
                     <div class="p-6 parchment-panel rounded-sm relative">
                         <h3 class="text-sm font-bold text-amber-900 uppercase tracking-widest font-serif border-b border-[#d4c5a9] pb-2 mb-6 text-center"><i class="fa-solid fa-dharmachakra mr-1.5 text-amber-600"></i> The Loom of Reality</h3>
                         
-                        <div class="relative w-[320px] h-[320px] flex items-center justify-center p-4 mx-auto mb-6 shrink-0">
-                            <!-- SVG Loom Threads in Background -->
-                            <svg class="absolute inset-0 w-full h-full pointer-events-none ${convergenceSpinClass}" viewBox="0 0 320 320">
-                                <!-- Inner focus ring -->
-                                <circle cx="160" cy="160" r="45" fill="none" stroke="#d4c5a9" stroke-width="1" opacity="0.3" stroke-dasharray="2 4" />
-                                
+                        <div id="loom-container" class="relative w-[320px] h-[320px] flex items-center justify-center p-4 mx-auto mb-6 shrink-0">
+                            <!-- SVG Loom Threads -->
+                            <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 320 320">
+                                <circle cx="160" cy="160" r="105" fill="none" stroke="#b45309" stroke-width="1.5" stroke-dasharray="4 6" opacity="0.4" />
+                                <circle cx="160" cy="160" r="60" fill="none" stroke="#d4c5a9" stroke-width="1" opacity="0.2" />
                                 ${primary ? Array.from({ length: 8 }).map((_, i) => {
                                     const angle = (i * (360 / 8) - 90) * (Math.PI / 180);
-                                    const x1 = 160 + 35 * Math.cos(angle);
-                                    const y1 = 160 + 35 * Math.sin(angle);
-                                    const x2 = 160 + 105 * Math.cos(angle);
-                                    const y2 = 160 + 105 * Math.sin(angle);
-                                    return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#d4c5a9" stroke-width="1" stroke-dasharray="2 4" opacity="0.3" />`;
+                                    const x2 = 160 + radius * Math.cos(angle);
+                                    const y2 = 160 + radius * Math.sin(angle);
+                                    return `<line x1="160" y1="160" x2="${x2}" y2="${y2}" stroke="#d4c5a9" stroke-width="1" stroke-dasharray="2 4" opacity="0.3" />`;
                                 }).join('') : ''}
                             </svg>
 
                             <!-- Node buttons -->
-                            <div class="absolute inset-0">
-                                ${loomHtml}
+                            <div class="absolute inset-0" id="sigil-mount">
+                                ${patternsList.map((key, index) => {
+                                    const theme = PATTERN_THEME[key];
+                                    const rank = pm[key] || 0;
+                                    return `
+                                        <button id="sigil-btn-${key}" type="button" 
+                                                onclick="window.appActions.toggleWheelPattern('${key}')"
+                                                style="left: 160px; top: 160px; opacity: 0; border-color: ${theme.color}60; color: ${theme.color};"
+                                                class="sigil-btn absolute w-12 h-12 rounded-full border-2 bg-[#1c1917] flex flex-col items-center justify-center text-stone-400 z-20 group">
+                                            <img src="${PATTERN_ASSET_BASE_URL}${key}.webp" alt="${theme.label}" class="w-6 h-6 object-contain pointer-events-none transition-opacity duration-500" style="filter: drop-shadow(0 0 3px ${theme.color});" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                                            <span class="hidden text-[10px] font-serif font-bold text-stone-300" style="color: ${theme.color};">${key.substring(0,3).toUpperCase()}</span>
+                                            <span class="text-[9px] font-black leading-none mt-1 text-stone-500">${rank}</span>
+                                        </button>
+                                    `;
+                                }).join('')}
                             </div>
                         </div>
 
                         <div class="p-4 bg-stone-50 border border-[#d4c5a9] rounded-sm text-center text-xs text-stone-600 shadow-inner">
-                            <p id="loom-hint-text" class="font-serif leading-relaxed italic">
-                                ${draft.patterns.length === 0 
-                                    ? `Select a thread from the outer ring to designate as your Primary Sigil.` 
-                                    : draft.patterns.length === 9 
-                                    ? `🚨 <span class="text-amber-700 font-bold">ALL THREADS WOVEN.</span> The Loom sings with absolute cosmic power!` 
-                                    : `Select orbiting sigils to weave Support threads. Active threads define your capabilities.`}
-                            </p>
+                            <p id="loom-hint-text" class="font-serif leading-relaxed italic">Loading Loom...</p>
                         </div>
                     </div>
 
-                    <!-- Player Development: Attunement -->
+                    <!-- Attunement Panel -->
                     <div class="p-5 leather-panel rounded-sm relative text-stone-200">
                         <div class="flex justify-between items-center border-b border-stone-700 pb-3 mb-4">
                             <h3 class="text-sm font-bold text-amber-500 uppercase tracking-widest font-serif flex items-center">
@@ -710,7 +642,6 @@ export function getPatternNexusHTML(state) {
                             <span class="text-[9px] font-sans text-stone-500 normal-case tracking-normal italic font-normal">Select threads on the Loom to unlock tiers.</span>
                         </h3>
 
-                        <!-- Draft Spell Identity -->
                         <div class="grid grid-cols-1 sm:grid-cols-12 gap-4 mb-5">
                             <div class="sm:col-span-8">
                                 <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Tapestry Designation (Name)</label>
@@ -734,12 +665,10 @@ export function getPatternNexusHTML(state) {
                                       class="w-full bg-white border border-[#d4c5a9] rounded-sm p-3 text-sm text-stone-800 outline-none font-serif focus:border-amber-600 resize-y min-h-[80px] shadow-sm custom-scrollbar">${draft.description || ''}</textarea>
                         </div>
 
-                        <!-- Active Effects Scaffolding -->
                         <div id="effects-scaffolding-container" class="space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar pr-2 mb-6">
                             ${buildEffectsHTML(metrics, draft, pm, activePc)}
                         </div>
 
-                        <!-- Cost Outputs & Casting Trigger Card -->
                         <div class="p-5 bg-stone-900 text-stone-200 rounded-sm border-2 border-stone-800 shadow-xl relative overflow-hidden">
                             <div class="absolute top-0 left-0 w-1.5 h-full bg-amber-600"></div>
                             
@@ -805,6 +734,52 @@ export function getPatternNexusHTML(state) {
 if (typeof window !== 'undefined') {
     window.appActions = window.appActions || {};
 
+    // --- ANIMATE SIGILS INTO ORBIT ---
+    window.appActions.animateSigils = () => {
+        const cx = 160; const cy = 160; const radius = 105;
+        const patternsList = Object.keys(PATTERN_THEME);
+        const draft = getOrInitDraftState();
+        const primary = draft.patterns[0] || null;
+        
+        setTimeout(() => {
+            patternsList.forEach((key, index) => {
+                const btn = document.getElementById(`sigil-btn-${key}`);
+                if (!btn) return;
+
+                // Set initial center
+                btn.style.left = '160px';
+                btn.style.top = '160px';
+                btn.style.opacity = '0';
+            });
+            
+            setTimeout(() => {
+                patternsList.forEach((key, index) => {
+                    const btn = document.getElementById(`sigil-btn-${key}`);
+                    if (!btn) return;
+                    
+                    let angle = (index * (360 / 9) - 90) * (Math.PI / 180);
+                    if (primary) {
+                        if (key === primary) {
+                            btn.style.left = `${cx - 32}px`; btn.style.top = `${cy - 40}px`;
+                        } else {
+                            const orbitsList = patternsList.filter(k => k !== primary);
+                            const supportIndex = orbitsList.indexOf(key);
+                            angle = (supportIndex * (360 / 8) - 90) * (Math.PI / 180);
+                            btn.style.left = `${cx + radius * Math.cos(angle) - 32}px`;
+                            btn.style.top = `${cy + radius * Math.sin(angle) - 32}px`;
+                        }
+                    } else {
+                        btn.style.left = `${cx + radius * Math.cos(angle) - 32}px`;
+                        btn.style.top = `${cy + radius * Math.sin(angle) - 32}px`;
+                    }
+                    
+                    btn.style.opacity = '1';
+                    btn.classList.add('sigil-btn');
+                });
+            }, 100);
+        }, 10);
+    };
+
     // The core seamless updater function!
     window.appActions.refreshTapestryUI = () => {
         const camp = window.appData.activeCampaign;
@@ -829,11 +804,10 @@ if (typeof window !== 'undefined') {
                 
                 const btn = document.getElementById(`sigil-btn-${key}`);
                 if (btn) {
-                    btn.classList.remove('pulse-prime-sigil', 'loom-entrance');
                     btn.style.left = `${x}px`;
                     btn.style.top = `${y}px`;
                     btn.style.transform = 'scale(1)';
-                    btn.className = 'sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-20 opacity-40 hover:opacity-100 hover:z-[100] group';
+                    btn.className = 'sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-20 hover:z-[100] opacity-40 hover:opacity-100 group';
                     const img = btn.querySelector('img');
                     if(img) img.style.filter = 'none';
                 }
@@ -841,10 +815,9 @@ if (typeof window !== 'undefined') {
         } else {
             const orbitsList = patternsList.filter(k => k !== primary);
             
-            // Primary Sigil glides to center and gets large
+            // Primary Sigil glides to center
             const primeBtn = document.getElementById(`sigil-btn-${primary}`);
             if (primeBtn) {
-                primeBtn.classList.remove('loom-entrance');
                 primeBtn.style.left = `${cx - 32}px`;
                 primeBtn.style.top = `${cy - 40}px`;
                 primeBtn.style.transform = 'scale(1.4)';
@@ -865,14 +838,13 @@ if (typeof window !== 'undefined') {
                 const theme = PATTERN_THEME[key];
                 
                 if (btn) {
-                    btn.classList.remove('pulse-prime-sigil', 'loom-entrance');
                     btn.style.left = `${x}px`;
                     btn.style.top = `${y}px`;
                     btn.style.transform = 'scale(0.9)';
                     const img = btn.querySelector('img');
                     
                     if (isSupported) {
-                        btn.className = 'sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-[90] hover:z-[100] opacity-100 group';
+                        btn.className = 'sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-[90] hover:z-[100] opacity-100 group pulse-support-sigil';
                         if(img) img.style.filter = `drop-shadow(0 0 5px ${theme.color})`;
                     } else {
                         btn.className = 'sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-10 hover:z-[100] opacity-40 hover:opacity-100 group';
@@ -921,7 +893,7 @@ if (typeof window !== 'undefined') {
 
     window.appActions.switchPatternPc = (pcId) => {
         window.appData.activePatternPcId = pcId;
-        reRender(true); // Hard reload is fine for character switching
+        reRender(true);
     };
 
     window.appActions.toggleCampaignPcAccess = async (pcId, checked) => {
@@ -930,7 +902,7 @@ if (typeof window !== 'undefined') {
         const pc = camp.playerCharacters?.find(p => p.id === pcId);
         if (pc) {
             pc.patternMagicUnlocked = checked;
-            await window.appActions.adjustPatternParameter(pcId, 'patternPoints', 0); // triggers Firebase update
+            await window.appActions.adjustPatternParameter(pcId, 'patternPoints', 0);
         }
     };
 
@@ -944,7 +916,7 @@ if (typeof window !== 'undefined') {
         }
         
         if (shouldRender) reRender(true);
-        else if (!skipUIUpdate) window.appActions.refreshTapestryUI(); // Silent update!
+        else if (!skipUIUpdate) window.appActions.refreshTapestryUI();
     };
 
     window.appActions.toggleWheelPattern = (patternKey) => {
@@ -952,17 +924,14 @@ if (typeof window !== 'undefined') {
         const prim = draft.patterns[0];
 
         if (!prim) {
-            // First click: Element becomes Primary Vector
             draft.patterns = [patternKey];
             draft.isRote = false;
             draft.selectedRoteId = '';
         } else if (prim === patternKey) {
-            // Clicking Primary again: Disbands vectors entirely
             draft.patterns = [];
             draft.isRote = false;
             draft.selectedRoteId = '';
         } else {
-            // Toggles supporting vectors on orbit nodes
             const index = draft.patterns.indexOf(patternKey);
             if (index > -1) {
                 draft.patterns.splice(index, 1);
@@ -972,13 +941,13 @@ if (typeof window !== 'undefined') {
             draft.isRote = false;
             draft.selectedRoteId = '';
         }
-        window.appActions.refreshTapestryUI(); // Seamless animation!
+        window.appActions.refreshTapestryUI();
     };
 
     window.appActions.toggleDurationInversion = (checked) => {
         const draft = getOrInitDraftState();
         draft.effectTiers.durationInverted = checked;
-        draft.effectTiers.duration = 0; // reset tier selection
+        draft.effectTiers.duration = 0; 
         window.appActions.refreshTapestryUI();
     };
 
@@ -1009,7 +978,6 @@ if (typeof window !== 'undefined') {
         const pc = camp?.playerCharacters?.find(p => p.id === pcId);
         if (!pc) return;
 
-        // Verify that draft configuration meets limit boundaries before saving!
         const pm = getOrInitPatternState(pc);
         const metrics = calculateAffinityLimitsAndCosts(pc, pm, draft);
 
@@ -1023,11 +991,10 @@ if (typeof window !== 'undefined') {
             return;
         }
 
-        // Setup the Rote structure payload
         const rotePayload = {
             name: name,
             primaryPattern: draft.patterns[0],
-            essentiaCost: metrics.totalBaseCost - Math.floor(metrics.totalBaseCost / 3), // locked discounted cost
+            essentiaCost: metrics.totalBaseCost - Math.floor(metrics.totalBaseCost / 3),
             description: draft.description,
             ability: draft.ability,
             patterns: [...draft.patterns],
@@ -1060,14 +1027,10 @@ if (typeof window !== 'undefined') {
         draft.roteName = rote.name;
         draft.selectedRoteId = rote.id;
 
-        // Use seamless update to fill the forms and animate the loom instantly
         window.appActions.refreshTapestryUI(); 
-        
-        // Auto-scroll to the top of the form for convenience
         document.getElementById('draft-spell-name')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     };
     
-    // Create an explicit binding for deleteRote that safely triggers reRender
     window.appActions.deleteRote = async (pcId, roteId) => {
         if(confirm("Are you sure you want to permanently erase this Rote from your Grimoire?")) {
             const success = await deleteRote(pcId, roteId);
@@ -1094,7 +1057,6 @@ if (typeof window !== 'undefined') {
             return;
         }
 
-        // Build config payload for roll actions
         const castConfig = {
             name: draft.name || 'Unlabeled Spell',
             description: draft.description,
@@ -1108,7 +1070,6 @@ if (typeof window !== 'undefined') {
 
         await castPatternSpell(pcId, castConfig);
 
-        // Reset temporary non-rote draft casting parameters after successful cast!
         if (!draft.isRote) {
             draft.name = '';
             draft.description = '';
