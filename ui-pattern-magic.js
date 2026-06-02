@@ -64,17 +64,27 @@ const injectTapestryStyles = () => {
     document.head.appendChild(style);
 };
 
-// Map each of the 9 magical disciplines to its rich, esoteric dye/ink color
+// Map each of the 9 magical disciplines to its rich, esoteric dye/ink color and Lore
 const PATTERN_THEME = {
-    spatia: { label: "Spatia", desc: "Space & Dimensions", color: "#0d9488" }, // Teal
-    wyird: { label: "Wyird", desc: "Fate & Chaos", color: "#9333ea" }, // Purple
-    dynamis: { label: "Dynamis", desc: "Energy & Elements", color: "#dc2626" }, // Crimson
-    vitar: { label: "Vitar", desc: "Life & Healing", color: "#16a34a" }, // Emerald
-    formus: { label: "Formus", desc: "Structure & Matter", color: "#475569" }, // Slate
-    mentis: { label: "Mentis", desc: "Mind & Memory", color: "#db2777" }, // Rose
-    arcani: { label: "Arcani", desc: "Pure Force & Magic", color: "#2563eb" }, // Sapphire
-    umbrus: { label: "Umbrus", desc: "Shadow & Cold", color: "#312e81" }, // Indigo
-    tempus: { label: "Tempus", desc: "Time & Entropy", color: "#d97706" }  // Topaz
+    spatia: { label: "Spatia", desc: "Space & Dimensions", color: "#0d9488", longDesc: "The manipulation of space, distance, and dimensional connections." }, // Teal
+    wyird: { label: "Wyird", desc: "Fate & Chaos", color: "#9333ea", longDesc: "The forces of chance, fate, and entropy. Influences luck and probability." }, // Purple
+    dynamis: { label: "Dynamis", desc: "Energy & Elements", color: "#dc2626", longDesc: "The control over raw energy and elemental forces like fire, cold, and lightning." }, // Crimson
+    vitar: { label: "Vitar", desc: "Life & Healing", color: "#16a34a", longDesc: "The essence of life and biological processes. Used for healing, poisons, and physical enhancement." }, // Emerald
+    formus: { label: "Formus", desc: "Structure & Matter", color: "#475569", longDesc: "The shaping and transmutation of physical matter." }, // Slate
+    mentis: { label: "Mentis", desc: "Mind & Memory", color: "#db2777", longDesc: "The power to influence thoughts, emotions, and create illusions." }, // Rose
+    arcani: { label: "Arcani", desc: "Pure Force & Magic", color: "#2563eb", longDesc: "The study of magic itself. Used to sense, unravel, and modulate other magical effects." }, // Sapphire
+    umbrus: { label: "Umbrus", desc: "Shadow & Cold", color: "#312e81", longDesc: "The realm of spirits, shadows, and the boundaries between worlds." }, // Indigo
+    tempus: { label: "Tempus", desc: "Time & Entropy", color: "#d97706", longDesc: "The flow of time, causality, and temporal energies." }  // Topaz
+};
+
+const EFFECT_DESCRIPTIONS = {
+    range: "Determines how far from you the spell can take effect.",
+    duration: "Select the desired duration. Check the box if a longer duration is more advantageous for your spell.",
+    activation: "How quickly the spell is cast.",
+    areaTargets: "The scope of the spell's effect.",
+    damageHealing: "Use this to cause direct harm or restore hit points.",
+    augmentia: "A flexible category for a huge variety of magical effects.",
+    bolsterHinder: "Use this to apply a buff to an ally or a debuff to an enemy."
 };
 
 // Ensure our draft state exists globally on active session load
@@ -331,6 +341,7 @@ function buildEffectsHTML(metrics, draft, pm, activePc) {
                     <div class="flex items-center">
                         <h4 class="text-sm font-bold font-serif ${labelColorClass}">${labelText}</h4>
                         ${starHtml}
+                        <i class="fa-solid fa-circle-info text-stone-400 ml-2 text-[10px] cursor-help" title="${EFFECT_DESCRIPTIONS[category]}"></i>
                     </div>
                     ${specialToggleHtml}
                 </div>
@@ -524,25 +535,25 @@ export function getPatternNexusHTML(state) {
     const isConvergence = draft.patterns.length === 9;
 
     let loomHtml = '';
+    const cx = 160; const cy = 160; const radius = 105;
 
-    // INITIAL HTML STATE: Pinned to absolute center, scaled down, and rotated backward 
-    // to force a true 360-degree CSS spiral entrance sequence!
+    // INITIAL HTML STATE: Everything starts in the dead center, transparent, and tiny.
+    // The setTimeout at the end of this function will trigger refreshTapestryUI() 50ms later,
+    // which applies the final coordinates and triggers the gorgeous CSS spiral transition!
     patternsList.forEach((key, index) => {
         const theme = PATTERN_THEME[key];
         const rank = pm[key] || 0;
         const rankText = rank > 0 ? `(Rank ${rank})` : `(Unlearned)`;
 
-        // Calculate the orbit angle, then subtract 360 so the animation spins exactly 1 full rotation
-        const angleDeg = index * (360 / 9) - 90;
-        const startAngle = angleDeg - 360; 
-        
-        // Pin to center, no X translation, fully reversed rotation using valid JS template math
-        const initialTransform = `rotate(${startAngle}deg) translateX(0px) rotate(${-startAngle}deg) scale(0.1)`;
+        // Setup the pre-animation entry state
+        const x = cx - 32;
+        const y = cy - 32;
+        const scale = 0.1;
 
         loomHtml += `
             <button id="sigil-btn-${key}" type="button" 
                     onclick="window.appActions.toggleWheelPattern('${key}')"
-                    style="transform: ${initialTransform}; color: ${theme.color};"
+                    style="left: ${x}px; top: ${y}px; transform: scale(${scale}); color: ${theme.color};"
                     class="sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-20 opacity-0 group">
                 <img src="${PATTERN_ASSET_BASE_URL}${key}.webp" alt="${theme.label}" class="w-10 h-10 object-contain transition-all duration-500 pointer-events-none" style="filter: none;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                 <span class="text-[11px] font-serif font-bold text-stone-900 mt-1 leading-none drop-shadow-md absolute -bottom-5 whitespace-nowrap bg-[#fdfbf7] px-2 py-0.5 border border-[#d4c5a9] rounded-sm shadow-sm hidden group-hover:block z-[200] pointer-events-none">${theme.label} ${rankText}</span>
@@ -641,10 +652,10 @@ export function getPatternNexusHTML(state) {
 
                                 return `
                                 <div class="flex items-center justify-between p-3 border rounded-sm ${focusClass} transition-colors">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-3 h-3 rounded-full shadow-inner border border-black" style="background-color: ${theme.color};"></div>
+                                    <div class="flex items-center gap-3 cursor-pointer group/info" onclick="window.appActions.openPatternInfoModal('${activePc.id}', '${key}')">
+                                        <div class="w-3 h-3 rounded-full shadow-inner border border-black group-hover/info:shadow-[0_0_8px_${theme.color}] transition-shadow" style="background-color: ${theme.color};"></div>
                                         <div>
-                                            <span class="text-xs font-bold text-stone-200 font-serif tracking-wide block leading-none mb-1">${theme.label}</span>
+                                            <span class="text-xs font-bold text-stone-200 font-serif tracking-wide block leading-none mb-1 group-hover/info:text-amber-400 transition-colors">${theme.label} <i class="fa-solid fa-circle-info text-[9px] text-stone-500 ml-1"></i></span>
                                             <span class="text-[9px] text-stone-500 font-sans uppercase tracking-widest leading-none block">${theme.desc}</span>
                                         </div>
                                     </div>
@@ -763,6 +774,7 @@ export function getPatternNexusHTML(state) {
                         </div>
                     </div>
 
+                    <!-- Memorized Rotes Bank (Grimoire) -->
                     <div class="p-5 sm:p-6 parchment-panel rounded-sm relative">
                         <h3 class="text-sm font-bold text-amber-900 uppercase tracking-widest font-serif border-b border-[#d4c5a9] pb-2 mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <span><i class="fa-solid fa-book-journal-whills mr-1.5 text-amber-600"></i> Memorized Grimoire</span>
@@ -783,6 +795,67 @@ export function getPatternNexusHTML(state) {
 if (typeof window !== 'undefined') {
     window.appActions = window.appActions || {};
 
+    // Pattern Info Grimoire Modal Binding
+    window.appActions.openPatternInfoModal = (pcId, patternKey) => {
+        const camp = window.appData.activeCampaign;
+        const pc = camp?.playerCharacters?.find(p => p.id === pcId);
+        if (!pc) return;
+
+        const pm = getOrInitPatternState(pc);
+        const rank = pm[patternKey] || 0;
+        const theme = PATTERN_THEME[patternKey];
+        const affinities = PATTERN_CONFIG.Affinities[patternKey];
+        
+        // Resolve names for affinities
+        const getEffectName = (key) => PATTERN_CONFIG.Effects[key]?.name || key;
+        const primAffs = affinities.primary.map(getEffectName).join(', ');
+        const secAffs = affinities.secondary.map(getEffectName).join(', ');
+        
+        const damageTypes = PATTERN_CONFIG.DamageTypesByPattern[patternKey]?.join(', ') || 'None';
+        const attribute = PATTERN_CONFIG.PatternAttributes[patternKey]?.toUpperCase() || 'Any';
+
+        const modal = document.createElement('div');
+        modal.id = 'pattern-info-modal';
+        modal.className = 'fixed inset-0 bg-stone-950/80 z-[35000] flex items-center justify-center p-4 backdrop-blur-sm animate-in pointer-events-auto';
+
+        modal.innerHTML = `
+            <div class="bg-[#f4ebd8] p-5 sm:p-6 rounded-sm border-2 shadow-2xl max-w-sm w-full relative overflow-hidden flex flex-col" style="border-color: ${theme.color};">
+                <div class="text-center mb-4 pb-4 border-b border-[#d4c5a9]">
+                    <img src="${PATTERN_ASSET_BASE_URL}${patternKey}.webp" alt="${theme.label}" class="w-16 h-16 mx-auto object-contain mb-3" style="filter: drop-shadow(0 0 5px ${theme.color});" onerror="this.style.display='none';">
+                    <h3 class="font-serif font-bold text-2xl text-stone-900 leading-none" style="color: ${theme.color}; text-shadow: 0 1px 2px rgba(0,0,0,0.1);">${theme.label}</h3>
+                    <span class="text-[10px] uppercase tracking-widest text-stone-500 font-bold block mt-2">Current Rank: ${rank}</span>
+                </div>
+                
+                <p class="text-sm text-stone-700 font-serif leading-relaxed text-center mb-5 italic">"${theme.longDesc}"</p>
+                
+                <div class="space-y-3 mb-6 bg-white p-3 rounded-sm border border-[#d4c5a9] shadow-inner text-xs">
+                    <div>
+                        <strong class="block text-[9px] uppercase tracking-widest text-amber-700 mb-0.5"><i class="fa-solid fa-star mr-1"></i> Primary Affinities</strong>
+                        <span class="text-stone-800 font-bold">${primAffs}</span>
+                    </div>
+                    <div>
+                        <strong class="block text-[9px] uppercase tracking-widest text-stone-500 mb-0.5"><i class="fa-regular fa-star mr-1"></i> Secondary Affinities</strong>
+                        <span class="text-stone-800">${secAffs}</span>
+                    </div>
+                    <div>
+                        <strong class="block text-[9px] uppercase tracking-widest text-red-700 mb-0.5"><i class="fa-solid fa-bolt mr-1"></i> Associated Energy</strong>
+                        <span class="text-stone-800 capitalize">${damageTypes}</span>
+                    </div>
+                    <div>
+                        <strong class="block text-[9px] uppercase tracking-widest text-blue-700 mb-0.5"><i class="fa-solid fa-brain mr-1"></i> Key Attribute</strong>
+                        <span class="text-stone-800">${attribute}</span>
+                    </div>
+                </div>
+
+                <div class="flex justify-end pt-3 border-t border-[#d4c5a9]">
+                    <button onclick="document.getElementById('pattern-info-modal').remove()" class="w-full py-2 bg-stone-900 hover:bg-stone-800 text-amber-50 rounded-sm font-bold uppercase text-[10px] tracking-widest shadow-sm transition">Close Tome</button>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('global-popup-container').appendChild(modal);
+    };
+
     // The core seamless updater function!
     window.appActions.refreshTapestryUI = () => {
         const camp = window.appData.activeCampaign;
@@ -795,18 +868,18 @@ if (typeof window !== 'undefined') {
         const primary = draft.patterns[0] || null;
         const supports = draft.patterns.slice(1);
         
-        const radius = 105;
+        const cx = 160; const cy = 160; const radius = 105;
         const patternsList = Object.keys(PATTERN_THEME);
         
         // 1. ANIMATE THE LOOM
         if (!primary) {
             patternsList.forEach((key, index) => {
-                const angleDeg = index * (360 / 9) - 90;
+                const angleDeg = (index * (360 / 9) - 90);
                 
                 const btn = document.getElementById(`sigil-btn-${key}`);
                 if (btn) {
-                    btn.classList.remove('pulse-prime-sigil');
-                    // Setting these styles natively triggers the CSS transition!
+                    btn.classList.remove('pulse-prime-sigil', 'loom-entrance');
+                    // We apply the exact math transformation!
                     btn.style.transform = `rotate(${angleDeg}deg) translateX(${radius}px) rotate(${-angleDeg}deg) scale(1)`;
                     btn.className = 'sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-20 opacity-40 hover:opacity-100 hover:z-[100] group';
                     const img = btn.querySelector('img');
@@ -819,7 +892,8 @@ if (typeof window !== 'undefined') {
             // Primary Sigil glides to center and gets large
             const primeBtn = document.getElementById(`sigil-btn-${primary}`);
             if (primeBtn) {
-                // X points UP at -90 degrees, so translateX(8px) shifts the icon 8px upward perfectly matching the old layout!
+                primeBtn.classList.remove('loom-entrance');
+                // Center perfectly and scale
                 primeBtn.style.transform = `rotate(-90deg) translateX(8px) rotate(90deg) scale(1.4)`;
                 const theme = PATTERN_THEME[primary];
                 primeBtn.className = 'sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-[100] opacity-100 pulse-prime-sigil group';
@@ -829,14 +903,14 @@ if (typeof window !== 'undefined') {
 
             // Orbits glide into 8-point ring
             orbitsList.forEach((key, index) => {
-                const angleDeg = index * (360 / 8) - 90;
+                const angleDeg = (index * (360 / 8) - 90);
                 
                 const btn = document.getElementById(`sigil-btn-${key}`);
                 const isSupported = supports.includes(key);
                 const theme = PATTERN_THEME[key];
                 
                 if (btn) {
-                    btn.classList.remove('pulse-prime-sigil');
+                    btn.classList.remove('pulse-prime-sigil', 'loom-entrance');
                     btn.style.transform = `rotate(${angleDeg}deg) translateX(${radius}px) rotate(${-angleDeg}deg) scale(0.9)`;
                     const img = btn.querySelector('img');
                     
@@ -1006,7 +1080,6 @@ if (typeof window !== 'undefined') {
         const success = await window.appActions.saveRote(pcId, rotePayload);
         if (success) {
             if (nameInput) nameInput.value = '';
-            reRender(true);
         }
     };
 
@@ -1075,7 +1148,7 @@ if (typeof window !== 'undefined') {
             roteName: draft.roteName
         };
 
-        await castPatternSpell(pcId, castConfig);
+        await window.appActions.castPatternSpell(pcId, castConfig);
 
         // Reset temporary non-rote draft casting parameters after successful cast!
         if (!draft.isRote) {
