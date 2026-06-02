@@ -535,25 +535,25 @@ export function getPatternNexusHTML(state) {
     const isConvergence = draft.patterns.length === 9;
 
     let loomHtml = '';
-    const cx = 160; const cy = 160; const radius = 105;
 
-    // INITIAL HTML STATE: Everything starts in the dead center, transparent, and tiny.
-    // The setTimeout at the end of this function will trigger refreshTapestryUI() 50ms later,
-    // which applies the final coordinates and triggers the gorgeous CSS spiral transition!
+    // INITIAL HTML STATE: Pinned to absolute center, scaled down, and rotated backward 
+    // to force a true 360-degree CSS spiral entrance sequence!
     patternsList.forEach((key, index) => {
         const theme = PATTERN_THEME[key];
         const rank = pm[key] || 0;
         const rankText = rank > 0 ? `(Rank ${rank})` : `(Unlearned)`;
 
-        // Setup the pre-animation entry state
-        const x = cx - 32;
-        const y = cy - 32;
-        const scale = 0.1;
+        // Calculate the orbit angle, then subtract 360 so the animation spins exactly 1 full rotation
+        const angleDeg = index * (360 / 9) - 90;
+        const startAngle = angleDeg - 360; 
+        
+        // Pin to center, no X translation, fully reversed rotation using valid JS template math
+        const initialTransform = `rotate(${startAngle}deg) translateX(0px) rotate(${-startAngle}deg) scale(0.1)`;
 
         loomHtml += `
             <button id="sigil-btn-${key}" type="button" 
                     onclick="window.appActions.toggleWheelPattern('${key}')"
-                    style="left: ${x}px; top: ${y}px; transform: scale(${scale}); color: ${theme.color};"
+                    style="transform: ${initialTransform}; color: ${theme.color};"
                     class="sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-20 opacity-0 group">
                 <img src="${PATTERN_ASSET_BASE_URL}${key}.webp" alt="${theme.label}" class="w-10 h-10 object-contain transition-all duration-500 pointer-events-none" style="filter: none;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                 <span class="text-[11px] font-serif font-bold text-stone-900 mt-1 leading-none drop-shadow-md absolute -bottom-5 whitespace-nowrap bg-[#fdfbf7] px-2 py-0.5 border border-[#d4c5a9] rounded-sm shadow-sm hidden group-hover:block z-[200] pointer-events-none">${theme.label} ${rankText}</span>
@@ -868,13 +868,13 @@ if (typeof window !== 'undefined') {
         const primary = draft.patterns[0] || null;
         const supports = draft.patterns.slice(1);
         
-        const cx = 160; const cy = 160; const radius = 105;
+        const radius = 105;
         const patternsList = Object.keys(PATTERN_THEME);
         
         // 1. ANIMATE THE LOOM
         if (!primary) {
             patternsList.forEach((key, index) => {
-                const angleDeg = (index * (360 / 9) - 90);
+                const angleDeg = index * (360 / 9) - 90;
                 
                 const btn = document.getElementById(`sigil-btn-${key}`);
                 if (btn) {
@@ -903,7 +903,7 @@ if (typeof window !== 'undefined') {
 
             // Orbits glide into 8-point ring
             orbitsList.forEach((key, index) => {
-                const angleDeg = (index * (360 / 8) - 90);
+                const angleDeg = index * (360 / 8) - 90;
                 
                 const btn = document.getElementById(`sigil-btn-${key}`);
                 const isSupported = supports.includes(key);
@@ -1148,7 +1148,7 @@ if (typeof window !== 'undefined') {
             roteName: draft.roteName
         };
 
-        await window.appActions.castPatternSpell(pcId, castConfig);
+        await castPatternSpell(pcId, castConfig);
 
         // Reset temporary non-rote draft casting parameters after successful cast!
         if (!draft.isRote) {
