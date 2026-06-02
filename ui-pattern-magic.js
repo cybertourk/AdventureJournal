@@ -441,7 +441,7 @@ export function getPatternNexusHTML(state) {
                     const listDisplay = r.patterns.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' + ');
 
                     return `
-                    <div class="p-3 border rounded-sm ${selectBorder} flex flex-col gap-2 transition cursor-pointer" onclick="window.appActions.loadRoteToDraft('${r.id}')">
+                    <div class="p-3 border rounded-sm ${selectBorder} flex flex-col gap-2 transition cursor-pointer group hover:border-amber-400" onclick="window.appActions.loadRoteToDraft('${activePc.id}', '${r.id}')">
                         <div class="flex justify-between items-start border-b border-[#d4c5a9] pb-1.5">
                             <h5 class="text-sm font-bold text-stone-900 font-serif leading-tight">
                                 <i class="fa-solid fa-scroll ${isSelected ? 'text-amber-600' : 'text-stone-400'} mr-1"></i> ${r.name}
@@ -450,9 +450,12 @@ export function getPatternNexusHTML(state) {
                                 <i class="fa-solid fa-trash text-xs"></i>
                             </button>
                         </div>
-                        <div class="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-stone-500">
-                            <span>${listDisplay}</span>
-                            <span class="text-amber-700 bg-amber-100 px-2 py-0.5 rounded-sm border border-amber-200 shadow-sm">${r.essentiaCost} E</span>
+                        <div class="flex flex-wrap gap-1 text-[9px] font-bold uppercase tracking-widest text-stone-500 mb-1">
+                            ${r.patterns.map(p => `<span class="bg-stone-100 border border-stone-200 px-1.5 py-0.5 rounded-sm">${p.charAt(0).toUpperCase() + p.slice(1)}</span>`).join('')}
+                        </div>
+                        <div class="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-stone-500 mt-1">
+                            <span class="text-amber-700 bg-amber-50 px-2 py-1 rounded-sm border border-amber-200 shadow-sm">${r.essentiaCost} Essentia</span>
+                            <button type="button" onclick="event.stopPropagation(); window.appActions.loadRoteToDraft('${activePc.id}', '${r.id}')" class="px-3 py-1 bg-stone-800 text-amber-50 hover:bg-amber-700 transition rounded-sm text-[9px] font-bold uppercase tracking-wider shadow-sm flex items-center group-hover:bg-amber-700"><i class="fa-solid fa-download mr-1.5"></i> Load Rote</button>
                         </div>
                     </div>
                     `;
@@ -527,60 +530,38 @@ export function getPatternNexusHTML(state) {
     let loomHtml = '';
     const cx = 160; const cy = 160; const radius = 105;
 
-    // Generate Layout Positions synchronously so they never appear invisible!
+    // INITIAL HTML STATE: Everything starts in the dead center, transparent, and tiny.
+    // The setTimeout at the end of this function will trigger refreshTapestryUI() 50ms later,
+    // which applies the final coordinates and triggers the gorgeous CSS spiral transition!
     patternsList.forEach((key, index) => {
         const theme = PATTERN_THEME[key];
         const rank = pm[key] || 0;
-        
-        let x, y, scale, z, opacity, pulseClass = '';
-        
-        if (!primary) {
-            // Orbit mode (unselected)
-            const angle = (index * (360 / 9) - 90) * (Math.PI / 180);
-            x = cx + radius * Math.cos(angle) - 32;
-            y = cy + radius * Math.sin(angle) - 32;
-            scale = 1;
-            z = 20;
-            opacity = 'opacity-40 hover:opacity-100'; // Pure transparency, no grayscale
-        } else if (key === primary) {
-            // Center
-            x = cx - 32; 
-            y = cy - 40; 
-            scale = 1.4;
-            z = 100;
-            opacity = 'opacity-100';
-            pulseClass = 'pulse-prime-sigil';
-        } else {
-            // Orbit mode (supporting)
-            const orbitsList = patternsList.filter(k => k !== primary);
-            const supportIndex = orbitsList.indexOf(key);
-            const angle = (supportIndex * (360 / 8) - 90) * (Math.PI / 180);
-            x = cx + radius * Math.cos(angle) - 32;
-            y = cy + radius * Math.sin(angle) - 32;
-            scale = 0.9;
-            z = supports.includes(key) ? 90 : 10;
-            opacity = supports.includes(key) ? 'opacity-100' : 'opacity-40 hover:opacity-100';
-        }
-        
-        const dropShadow = (key === primary || supports.includes(key)) 
-            ? `drop-shadow(0 0 8px ${theme.color})` 
-            : 'none';
-        
         const rankText = rank > 0 ? `(Rank ${rank})` : `(Unlearned)`;
 
-        // NOTE: ADDED pointer-events-none TO IMG AND SPAN TO PREVENT GLOBAL LIGHTBOX HIJACKING
+        // Setup the pre-animation entry state
+        const x = cx - 32;
+        const y = cy - 32;
+        const scale = 0.1;
+
         loomHtml += `
             <button id="sigil-btn-${key}" type="button" 
                     onclick="window.appActions.toggleWheelPattern('${key}')"
                     style="left: ${x}px; top: ${y}px; transform: scale(${scale}); color: ${theme.color};"
-                    class="sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer hover:z-[100] group loom-entrance ${z >= 90 ? 'z-[90]' : 'z-20'} ${opacity} ${pulseClass}">
-                <img src="${PATTERN_ASSET_BASE_URL}${key}.webp" alt="${theme.label}" class="w-10 h-10 object-contain transition-all duration-500 pointer-events-none" style="filter: ${dropShadow};" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    class="sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-20 opacity-0 group">
+                <img src="${PATTERN_ASSET_BASE_URL}${key}.webp" alt="${theme.label}" class="w-10 h-10 object-contain transition-all duration-500 pointer-events-none" style="filter: none;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                 <span class="text-[11px] font-serif font-bold text-stone-900 mt-1 leading-none drop-shadow-md absolute -bottom-5 whitespace-nowrap bg-[#fdfbf7] px-2 py-0.5 border border-[#d4c5a9] rounded-sm shadow-sm hidden group-hover:block z-[200] pointer-events-none">${theme.label} ${rankText}</span>
             </button>
         `;
     });
 
     const convergenceSpinClass = isConvergence ? 'spin-loom-slow' : '';
+
+    // Trigger the CSS entrance spiral!
+    setTimeout(() => {
+        if (window.appActions && window.appActions.refreshTapestryUI) {
+            window.appActions.refreshTapestryUI();
+        }
+    }, 50);
 
     return `
     <div class="arcane-tapestry-bg min-h-screen text-stone-900 p-4 sm:p-6 lg:p-8 font-sans border-2 border-stone-900 shadow-2xl relative">
@@ -830,7 +811,8 @@ if (typeof window !== 'undefined') {
                 
                 const btn = document.getElementById(`sigil-btn-${key}`);
                 if (btn) {
-                    btn.classList.remove('pulse-prime-sigil', 'loom-entrance');
+                    btn.classList.remove('pulse-prime-sigil');
+                    // Setting these styles natively triggers the CSS transition!
                     btn.style.left = `${x}px`;
                     btn.style.top = `${y}px`;
                     btn.style.transform = 'scale(1)';
@@ -845,7 +827,6 @@ if (typeof window !== 'undefined') {
             // Primary Sigil glides to center and gets large
             const primeBtn = document.getElementById(`sigil-btn-${primary}`);
             if (primeBtn) {
-                primeBtn.classList.remove('loom-entrance');
                 primeBtn.style.left = `${cx - 32}px`;
                 primeBtn.style.top = `${cy - 40}px`;
                 primeBtn.style.transform = 'scale(1.4)';
@@ -866,7 +847,7 @@ if (typeof window !== 'undefined') {
                 const theme = PATTERN_THEME[key];
                 
                 if (btn) {
-                    btn.classList.remove('pulse-prime-sigil', 'loom-entrance');
+                    btn.classList.remove('pulse-prime-sigil');
                     btn.style.left = `${x}px`;
                     btn.style.top = `${y}px`;
                     btn.style.transform = 'scale(0.9)';
