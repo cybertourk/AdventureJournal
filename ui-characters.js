@@ -462,7 +462,7 @@ export function getPCEditHTML(state) {
         } else {
             pmSortedCategories.forEach(cat => {
                 const catEntries = pmCategorizedLogs[cat].reverse(); 
-                const badgeCount = `<span class="bg-[#d4c5a9] text-[#78350f] text-[10px] font-bold px-2 py-0.5 rounded-full ml-2 border border-[#b45309]">${catEntries.length}</span>`;
+                const badgeCount = `<span class="bg-cyan-900/30 text-cyan-400 text-[10px] font-bold px-2 py-0.5 rounded-full ml-2 border border-cyan-800">${catEntries.length}</span>`;
                 
                 let entriesHtml = catEntries.map(e => {
                     const parsed = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(e) : e.replace(/\n/g, '<br>');
@@ -470,14 +470,14 @@ export function getPCEditHTML(state) {
                 }).join('');
 
                 pmAccordionHtml += `
-                <div class="mb-3 bg-[#f4ebd8] border border-[#d4c5a9] rounded-sm overflow-hidden shadow-sm">
-                    <button type="button" class="w-full flex items-center justify-between p-3 sm:p-4 bg-[#fdfbf7] hover:bg-white transition-colors text-amber-900 border-b border-transparent focus:outline-none" onclick="const content = this.nextElementSibling; content.classList.toggle('hidden'); this.querySelector('.fa-chevron-down').classList.toggle('rotate-180'); this.classList.toggle('border-[#d4c5a9]');">
+                <div class="mb-3 bg-stone-950 border border-stone-800 rounded-sm overflow-hidden shadow-sm">
+                    <button type="button" class="w-full flex items-center justify-between p-3 sm:p-4 bg-stone-900 hover:bg-stone-800 transition-colors text-cyan-500 border-b border-transparent focus:outline-none" onclick="const content = this.nextElementSibling; content.classList.toggle('hidden'); this.querySelector('.fa-chevron-down').classList.toggle('rotate-180'); this.classList.toggle('border-stone-800');">
                         <div class="flex items-center font-bold text-xs sm:text-sm uppercase tracking-widest font-mono">
-                            <i class="fa-solid fa-sparkles mr-2 text-amber-600"></i> ${cat} ${badgeCount}
+                            <i class="fa-solid fa-sparkles mr-2 text-cyan-400"></i> ${cat} ${badgeCount}
                         </div>
-                        <i class="fa-solid fa-chevron-down text-amber-700 transition-transform duration-200"></i>
+                        <i class="fa-solid fa-chevron-down text-cyan-500 transition-transform duration-200"></i>
                     </button>
-                    <div class="hidden p-3 sm:p-4 bg-[#f4ebd8]">
+                    <div class="hidden p-3 sm:p-4 bg-stone-950/50">
                         ${entriesHtml}
                     </div>
                 </div>`;
@@ -485,16 +485,16 @@ export function getPCEditHTML(state) {
         }
 
         const dmPmEditBtn = isDM ? `
-            <button type="button" class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-700 hover:text-amber-600 transition flex items-center bg-[#fdfbf7] px-3 py-1.5 rounded border border-[#d4c5a9] shadow-sm shrink-0" onclick="event.stopPropagation(); window.appActions.openUniversalEditor('input-pc-edit-patternlog', 'Pattern Magic Casting Log')">
+            <button type="button" class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-cyan-500 hover:text-cyan-400 transition flex items-center bg-stone-800 px-3 py-1.5 rounded border border-stone-600 shadow-sm shrink-0" onclick="event.stopPropagation(); window.appActions.openUniversalEditor('input-pc-edit-patternlog', 'Pattern Magic Casting Log')">
                 <i class="fa-solid fa-pen mr-1.5"></i> <span class="hidden sm:inline">Edit Raw Log (DM)</span><span class="sm:hidden">Edit</span>
             </button>
         ` : '';
 
         pmSectionHtml = `
-        <div class="mt-6 bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner rounded-sm p-4 sm:p-6 flex flex-col">
-            <div class="flex justify-between items-center border-b border-[#d4c5a9] pb-3 mb-5 gap-2">
+        <div class="mt-6 bg-stone-900 border border-stone-700 shadow-inner rounded-sm p-4 sm:p-6 flex flex-col">
+            <div class="flex justify-between items-center border-b border-stone-700 pb-3 mb-5 gap-2">
                 <div>
-                    <h3 class="text-sm sm:text-base font-bold text-amber-900 font-mono flex items-center"><i class="fa-solid fa-book-journal-whills text-amber-600 mr-2"></i> Casting Log</h3>
+                    <h3 class="text-sm sm:text-base font-bold text-cyan-400 font-mono flex items-center"><i class="fa-solid fa-book-journal-whills text-cyan-500 mr-2"></i> Casting Log</h3>
                     <p class="text-[9px] sm:text-[10px] text-stone-500 uppercase tracking-widest font-bold mt-1 font-mono">Spells are sorted by Primary Pattern.</p>
                 </div>
                 ${dmPmEditBtn}
@@ -502,7 +502,7 @@ export function getPCEditHTML(state) {
             
             <input type="hidden" id="input-pc-edit-patternlog" value="${safePMLog}">
             
-            <div class="w-full text-stone-900">
+            <div class="w-full text-stone-200">
                 ${pmAccordionHtml}
             </div>
         </div>
@@ -1518,6 +1518,18 @@ export const quickSyncDDB = async (pcId) => {
 };
 
 if (typeof window !== 'undefined') {
-    // Only bind functions that natively belong to ui-characters.js!
     window.appActions = window.appActions || {};
+    
+    // Bind General Actions
+    window.appActions.savePCEdit = savePCEdit;
+    window.appActions.deletePC = deletePC;
+    window.appActions.kickPlayer = kickPlayer;
+    window.appActions.openPCEdit = openPCEdit;
+    window.appActions.calculateBirthdaysLive = calculateBirthdaysLive;
+    
+    // DDB Integration Imports
+    window.appActions.openDndBeyondImportModal = openDndBeyondImportModal;
+    window.appActions.fetchAndAnalyzeDndBeyond = fetchAndAnalyzeDndBeyond;
+    window.appActions.executeDndBeyondImport = executeDndBeyondImport;
+    window.appActions.quickSyncDDB = quickSyncDDB;
 }
