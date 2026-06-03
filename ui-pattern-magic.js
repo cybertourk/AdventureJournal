@@ -42,9 +42,9 @@ const injectTapestryStyles = () => {
         .sigil-btn {
             /* Transform handles the spiral, Opacity handles the fade-in */
             transition: transform 1s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.8s ease;
-            /* Permanently pin all sigils perfectly to the center of the 320x320 SVG (160 - 32 = 128) */
-            left: 128px; 
-            top: 128px;
+            /* Permanently pin all sigils perfectly to the center of the 320x320 SVG (160 - 48 = 112) */
+            left: 112px; 
+            top: 112px;
         }
         .pulse-prime-sigil img {
             animation: pulsePrimeSigil 3s ease-in-out infinite alternate;
@@ -77,14 +77,13 @@ const PATTERN_THEME = {
     tempus: { label: "Tempus", desc: "Time & Entropy", color: "#d97706" }
 };
 
-// V5 Specific Tooltip Formats
 const EFFECT_TOOLTIPS = {
     range: "Dictates the maximum distance at which you can weave this magic.",
     duration: "The length of time the physical ripples of your magic persist.<br><br><div class='bg-amber-100/50 border border-amber-200 p-2 rounded-sm text-[10px]'><strong class='text-amber-800'>Note:</strong> Duration’s Essentia Cost will be assigned by the DM based on if a shorter or longer duration is more advantageous.</div>",
     activation: "The action economy and time required to cast the spell.",
     areaTargets: "The physical space or number of entities encompassed by the spell.",
     damageHealing: "The raw force, elemental energy, or restorative life woven into the spell.",
-    augmentia: "Alterations to physical laws, matter, or environmental properties.<br><br><div class='bg-stone-100 border border-stone-200 p-2 rounded-sm mt-2'><strong class='text-stone-900 block border-b border-stone-300 pb-1 mb-1 text-[10px] uppercase tracking-widest'>V5 Benchmark Examples</strong><ul class='space-y-1.5 text-[11px] mt-2'><li><b>Minor (+1):</b> Water Breathing, Feather Fall, Jump, detecting magic</li><li><b>Weak (+2):</b> Alter Self (minor physical changes), Longstrider, Spider Climb</li><li><b>Moderate (+3):</b> Fly, Haste, Slow, Gaseous Form, Water Walk</li><li><b>Strong (+4):</b> Alter Self (significant physical changes), Teleportation (short range)</li><li><b>Major (+5):</b> True Polymorph, Teleport, Plane Shift, Time Stop</li></ul></div>",
+    augmentia: "Alterations to physical laws, matter, or environmental properties.<br><br><div class='bg-stone-100 border border-stone-200 p-2 rounded-sm mt-2'><strong class='text-stone-900 block border-b border-stone-300 pb-1 mb-1 text-[10px] uppercase tracking-widest'>V5 Benchmark Examples</strong><ul class='space-y-1.5 text-[11px] mt-2'><li><b>Minor (+1):</b> Water Breathing, Feather Fall, Jump, detecting magic</li><li><b>Weak (+2):</b> Alter Self (minor physical changes), Longstrider, Spider Climb</li><li><b>Moderate (+3):</b> Fly, Haste, Slow, Gaseous Form, Water Walk</li><li><b>Strong (+4):</b> Alter Self (significant physical changes), Teleportation</li><li><b>Major (+5):</b> True Polymorph, Teleport, Plane Shift, Time Stop</li></ul></div>",
     bolsterHinder: "Direct enhancements or supernatural penalties applied to checks and saves.<br><br><div class='bg-stone-100 border border-stone-200 p-2 rounded-sm mt-2'><strong class='text-stone-900 block border-b border-stone-300 pb-1 mb-1 text-[10px] uppercase tracking-widest'>Target Options by Tier</strong><ul class='space-y-1 text-[11px] mt-2'><li><b>Minor (+1):</b> Skill check</li><li><b>Weak (+2):</b> Skill check, saving throw, ability check</li><li><b>Moderate (+3):</b> Skill check, saving throw, ability check, attack roll</li><li><b>Strong (+4):</b> Skill, saving throw, ability check, attack roll, damage roll</li><li><b>Major (+5):</b> Skill, saving throw, ability check, attack roll, damage roll, AC</li></ul></div>"
 };
 
@@ -565,9 +564,9 @@ export function getPatternNexusHTML(state) {
             <button id="sigil-btn-${key}" type="button" 
                     onclick="window.appActions.toggleWheelPattern('${key}')"
                     style="transform: ${initialTransform}; color: ${theme.color};"
-                    class="sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-20 opacity-0 group">
-                <img src="${PATTERN_ASSET_BASE_URL}${key}.webp" alt="${theme.label}" class="w-10 h-10 object-contain transition-all duration-500 pointer-events-none" style="filter: none;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                <span class="text-[11px] font-serif font-bold text-stone-900 mt-1 leading-none drop-shadow-md absolute -bottom-5 whitespace-nowrap bg-[#fdfbf7] px-2 py-0.5 border border-[#d4c5a9] rounded-sm shadow-sm hidden group-hover:block z-[200] pointer-events-none">${theme.label} ${rankText}</span>
+                    class="sigil-btn absolute w-24 h-24 flex flex-col items-center justify-center cursor-pointer z-20 opacity-0 group">
+                <img src="${PATTERN_ASSET_BASE_URL}${key}.webp" alt="${theme.label}" class="w-20 h-20 object-contain transition-all duration-500 pointer-events-none" style="filter: none;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <span class="text-[11px] font-serif font-bold text-stone-900 mt-1 leading-none drop-shadow-md absolute -bottom-4 whitespace-nowrap bg-[#fdfbf7] px-2 py-0.5 border border-[#d4c5a9] rounded-sm shadow-sm hidden group-hover:block z-[200] pointer-events-none">${theme.label} ${rankText}</span>
             </button>
         `;
     });
@@ -960,8 +959,8 @@ if (typeof window !== 'undefined') {
                 if (btn) {
                     btn.classList.remove('pulse-prime-sigil');
                     // Setting these styles natively triggers the CSS transition!
-                    btn.style.transform = `rotate(${angleDeg}deg) translateX(${radius}px) rotate(${-angleDeg}deg) scale(1)`;
-                    btn.className = 'sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-20 opacity-40 hover:opacity-100 hover:z-[100] group';
+                    btn.style.transform = `rotate(${angleDeg}deg) translateX(${radius}px) rotate(${-angleDeg}deg) scale(0.9)`;
+                    btn.className = 'sigil-btn absolute w-24 h-24 flex flex-col items-center justify-center cursor-pointer z-20 opacity-40 hover:opacity-100 hover:z-[100] group';
                     const img = btn.querySelector('img');
                     if(img) img.style.filter = 'none';
                 }
@@ -973,9 +972,9 @@ if (typeof window !== 'undefined') {
             const primeBtn = document.getElementById(`sigil-btn-${primary}`);
             if (primeBtn) {
                 // X points UP at -90 degrees, so translateX(8px) shifts the icon 8px upward perfectly matching the old layout!
-                primeBtn.style.transform = `rotate(-90deg) translateX(8px) rotate(90deg) scale(1.4)`;
+                primeBtn.style.transform = `rotate(-90deg) translateX(8px) rotate(90deg) scale(1.15)`;
                 const theme = PATTERN_THEME[primary];
-                primeBtn.className = 'sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-[100] opacity-100 pulse-prime-sigil group';
+                primeBtn.className = 'sigil-btn absolute w-24 h-24 flex flex-col items-center justify-center cursor-pointer z-[100] opacity-100 pulse-prime-sigil group';
                 const img = primeBtn.querySelector('img');
                 if(img) img.style.filter = `drop-shadow(0 0 8px ${theme.color})`;
             }
@@ -990,14 +989,14 @@ if (typeof window !== 'undefined') {
                 
                 if (btn) {
                     btn.classList.remove('pulse-prime-sigil');
-                    btn.style.transform = `rotate(${angleDeg}deg) translateX(${radius}px) rotate(${-angleDeg}deg) scale(0.9)`;
+                    btn.style.transform = `rotate(${angleDeg}deg) translateX(${radius}px) rotate(${-angleDeg}deg) scale(0.75)`;
                     const img = btn.querySelector('img');
                     
                     if (isSupported) {
-                        btn.className = 'sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-[90] hover:z-[100] opacity-100 group';
+                        btn.className = 'sigil-btn absolute w-24 h-24 flex flex-col items-center justify-center cursor-pointer z-[90] hover:z-[100] opacity-100 group';
                         if(img) img.style.filter = `drop-shadow(0 0 5px ${theme.color})`;
                     } else {
-                        btn.className = 'sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-10 hover:z-[100] opacity-40 hover:opacity-100 group';
+                        btn.className = 'sigil-btn absolute w-24 h-24 flex flex-col items-center justify-center cursor-pointer z-10 hover:z-[100] opacity-40 hover:opacity-100 group';
                         if(img) img.style.filter = 'none';
                     }
                 }
