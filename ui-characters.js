@@ -1,7 +1,4 @@
 import { renderSmartField } from './ui-core.js';
-import { generateId, updateDerivedState, reRender } from './state.js';
-import { saveCampaign, notify } from './firebase-manager.js';
-import { logPlayerActivity } from './actions-campaign.js';
 
 // --- HELPER FOR BIRTHDAY BOONS ---
 const boonOptionsData = [
@@ -222,7 +219,7 @@ export function getPCEditHTML(state) {
     // Updated default structure to hold stats, equipment, patternLog, and ddbId
     const pc = !isNew && camp?.playerCharacters 
         ? camp.playerCharacters.find(p => p.id === state.activePcId) 
-        : { name: '', race: '', classLevel: '', background: '', alignment: '', faith: '', gender: '', age: '', size: '', height: '', weight: '', eyes: '', hair: '', skin: '', traits: '', ideals: '', bonds: '', flaws: '', appearance: '', backstory: '', organizations: '', allies: '', enemies: '', dmNotes: '', playerId: '', image: '', boonBackstory: false, boon1stBday: '', boon2ndBday: '', extraBdayBoons: [], unlockAutoSuccess: false, availableDowntime: 0, downtimeLog: '', patternLog: '', str: '', dex: '', con: '', int: '', wis: '', cha: '', saves: '', skills: '', proficiencies: '', wealth: '', equipped: '', backpack: '', ddbId: '', isPrivate: false };
+        : { name: '', race: '', classLevel: '', background: '', alignment: '', faith: '', gender: '', age: '', size: '', height: '', weight: '', eyes: '', hair: '', skin: '', traits: '', ideals: '', bonds: '', flaws: '', appearance: '', backstory: '', organizations: '', allies: '', enemies: '', dmNotes: '', playerId: '', image: '', boonBackstory: false, boon1stBday: '', boon2ndBday: '', extraBdayBoons: [], unlockAutoSuccess: false, availableDowntime: 0, downtimeLog: '', patternLog: '', str: '', dex: '', con: '', int: '', wis: '', cha: '', san: '', saves: '', skills: '', proficiencies: '', wealth: '', equipped: '', backpack: '', ddbId: '', isPrivate: false };
 
     if (!pc && !isNew) return `<div class="text-center text-red-500 p-8 font-serif font-bold text-xl">Hero not found in the archives.</div>`;
 
@@ -623,13 +620,17 @@ export function getPCEditHTML(state) {
             <!-- CORE ATTRIBUTES SECTION -->
             <div class="bg-[#fdfbf7] p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-inner mt-4 sm:mt-6">
                 <h3 class="text-xs sm:text-sm font-bold text-stone-800 font-serif mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-dumbbell mr-2 text-stone-500"></i> Core Attributes & Proficiencies</h3>
-                <div class="grid grid-cols-3 sm:grid-cols-6 gap-4 mb-4">
+                <div class="grid grid-cols-3 sm:grid-cols-7 gap-4 mb-4">
                     <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1 text-center">STR</label><input type="number" id="pc-edit-str" value="${pc.str || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none text-center ${coreClass}"></div>
                     <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1 text-center">DEX</label><input type="number" id="pc-edit-dex" value="${pc.dex || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none text-center ${coreClass}"></div>
                     <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1 text-center">CON</label><input type="number" id="pc-edit-con" value="${pc.con || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none text-center ${coreClass}"></div>
                     <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1 text-center">INT</label><input type="number" id="pc-edit-int" value="${pc.int || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none text-center ${coreClass}"></div>
                     <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1 text-center">WIS</label><input type="number" id="pc-edit-wis" value="${pc.wis || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none text-center ${coreClass}"></div>
                     <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1 text-center">CHA</label><input type="number" id="pc-edit-cha" value="${pc.cha || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none text-center ${coreClass}"></div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-red-500 uppercase tracking-widest mb-1 text-center">SAN</label>
+                        <input type="number" id="pc-edit-san" value="${pc.san || ''}" class="w-full p-2 border border-red-300 rounded-sm text-sm font-bold text-red-900 shadow-sm outline-none text-center bg-red-50 focus:border-red-600">
+                    </div>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-[#d4c5a9] pt-4">
                     <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Saving Throws</label><input type="text" id="pc-edit-saves" value="${pc.saves || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. STR, CON"></div>
@@ -792,7 +793,7 @@ export const savePCEdit = async () => {
       availableDowntime: 0,
       downtimeLog: '',
       patternLog: '',
-      str: '', dex: '', con: '', int: '', wis: '', cha: '',
+      str: '', dex: '', con: '', int: '', wis: '', cha: '', san: '',
       saves: '', skills: '', proficiencies: '',
       wealth: '', equipped: '', backpack: '', ddbId: '',
       isPrivate: false
@@ -913,6 +914,7 @@ export const savePCEdit = async () => {
       int: getVal('pc-edit-int', existingPC.int),
       wis: getVal('pc-edit-wis', existingPC.wis),
       cha: getVal('pc-edit-cha', existingPC.cha),
+      san: getVal('pc-edit-san', existingPC.san),
       saves: getVal('pc-edit-saves', existingPC.saves),
       skills: getVal('pc-edit-skills', existingPC.skills),
       proficiencies: getVal('pc-edit-proficiencies', existingPC.proficiencies),
