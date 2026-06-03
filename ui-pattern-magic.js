@@ -220,7 +220,6 @@ function buildEffectsHTML(metrics, draft, pm, activePc) {
         const maxTierAllowed = metrics.limits[category];
         const labelText = effectData.name;
         const subtext = metrics.affinitiesActiveText[category];
-        const tooltipText = EFFECT_TOOLTIPS[category] || '';
 
         const tiersList = (category === 'duration' && draft.effectTiers.durationInverted) 
             ? effectData.invertedTiers 
@@ -355,7 +354,7 @@ function buildEffectsHTML(metrics, draft, pm, activePc) {
                 <div class="flex justify-between items-start mb-3 gap-2 flex-wrap border-b border-[#d4c5a9] pb-2">
                     <div class="flex items-center">
                         <h4 class="text-sm font-bold font-serif ${labelColorClass}">${labelText}</h4>
-                        <span class="ml-2 text-stone-400 hover:text-amber-600 cursor-help transition-colors" title="${tooltipText}"><i class="fa-solid fa-circle-question text-xs"></i></span>
+                        <button type="button" onclick="window.appActions.openEffectInfoModal('${category}')" class="ml-2 text-stone-400 hover:text-amber-600 cursor-pointer transition-colors" title="View Effect Details"><i class="fa-solid fa-circle-info text-xs"></i></button>
                         ${starHtml}
                     </div>
                     ${specialToggleHtml}
@@ -871,6 +870,62 @@ if (typeof window !== 'undefined') {
             </div>
         `;
         
+        const container = document.getElementById('pattern-info-modal-container');
+        if (container) container.innerHTML = modalHtml;
+    };
+
+    window.appActions.openEffectInfoModal = (category) => {
+        const effectData = PATTERN_CONFIG.Effects[category];
+        const tooltipText = EFFECT_TOOLTIPS[category] || effectData.description || '';
+        const isMandatory = effectData.mandatory;
+
+        let tiersHtml = '';
+        if (category === 'duration') {
+            tiersHtml += '<div class="px-2 pt-2 pb-1 text-[9px] font-bold text-stone-500 uppercase tracking-widest bg-stone-200">Shorter is Better</div>';
+            tiersHtml += effectData.tiers.map((t, i) => `
+                <div class="flex justify-between items-center p-2 border-b border-stone-200 last:border-0">
+                    <span class="text-xs font-bold text-stone-800">Tier ${i}: ${t.text}</span>
+                    <span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded shadow-sm">+${t.cost} E</span>
+                </div>
+            `).join('');
+            tiersHtml += '<div class="px-2 pt-2 pb-1 text-[9px] font-bold text-stone-500 uppercase tracking-widest bg-stone-200 border-t border-stone-300 mt-2">Longer is Better</div>';
+            tiersHtml += effectData.invertedTiers.map((t, i) => `
+                <div class="flex justify-between items-center p-2 border-b border-stone-200 last:border-0">
+                    <span class="text-xs font-bold text-stone-800">Tier ${i}: ${t.text}</span>
+                    <span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded shadow-sm">+${t.cost} E</span>
+                </div>
+            `).join('');
+        } else {
+            tiersHtml += effectData.tiers.map((t, i) => `
+                <div class="flex justify-between items-center p-2 border-b border-stone-200 last:border-0">
+                    <span class="text-xs font-bold text-stone-800">Tier ${i}: ${t.text}</span>
+                    <span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded shadow-sm">+${t.cost} E</span>
+                </div>
+            `).join('');
+        }
+
+        const modalHtml = `
+            <div id="effect-info-overlay" class="fixed inset-0 bg-stone-950/80 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm" onclick="window.appActions.closePatternInfoModal()">
+                <div class="parchment-panel max-w-sm w-full rounded-sm shadow-2xl relative border-2 border-[#d4c5a9] overflow-hidden" onclick="event.stopPropagation()">
+                    <div class="bg-amber-600 h-2 w-full"></div>
+                    <button type="button" onclick="window.appActions.closePatternInfoModal()" class="absolute top-4 right-4 text-stone-400 hover:text-stone-900 transition-colors bg-white/50 rounded-full w-8 h-8 flex items-center justify-center border border-[#d4c5a9]">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                    <div class="p-6">
+                        <h2 class="text-2xl font-black font-serif text-stone-900 mb-1 tracking-wide">${effectData.name}</h2>
+                        <div class="mb-4">
+                            ${isMandatory ? `<span class="bg-red-100 text-red-800 border border-red-200 px-2 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider shadow-sm">Mandatory (Baseline Tier 1)</span>` : `<span class="bg-stone-200 text-stone-600 border border-stone-300 px-2 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider shadow-sm">Optional Effect</span>`}
+                        </div>
+                        <p class="text-xs text-stone-700 font-serif leading-relaxed mb-4">${tooltipText}</p>
+                        
+                        <h4 class="text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-2 border-b border-[#d4c5a9] pb-1">Tier Scaling</h4>
+                        <div class="bg-stone-50 border border-stone-200 rounded-sm shadow-inner max-h-64 overflow-y-auto custom-scrollbar">
+                            ${tiersHtml}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
         const container = document.getElementById('pattern-info-modal-container');
         if (container) container.innerHTML = modalHtml;
     };
