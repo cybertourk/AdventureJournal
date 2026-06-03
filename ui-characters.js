@@ -1,4 +1,7 @@
 import { renderSmartField } from './ui-core.js';
+import { generateId, updateDerivedState, reRender } from './state.js';
+import { saveCampaign, notify } from './firebase-manager.js';
+import { logPlayerActivity } from './actions-campaign.js';
 
 // --- HELPER FOR BIRTHDAY BOONS ---
 const boonOptionsData = [
@@ -1515,16 +1518,6 @@ export const quickSyncDDB = async (pcId) => {
 };
 
 if (typeof window !== 'undefined') {
+    // Only bind functions that natively belong to ui-characters.js!
     window.appActions = window.appActions || {};
-    
-    // Bind General Actions
-    window.appActions.savePCEdit = savePCEdit;
-    window.appActions.deletePC = deletePC;
-    window.appActions.kickPlayer = kickPlayer;
-    
-    // DDB Integration Imports
-    window.appActions.openDndBeyondImportModal = openDndBeyondImportModal;
-    window.appActions.fetchAndAnalyzeDndBeyond = fetchAndAnalyzeDndBeyond;
-    window.appActions.executeDndBeyondImport = executeDndBeyondImport;
-    window.appActions.quickSyncDDB = quickSyncDDB;
 }
