@@ -431,7 +431,7 @@ export const castPatternSpell = async (pcId, castConfig) => {
 
     const cardId = generateId();
     const primaryPattern = castConfig.patterns[0] || 'arcani';
-    const isSanityRequired = d20 <= 5 || dc >= 20;
+    const isSanityRequired = d20 <= 5 || dc >= 20 || totalRoll <= dc - 5;
 
     let actionButtonsHtml = '';
     if (successType === 'critical_failure') {
@@ -444,7 +444,7 @@ export const castPatternSpell = async (pcId, castConfig) => {
     if (isSanityRequired) {
         const sanityDc = 10 + cost;
         actionButtonsHtml += `
-            <button onclick="window.appActions.resolvePatternSanityCheck('${pcId}', ${sanityDc}, ${dc}, '${cardId}')" id="btn-sanity-${cardId}" class="w-full py-2.5 bg-stone-800 hover:bg-stone-700 text-amber-50 rounded-sm font-bold uppercase text-[10px] tracking-widest shadow-md transition">
+            <button onclick="window.appActions.resolvePatternSanityCheck('${pcId}', ${sanityDc}, ${dc}, '${cardId}')" id="btn-sanity-${cardId}" class="w-full py-2.5 bg-stone-800 hover:bg-stone-700 text-amber-50 rounded-sm font-bold uppercase text-[10px] tracking-widest shadow-md transition mt-2">
                 <i class="fa-solid fa-brain mr-1.5"></i> Save vs Mental Strain (DC ${sanityDc})
             </button>
         `;
@@ -547,7 +547,7 @@ export const castPatternSpell = async (pcId, castConfig) => {
         <!-- Fixed Footer Actions -->
         <div class="bg-[#e8dec7] p-3 sm:p-4 border-t border-[#d4c5a9] flex flex-col gap-2 shrink-0 rounded-b-sm shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
             ${actionButtonsHtml}
-            ${!actionButtonsHtml ? `<button onclick="document.getElementById('pattern-result-modal').remove();" class="w-full py-2 bg-stone-900 text-amber-50 rounded-sm font-bold uppercase tracking-wider text-[10px] shadow-md hover:bg-stone-800 transition">Dismiss</button>` : `<button onclick="document.getElementById('pattern-result-modal').remove();" class="w-full py-2 border border-stone-400 text-stone-600 rounded-sm font-bold uppercase tracking-wider text-[10px] shadow-sm hover:bg-stone-300 transition">Dismiss</button>`}
+            ${!actionButtonsHtml ? `<button onclick="document.getElementById('pattern-result-modal').remove();" class="w-full py-2 bg-stone-900 text-amber-50 rounded-sm font-bold uppercase tracking-wider text-[10px] shadow-md hover:bg-stone-800 transition">Dismiss</button>` : `<button onclick="document.getElementById('pattern-result-modal').remove();" class="w-full py-2 border border-stone-400 text-stone-600 rounded-sm font-bold uppercase tracking-wider text-[10px] shadow-sm hover:bg-stone-300 transition mt-2">Dismiss</button>`}
         </div>
     </div>
     `;
@@ -671,9 +671,15 @@ export const resolvePatternSanityCheck = async (pcId, dc, spellDC, cardId) => {
     if (!pc) return;
 
     const d20 = Math.floor(Math.random() * 20) + 1;
-    const wisScore = parseInt(pc.wis) || 10;
-    const wisMod = Math.floor((wisScore - 10) / 2);
-    const saveTotal = d20 + wisMod;
+    // NEW SANITY LOGIC: Try 'san' first, fallback to 'wis'
+    let sanScore = parseInt(pc.san);
+    let usedStat = 'SAN';
+    if (isNaN(sanScore)) {
+        sanScore = parseInt(pc.wis) || 10;
+        usedStat = 'WIS (Fallback)';
+    }
+    const sanMod = Math.floor((sanScore - 10) / 2);
+    const saveTotal = d20 + sanMod;
 
     const isSuccess = saveTotal >= dc;
     let resultHeader = isSuccess ? "✅ Sanity Check Succeeded!" : "❌ Sanity Check Failed!";
@@ -694,16 +700,16 @@ export const resolvePatternSanityCheck = async (pcId, dc, spellDC, cardId) => {
             const table = [
                 { range: [1, 15], flaw: "Being drunk keeps me sane." },
                 { range: [16, 25], flaw: "I keep whatever I find." },
-                { range: [26, 30], flaw: "I adopt the mannerisms, style, and name of someone else I know." },
-                { range: [31, 35], flaw: "I must bend the truth, exaggerate, or outright lie to be interesting." },
-                { range: [36, 45], flaw: "Achieving my goal is the only thing of interest, ignoring everything else." },
+                { range: [26, 30], flaw: "I try to become more like someone else I know — adopting his or her style of dress, mannerisms, and name." },
+                { range: [31, 35], flaw: "I must bend the truth, exaggerate, or outright lie to be interesting to other people." },
+                { range: [36, 45], flaw: "Achieving my goal is the only thing of interest to me, and I’ll ignore everything else to pursue it." },
                 { range: [46, 50], flaw: "I find it hard to care about anything that goes on around me." },
                 { range: [51, 55], flaw: "I don’t like the way people judge me all the time." },
                 { range: [56, 70], flaw: "I am the smartest, wisest, strongest, fastest, and most beautiful person I know." },
-                { range: [71, 80], flaw: "I am sure powerful enemies are watching and hunting me at all times." },
-                { range: [81, 85], flaw: "I trust only one person. And only I can see this special friend." },
-                { range: [86, 95], flaw: "I can’t take anything seriously. The more serious, the funnier I find it." },
-                { range: [86, 100], flaw: "I’ve discovered that I really like killing people." }
+                { range: [71, 80], flaw: "I am convinced that powerful enemies are hunting me, and their agents are everywhere I go. I am sure they’re watching me all the time." },
+                { range: [81, 85], flaw: "There’s only one person I can trust. And only I can see this special friend." },
+                { range: [86, 95], flaw: "I can’t take anything seriously. The more serious the situation, the funnier I find it." },
+                { range: [96, 100], flaw: "I’ve discovered that I really like killing people." }
             ];
             const match = table.find(e => d100 >= e.range[0] && d100 <= e.range[1]);
             effect = `**Flaw:** "${match?.flaw || 'Murderous urges'}"`;
@@ -711,18 +717,18 @@ export const resolvePatternSanityCheck = async (pcId, dc, spellDC, cardId) => {
             type = "Long-Term";
             durationText = `${(Math.floor(Math.random() * 10) + 1) * 10} hours`;
             const table = [
-                { range: [1, 10], effect: "Compelled to repeat a specific activity over and over." },
+                { range: [1, 10], effect: "Compelled to repeat a specific activity over and over, such as washing hands, touching things, praying, or counting coins." },
                 { range: [11, 20], effect: "Vivid hallucinations; disadvantage on ability checks." },
                 { range: [21, 30], effect: "Extreme paranoia; disadvantage on Wisdom and Charisma checks." },
-                { range: [31, 40], effect: "Intense revulsion toward a nearby object or creature." },
+                { range: [31, 40], effect: "Intense revulsion toward something (usually the source of madness), as if affected by the antipathy/sympathy spell." },
                 { range: [41, 45], effect: "Powerful delusion: believe you are under the effect of a random potion." },
-                { range: [46, 55], effect: "Attached to a 'lucky charm'; disadvantage on checks/attacks if more than 30ft away." },
+                { range: [46, 55], effect: "Attached to a 'lucky charm'; disadvantage on checks/attacks/saves if more than 30ft away." },
                 { range: [56, 65], effect: "Blinded (25%) or deafened (75%)." },
-                { range: [66, 75], effect: "Uncontrollable tremors; disadvantage on checks/saves involving Strength or Dexterity." },
-                { range: [76, 85], effect: "Partial amnesia; you do not recognize companions or remember past events." },
-                { range: [86, 90], effect: "Taking damage forces a DC 15 Wis save or triggers Confusion for 1 minute." },
+                { range: [66, 75], effect: "Uncontrollable tremors or tics; disadvantage on checks/saves/attacks involving Strength or Dexterity." },
+                { range: [76, 85], effect: "Partial amnesia; knows who they are, but doesn't recognize companions or remember past events." },
+                { range: [86, 90], effect: "Whenever taking damage, must succeed on a DC 15 Wisdom saving throw or be affected by Confusion for 1 minute." },
                 { range: [91, 95], effect: "You completely lose the ability to speak." },
-                { range: [96, 100], effect: "You fall unconscious and cannot be awoken by any means." }
+                { range: [96, 100], effect: "You fall unconscious and no amount of jostling or damage can wake you." }
             ];
             const match = table.find(e => d100 >= e.range[0] && d100 <= e.range[1]);
             effect = `**Symptom:** ${match?.effect || 'Amnesia'}`;
@@ -730,14 +736,14 @@ export const resolvePatternSanityCheck = async (pcId, dc, spellDC, cardId) => {
             type = "Short-Term";
             durationText = `${Math.floor(Math.random() * 10) + 1} minutes`;
             const table = [
-                { range: [1, 20], effect: "Paralyzed within your own mind. Ends early if you take any damage." },
+                { range: [1, 20], effect: "Retreats into mind and becomes paralyzed. Ends early if you take any damage." },
                 { range: [21, 30], effect: "Incapacitated: spend the duration screaming, laughing, or weeping." },
-                { range: [31, 40], effect: "Frightened: must use all movement and actions to flee from the source." },
+                { range: [31, 40], effect: "Frightened: must use all movement and actions each round to flee from the source." },
                 { range: [41, 50], effect: "Babbling: incapable of normal speech or spellcasting." },
-                { range: [51, 60], effect: "Homocidal: must use actions to attack the nearest creature." },
+                { range: [51, 60], effect: "Homocidal: must use action each round to attack the nearest creature." },
                 { range: [61, 70], effect: "Vivid hallucinations; disadvantage on ability checks." },
-                { range: [71, 75], effect: "Suggestible: you do whatever you are told (unless obviously self-destructive)." },
-                { range: [76, 80], effect: "Uncontrollable urge to eat dirt, mud, or offal." },
+                { range: [71, 75], effect: "Suggestible: does whatever anyone tells them to do that isn’t obviously self-destructive." },
+                { range: [76, 80], effect: "Overpowering urge to eat something strange such as dirt, slime, or offal." },
                 { range: [81, 90], effect: "Stunned." },
                 { range: [91, 100], effect: "Unconscious." }
             ];
@@ -759,7 +765,7 @@ export const resolvePatternSanityCheck = async (pcId, dc, spellDC, cardId) => {
     <div class="mt-3 p-4 bg-white border border-[#d4c5a9] rounded-sm text-xs shadow-sm animate-in">
         <h5 class="font-bold text-stone-500 uppercase tracking-widest text-[10px] border-b border-[#d4c5a9] pb-1 mb-2"><i class="fa-solid fa-brain"></i> Sanity Resolution</h5>
         <div class="bg-stone-50 p-2 rounded text-[11px] text-stone-600 mb-2 font-mono shadow-inner border border-stone-200">
-            Roll: 1d20 (${d20}) + WIS Mod (${wisMod >= 0 ? '+' : ''}${wisMod}) = <strong>${saveTotal}</strong> vs DC ${dc}
+            Roll: 1d20 (${d20}) + ${usedStat} (${sanMod >= 0 ? '+' : ''}${sanMod}) = <strong>${saveTotal}</strong> vs DC ${dc}
         </div>
         <p class="font-sans font-bold text-sm ${isSuccess ? 'text-emerald-600' : 'text-red-600'}">${resultHeader}</p>
         <p class="font-serif leading-relaxed text-xs mt-1 text-stone-700">${resultBody}</p>
@@ -780,7 +786,7 @@ export const resolvePatternSanityCheck = async (pcId, dc, spellDC, cardId) => {
     }
 
     // 2. Generate Pure Markdown for the Database
-    let mdSanity = `\n---\n\n### ${resultHeader}\n**Roll:** 1d20 (${d20}) + WIS Mod (${wisMod >= 0 ? '+' : ''}${wisMod}) = **${saveTotal}** vs DC ${dc}\n*${resultBody.replace(/\*/g, '')}*`;
+    let mdSanity = `\n---\n\n### ${resultHeader}\n**Roll:** 1d20 (${d20}) + ${usedStat} (${sanMod >= 0 ? '+' : ''}${sanMod}) = **${saveTotal}** vs DC ${dc}\n*${resultBody.replace(/\*/g, '')}*`;
     if (madnessHtml) {
         mdSanity += `\n\n**${type} Madness (d100 = ${d100}):**\n${effect}\n*Duration: ${durationText}*`;
     }
