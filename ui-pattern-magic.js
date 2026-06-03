@@ -77,14 +77,15 @@ const PATTERN_THEME = {
     tempus: { label: "Tempus", desc: "Time & Entropy", color: "#d97706" }
 };
 
+// V5 Specific Tooltip Formats
 const EFFECT_TOOLTIPS = {
     range: "Dictates the maximum distance at which you can weave this magic.",
-    duration: "The length of time the physical ripples of your magic persist.",
+    duration: "The length of time the physical ripples of your magic persist.<br><br><div class='bg-amber-100/50 border border-amber-200 p-2 rounded-sm text-[10px]'><strong class='text-amber-800'>Note:</strong> Duration’s Essentia Cost will be assigned by the DM based on if a shorter or longer duration is more advantageous.</div>",
     activation: "The action economy and time required to cast the spell.",
     areaTargets: "The physical space or number of entities encompassed by the spell.",
     damageHealing: "The raw force, elemental energy, or restorative life woven into the spell.",
-    augmentia: "Alterations to physical laws, matter, or environmental properties.",
-    bolsterHinder: "Direct enhancements or supernatural penalties applied to checks and saves."
+    augmentia: "Alterations to physical laws, matter, or environmental properties.<br><br><div class='bg-stone-100 border border-stone-200 p-2 rounded-sm mt-2'><strong class='text-stone-900 block border-b border-stone-300 pb-1 mb-1 text-[10px] uppercase tracking-widest'>V5 Benchmark Examples</strong><ul class='space-y-1.5 text-[11px] mt-2'><li><b>Minor (+1):</b> Water Breathing, Feather Fall, Jump, detecting magic</li><li><b>Weak (+2):</b> Alter Self (minor physical changes), Longstrider, Spider Climb</li><li><b>Moderate (+3):</b> Fly, Haste, Slow, Gaseous Form, Water Walk</li><li><b>Strong (+4):</b> Alter Self (significant physical changes), Teleportation (short range)</li><li><b>Major (+5):</b> True Polymorph, Teleport, Plane Shift, Time Stop</li></ul></div>",
+    bolsterHinder: "Direct enhancements or supernatural penalties applied to checks and saves.<br><br><div class='bg-stone-100 border border-stone-200 p-2 rounded-sm mt-2'><strong class='text-stone-900 block border-b border-stone-300 pb-1 mb-1 text-[10px] uppercase tracking-widest'>Target Options by Tier</strong><ul class='space-y-1 text-[11px] mt-2'><li><b>Minor (+1):</b> Skill check</li><li><b>Weak (+2):</b> Skill check, saving throw, ability check</li><li><b>Moderate (+3):</b> Skill check, saving throw, ability check, attack roll</li><li><b>Strong (+4):</b> Skill, saving throw, ability check, attack roll, damage roll</li><li><b>Major (+5):</b> Skill, saving throw, ability check, attack roll, damage roll, AC</li></ul></div>"
 };
 
 // Ensure our draft state exists globally on active session load
@@ -354,7 +355,7 @@ function buildEffectsHTML(metrics, draft, pm, activePc) {
                 <div class="flex justify-between items-start mb-3 gap-2 flex-wrap border-b border-[#d4c5a9] pb-2">
                     <div class="flex items-center">
                         <h4 class="text-sm font-bold font-serif ${labelColorClass}">${labelText}</h4>
-                        <button type="button" onclick="window.appActions.openEffectInfoModal('${category}')" class="ml-2 text-stone-400 hover:text-amber-600 cursor-pointer transition-colors" title="View Effect Details"><i class="fa-solid fa-circle-info text-xs"></i></button>
+                        <button type="button" onclick="window.appActions.openEffectInfoModal('${category}')" class="ml-2 text-stone-400 hover:text-amber-600 cursor-pointer transition-colors" title="View Details"><i class="fa-solid fa-circle-info text-xs"></i></button>
                         ${starHtml}
                     </div>
                     ${specialToggleHtml}
@@ -916,7 +917,7 @@ if (typeof window !== 'undefined') {
                         <div class="mb-4">
                             ${isMandatory ? `<span class="bg-red-100 text-red-800 border border-red-200 px-2 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider shadow-sm">Mandatory (Baseline Tier 1)</span>` : `<span class="bg-stone-200 text-stone-600 border border-stone-300 px-2 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider shadow-sm">Optional Effect</span>`}
                         </div>
-                        <p class="text-xs text-stone-700 font-serif leading-relaxed mb-4">${tooltipText}</p>
+                        <div class="text-xs text-stone-700 font-serif leading-relaxed mb-4">${tooltipText}</div>
                         
                         <h4 class="text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-2 border-b border-[#d4c5a9] pb-1">Tier Scaling</h4>
                         <div class="bg-stone-50 border border-stone-200 rounded-sm shadow-inner max-h-64 overflow-y-auto custom-scrollbar">
