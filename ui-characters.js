@@ -417,7 +417,7 @@ export function getPCEditHTML(state) {
     ` : '';
 
     const dtSectionHtml = `
-    <div class="mt-6 bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner rounded-sm p-4 sm:p-6 flex flex-col">
+    <div class="mt-6 bg-white border border-[#d4c5a9] shadow-inner rounded-sm p-4 sm:p-6 flex flex-col">
         <div class="flex justify-between items-center border-b border-[#d4c5a9] pb-3 mb-5 gap-2">
             <div>
                 <h3 class="text-sm sm:text-base font-bold text-stone-800 font-serif flex items-center"><i class="fa-solid fa-clock-rotate-left text-blue-600 mr-2"></i> Downtime Activity Log</h3>
@@ -512,7 +512,7 @@ export function getPCEditHTML(state) {
     return `
     <div class="animate-in slide-in-from-bottom-4 duration-300 bg-[#f4ebd8] rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col max-w-4xl mx-auto mb-8">
         
-        <div class="bg-stone-900 p-4 border-b-4 border-red-900 text-amber-500 flex justify-between items-center relative">
+        <div class="bg-stone-900 p-4 border-b-4 border-red-900 text-amber-500 flex justify-between items-center relative shrink-0">
             <h2 class="text-xl sm:text-2xl font-serif font-bold z-10 flex items-center">
                 <i class="fa-solid fa-user-pen mr-3 text-red-700"></i> ${title}
             </h2>
@@ -521,142 +521,163 @@ export function getPCEditHTML(state) {
             </div>
         </div>
 
-        <div class="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
-            
+        <div class="p-4 sm:px-6 lg:px-8 pt-4 pb-0 shrink-0">
             <div class="bg-blue-900/10 border-l-4 border-blue-600 p-4 rounded-sm text-sm text-stone-800 italic flex flex-col sm:flex-row gap-4 items-center justify-between">
                 <div>
                     <i class="fa-solid fa-circle-info text-blue-600 mr-2"></i> When you save this journal, a <strong>Public Profile</strong> will automatically be generated (or updated) in the Codex so the rest of the party can read what your hero looks like!
                 </div>
             </div>
+        </div>
+
+        <!-- Tabs Navigation -->
+        <div class="flex bg-[#e8dec7] border-b-2 border-stone-300 shrink-0 px-2 sm:px-4 pt-4 gap-1 overflow-x-auto hide-scrollbar z-10 relative mt-4 mx-4 sm:mx-6 lg:mx-8">
+            <button type="button" id="pc-tab-btn-identity" class="pc-tab-btn whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition bg-[#fdfbf7] text-red-900 border-t-2 border-l border-r border-[#d4c5a9] border-t-red-900" onclick="window.switchPCEditTab('identity')">Identity & Stats</button>
+            <button type="button" id="pc-tab-btn-lore" class="pc-tab-btn whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-600 border-t-2 border-l border-r border-transparent hover:text-stone-800" onclick="window.switchPCEditTab('lore')">Lore & Persona</button>
+            <button type="button" id="pc-tab-btn-inventory" class="pc-tab-btn whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-600 border-t-2 border-l border-r border-transparent hover:text-stone-800" onclick="window.switchPCEditTab('inventory')">Inventory & Logs</button>
+            ${isDM ? `<button type="button" id="pc-tab-btn-dm" class="pc-tab-btn whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-600 border-t-2 border-l border-r border-transparent hover:text-stone-800" onclick="window.switchPCEditTab('dm')"><i class="fa-solid fa-crown mr-1"></i> DM Overview</button>` : ''}
+        </div>
+
+        <div class="p-4 sm:p-6 lg:p-8 bg-[#fdfbf7] flex-grow">
             
-            <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-sm shadow-inner flex flex-wrap gap-4 items-center justify-between">
-                <div>
-                    <h3 class="text-xs font-bold text-blue-900 uppercase tracking-widest mb-1"><i class="fa-solid fa-hourglass-half mr-1"></i> Available Downtime</h3>
-                    <p class="text-[10px] text-blue-700 italic">Used for resting, crafting, researching, and other off-screen activities.</p>
+            <!-- TAB 1: IDENTITY & STATS -->
+            <div id="pc-tab-content-identity" class="pc-tab-content space-y-6 sm:space-y-8 animate-in">
+                <!-- CORE IDENTIFIERS -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 bg-white p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-inner">
+                    ${playerAssignHTML}
+                    <div class="col-span-1 sm:col-span-2 lg:col-span-1">
+                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Hero Name *</label>
+                        <input type="text" id="pc-edit-name" value="${pc.name}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 shadow-sm outline-none font-serif ${coreClass}" placeholder="e.g. Eldrin">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Race / Lineage</label>
+                        <input type="text" id="pc-edit-race" value="${pc.race || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. Wood Elf">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Class & Level</label>
+                        <input type="text" id="pc-edit-class" value="${pc.classLevel || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. Ranger 4">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Background</label>
+                        <input type="text" id="pc-edit-background" value="${pc.background || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. Acolyte">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Alignment</label>
+                        <input type="text" id="pc-edit-alignment" value="${pc.alignment || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. Chaotic Good">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Faith / Deity</label>
+                        <input type="text" id="pc-edit-faith" value="${pc.faith || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. Corellon Larethian">
+                    </div>
+                    <div class="col-span-1 sm:col-span-2 lg:col-span-3 mt-2 border-t border-[#d4c5a9] pt-4">
+                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Portrait Image URL</label>
+                        <input type="text" id="pc-edit-image" value="${pc.image || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="https://example.com/portrait.jpg">
+                    </div>
+                    <div class="col-span-1 sm:col-span-2 lg:col-span-3 mt-2 flex gap-2 items-end">
+                        <div class="flex-grow">
+                            <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">D&D Beyond Character ID / URL</label>
+                            <input type="text" id="pc-edit-ddb-id" value="${pc.ddbId || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. 12345678 or full URL">
+                        </div>
+                        <button type="button" id="btn-sync-stats" onclick="window.appActions.quickSyncDDB('${pc.id}')" class="px-4 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] shadow-sm whitespace-nowrap h-[38px] flex items-center">
+                            <i class="fa-solid fa-cloud-arrow-down sm:mr-2"></i> <span class="hidden sm:inline">Sync Stats</span>
+                        </button>
+                    </div>
                 </div>
-                <div class="flex items-center gap-2">
-                    ${isDM ? `<input type="number" id="pc-edit-downtime" value="${downtimeDays}" class="w-20 p-2 border border-blue-300 rounded-sm text-sm font-bold text-blue-900 bg-white text-center shadow-inner focus:outline-none focus:border-blue-600"> <span class="text-[10px] font-bold uppercase text-blue-800 tracking-wider">Days</span>` : `<span class="text-2xl font-black text-blue-600">${downtimeDays}</span> <span class="text-[10px] font-bold uppercase text-blue-800 tracking-wider mt-1">Days</span>`}
+
+                <!-- CHARACTERISTICS -->
+                <div class="bg-white p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-inner">
+                    <h3 class="text-xs sm:text-sm font-bold text-stone-800 font-serif mb-3 border-b border-[#d4c5a9] pb-1">Characteristics</h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Gender</label>
+                            <input type="text" id="pc-edit-gender" value="${pc.gender || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Age</label>
+                            <input type="text" id="pc-edit-age" value="${pc.age || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Size</label>
+                            <input type="text" id="pc-edit-size" value="${pc.size || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="Medium">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Height</label>
+                            <input type="text" id="pc-edit-height" value="${pc.height || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Weight</label>
+                            <input type="text" id="pc-edit-weight" value="${pc.weight || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Eyes</label>
+                            <input type="text" id="pc-edit-eyes" value="${pc.eyes || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Hair</label>
+                            <input type="text" id="pc-edit-hair" value="${pc.hair || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Skin</label>
+                            <input type="text" id="pc-edit-skin" value="${pc.skin || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CORE ATTRIBUTES SECTION -->
+                <div class="bg-white p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-inner mt-4 sm:mt-6">
+                    <h3 class="text-xs sm:text-sm font-bold text-stone-800 font-serif mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-dumbbell mr-2 text-stone-500"></i> Core Attributes & Proficiencies</h3>
+                    <div class="grid grid-cols-3 sm:grid-cols-7 gap-4 mb-4">
+                        <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1 text-center">STR</label><input type="number" id="pc-edit-str" value="${pc.str || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none text-center ${coreClass}"></div>
+                        <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1 text-center">DEX</label><input type="number" id="pc-edit-dex" value="${pc.dex || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none text-center ${coreClass}"></div>
+                        <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1 text-center">CON</label><input type="number" id="pc-edit-con" value="${pc.con || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none text-center ${coreClass}"></div>
+                        <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1 text-center">INT</label><input type="number" id="pc-edit-int" value="${pc.int || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none text-center ${coreClass}"></div>
+                        <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1 text-center">WIS</label><input type="number" id="pc-edit-wis" value="${pc.wis || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none text-center ${coreClass}"></div>
+                        <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1 text-center">CHA</label><input type="number" id="pc-edit-cha" value="${pc.cha || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none text-center ${coreClass}"></div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-red-500 uppercase tracking-widest mb-1 text-center">SAN</label>
+                            <input type="number" id="pc-edit-san" value="${pc.san || ''}" class="w-full p-2 border border-red-300 rounded-sm text-sm font-bold text-red-900 shadow-sm outline-none text-center bg-red-50 focus:border-red-600">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-[#d4c5a9] pt-4">
+                        <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Saving Throws</label><input type="text" id="pc-edit-saves" value="${pc.saves || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. STR, CON"></div>
+                        <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Skills</label><input type="text" id="pc-edit-skills" value="${pc.skills || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. Athletics, Perception"></div>
+                        <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Other Proficiencies</label><input type="text" id="pc-edit-proficiencies" value="${pc.proficiencies || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="Languages, Tools, Weapons"></div>
+                    </div>
                 </div>
             </div>
 
-            <!-- CORE IDENTIFIERS -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 bg-[#fdfbf7] p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-inner">
-                ${playerAssignHTML}
-                <div class="col-span-1 sm:col-span-2 lg:col-span-1">
-                    <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Hero Name *</label>
-                    <input type="text" id="pc-edit-name" value="${pc.name}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 shadow-sm outline-none font-serif ${coreClass}" placeholder="e.g. Eldrin">
+            <!-- TAB 2: LORE & PERSONA -->
+            <div id="pc-tab-content-lore" class="pc-tab-content hidden space-y-6 sm:space-y-8 animate-in">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                    ${renderSmartField('pc-edit-traits', 'Personality Traits', pc.traits || '', 'What are their unique quirks?', 3, 'bg-white border border-[#d4c5a9] shadow-inner', false)}
+                    ${renderSmartField('pc-edit-ideals', 'Ideals', pc.ideals || '', 'What drives them?', 3, 'bg-white border border-[#d4c5a9] shadow-inner', false)}
+                    ${renderSmartField('pc-edit-bonds', 'Bonds', pc.bonds || '', 'Who or what do they care about?', 3, 'bg-white border border-[#d4c5a9] shadow-inner', false)}
+                    ${renderSmartField('pc-edit-flaws', 'Flaws', pc.flaws || '', 'What are their weaknesses?', 3, 'bg-white border border-[#d4c5a9] shadow-inner', false)}
                 </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Race / Lineage</label>
-                    <input type="text" id="pc-edit-race" value="${pc.race || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. Wood Elf">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Class & Level</label>
-                    <input type="text" id="pc-edit-class" value="${pc.classLevel || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. Ranger 4">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Background</label>
-                    <input type="text" id="pc-edit-background" value="${pc.background || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. Acolyte">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Alignment</label>
-                    <input type="text" id="pc-edit-alignment" value="${pc.alignment || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. Chaotic Good">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Faith / Deity</label>
-                    <input type="text" id="pc-edit-faith" value="${pc.faith || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. Corellon Larethian">
-                </div>
-                <div class="col-span-1 sm:col-span-2 lg:col-span-3 mt-2 border-t border-[#d4c5a9] pt-4">
-                    <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Portrait Image URL</label>
-                    <input type="text" id="pc-edit-image" value="${pc.image || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="https://example.com/portrait.jpg">
-                </div>
-                <div class="col-span-1 sm:col-span-2 lg:col-span-3 mt-2 flex gap-2 items-end">
-                    <div class="flex-grow">
-                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">D&D Beyond Character ID / URL</label>
-                        <input type="text" id="pc-edit-ddb-id" value="${pc.ddbId || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. 12345678 or full URL">
-                    </div>
-                    <button type="button" id="btn-sync-stats" onclick="window.appActions.quickSyncDDB('${pc.id}')" class="px-4 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] shadow-sm whitespace-nowrap h-[38px] flex items-center">
-                        <i class="fa-solid fa-cloud-arrow-down sm:mr-2"></i> <span class="hidden sm:inline">Sync Stats</span>
-                    </button>
-                </div>
-            </div>
 
-            <!-- CHARACTERISTICS -->
-            <div class="bg-[#fdfbf7] p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-inner">
-                <h3 class="text-xs sm:text-sm font-bold text-stone-800 font-serif mb-3 border-b border-[#d4c5a9] pb-1">Characteristics</h3>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    <div>
-                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Gender</label>
-                        <input type="text" id="pc-edit-gender" value="${pc.gender || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Age</label>
-                        <input type="text" id="pc-edit-age" value="${pc.age || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Size</label>
-                        <input type="text" id="pc-edit-size" value="${pc.size || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="Medium">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Height</label>
-                        <input type="text" id="pc-edit-height" value="${pc.height || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Weight</label>
-                        <input type="text" id="pc-edit-weight" value="${pc.weight || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Eyes</label>
-                        <input type="text" id="pc-edit-eyes" value="${pc.eyes || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Hair</label>
-                        <input type="text" id="pc-edit-hair" value="${pc.hair || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Skin</label>
-                        <input type="text" id="pc-edit-skin" value="${pc.skin || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs text-stone-700 shadow-sm outline-none ${coreClass}">
-                    </div>
-                </div>
-            </div>
-
-            <!-- CORE ATTRIBUTES SECTION -->
-            <div class="bg-[#fdfbf7] p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-inner mt-4 sm:mt-6">
-                <h3 class="text-xs sm:text-sm font-bold text-stone-800 font-serif mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-dumbbell mr-2 text-stone-500"></i> Core Attributes & Proficiencies</h3>
-                <div class="grid grid-cols-3 sm:grid-cols-7 gap-4 mb-4">
-                    <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1 text-center">STR</label><input type="number" id="pc-edit-str" value="${pc.str || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none text-center ${coreClass}"></div>
-                    <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1 text-center">DEX</label><input type="number" id="pc-edit-dex" value="${pc.dex || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none text-center ${coreClass}"></div>
-                    <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1 text-center">CON</label><input type="number" id="pc-edit-con" value="${pc.con || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none text-center ${coreClass}"></div>
-                    <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1 text-center">INT</label><input type="number" id="pc-edit-int" value="${pc.int || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none text-center ${coreClass}"></div>
-                    <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1 text-center">WIS</label><input type="number" id="pc-edit-wis" value="${pc.wis || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none text-center ${coreClass}"></div>
-                    <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1 text-center">CHA</label><input type="number" id="pc-edit-cha" value="${pc.cha || ''}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-700 shadow-sm outline-none text-center ${coreClass}"></div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-red-500 uppercase tracking-widest mb-1 text-center">SAN</label>
-                        <input type="number" id="pc-edit-san" value="${pc.san || ''}" class="w-full p-2 border border-red-300 rounded-sm text-sm font-bold text-red-900 shadow-sm outline-none text-center bg-red-50 focus:border-red-600">
-                    </div>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-[#d4c5a9] pt-4">
-                    <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Saving Throws</label><input type="text" id="pc-edit-saves" value="${pc.saves || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. STR, CON"></div>
-                    <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Skills</label><input type="text" id="pc-edit-skills" value="${pc.skills || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="e.g. Athletics, Perception"></div>
-                    <div><label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Other Proficiencies</label><input type="text" id="pc-edit-proficiencies" value="${pc.proficiencies || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-700 shadow-sm outline-none ${coreClass}" placeholder="Languages, Tools, Weapons"></div>
-                </div>
-            </div>
-
-            <!-- PERSONALITY -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                ${renderSmartField('pc-edit-traits', 'Personality Traits', pc.traits || '', 'What are their unique quirks?', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', false)}
-                ${renderSmartField('pc-edit-ideals', 'Ideals', pc.ideals || '', 'What drives them?', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', false)}
-                ${renderSmartField('pc-edit-bonds', 'Bonds', pc.bonds || '', 'Who or what do they care about?', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', false)}
-                ${renderSmartField('pc-edit-flaws', 'Flaws', pc.flaws || '', 'What are their weaknesses?', 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', false)}
-            </div>
-
-            <!-- LORE & INVENTORY -->
-            <div class="space-y-4 sm:space-y-6">
-                ${renderSmartField('pc-edit-appearance', `<i class="fa-solid fa-user text-stone-500 mr-2"></i> Appearance`, pc.appearance || '', "Detailed physical description, scars, tattoos, clothing...", 4, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', false)}
-                ${renderSmartField('pc-edit-backstory', `<i class="fa-solid fa-book-open text-stone-500 mr-2"></i> Backstory`, pc.backstory || '', "The hero's origins...", 5, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner', false)}
+                ${renderSmartField('pc-edit-appearance', `<i class="fa-solid fa-user text-stone-500 mr-2"></i> Appearance`, pc.appearance || '', "Detailed physical description, scars, tattoos, clothing...", 4, 'bg-white border border-[#d4c5a9] shadow-inner', false)}
+                ${renderSmartField('pc-edit-backstory', `<i class="fa-solid fa-book-open text-stone-500 mr-2"></i> Backstory`, pc.backstory || '', "The hero's origins...", 5, 'bg-white border border-[#d4c5a9] shadow-inner', false)}
                 
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mt-4">
+                    ${renderSmartField('pc-edit-organizations', `<i class="fa-solid fa-users-rectangle text-stone-500 mr-2"></i> Organizations`, pc.organizations || '', "Factions, guilds, orders...", 3, 'bg-white border border-[#d4c5a9] shadow-inner h-full flex-grow', false)}
+                    ${renderSmartField('pc-edit-allies', `<i class="fa-solid fa-handshake text-stone-500 mr-2"></i> Allies`, pc.allies || '', "Friends, contacts...", 3, 'bg-white border border-[#d4c5a9] shadow-inner h-full flex-grow', false)}
+                    ${renderSmartField('pc-edit-enemies', `<i class="fa-solid fa-skull-crossbones text-stone-500 mr-2"></i> Enemies`, pc.enemies || '', "Rivals, villains...", 3, 'bg-white border border-[#d4c5a9] shadow-inner h-full flex-grow', false)}
+                </div>
+            </div>
+
+            <!-- TAB 3: INVENTORY & LOGS -->
+            <div id="pc-tab-content-inventory" class="pc-tab-content hidden space-y-6 sm:space-y-8 animate-in">
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-sm shadow-inner flex flex-wrap gap-4 items-center justify-between">
+                    <div>
+                        <h3 class="text-xs font-bold text-blue-900 uppercase tracking-widest mb-1"><i class="fa-solid fa-hourglass-half mr-1"></i> Available Downtime</h3>
+                        <p class="text-[10px] text-blue-700 italic">Used for resting, crafting, researching, and other off-screen activities.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        ${isDM ? `<input type="number" id="pc-edit-downtime" value="${downtimeDays}" class="w-20 p-2 border border-blue-300 rounded-sm text-sm font-bold text-blue-900 bg-white text-center shadow-inner focus:outline-none focus:border-blue-600"> <span class="text-[10px] font-bold uppercase text-blue-800 tracking-wider">Days</span>` : `<span class="text-2xl font-black text-blue-600">${downtimeDays}</span> <span class="text-[10px] font-bold uppercase text-blue-800 tracking-wider mt-1">Days</span>`}
+                    </div>
+                </div>
+
                 <!-- EQUIPMENT & WEALTH SECTION -->
-                <div class="bg-[#fdfbf7] p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-inner mt-4 sm:mt-6 mb-4 sm:mb-6">
+                <div class="bg-white p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-inner mt-4 sm:mt-6 mb-4 sm:mb-6">
                     <h3 class="text-xs sm:text-sm font-bold text-stone-800 font-serif mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-sack-dollar mr-2 text-stone-500"></i> Equipment & Wealth</h3>
                     <div class="mb-4 sm:mb-6">
                         <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Wealth & Currency</label>
@@ -668,17 +689,14 @@ export function getPCEditHTML(state) {
                     </div>
                 </div>
                 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mt-4">
-                    ${renderSmartField('pc-edit-organizations', `<i class="fa-solid fa-users-rectangle text-stone-500 mr-2"></i> Organizations`, pc.organizations || '', "Factions, guilds, orders...", 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner h-full flex-grow', false)}
-                    ${renderSmartField('pc-edit-allies', `<i class="fa-solid fa-handshake text-stone-500 mr-2"></i> Allies`, pc.allies || '', "Friends, contacts...", 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner h-full flex-grow', false)}
-                    ${renderSmartField('pc-edit-enemies', `<i class="fa-solid fa-skull-crossbones text-stone-500 mr-2"></i> Enemies`, pc.enemies || '', "Rivals, villains...", 3, 'bg-[#fdfbf7] border border-[#d4c5a9] shadow-inner h-full flex-grow', false)}
-                </div>
-                
                 ${dtSectionHtml}
                 ${pmSectionHtml}
+            </div>
 
-                ${isDM ? `
-                <div class="mt-6 bg-stone-100 p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-inner">
+            <!-- TAB 4: DM OVERVIEW -->
+            ${isDM ? `
+            <div id="pc-tab-content-dm" class="pc-tab-content hidden space-y-6 sm:space-y-8 animate-in">
+                <div class="bg-stone-100 p-4 sm:p-5 rounded-sm border border-[#d4c5a9] shadow-inner">
                     <h3 class="text-xs sm:text-sm font-bold text-stone-800 font-serif mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-cake-candles mr-2 text-pink-600"></i> Player Anniversary & Birthday</h3>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                         <div>
@@ -705,7 +723,7 @@ export function getPCEditHTML(state) {
                     <p class="text-[9px] text-stone-500 italic mt-2">Saving a Start Date automatically tracks how many Birthday Boons this player has earned!</p>
                 </div>
 
-                <div class="mt-6 bg-amber-50 p-4 sm:p-5 rounded-sm border border-amber-300 shadow-inner">
+                <div class="bg-amber-50 p-4 sm:p-5 rounded-sm border border-amber-300 shadow-inner">
                     <h3 class="text-xs sm:text-sm font-bold text-amber-900 font-serif mb-3 border-b border-amber-300 pb-1"><i class="fa-solid fa-lock-open mr-2"></i> Player Unlocks & Boons</h3>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div class="col-span-1 sm:col-span-2 flex items-center gap-2">
@@ -731,7 +749,7 @@ export function getPCEditHTML(state) {
                 </div>
 
                 <!-- PATTERN MAGIC CONFIGURATION (DM ONLY) -->
-                <div class="mt-6 bg-stone-900 text-stone-100 p-4 sm:p-5 rounded-sm border border-stone-800 shadow-inner">
+                <div class="bg-stone-900 text-stone-100 p-4 sm:p-5 rounded-sm border border-stone-800 shadow-inner">
                     <h3 class="text-xs sm:text-sm font-bold text-cyan-400 font-mono mb-3 border-b border-stone-800 pb-1 flex items-center">
                         <i class="fa-solid fa-compass-drafting mr-2 animate-pulse"></i> Pattern Magic Configuration (DM Override)
                     </h3>
@@ -755,14 +773,14 @@ export function getPCEditHTML(state) {
                         }).join('')}
                     </div>
                 </div>
-                ` : ''}
 
-                ${isDM ? renderSmartField('pc-edit-dmnotes', `<i class="fa-solid fa-eye text-red-900 mr-2"></i> DM's Secret Notes`, pc.dmNotes || '', 'Hooks, secrets, curses, or background ties...', 4, 'bg-stone-200 border border-[#d4c5a9] shadow-inner border-l-4 border-l-red-900', false) : ''}
+                ${renderSmartField('pc-edit-dmnotes', `<i class="fa-solid fa-eye text-red-900 mr-2"></i> DM's Secret Notes`, pc.dmNotes || '', 'Hooks, secrets, curses, or background ties...', 4, 'bg-stone-200 border border-[#d4c5a9] shadow-inner border-l-4 border-l-red-900', false)}
             </div>
+            ` : ''}
 
         </div>
 
-        <div class="bg-[#e8dec7] p-4 border-t border-[#d4c5a9] flex flex-wrap-reverse sm:flex-nowrap justify-between items-center gap-4">
+        <div class="bg-[#e8dec7] p-4 border-t border-[#d4c5a9] flex flex-wrap-reverse sm:flex-nowrap justify-between items-center gap-4 shrink-0 z-10 shadow-[0_-4px_10px_rgba(0,0,0,0.1)]">
             <div>
                 ${(!isNew && isDM) ? `<button onclick="window.appActions.deletePC('${pc.id}')" class="px-4 py-2 text-stone-500 hover:text-red-700 hover:bg-red-900/10 rounded-sm transition font-bold uppercase tracking-wider text-[10px] sm:text-xs flex items-center"><i class="fa-solid fa-skull mr-2"></i> Remove Hero</button>` : '<div></div>'}
             </div>
@@ -1211,7 +1229,6 @@ const parseDDBCharacter = (charData) => {
     };
 };
 
-// --- NEW PROXY CASCADE ENGINE ---
 const fetchWithProxyCascade = async (targetUrl) => {
     const proxies = [
         `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
@@ -1239,7 +1256,6 @@ const fetchWithProxyCascade = async (targetUrl) => {
         }
     }
     
-    // If we exhaust the loop, all proxies failed
     throw new Error("All CORS proxies failed. D&D Beyond might be down, or you are being rate-limited. Please try again later.");
 };
 
@@ -1298,7 +1314,6 @@ export const fetchAndAnalyzeDndBeyond = async () => {
         const cacheBust = new Date().getTime();
         const apiUrl = `https://character-service.dndbeyond.com/character/v5/character/${characterId}?cb=${cacheBust}`;
         
-        // Execute the new Proxy Cascade!
         const ddbData = await fetchWithProxyCascade(apiUrl);
         
         if (!ddbData || !ddbData.success || !ddbData.data) {
@@ -1429,7 +1444,6 @@ export const quickSyncDDB = async (pcId) => {
         const cacheBust = new Date().getTime();
         const apiUrl = `https://character-service.dndbeyond.com/character/v5/character/${characterId}?cb=${cacheBust}`;
         
-        // Execute the new Proxy Cascade!
         const ddbData = await fetchWithProxyCascade(apiUrl);
 
         if (!ddbData || !ddbData.success || !ddbData.data) {
@@ -1517,12 +1531,26 @@ export const quickSyncDDB = async (pcId) => {
     }
 };
 
-// ============================================================================
-// --- GLOBAL EXPORTS BINDING ---
-// ============================================================================
 if (typeof window !== 'undefined') {
     window.appActions = window.appActions || {};
     
+    window.switchPCEditTab = (tabId) => {
+        const tabs = ['identity', 'lore', 'inventory', 'dm'];
+        tabs.forEach(t => {
+            const btn = document.getElementById(`pc-tab-btn-${t}`);
+            const content = document.getElementById(`pc-tab-content-${t}`);
+            if (!btn || !content) return;
+
+            if (t === tabId) {
+                btn.className = "pc-tab-btn whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition bg-[#fdfbf7] text-red-900 border-t-2 border-l border-r border-[#d4c5a9] border-t-red-900";
+                content.classList.remove('hidden');
+            } else {
+                btn.className = "pc-tab-btn whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-600 border-t-2 border-l border-r border-transparent hover:text-stone-800";
+                content.classList.add('hidden');
+            }
+        });
+    };
+
     // Bind General Actions
     window.appActions.savePCEdit = savePCEdit;
     window.appActions.deletePC = deletePC;
