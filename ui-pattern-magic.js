@@ -417,13 +417,17 @@ export function getPatternNexusHTML(state) {
     }
 
     // Character Switching Interface
+    const allowedWeavers = (camp.playerCharacters || []).filter(p => {
+        const hasAccess = p.patternMagicUnlocked || isDM;
+        const isOwner = p.playerId === myUid;
+        return hasAccess && (isOwner || isDM);
+    });
+
     const pcSelectorHtml = `
         <div class="flex items-center gap-2 bg-[#fdfbf7] px-3 py-1.5 border border-[#d4c5a9] rounded-sm shadow-sm">
             <span class="text-[10px] uppercase tracking-widest text-stone-500 font-bold"><i class="fa-solid fa-user-circle mr-1"></i> Weaver:</span>
             <select onchange="window.appActions.switchPatternPc(this.value)" class="bg-transparent text-stone-900 border-none outline-none text-sm font-bold font-serif cursor-pointer py-0.5">
-                ${camp.playerCharacters?.map(p => {
-                    const hasAccess = p.patternMagicUnlocked || isDM;
-                    if (!hasAccess) return '';
+                ${allowedWeavers.map(p => {
                     const isSelected = p.id === activePcId ? 'selected' : '';
                     return `<option value="${p.id}" ${isSelected}>${p.name}</option>`;
                 }).join('')}
