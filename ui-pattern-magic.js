@@ -382,12 +382,12 @@ export function getPatternNexusHTML(state) {
     const isDM = camp._isDM;
 
     // Fetch active PC, with intelligent DM fallback
-    let activePcId = state.activePatternPcId || (camp.playerCharacters?.find(p => p.playerId === myUid)?.id) || '';
+    let activePcId = state.activePatternPcId || (camp.playerCharacters && camp.playerCharacters.find(p => p.playerId === myUid)?.id) || '';
     if (!activePcId && isDM && camp.playerCharacters && camp.playerCharacters.length > 0) {
         const firstValid = camp.playerCharacters.find(p => p.patternMagicUnlocked);
         activePcId = firstValid ? firstValid.id : camp.playerCharacters[0].id;
     }
-    const activePc = camp.playerCharacters?.find(p => p.id === activePcId);
+    const activePc = camp.playerCharacters && camp.playerCharacters.find(p => p.id === activePcId);
     
     if (!activePc) {
         return `
@@ -1043,8 +1043,13 @@ if (typeof window !== 'undefined') {
         const dmgTypes = PATTERN_CONFIG.DamageTypesByPattern[patternKey] || [];
         
         const camp = window.appData.activeCampaign;
-        const activePcId = window.appData.activePatternPcId || (camp.playerCharacters && camp.playerCharacters.find(p => p.playerId === window.appData.currentUserUid)?.id) || '';
+        let activePcId = window.appData.activePatternPcId || (camp.playerCharacters && camp.playerCharacters.find(p => p.playerId === window.appData.currentUserUid)?.id) || '';
+        if (!activePcId && camp._isDM && camp.playerCharacters && camp.playerCharacters.length > 0) {
+            const firstValid = camp.playerCharacters.find(p => p.patternMagicUnlocked);
+            activePcId = firstValid ? firstValid.id : camp.playerCharacters[0].id;
+        }
         const activePc = camp.playerCharacters && camp.playerCharacters.find(p => p.id === activePcId);
+        
         const pm = activePc ? getOrInitPatternState(activePc) : {};
         const rank = pm[patternKey] || 0;
         const titleText = rank > 0 ? PATTERN_CONFIG.ExpertiseTitles[rank] : "Unlearned";
@@ -1177,7 +1182,13 @@ if (typeof window !== 'undefined') {
     // The core seamless updater function!
     window.appActions.refreshTapestryUI = () => {
         const camp = window.appData.activeCampaign;
-        const activePcId = window.appData.activePatternPcId || (camp.playerCharacters && camp.playerCharacters.find(p => p.playerId === window.appData.currentUserUid)?.id) || '';
+        const isDM = camp && camp._isDM;
+        
+        let activePcId = window.appData.activePatternPcId || (camp.playerCharacters && camp.playerCharacters.find(p => p.playerId === window.appData.currentUserUid)?.id) || '';
+        if (!activePcId && isDM && camp.playerCharacters && camp.playerCharacters.length > 0) {
+            const firstValid = camp.playerCharacters.find(p => p.patternMagicUnlocked);
+            activePcId = firstValid ? firstValid.id : camp.playerCharacters[0].id;
+        }
         const activePc = camp.playerCharacters && camp.playerCharacters.find(p => p.id === activePcId);
         if (!activePc) return;
         
@@ -1186,7 +1197,7 @@ if (typeof window !== 'undefined') {
         const primary = draft.patterns[0] || null;
         const supports = draft.patterns.slice(1);
         
-        const cx = 160; const cy = 160; const radius = 105;
+        const radius = 105;
         const patternsList = Object.keys(PATTERN_THEME);
         
         // 1. ANIMATE THE LOOM
@@ -1198,9 +1209,6 @@ if (typeof window !== 'undefined') {
                 if (btn) {
                     btn.classList.remove('pulse-prime-sigil');
                     // Setting these styles natively triggers the CSS transition!
-                    // Restore pure polar coordinate transform for the spiral!
-                    btn.style.left = '112px';
-                    btn.style.top = '112px';
                     btn.style.transform = `rotate(${angleDeg}deg) translateX(${radius}px) rotate(${-angleDeg}deg) scale(1)`;
                     btn.className = 'sigil-btn absolute w-24 h-24 flex flex-col items-center justify-center cursor-pointer z-20 opacity-40 hover:opacity-100 hover:z-[100] group';
                     const img = btn.querySelector('img');
@@ -1213,8 +1221,6 @@ if (typeof window !== 'undefined') {
             // Primary Sigil glides to center and gets large
             const primeBtn = document.getElementById(`sigil-btn-${primary}`);
             if (primeBtn) {
-                primeBtn.style.left = '112px';
-                primeBtn.style.top = '112px';
                 primeBtn.style.transform = `rotate(-90deg) translateX(8px) rotate(90deg) scale(1.4)`;
                 const theme = PATTERN_THEME[primary];
                 primeBtn.className = 'sigil-btn absolute w-24 h-24 flex flex-col items-center justify-center cursor-pointer z-[100] opacity-100 pulse-prime-sigil group';
@@ -1232,8 +1238,6 @@ if (typeof window !== 'undefined') {
                 
                 if (btn) {
                     btn.classList.remove('pulse-prime-sigil');
-                    btn.style.left = '112px';
-                    btn.style.top = '112px';
                     btn.style.transform = `rotate(${angleDeg}deg) translateX(${radius}px) rotate(${-angleDeg}deg) scale(0.9)`;
                     const img = btn.querySelector('img');
                     
@@ -1503,4 +1507,3 @@ if (typeof window !== 'undefined') {
         reRender(true);
     };
 }
-```
