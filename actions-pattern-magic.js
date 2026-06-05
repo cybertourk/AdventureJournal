@@ -532,8 +532,8 @@ export const castPatternSpell = async (pcId, castConfig) => {
         `;
     }
     if (isSanityRequired) {
-        // We will test Sanity Save against a standard 10+Cost to remain appropriately deadly for high-cost spells
-        const sanityDc = 10 + cost;
+        // The Sanity Save DC now perfectly matches the new Spell DC (5 + Cost)
+        const sanityDc = dc;
         actionButtonsHtml += `
             <button onclick="window.appActions.resolvePatternSanityCheck('${pcId}', ${sanityDc}, ${dc}, '${cardId}')" id="btn-sanity-${cardId}" class="w-full py-2.5 bg-stone-800 hover:bg-stone-700 text-amber-50 rounded-sm font-bold uppercase text-[10px] tracking-widest shadow-md transition mt-2">
                 <i class="fa-solid fa-brain mr-1.5"></i> Save vs Mental Strain (DC ${sanityDc})
