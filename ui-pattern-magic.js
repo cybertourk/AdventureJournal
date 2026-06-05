@@ -944,7 +944,7 @@ if (typeof window !== 'undefined') {
                             <div class="space-y-4">
                                 <div class="bg-red-50 p-4 border border-red-200 rounded-sm shadow-inner">
                                     <h4 class="font-bold text-red-900 text-xs uppercase tracking-widest mb-1.5"><i class="fa-solid fa-brain mr-1"></i> Mental Strain (Sanity)</h4>
-                                    <p class="text-xs text-red-800 font-serif leading-snug mb-2">You must make a Sanity Saving Throw against <b>(10 + Essentia Cost)</b> if you:</p>
+                                    <p class="text-xs text-red-800 font-serif leading-snug mb-2">You must make a Sanity Saving Throw against <b>(5 + Essentia Cost)</b> if you:</p>
                                     <ul class="text-[10px] text-red-700 font-sans space-y-1 ml-4 list-disc">
                                         <li>Cast a High-Stress Spell (DC 20 or higher).</li>
                                         <li>Suffer a Chaotic Backlash (Natural roll of 1-5).</li>
