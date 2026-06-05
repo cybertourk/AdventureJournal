@@ -79,7 +79,7 @@ const PATTERN_THEME = {
 
 const EFFECT_TOOLTIPS = {
     range: "Dictates the maximum distance at which you can weave this magic.",
-    duration: "The length of time the physical ripples of your magic persist.<br><br><div class='bg-amber-100/50 border border-amber-200 p-2 rounded-sm text-[10px]'><strong class='text-amber-800'>Note:</strong> Duration’s Essentia Cost will be assigned by the DM based on if a shorter or longer duration is more advantageous.</div>",
+    duration: "The length of time the physical ripples of your magic persist.<br><br><div class='bg-amber-100/50 border border-amber-200 p-2 rounded-sm text-[10px]'><strong class='text-amber-800 block mb-1'>The Rule of Cost:</strong> The more beneficial the timing is to your spell's intent, the higher the Essentia cost will be.</div><ul class='space-y-1.5 text-[11px] mt-2'><li><b>Shorter is Better (Default):</b> Used when a sudden impact is the goal. <i>(e.g., an instantaneous fireball costs 5E, but a slow, delayed blast costs less)</i>.</li><li><b>Longer is Better (Toggle):</b> Used for buffs, debuffs, or utility where maintaining the effect over time is the goal. <i>(e.g., flying for 8 hours costs 5E, but flying for 1 round costs 2E)</i>.</li></ul>",
     activation: "The action economy and time required to cast the spell.",
     areaTargets: "The physical space or number of entities encompassed by the spell.",
     damageHealing: "The raw force, elemental energy, or restorative life woven into the spell.",
