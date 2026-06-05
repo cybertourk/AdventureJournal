@@ -6,6 +6,14 @@ import { logPlayerActivity } from './actions-campaign.js';
 // Pattern Magic Core Rules Configuration
 // =========================================================================
 export const PATTERN_CONFIG = {
+    ExpertiseTitles: [
+        "Unlearned", // Rank 0
+        "Impera",    // Rank 1
+        "Solitus",   // Rank 2
+        "Vexilla",   // Rank 3
+        "Caelum",    // Rank 4
+        "Arcanus"    // Rank 5
+    ],
     Affinities: {
         spatia: { primary: ['range', 'areaTargets'], secondary: ['bolsterHinder'] },
         wyird: { primary: ['bolsterHinder', 'augmentia'], secondary: ['duration'] },
@@ -44,34 +52,11 @@ export const PATTERN_CONFIG = {
             mandatory: false,
             tiers: [ 
                 { text: "None", cost: 0 }, 
-                { text: "Minor Effect", cost: 1, examples: [
-                    { name: 'Mending', tip: 'Physically reshape an object and fit broken pieces together.' },
-                    { name: 'Prestidigitation', tip: 'Create minor sensory effects and illusions or a small trinket.' },
-                    { name: 'Druidcraft', tip: 'Interact with natural life, predict weather, sensory effects.' },
-                    { name: 'Thaumaturgy', tip: 'Create overt physical phenomena: booming voice, tremors, altering flames.' },
-                    { name: 'Mage Hand', tip: 'Create a focused, invisible field of kinetic force to manipulate objects.' }
-                ]}, 
-                { text: "Weak Effect", cost: 2, examples: [
-                    { name: 'Movement (Jump/Spider Climb)', tip: 'Alter body or gravity to enhance movement capabilities.' },
-                    { name: 'Simple Object Creation', tip: 'Create a solid object like a Floating Disk or fold a pocket dimension.' },
-                    { name: 'Minor Alterations (Enlarge/Reduce)', tip: 'Reshape physical form or warp occupied space to stretch/shrink.' }
-                ]}, 
-                { text: "Moderate Effect", cost: 3, examples: [
-                    { name: 'Flight', tip: 'Grant biological wings, control gravity, or create a kinetic updraft.' },
-                    { name: 'Polymorph (Limited)', tip: 'Rewrite physical structure into a beast form.' },
-                    { name: 'Short-Range Teleportation', tip: 'Instantly cross short distances by folding space or accelerating time.' }
-                ]}, 
-                { text: "Strong Effect", cost: 4, examples: [
-                    { name: 'Advanced Creation (Fabricate)', tip: 'Accelerate time for raw materials or instantly shape complex objects.' },
-                    { name: 'Animate Objects', tip: 'Grant the semblance of life and rudimentary consciousness.' },
-                    { name: 'Advanced Teleportation', tip: 'Fold reality to connect distant points across the world.' },
-                    { name: 'Extradimensional Spaces', tip: 'Weave a new pocket of space or pry open a flaw in reality.' }
-                ]},
-                { text: "Major Effect", cost: 5, examples: [
-                    { name: 'True Polymorph', tip: 'Permanently reshape a creature\'s body and essence.' },
-                    { name: 'Planar Travel', tip: 'Create a direct bridge or conduit to another plane of existence.' },
-                    { name: 'Creation of Life', tip: 'Build life from the ground up by combining patterns of life, form, and mind.' }
-                ]}
+                { text: "Minor Effect", cost: 1 }, 
+                { text: "Weak Effect", cost: 2 }, 
+                { text: "Moderate Effect", cost: 3 }, 
+                { text: "Strong Effect", cost: 4 }, 
+                { text: "Major Effect", cost: 5 }
             ]
         },
         bolsterHinder: { 
@@ -101,6 +86,7 @@ export function getOrInitPatternState(pc) {
             essentia: 0, patternPoints: 0, rotes: []
         };
     }
+    // Guarantee fallback sub-arrays
     if (!Array.isArray(pc.patternMagic.rotes)) {
         pc.patternMagic.rotes = [];
     }
@@ -140,6 +126,7 @@ export const upgradePatternRank = async (pcId, patternKey) => {
     pm[patternKey] = (pm[patternKey] || 0) + 1;
     pm.patternPoints -= 1;
 
+    // Recalculate max Essentia dynamically: Total Ranks * 4
     const totalRanks = Object.keys(PATTERN_CONFIG.PatternAttributes).reduce((sum, key) => sum + (pm[key] || 0), 0);
     const maxEssentia = totalRanks * 4;
     pm.essentia = Math.min(pm.essentia, maxEssentia);
@@ -173,6 +160,7 @@ export const adjustPatternParameter = async (pcId, paramKey, amount) => {
     } else if (Object.keys(PATTERN_CONFIG.PatternAttributes).includes(paramKey)) {
         pm[paramKey] = Math.max(0, Math.min(5, (pm[paramKey] || 0) + amount));
         
+        // Recalculate max Essentia
         const totalRanks = Object.keys(PATTERN_CONFIG.PatternAttributes).reduce((sum, key) => sum + (pm[key] || 0), 0);
         const maxEssentia = totalRanks * 4;
         pm.essentia = Math.min(pm.essentia, maxEssentia);
@@ -205,6 +193,106 @@ export const setPcEssentia = async (pcId, value) => {
 
     await saveCampaign(camp);
     reRender();
+};
+
+// =========================================================================
+// Essentia Recovery Engine
+// =========================================================================
+
+export const rollEssentiaRecovery = async (pcId, recoveryType) => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    if (!camp) return;
+
+    const myUid = window.appData.currentUserUid;
+    const pcIndex = camp.playerCharacters?.findIndex(p => p.id === pcId);
+    if (pcIndex === -1) return;
+
+    const pc = camp.playerCharacters[pcIndex];
+    const pm = getOrInitPatternState(pc);
+
+    const totalRanks = Object.keys(PATTERN_CONFIG.PatternAttributes).reduce((sum, key) => sum + (pm[key] || 0), 0);
+    const maxEssentia = totalRanks * 4;
+
+    if (pm.essentia >= maxEssentia) {
+        notify("Essentia Reservoir is already full.", "info");
+        return;
+    }
+
+    let diceCount = 1;
+    let sourceName = "Long Rest";
+    
+    if (recoveryType === 'faint') { diceCount = 1; sourceName = "Pattern Node (Faint Echo)"; }
+    else if (recoveryType === 'resonant') { diceCount = 2; sourceName = "Pattern Node (Resonant Locus)"; }
+    else if (recoveryType === 'vibrant') { diceCount = 3; sourceName = "Pattern Node (Vibrant Nexus)"; }
+
+    let rollTotal = 0;
+    let rollBreakdown = [];
+    for(let i=0; i<diceCount; i++) {
+        const roll = Math.floor(Math.random() * 6) + 1;
+        rollTotal += roll;
+        rollBreakdown.push(roll);
+    }
+
+    const oldEssentia = pm.essentia || 0;
+    const newEssentia = Math.min(maxEssentia, oldEssentia + rollTotal);
+    const amountRecovered = newEssentia - oldEssentia;
+
+    pm.essentia = newEssentia;
+
+    // Build the Popup HTML Modal for instant feedback
+    const responseHtml = `
+    <div class="mt-3 p-4 bg-white border border-[#d4c5a9] rounded-sm text-xs shadow-sm animate-in relative z-10" onclick="event.stopPropagation();">
+        <h5 class="font-bold text-stone-500 uppercase tracking-widest text-[10px] border-b border-[#d4c5a9] pb-1 mb-2"><i class="fa-solid fa-bed mr-1"></i> Recovery: ${sourceName}</h5>
+        <div class="bg-stone-50 p-2 rounded text-[11px] text-stone-600 mb-2 font-mono shadow-inner border border-stone-200">
+            Roll: ${diceCount}d6 (${rollBreakdown.join(' + ')}) = <strong>${rollTotal}</strong>
+        </div>
+        <p class="font-sans font-bold text-sm text-emerald-600">Essentia Restored: +${amountRecovered}</p>
+        <p class="font-serif leading-relaxed text-xs mt-1 text-stone-700">Reservoir is now at ${newEssentia} / ${maxEssentia}.</p>
+    </div>`;
+
+    const modalHtml = `
+    <div class="fixed inset-0 bg-stone-950/90 z-[30000] flex items-center justify-center p-4 backdrop-blur-sm animate-in pointer-events-auto" id="pattern-result-modal">
+        <div class="max-w-sm w-full relative flex justify-center">
+            <div class="bg-[#fdfbf7] text-stone-900 rounded-sm border border-[#d4c5a9] shadow-2xl font-sans relative z-10 text-left flex flex-col w-full" onclick="event.stopPropagation();">
+                <div class="bg-stone-900 p-3 sm:p-4 border-b-4 border-emerald-600 shadow-md flex justify-between items-center text-emerald-50 shrink-0 rounded-t-sm">
+                    <h4 class="font-serif font-bold text-base flex items-center"><i class="fa-solid fa-battery-half mr-2 text-emerald-400"></i> Essentia Restored</h4>
+                    <button onclick="document.getElementById('pattern-result-modal').remove();" class="text-stone-400 hover:text-white transition"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                <div class="p-4 sm:p-5">
+                    ${responseHtml}
+                </div>
+                <div class="bg-[#e8dec7] p-3 sm:p-4 border-t border-[#d4c5a9] shrink-0 rounded-b-sm shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
+                    <button onclick="document.getElementById('pattern-result-modal').remove();" class="w-full py-2 bg-stone-900 text-amber-50 rounded-sm font-bold uppercase tracking-wider text-[10px] shadow-md hover:bg-stone-800 transition">Dismiss</button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+    
+    document.getElementById('global-popup-container').innerHTML = modalHtml;
+
+    // Logging (Markdown format for the database)
+    const timestampStr = new Date().toLocaleDateString();
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
+    let logMarkdown = `### Recovery: ${sourceName}\n**Caster:** ${pc.name}\n**Roll:** ${diceCount}d6 (${rollBreakdown.join(' + ')}) = **${rollTotal}**\n**Recovered:** ${amountRecovered} Essentia (Now ${newEssentia}/${maxEssentia})`;
+    const logAddition = `\n\n---\n\n**Essentia Recovery**\n**Logged on ${timestampStr} at ${timeStr}**\n${logMarkdown}`;
+
+    const updatedPCs = camp.playerCharacters.map(p => {
+        if (p.id === pcId) {
+            return { ...p, patternLog: (p.patternLog || '') + logAddition };
+        }
+        return p;
+    });
+
+    let updatedCamp = { ...camp, playerCharacters: updatedPCs };
+
+    if (!camp._isDM) {
+        updatedCamp = logPlayerActivity(updatedCamp, myUid, `recovered **${amountRecovered} Essentia** via ${sourceName}.`, 'fa-battery-half');
+    }
+
+    await saveCampaign(updatedCamp);
+    reRender(true);
 };
 
 // =========================================================================
@@ -840,6 +928,7 @@ if (typeof window !== 'undefined') {
     window.appActions.upgradePatternRank = upgradePatternRank;
     window.appActions.adjustPatternParameter = adjustPatternParameter;
     window.appActions.setPcEssentia = setPcEssentia;
+    window.appActions.rollEssentiaRecovery = rollEssentiaRecovery;
     
     // Rote Controllers
     window.appActions.saveRote = saveRote;
