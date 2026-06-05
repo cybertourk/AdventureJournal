@@ -85,6 +85,7 @@ const injectTapestryStyles = () => {
         }
         .sigil-btn {
             transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+            /* PERFECT CENTER PIN: (320px container / 2) - (96px button / 2) = 160 - 48 = 112px */
             left: 112px; 
             top: 112px;
         }
@@ -712,7 +713,7 @@ export function getPatternNexusHTML(state) {
                                 </svg>
 
                                 <!-- Node buttons (Tethered to center perfectly) -->
-                                <div class="absolute" style="left: 160px; top: 160px; width: 0; height: 0;">
+                                <div class="absolute" style="left: 112px; top: 112px; width: 96px; height: 96px;">
                                     ${loomHtml}
                                 </div>
                             </div>
@@ -1263,45 +1264,7 @@ if (typeof window !== 'undefined') {
         const cx = 160; const cy = 160; const radius = 105;
         const patternsList = Object.keys(PATTERN_THEME);
         
-        // 1. DYNAMIC WEAVE BACKGROUND
-        const weaveEl = document.getElementById('dynamic-weave-layer');
-        if (weaveEl) {
-            const ranks = Object.keys(PATTERN_THEME).map(key => pm[key] || 0);
-            let maxRank = Math.max(...ranks);
-            if (maxRank === 0) maxRank = 1;
-
-            let activeColors = [];
-            Object.keys(PATTERN_THEME).forEach(key => {
-                if ((pm[key] || 0) > 0) activeColors.push(PATTERN_THEME[key].color);
-            });
-
-            if (activeColors.length === 0) {
-                activeColors = ['#1a1a24', '#0a0a0c'];
-            }
-
-            const threadSize = 16;
-            let vGrad = `repeating-linear-gradient(90deg, `;
-            activeColors.forEach((c, i) => {
-                vGrad += `${c} ${i*threadSize}px, ${c} ${(i+1)*threadSize - 2}px, rgba(0,0,0,0.8) ${(i+1)*threadSize - 2}px, rgba(0,0,0,0.8) ${(i+1)*threadSize}px${i < activeColors.length-1 ? ', ' : ''}`;
-            });
-            vGrad += `)`;
-
-            let hGrad = `repeating-linear-gradient(0deg, `;
-            activeColors.reverse().forEach((c, i) => {
-                hGrad += `${c} ${i*threadSize}px, ${c} ${(i+1)*threadSize - 2}px, rgba(0,0,0,0.8) ${(i+1)*threadSize - 2}px, rgba(0,0,0,0.8) ${(i+1)*threadSize}px${i < activeColors.length-1 ? ', ' : ''}`;
-            });
-            hGrad += `)`;
-
-            weaveEl.style.backgroundImage = `${hGrad}, ${vGrad}`;
-            weaveEl.style.backgroundBlendMode = activeColors.length > 2 ? 'screen' : 'normal';
-            weaveEl.style.backgroundColor = '#050505';
-
-            const blurAmount = (5 - maxRank) * 2;
-            const brightness = 0.4 + (maxRank * 0.15);
-            weaveEl.style.filter = `blur(${blurAmount}px) brightness(${brightness})`;
-        }
-
-        // 2. ANIMATE THE LOOM
+        // 1. ANIMATE THE LOOM
         if (!primary) {
             patternsList.forEach((key, index) => {
                 const angleDeg = index * (360 / 9) - 90;
@@ -1354,7 +1317,7 @@ if (typeof window !== 'undefined') {
             });
         }
         
-        // 3. UPDATE FORMS & METRICS (No page reload)
+        // 2. UPDATE FORMS & METRICS (No page reload)
         const metrics = calculateAffinityLimitsAndCosts(activePc, pm, draft);
         const formsContainer = document.getElementById('effects-scaffolding-container');
         if (formsContainer) {
