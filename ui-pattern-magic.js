@@ -23,26 +23,68 @@ const injectTapestryStyles = () => {
     const style = document.createElement('style');
     style.id = 'tapestry-core-styles';
     style.innerHTML = `
-        .arcane-tapestry-bg {
-            background-color: #292524;
-            background-image: url('https://www.transparenttextures.com/patterns/woven.png'), radial-gradient(circle at center, #44403c 0%, #1c1917 100%);
+        .dynamic-weave-bg {
+            position: absolute;
+            inset: -5%; /* Slight bleed to allow for pulsing without showing edges */
+            z-index: 0;
+            transition: filter 1.5s ease-in-out, background 1.5s ease-in-out;
+            /* Animated drifting effect */
+            animation: driftWeave 30s linear infinite alternate;
         }
-        .parchment-panel {
-            background-color: #fdfbf7;
-            background-image: url('https://www.transparenttextures.com/patterns/aged-paper.png');
-            border: 1px solid #d4c5a9;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06), inset 0 0 20px rgba(212, 197, 169, 0.2);
+        @keyframes driftWeave {
+            0% { transform: scale(1.05) translate(0, 0); }
+            100% { transform: scale(1.05) translate(-1%, -1%); }
         }
-        .leather-panel {
-            background-color: #292524;
-            background-image: url('https://www.transparenttextures.com/patterns/leather.png');
-            border: 2px solid #1c1917;
-            box-shadow: inset 0 0 15px rgba(0,0,0,0.8), 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+        .weave-vignette {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            background: radial-gradient(circle at center, transparent 10%, rgba(5,5,5,0.7) 70%, rgba(0,0,0,0.95) 100%);
+            pointer-events: none;
+        }
+
+        /* Glassmorphism UI */
+        .glass-panel {
+            background-color: rgba(20, 20, 25, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255,255,255,0.1);
+        }
+        .glass-input {
+            background-color: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #f3f4f6;
+            transition: all 0.2s;
+        }
+        .glass-input:focus {
+            background-color: rgba(0, 0, 0, 0.6);
+            border-color: #f59e0b;
+            outline: none;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+        }
+        .glass-btn {
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(4px);
+            transition: all 0.2s;
+        }
+        .glass-btn:hover:not(:disabled) {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+        .glass-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .loom-circle {
+            background: radial-gradient(circle, rgba(10,10,12,0.6) 0%, rgba(5,5,5,0.9) 100%);
+            box-shadow: inset 0 0 30px rgba(0,0,0,0.9), 0 0 20px rgba(217, 119, 6, 0.1);
+            border: 1px solid rgba(255,255,255,0.1);
         }
         .sigil-btn {
-            /* Transform handles the spiral, Opacity handles the fade-in */
-            transition: transform 1s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.8s ease;
-            /* Permanently pin all sigils perfectly to the center of the 320x320 SVG (160 - 48 = 112) */
+            transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
             left: 112px; 
             top: 112px;
         }
@@ -51,7 +93,14 @@ const injectTapestryStyles = () => {
         }
         @keyframes pulsePrimeSigil {
             0% { filter: drop-shadow(0 0 8px currentColor); transform: scale(1); }
-            100% { filter: drop-shadow(0 0 16px currentColor); transform: scale(1.05); }
+            100% { filter: drop-shadow(0 0 20px currentColor); transform: scale(1.05); }
+        }
+        @keyframes loomAppear {
+            0% { opacity: 0; filter: blur(4px); transform: scale(0.1); }
+            100% { opacity: 1; filter: blur(0px); transform: scale(1); }
+        }
+        .loom-entrance {
+            animation: loomAppear 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
         .spin-loom-slow {
             animation: spinLoom 40s linear infinite;
@@ -66,25 +115,25 @@ const injectTapestryStyles = () => {
 
 // Map each of the 9 magical disciplines to its rich, esoteric dye/ink color
 const PATTERN_THEME = {
-    spatia: { label: "Spatia", desc: "Space & Dimensions", color: "#0d9488" },
-    wyird: { label: "Wyird", desc: "Fate & Chaos", color: "#9333ea" },
-    dynamis: { label: "Dynamis", desc: "Energy & Elements", color: "#dc2626" },
-    vitar: { label: "Vitar", desc: "Life & Healing", color: "#16a34a" },
-    formus: { label: "Formus", desc: "Structure & Matter", color: "#475569" },
-    mentis: { label: "Mentis", desc: "Mind & Memory", color: "#db2777" },
-    arcani: { label: "Arcani", desc: "Pure Force & Magic", color: "#2563eb" },
-    umbrus: { label: "Umbrus", desc: "Shadow & Cold", color: "#312e81" },
-    tempus: { label: "Tempus", desc: "Time & Entropy", color: "#d97706" }
+    spatia: { label: "Spatia", desc: "Space & Dimensions", color: "#0ea5e9" }, // Bright Teal
+    wyird: { label: "Wyird", desc: "Fate & Chaos", color: "#a855f7" }, // Vivid Purple
+    dynamis: { label: "Dynamis", desc: "Energy & Elements", color: "#ef4444" }, // Bright Red
+    vitar: { label: "Vitar", desc: "Life & Healing", color: "#22c55e" }, // Vivid Green
+    formus: { label: "Formus", desc: "Structure & Matter", color: "#94a3b8" }, // Silver
+    mentis: { label: "Mentis", desc: "Mind & Memory", color: "#ec4899" }, // Pink
+    arcani: { label: "Arcani", desc: "Pure Force & Magic", color: "#3b82f6" }, // Bright Blue
+    umbrus: { label: "Umbrus", desc: "Shadow & Cold", color: "#4f46e5" }, // Deep Indigo
+    tempus: { label: "Tempus", desc: "Time & Entropy", color: "#f59e0b" }  // Bright Orange
 };
 
 const EFFECT_TOOLTIPS = {
     range: "Dictates the maximum distance at which you can weave this magic.",
-    duration: "The length of time the physical ripples of your magic persist.<br><br><div class='bg-amber-100/50 border border-amber-200 p-2 rounded-sm text-[10px]'><strong class='text-amber-800 block mb-1'>The Rule of Cost:</strong> The more beneficial the timing is to your spell's intent, the higher the Essentia cost will be.</div><ul class='space-y-1.5 text-[11px] mt-2'><li><b>Shorter is Better (Default):</b> Used when a sudden impact is the goal. <i>(e.g., an instantaneous fireball costs 5E, but a slow, delayed blast costs less)</i>.</li><li><b>Longer is Better (Toggle):</b> Used for buffs, debuffs, or utility where maintaining the effect over time is the goal. <i>(e.g., flying for 8 hours costs 5E, but flying for 1 round costs 2E)</i>.</li></ul>",
+    duration: "The length of time the physical ripples of your magic persist.<br><br><div class='bg-amber-900/40 border border-amber-500/50 p-2 rounded-sm text-[10px]'><strong class='text-amber-400 block mb-1'>The Rule of Cost:</strong> The more beneficial the timing is to your spell's intent, the higher the Essentia cost will be.</div><ul class='space-y-1.5 text-[11px] mt-2'><li><b>Shorter is Better (Default):</b> Used when a sudden impact is the goal. <i>(e.g., an instantaneous fireball costs 5E, but a slow, delayed blast costs less)</i>.</li><li><b>Longer is Better (Toggle):</b> Used for buffs, debuffs, or utility where maintaining the effect over time is the goal. <i>(e.g., flying for 8 hours costs 5E, but flying for 1 round costs 2E)</i>.</li></ul>",
     activation: "The action economy and time required to cast the spell.",
     areaTargets: "The physical space or number of entities encompassed by the spell.",
     damageHealing: "The raw force, elemental energy, or restorative life woven into the spell.",
-    augmentia: "Alterations to physical laws, matter, or environmental properties.<br><br><div class='bg-stone-100 border border-stone-200 p-2 rounded-sm mt-2'><strong class='text-stone-900 block border-b border-stone-300 pb-1 mb-1 text-[10px] uppercase tracking-widest'>V5 Benchmark Examples</strong><ul class='space-y-1.5 text-[11px] mt-2'><li><b>Minor (+1):</b> Water Breathing, Feather Fall, Jump, detecting magic</li><li><b>Weak (+2):</b> Alter Self (minor physical changes), Longstrider, Spider Climb</li><li><b>Moderate (+3):</b> Fly, Haste, Slow, Gaseous Form, Water Walk</li><li><b>Strong (+4):</b> Alter Self (significant physical changes), Teleportation</li><li><b>Major (+5):</b> True Polymorph, Teleport, Plane Shift, Time Stop</li></ul></div>",
-    bolsterHinder: "Direct enhancements or supernatural penalties applied to checks and saves.<br><br><div class='bg-stone-100 border border-stone-200 p-2 rounded-sm mt-2'><strong class='text-stone-900 block border-b border-stone-300 pb-1 mb-1 text-[10px] uppercase tracking-widest'>Target Options by Tier</strong><ul class='space-y-1 text-[11px] mt-2'><li><b>Minor (+1):</b> Skill check</li><li><b>Weak (+2):</b> Skill check, saving throw, ability check</li><li><b>Moderate (+3):</b> Skill check, saving throw, ability check, attack roll</li><li><b>Strong (+4):</b> Skill, saving throw, ability check, attack roll, damage roll</li><li><b>Major (+5):</b> Skill, saving throw, ability check, attack roll, damage roll, AC</li></ul></div>"
+    augmentia: "Alterations to physical laws, matter, or environmental properties.<br><br><div class='bg-stone-900/60 border border-stone-600 p-2 rounded-sm mt-2'><strong class='text-stone-300 block border-b border-stone-700 pb-1 mb-1 text-[10px] uppercase tracking-widest'>V5 Benchmark Examples</strong><ul class='space-y-1.5 text-[11px] mt-2'><li><b>Minor (+1):</b> Water Breathing, Feather Fall, Jump, detecting magic</li><li><b>Weak (+2):</b> Alter Self (minor physical changes), Longstrider, Spider Climb</li><li><b>Moderate (+3):</b> Fly, Haste, Slow, Gaseous Form, Water Walk</li><li><b>Strong (+4):</b> Alter Self (significant physical changes), Teleportation</li><li><b>Major (+5):</b> True Polymorph, Teleport, Plane Shift, Time Stop</li></ul></div>",
+    bolsterHinder: "Direct enhancements or supernatural penalties applied to checks and saves.<br><br><div class='bg-stone-900/60 border border-stone-600 p-2 rounded-sm mt-2'><strong class='text-stone-300 block border-b border-stone-700 pb-1 mb-1 text-[10px] uppercase tracking-widest'>Target Options by Tier</strong><ul class='space-y-1 text-[11px] mt-2'><li><b>Minor (+1):</b> Skill check</li><li><b>Weak (+2):</b> Skill check, saving throw, ability check</li><li><b>Moderate (+3):</b> Skill check, saving throw, ability check, attack roll</li><li><b>Strong (+4):</b> Skill, saving throw, ability check, attack roll, damage roll</li><li><b>Major (+5):</b> Skill, saving throw, ability check, attack roll, damage roll, AC</li></ul></div>"
 };
 
 // Ensure our draft state exists globally on active session load
@@ -128,7 +177,7 @@ function calculateAffinityLimitsAndCosts(pc, pm, draft) {
         costs: {},  // category: active cost
         totalBaseCost: 0,
         finalCost: 0,
-        dc: 10,
+        dc: 5, // V5 Rule Change: Base DC is 5 + Cost
         affinitiesActiveText: {}
     };
 
@@ -204,7 +253,6 @@ function calculateAffinityLimitsAndCosts(pc, pm, draft) {
         results.finalCost = results.totalBaseCost;
     }
 
-    // DC Calculation updated to 5 + Cost
     results.dc = 5 + results.finalCost;
     return results;
 }
@@ -221,6 +269,7 @@ function buildEffectsHTML(metrics, draft, pm, activePc) {
         const maxTierAllowed = metrics.limits[category];
         const labelText = effectData.name;
         const subtext = metrics.affinitiesActiveText[category];
+        const isMandatory = effectData.mandatory;
 
         const tiersList = (category === 'duration' && draft.effectTiers.durationInverted) 
             ? effectData.invertedTiers 
@@ -231,9 +280,9 @@ function buildEffectsHTML(metrics, draft, pm, activePc) {
         if (primary) {
             const primAff = PATTERN_CONFIG.Affinities[primary];
             if (primAff && primAff.primary.includes(category)) {
-                starHtml = `<i class="fa-solid fa-star text-amber-500 ml-2" title="Primary Affinity"></i>`;
+                starHtml = `<i class="fa-solid fa-star text-amber-500 ml-2 drop-shadow-md" title="Primary Affinity"></i>`;
             } else if (primAff && primAff.secondary.includes(category)) {
-                starHtml = `<i class="fa-regular fa-star text-amber-500 ml-2" title="Secondary Affinity"></i>`;
+                starHtml = `<i class="fa-regular fa-star text-amber-500 ml-2 drop-shadow-md" title="Secondary Affinity"></i>`;
             }
         }
 
@@ -248,24 +297,23 @@ function buildEffectsHTML(metrics, draft, pm, activePc) {
             if (activePatterns.includes('vitar') && !allowedTypes.includes('healing')) allowedTypes.push('healing');
 
             optionsSelectHtml = `
-                <div class="mt-2.5 flex items-center gap-2 bg-stone-100 px-3 py-2 rounded-sm border border-[#d4c5a9] shadow-inner">
-                    <span class="text-[10px] font-bold text-stone-500 uppercase tracking-widest"><i class="fa-solid fa-bolt mr-1.5 text-amber-600"></i> Energy Type:</span>
-                    <select onchange="window.appActions.updateDraftField('effectTiers.damageType', this.value)" class="bg-white border border-[#d4c5a9] rounded-sm text-stone-900 text-xs font-bold font-serif outline-none p-1 flex-grow shadow-sm capitalize hover:border-amber-400 transition-colors cursor-pointer">
-                        ${allowedTypes.map(t => `<option value="${t}" ${draft.effectTiers.damageType === t ? 'selected' : ''}>${t}</option>`).join('')}
+                <div class="mt-2.5 flex items-center gap-2 bg-black/40 px-3 py-2 rounded-sm border border-white/20 shadow-inner">
+                    <span class="text-[10px] font-bold text-stone-400 uppercase tracking-widest"><i class="fa-solid fa-bolt mr-1.5 text-amber-500"></i> Energy Type:</span>
+                    <select onchange="window.appActions.updateDraftField('effectTiers.damageType', this.value)" class="glass-input rounded-sm text-white text-xs font-bold font-serif outline-none p-1 flex-grow shadow-sm capitalize hover:border-amber-400 cursor-pointer">
+                        ${allowedTypes.map(t => `<option class="text-black" value="${t}" ${draft.effectTiers.damageType === t ? 'selected' : ''}>${t}</option>`).join('')}
                     </select>
                 </div>
             `;
         }
 
         if (category === 'bolsterHinder' && activeTier > 0) {
-            // Because we adjusted tier indices for mandatory, we must ensure we read options properly.
-            // BolsterHinder is optional, so index 0 = None, index 1 = Minor, etc.
-            const allowedOptions = (effectData.tiers[activeTier] && effectData.tiers[activeTier].options) ? effectData.tiers[activeTier].options : ['Skill Check'];
+            const adjustedActiveTierForOptions = isMandatory ? activeTier : activeTier;
+            const allowedOptions = (effectData.tiers[adjustedActiveTierForOptions] && effectData.tiers[adjustedActiveTierForOptions].options) ? effectData.tiers[adjustedActiveTierForOptions].options : ['Skill Check'];
             optionsSelectHtml = `
-                <div class="mt-2.5 flex items-center gap-2 bg-stone-100 px-3 py-2 rounded-sm border border-[#d4c5a9] shadow-inner">
-                    <span class="text-[10px] font-bold text-stone-500 uppercase tracking-widest"><i class="fa-solid fa-shield-halved mr-1.5 text-amber-600"></i> Target:</span>
-                    <select onchange="window.appActions.updateDraftField('effectTiers.bolsterHinderTarget', this.value)" class="bg-white border border-[#d4c5a9] rounded-sm text-stone-900 text-xs font-bold font-serif outline-none p-1 flex-grow shadow-sm hover:border-amber-400 transition-colors cursor-pointer">
-                        ${allowedOptions.map(opt => `<option value="${opt}" ${draft.effectTiers.bolsterHinderTarget === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                <div class="mt-2.5 flex items-center gap-2 bg-black/40 px-3 py-2 rounded-sm border border-white/20 shadow-inner">
+                    <span class="text-[10px] font-bold text-stone-400 uppercase tracking-widest"><i class="fa-solid fa-shield-halved mr-1.5 text-amber-500"></i> Target:</span>
+                    <select onchange="window.appActions.updateDraftField('effectTiers.bolsterHinderTarget', this.value)" class="glass-input rounded-sm text-white text-xs font-bold font-serif outline-none p-1 flex-grow shadow-sm hover:border-amber-400 cursor-pointer">
+                        ${allowedOptions.map(opt => `<option class="text-black" value="${opt}" ${draft.effectTiers.bolsterHinderTarget === opt ? 'selected' : ''}>${opt}</option>`).join('')}
                     </select>
                 </div>
             `;
@@ -273,40 +321,40 @@ function buildEffectsHTML(metrics, draft, pm, activePc) {
 
         if (category === 'augmentia' && activeTier > 0) {
             const examples = (effectData.tiers[activeTier] && effectData.tiers[activeTier].examples) ? effectData.tiers[activeTier].examples : [];
-            let exampleOptionsHtml = '<option value="">-- Select an Example --</option>';
+            let exampleOptionsHtml = '<option class="text-black" value="">-- Select an Example --</option>';
             if (examples.length > 0) {
                 examples.forEach(ex => {
                     const sanitizedTip = (ex.tip || '').replace(/"/g, '&quot;');
-                    exampleOptionsHtml += `<option value="${ex.name}" title="${sanitizedTip}">${ex.name}</option>`;
+                    exampleOptionsHtml += `<option class="text-black" value="${ex.name}" title="${sanitizedTip}">${ex.name}</option>`;
                 });
                 optionsSelectHtml = `
-                    <div class="mt-2.5 flex flex-col gap-2 bg-stone-100 px-3 py-2.5 rounded-sm border border-[#d4c5a9] shadow-inner">
+                    <div class="mt-2.5 flex flex-col gap-2 bg-black/40 px-3 py-2.5 rounded-sm border border-white/20 shadow-inner">
                         <div class="flex flex-col gap-1">
-                            <span class="text-[10px] font-bold text-stone-500 uppercase tracking-widest flex items-center"><i class="fa-solid fa-lightbulb mr-1.5 text-amber-500"></i> Known Alterations</span>
-                            <select onchange="document.getElementById('draft-aug-custom-${activeTier}').value = this.value; window.appActions.updateDraftField('effectTiers.augmentiaCustom', this.value);" class="w-full bg-white border border-[#d4c5a9] rounded-sm p-1.5 text-xs text-stone-900 outline-none font-serif shadow-sm cursor-pointer hover:border-amber-400 transition-colors">
+                            <span class="text-[10px] font-bold text-stone-400 uppercase tracking-widest flex items-center"><i class="fa-solid fa-lightbulb mr-1.5 text-amber-400"></i> Known Alterations</span>
+                            <select onchange="document.getElementById('draft-aug-custom-${activeTier}').value = this.value; window.appActions.updateDraftField('effectTiers.augmentiaCustom', this.value);" class="w-full glass-input rounded-sm p-1.5 text-xs text-white outline-none font-serif shadow-sm cursor-pointer hover:border-amber-400">
                                 ${exampleOptionsHtml}
                             </select>
                         </div>
-                        <div class="flex flex-col gap-1 mt-1 border-t border-[#d4c5a9] pt-2">
-                            <span class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Custom Effect Detail</span>
+                        <div class="flex flex-col gap-1 mt-1 border-t border-white/10 pt-2">
+                            <span class="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Custom Effect Detail</span>
                             <input type="text" 
                                    id="draft-aug-custom-${activeTier}"
                                    oninput="window.appActions.updateDraftField('effectTiers.augmentiaCustom', this.value, false, true)" 
                                    value="${draft.effectTiers.augmentiaCustom || ''}" 
                                    placeholder="Or describe a custom alteration..." 
-                                   class="w-full bg-white border border-[#d4c5a9] rounded-sm p-2 text-xs text-stone-900 outline-none font-serif shadow-sm focus:border-amber-600 transition-colors">
+                                   class="w-full glass-input rounded-sm p-2 text-xs text-white outline-none font-serif shadow-sm focus:border-amber-500 transition-colors">
                         </div>
                     </div>
                 `;
             } else {
                  optionsSelectHtml = `
-                    <div class="mt-2.5 flex flex-col gap-1.5 bg-stone-100 px-3 py-2 rounded-sm border border-[#d4c5a9] shadow-inner">
-                        <span class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Custom Effect Detail:</span>
+                    <div class="mt-2.5 flex flex-col gap-1.5 bg-black/40 px-3 py-2 rounded-sm border border-white/20 shadow-inner">
+                        <span class="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Custom Effect Detail:</span>
                         <input type="text" 
                                oninput="window.appActions.updateDraftField('effectTiers.augmentiaCustom', this.value, false, true)" 
                                value="${draft.effectTiers.augmentiaCustom || ''}" 
                                placeholder="Describe the alteration..." 
-                               class="w-full bg-white border border-[#d4c5a9] rounded-sm p-2 text-xs text-stone-900 outline-none font-serif shadow-sm focus:border-amber-600 transition-colors">
+                               class="w-full glass-input rounded-sm p-2 text-xs text-white outline-none font-serif shadow-sm focus:border-amber-500 transition-colors">
                     </div>
                 `;
             }
@@ -315,11 +363,11 @@ function buildEffectsHTML(metrics, draft, pm, activePc) {
         let specialToggleHtml = '';
         if (category === 'duration') {
             specialToggleHtml = `
-                <label class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-stone-600 cursor-pointer select-none hover:text-amber-700 transition-colors">
+                <label class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-stone-300 cursor-pointer select-none hover:text-amber-400 transition-colors">
                     <input type="checkbox" 
                            onchange="window.appActions.toggleDurationInversion(this.checked)" 
                            ${draft.effectTiers.durationInverted ? 'checked' : ''} 
-                           class="w-4 h-4 text-amber-600 bg-white border-stone-400 rounded-sm focus:ring-amber-500 shadow-sm cursor-pointer">
+                           class="w-4 h-4 text-amber-500 bg-black/40 border-white/40 rounded-sm focus:ring-amber-500 shadow-sm cursor-pointer">
                     <span>Longer is Better</span>
                 </label>
             `;
@@ -327,21 +375,21 @@ function buildEffectsHTML(metrics, draft, pm, activePc) {
 
         let tierButtonsHtml = '';
         if (tiersList) {
-            // Apply Mandatory Baseline offset so index 0 = T1 visually, and checks limits safely
-            const adjustedMaxTier = effectData.mandatory ? maxTierAllowed - 1 : maxTierAllowed;
+            // Apply Mandatory Baseline offset so index 0 = T1 visually
+            const adjustedMaxTier = isMandatory ? maxTierAllowed - 1 : maxTierAllowed;
             
             tiersList.forEach((tier, index) => {
                 const isDisabled = index > adjustedMaxTier;
                 const isSelected = activeTier === index;
                 
-                let btnClass = 'border-[#d4c5a9] bg-stone-50 text-stone-600 hover:text-stone-900 hover:bg-white hover:border-amber-400 shadow-sm';
+                let btnClass = 'glass-btn text-gray-300 hover:text-white';
                 if (isDisabled) {
-                    btnClass = 'border-stone-200 bg-stone-100 text-stone-400 cursor-not-allowed shadow-none';
+                    btnClass = 'border-white/10 bg-black/60 text-gray-500 cursor-not-allowed shadow-none';
                 } else if (isSelected) {
-                    btnClass = 'border-amber-600 bg-amber-50 text-amber-900 font-bold shadow-[0_0_8px_rgba(217,119,6,0.2)]';
+                    btnClass = 'border-amber-500 bg-amber-500/20 text-white font-bold shadow-[0_0_8px_rgba(245,158,11,0.4)]';
                 }
 
-                const displayTier = effectData.mandatory ? index + 1 : index;
+                const displayTier = isMandatory ? index + 1 : index;
 
                 tierButtonsHtml += `
                     <button type="button" 
@@ -355,15 +403,19 @@ function buildEffectsHTML(metrics, draft, pm, activePc) {
             });
         }
 
-        const labelColorClass = maxTierAllowed > 0 ? 'text-stone-900' : 'text-stone-500';
+        const labelColorClass = maxTierAllowed > 0 ? 'text-white' : 'text-stone-400';
+        const subtextColorClass = maxTierAllowed > 0 ? 'text-amber-500' : 'text-stone-500';
 
         html += `
-            <div class="p-4 bg-white border border-[#d4c5a9] rounded-sm shadow-sm">
-                <div class="flex justify-between items-start mb-3 gap-2 flex-wrap border-b border-[#d4c5a9] pb-2">
-                    <div class="flex items-center">
-                        <h4 class="text-sm font-bold font-serif ${labelColorClass}">${labelText}</h4>
-                        <button type="button" onclick="window.appActions.openEffectInfoModal('${category}')" class="ml-2 text-stone-400 hover:text-amber-600 cursor-pointer transition-colors" title="View Details"><i class="fa-solid fa-circle-info text-xs"></i></button>
-                        ${starHtml}
+            <div class="p-4 glass-panel rounded-sm">
+                <div class="flex justify-between items-start mb-3 gap-2 flex-wrap border-b border-white/20 pb-2">
+                    <div>
+                        <div class="flex items-center">
+                            <h4 class="text-sm font-bold font-serif ${labelColorClass} drop-shadow-md">${labelText}</h4>
+                            <button type="button" onclick="window.appActions.openEffectInfoModal('${category}')" class="ml-2 text-stone-400 hover:text-amber-400 cursor-pointer transition-colors drop-shadow-md" title="View Details"><i class="fa-solid fa-circle-info text-xs"></i></button>
+                            ${starHtml}
+                        </div>
+                        <span class="text-[9px] font-sans uppercase font-bold tracking-widest ${subtextColorClass} drop-shadow-md">${subtext}</span>
                     </div>
                     ${specialToggleHtml}
                 </div>
@@ -388,22 +440,21 @@ export function getPatternNexusHTML(state) {
     const myUid = state.currentUserUid;
     const isDM = camp._isDM;
 
-    // Fetch active PC, with intelligent DM fallback
-    let activePcId = state.activePatternPcId || (camp.playerCharacters && camp.playerCharacters.find(p => p.playerId === myUid)?.id) || '';
-    if (!activePcId && isDM && camp.playerCharacters && camp.playerCharacters.length > 0) {
-        const firstValid = camp.playerCharacters.find(p => p.patternMagicUnlocked);
-        activePcId = firstValid ? firstValid.id : camp.playerCharacters[0].id;
-    }
+    const activePcId = state.activePatternPcId || (camp.playerCharacters && camp.playerCharacters.find(p => p.playerId === myUid)?.id) || '';
     const activePc = camp.playerCharacters && camp.playerCharacters.find(p => p.id === activePcId);
     
     if (!activePc) {
         return `
-        <div class="arcane-tapestry-bg min-h-screen flex flex-col items-center justify-center p-8 font-serif">
-            <div class="max-w-md text-center p-8 parchment-panel rounded-sm relative">
-                <i class="fa-solid fa-book-journal-whills text-amber-700 text-4xl mb-4"></i>
-                <h3 class="font-bold text-2xl text-stone-900 mb-2">No Hero Available</h3>
-                <p class="text-sm text-stone-600 leading-relaxed mb-6">Before you can weave the threads of reality, a hero must be initialized and bound to your account.</p>
-                <button onclick="window.appActions.setView('pc-manager')" class="px-6 py-2 bg-stone-900 text-amber-50 rounded-sm uppercase tracking-wider text-xs font-bold shadow-md hover:bg-stone-800 transition-all">Open Roster</button>
+        <div class="arcane-tapestry-bg relative min-h-screen font-sans overflow-hidden">
+            <div id="dynamic-weave-layer" class="dynamic-weave-bg"></div>
+            <div class="weave-vignette"></div>
+            <div class="relative z-10 flex flex-col items-center justify-center min-h-screen p-8">
+                <div class="max-w-md text-center p-8 glass-panel rounded-sm relative">
+                    <i class="fa-solid fa-book-journal-whills text-amber-500 text-4xl mb-4 drop-shadow-lg"></i>
+                    <h3 class="font-bold text-2xl text-white mb-2 font-serif drop-shadow-md">No Hero Available</h3>
+                    <p class="text-sm text-gray-300 leading-relaxed mb-6 font-serif">Before you can weave the threads of reality, a hero must be initialized and bound to your account.</p>
+                    <button onclick="window.appActions.setView('pc-manager')" class="px-6 py-2 glass-btn text-white rounded-sm uppercase tracking-wider text-xs font-bold shadow-md transition-all">Open Roster</button>
+                </div>
             </div>
         </div>
         `;
@@ -417,12 +468,16 @@ export function getPatternNexusHTML(state) {
     
     if (!isUnlocked && !isDM) {
         return `
-        <div class="arcane-tapestry-bg min-h-screen flex flex-col items-center justify-center p-8 font-serif">
-            <div class="max-w-md text-center p-8 parchment-panel rounded-sm relative">
-                <i class="fa-solid fa-eye-slash text-stone-400 text-4xl mb-4"></i>
-                <h3 class="font-bold text-2xl text-stone-900 mb-2">The Tapestry is Hidden</h3>
-                <p class="text-sm text-stone-600 leading-relaxed mb-6">Your mind has not yet awakened to the Patterns of reality. The Dungeon Master must unlock this potential within your character sheet.</p>
-                <button onclick="window.appActions.setView('adventure')" class="px-6 py-2 bg-stone-900 text-amber-50 rounded-sm uppercase tracking-wider text-xs font-bold shadow-md hover:bg-stone-800 transition-all">Return to Campaign</button>
+        <div class="arcane-tapestry-bg relative min-h-screen font-sans overflow-hidden">
+            <div id="dynamic-weave-layer" class="dynamic-weave-bg"></div>
+            <div class="weave-vignette"></div>
+            <div class="relative z-10 flex flex-col items-center justify-center min-h-screen p-8">
+                <div class="max-w-md text-center p-8 glass-panel rounded-sm relative">
+                    <i class="fa-solid fa-eye-slash text-gray-400 text-4xl mb-4 drop-shadow-lg"></i>
+                    <h3 class="font-bold text-2xl text-white mb-2 font-serif drop-shadow-md">The Tapestry is Hidden</h3>
+                    <p class="text-sm text-gray-300 leading-relaxed mb-6 font-serif">Your mind has not yet awakened to the Patterns of reality. The Dungeon Master must unlock this potential within your character sheet.</p>
+                    <button onclick="window.appActions.setView('adventure')" class="px-6 py-2 glass-btn text-white rounded-sm uppercase tracking-wider text-xs font-bold shadow-md transition-all">Return to Campaign</button>
+                </div>
             </div>
         </div>
         `;
@@ -436,12 +491,12 @@ export function getPatternNexusHTML(state) {
     });
 
     const pcSelectorHtml = `
-        <div class="flex items-center gap-2 bg-[#fdfbf7] px-3 py-1.5 border border-[#d4c5a9] rounded-sm shadow-sm">
-            <span class="text-[10px] uppercase tracking-widest text-stone-500 font-bold"><i class="fa-solid fa-user-circle mr-1"></i> Weaver:</span>
-            <select onchange="window.appActions.switchPatternPc(this.value)" class="bg-transparent text-stone-900 border-none outline-none text-sm font-bold font-serif cursor-pointer py-0.5">
+        <div class="flex items-center gap-2 glass-panel px-3 py-1.5 border border-white/20 rounded-sm shadow-sm">
+            <span class="text-[10px] uppercase tracking-widest text-gray-400 font-bold"><i class="fa-solid fa-user-circle mr-1"></i> Weaver:</span>
+            <select onchange="window.appActions.switchPatternPc(this.value)" class="bg-transparent text-white border-none outline-none text-sm font-bold font-serif cursor-pointer py-0.5">
                 ${allowedWeavers.map(p => {
                     const isSelected = p.id === activePcId ? 'selected' : '';
-                    return `<option value="${p.id}" ${isSelected}>${p.name}</option>`;
+                    return `<option class="text-black" value="${p.id}" ${isSelected}>${p.name}</option>`;
                 }).join('')}
             </select>
         </div>
@@ -453,11 +508,11 @@ export function getPatternNexusHTML(state) {
     let pipsHtml = '';
     for (let i = 1; i <= maxEssentia; i++) {
         const isFilled = pm.essentia >= i;
-        const color = isFilled ? 'bg-amber-500 border-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.8)]' : 'bg-stone-800 border-stone-600 shadow-inner';
+        const color = isFilled ? 'bg-amber-500 border-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.8)]' : 'bg-black/50 border-white/20 shadow-inner';
         pipsHtml += `
             <button type="button" 
                     onclick="window.appActions.setPcEssentia('${activePc.id}', ${i})"
-                    class="w-4 h-4 rounded-full border-2 ${color} transition-all duration-300 hover:scale-125"
+                    class="w-4 h-4 rounded-full border ${color} transition-all duration-300 hover:scale-125"
                     title="Set Essentia to ${i}/${maxEssentia}">
             </button>
         `;
@@ -467,8 +522,8 @@ export function getPatternNexusHTML(state) {
     let rotesTabHtml = '';
     if (memorizedRotesList.length === 0) {
         rotesTabHtml = `
-            <div class="p-6 text-center border border-dashed border-[#d4c5a9] bg-stone-50 rounded-sm">
-                <p class="text-stone-500 italic text-xs font-serif">No rotes currently inscribed in your grimoire.</p>
+            <div class="p-6 text-center border border-dashed border-white/20 bg-black/20 rounded-sm">
+                <p class="text-gray-400 italic text-xs font-serif">No rotes currently inscribed in your grimoire.</p>
             </div>
         `;
     } else {
@@ -476,31 +531,31 @@ export function getPatternNexusHTML(state) {
             <div class="space-y-3 max-h-[350px] overflow-y-auto custom-scrollbar pr-2">
                 ${memorizedRotesList.map(r => {
                     const isSelected = draft.selectedRoteId === r.id;
-                    const selectBorder = isSelected ? 'border-amber-600 shadow-[0_0_8px_rgba(217,119,6,0.2)] bg-amber-50' : 'border-[#d4c5a9] bg-white hover:border-amber-400';
+                    const selectBorder = isSelected ? 'border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.3)] bg-amber-500/10' : 'border-white/20 bg-black/40 hover:border-amber-400/50';
                     const listDisplay = r.patterns.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' + ');
                     
                     const rankForPattern = pm[r.primaryPattern] || 0;
                     const titleText = rankForPattern > 0 ? PATTERN_CONFIG.ExpertiseTitles[rankForPattern] : "Unlearned";
 
                     return `
-                    <div class="p-3 border rounded-sm ${selectBorder} flex flex-col gap-2 transition cursor-pointer group hover:border-amber-400" onclick="window.appActions.loadRoteToDraft('${activePc.id}', '${r.id}')">
-                        <div class="flex justify-between items-start border-b border-[#d4c5a9] pb-1.5">
+                    <div class="p-3 border rounded-sm ${selectBorder} flex flex-col gap-2 transition cursor-pointer group hover:bg-black/60" onclick="window.appActions.loadRoteToDraft('${activePc.id}', '${r.id}')">
+                        <div class="flex justify-between items-start border-b border-white/20 pb-1.5">
                             <div class="flex flex-col">
-                                <h5 class="text-sm font-bold text-stone-900 font-serif leading-tight">
-                                    <i class="fa-solid fa-scroll ${isSelected ? 'text-amber-600' : 'text-stone-400'} mr-1"></i> ${r.name}
+                                <h5 class="text-sm font-bold text-white font-serif leading-tight drop-shadow-md">
+                                    <i class="fa-solid fa-scroll ${isSelected ? 'text-amber-500' : 'text-gray-400'} mr-1"></i> ${r.name}
                                 </h5>
-                                <span class="text-[9px] font-bold uppercase tracking-widest text-amber-700/80 mt-1">${r.primaryPattern} • ${titleText}</span>
+                                <span class="text-[9px] font-bold uppercase tracking-widest text-amber-500/80 mt-1">${r.primaryPattern} • ${titleText}</span>
                             </div>
-                            <button type="button" onclick="event.stopPropagation(); window.appActions.deleteRote('${activePc.id}', '${r.id}')" class="text-stone-400 hover:text-red-700 transition px-1" title="Erase Rote">
+                            <button type="button" onclick="event.stopPropagation(); window.appActions.deleteRote('${activePc.id}', '${r.id}')" class="text-gray-500 hover:text-red-500 transition px-1" title="Erase Rote">
                                 <i class="fa-solid fa-trash text-xs"></i>
                             </button>
                         </div>
-                        <div class="flex flex-wrap gap-1 text-[9px] font-bold uppercase tracking-widest text-stone-500 mb-1">
-                            ${r.patterns.map(p => `<span class="bg-stone-100 border border-stone-200 px-1.5 py-0.5 rounded-sm">${p.charAt(0).toUpperCase() + p.slice(1)}</span>`).join('')}
+                        <div class="flex flex-wrap gap-1 text-[9px] font-bold uppercase tracking-widest text-gray-300 mb-1">
+                            ${r.patterns.map(p => `<span class="bg-black/50 border border-white/10 px-1.5 py-0.5 rounded-sm">${p.charAt(0).toUpperCase() + p.slice(1)}</span>`).join('')}
                         </div>
-                        <div class="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-stone-500 mt-1">
-                            <span class="text-amber-700 bg-amber-50 px-2 py-1 rounded-sm border border-amber-200 shadow-sm">${r.essentiaCost} Essentia</span>
-                            <button type="button" onclick="event.stopPropagation(); window.appActions.loadRoteToDraft('${activePc.id}', '${r.id}')" class="px-3 py-1 bg-stone-800 text-amber-50 hover:bg-amber-700 transition rounded-sm text-[9px] font-bold uppercase tracking-wider shadow-sm flex items-center group-hover:bg-amber-700"><i class="fa-solid fa-download mr-1.5"></i> Load</button>
+                        <div class="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-gray-400 mt-1">
+                            <span class="text-amber-400 bg-amber-500/20 px-2 py-1 rounded-sm border border-amber-500/30 shadow-sm">${r.essentiaCost} Essentia</span>
+                            <button type="button" onclick="event.stopPropagation(); window.appActions.loadRoteToDraft('${activePc.id}', '${r.id}')" class="px-3 py-1 glass-btn text-white transition rounded-sm text-[9px] font-bold uppercase tracking-wider shadow-sm flex items-center hover:text-amber-300"><i class="fa-solid fa-download mr-1.5"></i> Load</button>
                         </div>
                     </div>
                     `;
@@ -509,40 +564,29 @@ export function getPatternNexusHTML(state) {
         `;
     }
 
-    const abilitySelectorHtml = `
-        <div class="w-full">
-            <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Attuned Attribute</label>
-            <select onchange="window.appActions.updateDraftField('ability', this.value, false)" class="w-full bg-white border border-[#d4c5a9] rounded-sm p-2.5 text-sm text-stone-900 font-bold font-sans outline-none shadow-sm focus:border-amber-600 transition-colors cursor-pointer uppercase tracking-wider">
-                <option value="int" ${draft.ability === 'int' ? 'selected' : ''}>Intelligence (${activePc.int || 10})</option>
-                <option value="wis" ${draft.ability === 'wis' ? 'selected' : ''}>Wisdom (${activePc.wis || 10})</option>
-                <option value="cha" ${draft.ability === 'cha' ? 'selected' : ''}>Charisma (${activePc.cha || 10})</option>
-            </select>
-        </div>
-    `;
-
     let dmAdministrationPanelHtml = '';
     if (isDM) {
         dmAdministrationPanelHtml = `
             <!-- DM Administration Layer -->
-            <div class="p-5 bg-stone-900 border border-stone-700 rounded-sm mb-8 shadow-md">
-                <h3 class="text-sm font-bold font-serif text-amber-500 uppercase tracking-widest flex items-center border-b border-stone-700 pb-2 mb-5">
-                    <i class="fa-solid fa-crown text-amber-600 mr-2"></i> Dungeon Master's Loom Control
+            <div class="p-5 glass-panel border border-white/20 rounded-sm mb-8 shadow-lg">
+                <h3 class="text-sm font-bold font-serif text-amber-400 uppercase tracking-widest flex items-center border-b border-white/20 pb-2 mb-5 drop-shadow-md">
+                    <i class="fa-solid fa-crown text-amber-500 mr-2"></i> Dungeon Master's Loom Control
                 </h3>
                 
-                <div class="flex flex-wrap items-center justify-between gap-4 mb-5 bg-[#1c1917] p-4 rounded-sm border border-stone-800 shadow-inner">
+                <div class="flex flex-wrap items-center justify-between gap-4 mb-5 bg-black/40 p-4 rounded-sm border border-white/10 shadow-inner">
                     <div class="flex items-center gap-3">
-                        <span class="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Loom Access:</span>
+                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Loom Access:</span>
                         <label class="flex items-center cursor-pointer">
-                            <input type="checkbox" onchange="window.appActions.toggleCampaignPcAccess('${activePc.id}', this.checked)" ${activePc.patternMagicUnlocked ? 'checked' : ''} class="w-5 h-5 text-amber-600 rounded cursor-pointer border-stone-600 bg-stone-800 shadow-sm focus:ring-amber-500">
-                            <span class="ml-2 text-xs font-bold text-stone-300">Awakened</span>
+                            <input type="checkbox" onchange="window.appActions.toggleCampaignPcAccess('${activePc.id}', this.checked)" ${activePc.patternMagicUnlocked ? 'checked' : ''} class="w-5 h-5 text-amber-500 rounded cursor-pointer border-gray-600 bg-black/60 shadow-sm focus:ring-amber-500">
+                            <span class="ml-2 text-xs font-bold text-gray-200">Awakened</span>
                         </label>
                     </div>
                     <div class="flex items-center gap-3">
-                        <span class="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Unspent Mastery Points:</span>
-                        <div class="flex items-center gap-2 bg-stone-800 px-2 py-1 rounded border border-stone-700 shadow-sm">
-                            <button onclick="window.appActions.adjustPatternParameter('${activePc.id}', 'patternPoints', -1)" class="w-6 h-6 flex items-center justify-center bg-stone-700 text-stone-300 hover:text-red-400 hover:bg-stone-600 transition rounded-sm font-bold"><i class="fa-solid fa-minus text-xs"></i></button>
-                            <span class="text-sm font-black text-amber-400 w-6 text-center">${pm.patternPoints || 0}</span>
-                            <button onclick="window.appActions.adjustPatternParameter('${activePc.id}', 'patternPoints', 1)" class="w-6 h-6 flex items-center justify-center bg-stone-700 text-stone-300 hover:text-emerald-400 hover:bg-stone-600 transition rounded-sm font-bold"><i class="fa-solid fa-plus text-xs"></i></button>
+                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Unspent Mastery Points:</span>
+                        <div class="flex items-center gap-2 bg-black/60 px-2 py-1 rounded border border-white/10 shadow-sm">
+                            <button onclick="window.appActions.adjustPatternParameter('${activePc.id}', 'patternPoints', -1)" class="w-6 h-6 flex items-center justify-center bg-white/10 text-gray-300 hover:text-red-400 hover:bg-white/20 transition rounded-sm font-bold"><i class="fa-solid fa-minus text-xs"></i></button>
+                            <span class="text-sm font-black text-amber-400 w-6 text-center drop-shadow-md">${pm.patternPoints || 0}</span>
+                            <button onclick="window.appActions.adjustPatternParameter('${activePc.id}', 'patternPoints', 1)" class="w-6 h-6 flex items-center justify-center bg-white/10 text-gray-300 hover:text-emerald-400 hover:bg-white/20 transition rounded-sm font-bold"><i class="fa-solid fa-plus text-xs"></i></button>
                         </div>
                     </div>
                 </div>
@@ -551,12 +595,12 @@ export function getPatternNexusHTML(state) {
                     ${Object.entries(PATTERN_THEME).map(([key, theme]) => {
                         const val = pm[key] || 0;
                         return `
-                        <div class="flex flex-col items-center justify-center p-3 bg-[#1c1917] border border-stone-800 rounded-sm shadow-inner gap-2">
-                            <span class="text-[10px] font-serif font-bold uppercase tracking-wider" style="color: ${theme.color};">${key}</span>
-                            <div class="flex items-center gap-1.5 bg-stone-800 px-1.5 py-1 rounded border border-stone-700">
-                                <button onclick="window.appActions.adjustPatternParameter('${activePc.id}', '${key}', -1)" class="w-5 h-5 flex items-center justify-center text-stone-400 hover:text-red-400 transition font-bold"><i class="fa-solid fa-minus text-[10px]"></i></button>
-                                <span class="text-xs font-black text-stone-200 w-4 text-center">${val}</span>
-                                <button onclick="window.appActions.adjustPatternParameter('${activePc.id}', '${key}', 1)" class="w-5 h-5 flex items-center justify-center text-stone-400 hover:text-emerald-400 transition font-bold"><i class="fa-solid fa-plus text-[10px]"></i></button>
+                        <div class="flex flex-col items-center justify-center p-3 bg-black/40 border border-white/10 rounded-sm shadow-inner gap-2">
+                            <span class="text-[10px] font-serif font-bold uppercase tracking-wider drop-shadow-md" style="color: ${theme.color};">${key}</span>
+                            <div class="flex items-center gap-1.5 bg-black/60 px-1.5 py-1 rounded border border-white/10">
+                                <button onclick="window.appActions.adjustPatternParameter('${activePc.id}', '${key}', -1)" class="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-red-400 transition font-bold"><i class="fa-solid fa-minus text-[10px]"></i></button>
+                                <span class="text-xs font-black text-white w-4 text-center drop-shadow-md">${val}</span>
+                                <button onclick="window.appActions.adjustPatternParameter('${activePc.id}', '${key}', 1)" class="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-emerald-400 transition font-bold"><i class="fa-solid fa-plus text-[10px]"></i></button>
                             </div>
                         </div>
                         `;
@@ -572,18 +616,17 @@ export function getPatternNexusHTML(state) {
 
     let loomHtml = '';
 
-    // INITIAL HTML STATE FOR SPIRAL ANIMATION: Pinned to absolute center, scaled down, and rotated backward 
+    // Generate Layout Positions synchronously so they never appear invisible!
     patternsList.forEach((key, index) => {
         const theme = PATTERN_THEME[key];
         const rank = pm[key] || 0;
-        const titleText = rank > 0 ? PATTERN_CONFIG.ExpertiseTitles[rank] : "Unlearned";
-        const rankText = rank > 0 ? `(Rank ${rank} - ${titleText})` : `(Unlearned)`;
+        const rankText = rank > 0 ? `(Rank ${rank})` : `(Unlearned)`;
 
-        // Calculate the orbit angle, then subtract 360 so the animation spins exactly 1 full rotation
+        // For the unconstrained aesthetic, we use pure rotate/translate math from the center pin.
+        // We start with them collapsed at the center so the CSS animation expands them outward.
         const angleDeg = index * (360 / 9) - 90;
         const startAngle = angleDeg - 360; 
         
-        // Pin to center (160 - 48 = 112), no X translation, fully reversed rotation
         const initialTransform = `rotate(${startAngle}deg) translateX(0px) rotate(${-startAngle}deg) scale(0.1)`;
 
         loomHtml += `
@@ -592,265 +635,281 @@ export function getPatternNexusHTML(state) {
                     style="transform: ${initialTransform}; color: ${theme.color};"
                     class="sigil-btn absolute w-24 h-24 flex flex-col items-center justify-center cursor-pointer z-20 opacity-0 group">
                 <img src="${PATTERN_ASSET_BASE_URL}${key}.webp" alt="${theme.label}" class="w-20 h-20 object-contain transition-all duration-500 pointer-events-none" style="filter: none;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                <span class="text-[11px] font-serif font-bold text-stone-900 mt-1 leading-none drop-shadow-md absolute -bottom-5 whitespace-nowrap bg-[#fdfbf7] px-2 py-0.5 border border-[#d4c5a9] rounded-sm shadow-sm hidden group-hover:block z-[200] pointer-events-none">${theme.label} ${rankText}</span>
+                <span class="text-[11px] font-serif font-bold text-white mt-1 leading-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] absolute -bottom-5 whitespace-nowrap bg-black/60 px-2 py-0.5 border border-white/20 rounded-sm shadow-md hidden group-hover:block z-[200] pointer-events-none">${theme.label} ${rankText}</span>
             </button>
         `;
     });
 
     const convergenceSpinClass = isConvergence ? 'spin-loom-slow' : '';
 
-    // Trigger the CSS entrance spiral!
+    // Trigger the CSS entrance spiral safely!
     setTimeout(() => {
         if (window.appActions && window.appActions.refreshTapestryUI) {
-            window.appActions.refreshTapestryUI();
+            window.appActions.refreshTapestryUI(pm);
         }
     }, 50);
 
     return `
-    <div class="arcane-tapestry-bg min-h-screen text-stone-900 p-4 sm:p-6 lg:p-8 font-sans border-2 border-stone-900 shadow-2xl relative">
-        <div id="pattern-info-modal-container"></div>
-        <div class="max-w-6xl mx-auto">
-            
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 border-b border-[#78350f] pb-5">
-                <div>
-                    <div class="flex items-center gap-3">
-                        <i class="fa-solid fa-compass-drafting text-amber-500 text-3xl drop-shadow-md"></i>
-                        <h2 class="text-3xl font-serif font-black tracking-wide text-[#f4ebd8] drop-shadow-lg">The Pattern Tapestry</h2>
-                    </div>
-                    <p class="text-[10px] text-amber-600/80 font-bold uppercase tracking-widest mt-2">Weave the fundamental threads of reality.</p>
-                </div>
-                <div class="flex flex-wrap items-center gap-3">
-                    ${pcSelectorHtml}
-                    
-                    <!-- NEW GUIDE BUTTON -->
-                    <button onclick="window.appActions.openWeavingGuideModal()" class="px-4 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition text-[10px] font-bold uppercase tracking-wider shadow-md">
-                        <i class="fa-solid fa-graduation-cap mr-2 text-amber-500"></i> Guide
-                    </button>
+    <div class="arcane-tapestry-bg relative min-h-screen font-sans overflow-hidden">
+        
+        <!-- The Dynamic Weave Background Layer -->
+        <div id="dynamic-weave-layer" class="dynamic-weave-bg"></div>
+        <div class="weave-vignette"></div>
 
-                    <button onclick="window.appActions.setView('adventure')" class="px-4 py-2 bg-[#fdfbf7] text-stone-800 border border-[#d4c5a9] rounded-sm hover:bg-white transition text-[10px] font-bold uppercase tracking-wider shadow-md">
-                        <i class="fa-solid fa-door-open mr-2 text-amber-700"></i> Return
-                    </button>
-                </div>
-            </div>
-
-            ${dmAdministrationPanelHtml}
-
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+        <!-- Foreground UI Layer -->
+        <div class="relative z-10 w-full h-full overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 text-gray-200">
+            <div id="pattern-info-modal-container"></div>
+            <div class="max-w-6xl mx-auto">
                 
-                <!-- Left Panel: Tapestry Loom & Attunement -->
-                <div class="lg:col-span-5 space-y-6">
-                    
-                    <!-- STEP 1: THE LOOM -->
-                    <div class="parchment-panel rounded-sm relative shadow-md">
-                        <div class="bg-stone-900 text-amber-500 p-3 rounded-t-sm border-b-2 border-amber-700 flex items-center gap-3">
-                            <span class="bg-amber-600 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shadow-inner shrink-0">1</span>
-                            <h3 class="font-serif font-bold uppercase tracking-widest text-sm">The Loom of Reality</h3>
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 border-b border-white/20 pb-5">
+                    <div>
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid fa-compass-drafting text-amber-400 text-3xl drop-shadow-[0_0_10px_rgba(251,191,36,0.6)]"></i>
+                            <h2 class="text-3xl font-serif font-black tracking-wide text-white drop-shadow-md">The Pattern Tapestry</h2>
                         </div>
-                        
-                        <div class="relative w-[320px] h-[320px] flex items-center justify-center p-4 mx-auto my-4 shrink-0">
-                            <!-- SVG Loom Threads in Background -->
-                            <svg class="absolute inset-0 w-full h-full pointer-events-none ${convergenceSpinClass}" viewBox="0 0 320 320">
-                                <!-- Inner focus ring -->
-                                <circle cx="160" cy="160" r="45" fill="none" stroke="#d4c5a9" stroke-width="1" opacity="0.3" stroke-dasharray="2 4" />
-                                
-                                ${primary ? Array.from({ length: 8 }).map((_, i) => {
-                                    const angle = (i * (360 / 8) - 90) * (Math.PI / 180);
-                                    const x2 = 160 + 105 * Math.cos(angle);
-                                    const y2 = 160 + 105 * Math.sin(angle);
-                                    return `<line x1="160" y1="160" x2="${x2}" y2="${y2}" stroke="#d4c5a9" stroke-width="1" stroke-dasharray="2 4" opacity="0.3" />`;
-                                }).join('') : ''}
-                            </svg>
-
-                            <!-- Node buttons -->
-                            <div class="absolute inset-0">
-                                ${loomHtml}
-                            </div>
-                        </div>
-
-                        <div class="p-4 bg-stone-50 border-t border-[#d4c5a9] text-center text-xs text-stone-600 shadow-inner rounded-b-sm">
-                            <p id="loom-hint-text" class="font-serif leading-relaxed italic">
-                                ${draft.patterns.length === 0 
-                                    ? `Select a thread from the outer ring to designate as your Primary Sigil.` 
-                                    : draft.patterns.length === 9 
-                                    ? `🚨 <span class="text-amber-700 font-bold">ALL THREADS WOVEN.</span> The Loom sings with absolute cosmic power!` 
-                                    : `Select orbiting sigils to weave Support threads. Active threads define your capabilities.`}
-                            </p>
-                        </div>
+                        <p class="text-[10px] text-amber-300 font-bold uppercase tracking-widest mt-2 drop-shadow-md">Weave the fundamental threads of reality.</p>
                     </div>
-
-                    <!-- HERO'S MATRIX (Combined Attunement & Reservoir) -->
-                    <div class="leather-panel rounded-sm relative text-stone-200 shadow-md">
-                        <div class="flex justify-between items-center border-b border-stone-700 p-4 pb-3">
-                            <h3 class="text-sm font-bold text-amber-500 uppercase tracking-widest font-serif flex items-center">
-                                <i class="fa-solid fa-bolt text-amber-700 mr-2"></i> Hero's Matrix
-                            </h3>
-                            <span class="text-[10px] uppercase font-bold tracking-widest text-stone-400 bg-stone-800 px-2 py-1 rounded shadow-inner border border-stone-700">Unspent Points: <span class="text-amber-400">${pm.patternPoints || 0}</span></span>
-                        </div>
+                    <div class="flex flex-wrap items-center gap-3">
+                        ${pcSelectorHtml}
                         
-                        <div class="p-4 border-b border-stone-700 bg-[#1c1917]">
-                            <div class="flex justify-between text-[10px] uppercase font-bold tracking-widest text-stone-400 mb-2">
-                                <span class="flex items-center"><i class="fa-solid fa-droplet text-amber-600 mr-1.5"></i> Essentia Reservoir</span>
-                                <span><span class="text-amber-400">${pm.essentia || 0}</span> / ${maxEssentia}</span>
-                            </div>
-                            <div class="flex flex-wrap gap-3 p-3 bg-stone-900 rounded-sm border border-stone-800 justify-center shadow-inner">
-                                ${pipsHtml || `<span class="text-[10px] text-stone-600 italic font-serif">Deepen your Attunement to expand your reservoir.</span>`}
+                        <!-- NEW GUIDE BUTTON -->
+                        <button onclick="window.appActions.openWeavingGuideModal()" class="px-4 py-2 glass-btn text-white rounded-sm transition text-[10px] font-bold uppercase tracking-wider shadow-md">
+                            <i class="fa-solid fa-graduation-cap mr-2 text-amber-400"></i> Guide
+                        </button>
+
+                        <button onclick="window.appActions.setView('adventure')" class="px-4 py-2 glass-btn text-white rounded-sm transition text-[10px] font-bold uppercase tracking-wider shadow-md">
+                            <i class="fa-solid fa-door-open mr-2 text-amber-400"></i> Return
+                        </button>
+                    </div>
+                </div>
+
+                ${dmAdministrationPanelHtml}
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+                    
+                    <!-- Left Panel -->
+                    <div class="lg:col-span-5 space-y-6">
+                        
+                        <!-- STEP 1: THE LOOM -->
+                        <div class="glass-panel rounded-sm relative shadow-lg">
+                            <div class="bg-black/40 text-amber-400 p-3 rounded-t-sm border-b border-white/20 flex items-center gap-3">
+                                <span class="bg-amber-500/20 border border-amber-500/50 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shadow-inner shrink-0">1</span>
+                                <h3 class="font-serif font-bold uppercase tracking-widest text-sm drop-shadow-md">The Loom of Reality</h3>
                             </div>
                             
-                            <div class="mt-4 pt-4 border-t border-stone-700 flex flex-wrap justify-center gap-2">
-                                <button onclick="window.appActions.rollEssentiaRecovery('${activePc.id}', 'long_rest')" class="px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded border border-stone-600 text-[9px] uppercase font-bold tracking-wider transition shadow-sm flex items-center" title="Recover 1d6">
-                                    <i class="fa-solid fa-bed mr-1.5"></i> Long Rest
-                                </button>
-                                <button onclick="window.appActions.rollEssentiaRecovery('${activePc.id}', 'faint')" class="px-3 py-1.5 bg-[#1c1917] hover:bg-stone-800 text-teal-500 border border-teal-900/50 rounded text-[9px] uppercase font-bold tracking-wider transition shadow-sm flex items-center" title="Recover 1d6">
-                                    <i class="fa-solid fa-tower-observation mr-1.5"></i> Faint Echo
-                                </button>
-                                <button onclick="window.appActions.rollEssentiaRecovery('${activePc.id}', 'resonant')" class="px-3 py-1.5 bg-[#1c1917] hover:bg-stone-800 text-fuchsia-500 border border-fuchsia-900/50 rounded text-[9px] uppercase font-bold tracking-wider transition shadow-sm flex items-center" title="Recover 2d6">
-                                    <i class="fa-solid fa-monument mr-1.5"></i> Resonant Locus
-                                </button>
-                                <button onclick="window.appActions.rollEssentiaRecovery('${activePc.id}', 'vibrant')" class="px-3 py-1.5 bg-[#1c1917] hover:bg-stone-800 text-amber-500 border border-amber-700/50 rounded text-[9px] uppercase font-bold tracking-wider transition shadow-sm flex items-center" title="Recover 3d6">
-                                    <i class="fa-solid fa-gopuram mr-1.5"></i> Vibrant Nexus
-                                </button>
+                            <div class="relative w-[320px] h-[320px] flex items-center justify-center p-4 mx-auto my-4 shrink-0">
+                                <!-- SVG Loom Threads in Background -->
+                                <svg class="absolute inset-0 w-full h-full pointer-events-none ${convergenceSpinClass}" viewBox="0 0 320 320">
+                                    <!-- Inner focus ring -->
+                                    <circle cx="160" cy="160" r="45" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1" opacity="0.3" stroke-dasharray="2 4" />
+                                    
+                                    ${primary ? Array.from({ length: 8 }).map((_, i) => {
+                                        const angle = (i * (360 / 8) - 90) * (Math.PI / 180);
+                                        const x2 = 160 + 105 * Math.cos(angle);
+                                        const y2 = 160 + 105 * Math.sin(angle);
+                                        return `<line x1="160" y1="160" x2="${x2}" y2="${y2}" stroke="rgba(255,255,255,0.4)" stroke-width="1" stroke-dasharray="2 4" opacity="0.3" />`;
+                                    }).join('') : ''}
+                                </svg>
+
+                                <!-- Node buttons (Tethered to center perfectly) -->
+                                <div class="absolute" style="left: 160px; top: 160px; width: 0; height: 0;">
+                                    ${loomHtml}
+                                </div>
+                            </div>
+
+                            <div class="p-4 bg-black/40 border-t border-white/10 text-center text-xs text-gray-300 shadow-inner rounded-b-sm">
+                                <p id="loom-hint-text" class="font-serif leading-relaxed italic">
+                                    ${draft.patterns.length === 0 
+                                        ? `Select a thread from the outer ring to designate as your Primary Sigil.` 
+                                        : draft.patterns.length === 9 
+                                        ? `🚨 <span class="text-amber-400 font-bold drop-shadow-md">ALL THREADS WOVEN.</span> The Loom sings with absolute cosmic power!` 
+                                        : `Select orbiting sigils to weave Support threads. Active threads define your capabilities.`}
+                                </p>
                             </div>
                         </div>
 
-                        <div class="p-4 grid grid-cols-1 gap-2.5">
-                            ${Object.entries(PATTERN_THEME).map(([key, theme]) => {
-                                const val = pm[key] || 0;
-                                const canAdd = (pm.patternPoints || 0) > 0 && val < 5;
-                                const isFocused = draft.patterns.includes(key);
-                                const focusClass = isFocused ? 'border-amber-600/50 bg-stone-800/80 shadow-sm' : 'border-stone-800 bg-[#1c1917]';
-                                const titleText = val > 0 ? PATTERN_CONFIG.ExpertiseTitles[val] : "Unlearned";
+                        <!-- HERO'S MATRIX (Combined Attunement & Reservoir) -->
+                        <div class="glass-panel rounded-sm relative text-gray-200 shadow-lg">
+                            <div class="flex justify-between items-center border-b border-white/20 p-4 pb-3">
+                                <h3 class="text-sm font-bold text-amber-400 uppercase tracking-widest font-serif flex items-center drop-shadow-md">
+                                    <i class="fa-solid fa-bolt mr-2"></i> Hero's Matrix
+                                </h3>
+                                <span class="text-[10px] uppercase font-bold tracking-widest text-gray-400 bg-black/40 px-2 py-1 rounded shadow-inner border border-white/10">Unspent Points: <span class="text-amber-400">${pm.patternPoints || 0}</span></span>
+                            </div>
+                            
+                            <div class="p-4 border-b border-white/10 bg-black/20">
+                                <div class="flex justify-between text-[10px] uppercase font-bold tracking-widest text-gray-400 mb-2">
+                                    <span class="flex items-center"><i class="fa-solid fa-droplet text-amber-500 mr-1.5 drop-shadow-md"></i> Essentia Reservoir</span>
+                                    <span><span class="text-amber-400 drop-shadow-md">${pm.essentia || 0}</span> / ${maxEssentia}</span>
+                                </div>
+                                <div class="flex flex-wrap gap-3 p-3 bg-black/60 rounded-sm border border-white/10 justify-center shadow-inner">
+                                    ${pipsHtml || `<span class="text-[10px] text-gray-500 italic font-serif">Deepen your Attunement to expand your reservoir.</span>`}
+                                </div>
+                                
+                                <div class="mt-4 pt-4 border-t border-white/10 flex flex-wrap justify-center gap-2">
+                                    <button onclick="window.appActions.rollEssentiaRecovery('${activePc.id}', 'long_rest')" class="px-3 py-1.5 glass-btn text-gray-300 rounded text-[9px] uppercase font-bold tracking-wider transition shadow-sm flex items-center" title="Recover 1d6">
+                                        <i class="fa-solid fa-bed mr-1.5"></i> Long Rest
+                                    </button>
+                                    <button onclick="window.appActions.rollEssentiaRecovery('${activePc.id}', 'faint')" class="px-3 py-1.5 bg-black/40 hover:bg-black/60 text-teal-400 border border-teal-500/30 hover:border-teal-400/60 rounded text-[9px] uppercase font-bold tracking-wider transition shadow-sm flex items-center" title="Recover 1d6">
+                                        <i class="fa-solid fa-tower-observation mr-1.5"></i> Faint Echo
+                                    </button>
+                                    <button onclick="window.appActions.rollEssentiaRecovery('${activePc.id}', 'resonant')" class="px-3 py-1.5 bg-black/40 hover:bg-black/60 text-fuchsia-400 border border-fuchsia-500/30 hover:border-fuchsia-400/60 rounded text-[9px] uppercase font-bold tracking-wider transition shadow-sm flex items-center" title="Recover 2d6">
+                                        <i class="fa-solid fa-monument mr-1.5"></i> Resonant Locus
+                                    </button>
+                                    <button onclick="window.appActions.rollEssentiaRecovery('${activePc.id}', 'vibrant')" class="px-3 py-1.5 bg-black/40 hover:bg-black/60 text-amber-400 border border-amber-500/30 hover:border-amber-400/60 rounded text-[9px] uppercase font-bold tracking-wider transition shadow-sm flex items-center" title="Recover 3d6">
+                                        <i class="fa-solid fa-gopuram mr-1.5"></i> Vibrant Nexus
+                                    </button>
+                                </div>
+                            </div>
 
-                                return `
-                                <div class="flex items-center justify-between p-3 border rounded-sm ${focusClass} transition-colors group cursor-pointer" onclick="window.appActions.openPatternInfoModal('${key}')">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-3 h-3 rounded-full shadow-inner border border-black group-hover:scale-125 transition-transform" style="background-color: ${theme.color};"></div>
-                                        <div>
-                                            <span class="text-xs font-bold text-stone-200 font-serif tracking-wide block leading-none mb-1 group-hover:text-amber-400 transition-colors">${theme.label} <i class="fa-solid fa-circle-info ml-1 text-stone-500 text-[10px]"></i></span>
-                                            <span class="text-[9px] text-stone-500 font-sans uppercase tracking-widest leading-none block">${theme.desc}</span>
-                                            <span class="text-[8px] font-bold uppercase tracking-widest text-amber-600/80 mt-1 block">${titleText}</span>
+                            <div class="p-4 grid grid-cols-1 gap-2.5">
+                                ${Object.entries(PATTERN_THEME).map(([key, theme]) => {
+                                    const val = pm[key] || 0;
+                                    const canAdd = (pm.patternPoints || 0) > 0 && val < 5;
+                                    const isFocused = draft.patterns.includes(key);
+                                    const focusClass = isFocused ? 'border-amber-500/50 bg-black/60 shadow-[0_0_10px_rgba(245,158,11,0.1)]' : 'border-white/10 bg-black/20 hover:bg-black/40 hover:border-white/30';
+                                    const titleText = val > 0 ? PATTERN_CONFIG.ExpertiseTitles[val] : "Unlearned";
+
+                                    return `
+                                    <div class="flex items-center justify-between p-3 border rounded-sm ${focusClass} transition-colors group cursor-pointer" onclick="window.appActions.openPatternInfoModal('${key}')">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-3 h-3 rounded-full shadow-[0_0_5px_currentColor] border border-black/50 group-hover:scale-125 transition-transform" style="background-color: ${theme.color}; color: ${theme.color};"></div>
+                                            <div>
+                                                <span class="text-xs font-bold text-white font-serif tracking-wide block leading-none mb-1 group-hover:text-amber-400 transition-colors drop-shadow-md">${theme.label} <i class="fa-solid fa-circle-info ml-1 text-gray-500 text-[10px]"></i></span>
+                                                <span class="text-[9px] text-gray-400 font-sans uppercase tracking-widest leading-none block">${theme.desc}</span>
+                                                <span class="text-[8px] font-bold uppercase tracking-widest text-amber-500/80 mt-1 block">${titleText}</span>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-3">
+                                            <span class="text-sm font-serif font-bold text-gray-200 w-8 text-right drop-shadow-md" onclick="event.stopPropagation()">${val} / 5</span>
+                                            ${canAdd ? `
+                                                <button onclick="event.stopPropagation(); window.appActions.upgradePatternRank('${activePc.id}', '${key}')" class="px-2.5 py-1.5 glass-btn hover:bg-emerald-500/20 hover:border-emerald-500/50 hover:text-emerald-400 text-gray-300 rounded-sm transition-all text-[9px] font-bold uppercase tracking-wider shadow-md">
+                                                    <i class="fa-solid fa-arrow-up mr-1"></i> Train
+                                                </button>
+                                            ` : ''}
                                         </div>
                                     </div>
-                                    <div class="flex items-center gap-3">
-                                        <span class="text-sm font-serif font-bold text-stone-300 w-8 text-right" onclick="event.stopPropagation()">${val} / 5</span>
-                                        ${canAdd ? `
-                                            <button onclick="event.stopPropagation(); window.appActions.upgradePatternRank('${activePc.id}', '${key}')" class="px-2.5 py-1.5 bg-stone-700 hover:bg-emerald-700 text-stone-200 hover:text-white border border-stone-600 hover:border-emerald-600 rounded-sm transition-all text-[9px] font-bold uppercase tracking-wider shadow-md">
-                                                <i class="fa-solid fa-arrow-up mr-1"></i> Train
-                                            </button>
-                                        ` : ''}
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Panel: Cast Configuration Engine -->
+                    <div class="lg:col-span-7 space-y-6">
+                        
+                        <!-- STEP 2: SPELL IDENTITY -->
+                        <div class="glass-panel rounded-sm shadow-lg">
+                            <div class="bg-black/40 text-amber-400 p-3 rounded-t-sm border-b border-white/20 flex items-center gap-3">
+                                <span class="bg-amber-500/20 border border-amber-500/50 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shadow-inner shrink-0">2</span>
+                                <h3 class="font-serif font-bold uppercase tracking-widest text-sm drop-shadow-md">Spell Identity & Intent</h3>
+                            </div>
+                            <div class="p-5">
+                                <div class="grid grid-cols-1 sm:grid-cols-12 gap-4 mb-5">
+                                    <div class="sm:col-span-8">
+                                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Tapestry Designation (Name)</label>
+                                        <input type="text" 
+                                               id="draft-spell-name" 
+                                               oninput="window.appActions.updateDraftField('name', this.value, false, true)" 
+                                               value="${draft.name || ''}" 
+                                               placeholder="Provide a name for this spell..." 
+                                               class="w-full glass-input rounded-sm p-2.5 text-sm font-bold font-serif shadow-sm transition-colors">
+                                    </div>
+                                    <div class="sm:col-span-4 flex items-end">
+                                        <!-- Stack the Attuned Attribute Label and Select vertically to prevent overflow -->
+                                        <div class="w-full">
+                                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Attuned Attribute</label>
+                                            <select onchange="window.appActions.updateDraftField('ability', this.value, false)" class="w-full glass-input shadow-sm rounded text-white text-xs font-bold font-sans outline-none cursor-pointer uppercase tracking-wider p-2.5">
+                                                <option class="text-black" value="int" ${draft.ability === 'int' ? 'selected' : ''}>Intelligence (${activePc.int || 10})</option>
+                                                <option class="text-black" value="wis" ${draft.ability === 'wis' ? 'selected' : ''}>Wisdom (${activePc.wis || 10})</option>
+                                                <option class="text-black" value="cha" ${draft.ability === 'cha' ? 'selected' : ''}>Charisma (${activePc.cha || 10})</option>
+                                            </select>
+                                        </div>
                                     </div>
                                 </div>
-                                `;
-                            }).join('')}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Right Panel: Cast Configuration Engine -->
-                <div class="lg:col-span-7 space-y-6">
-                    
-                    <!-- STEP 2: SPELL IDENTITY -->
-                    <div class="parchment-panel rounded-sm shadow-md">
-                        <div class="bg-stone-900 text-amber-500 p-3 rounded-t-sm border-b-2 border-amber-700 flex items-center gap-3">
-                            <span class="bg-amber-600 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shadow-inner shrink-0">2</span>
-                            <h3 class="font-serif font-bold uppercase tracking-widest text-sm">Spell Identity & Intent</h3>
-                        </div>
-                        <div class="p-5">
-                            <div class="grid grid-cols-1 sm:grid-cols-12 gap-4 mb-5">
-                                <div class="sm:col-span-8">
-                                    <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Tapestry Designation (Name)</label>
-                                    <input type="text" 
-                                           id="draft-spell-name" 
-                                           oninput="window.appActions.updateDraftField('name', this.value, false, true)" 
-                                           value="${draft.name || ''}" 
-                                           placeholder="Provide a name for this spell..." 
-                                           class="w-full bg-white border border-[#d4c5a9] rounded-sm p-2.5 text-sm text-stone-900 font-bold font-serif outline-none shadow-sm focus:border-amber-600 transition-colors">
-                                </div>
-                                <div class="sm:col-span-4 flex items-end">
-                                    ${abilitySelectorHtml}
-                                </div>
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Intent & Visualization</label>
-                                <textarea id="draft-spell-desc" 
-                                          oninput="window.appActions.updateDraftField('description', this.value, false, true)" 
-                                          placeholder="Describe the aesthetic and physical ripples of your magic..." 
-                                          class="w-full bg-white border border-[#d4c5a9] rounded-sm p-3 text-sm text-stone-800 outline-none font-serif focus:border-amber-600 resize-y min-h-[80px] shadow-sm custom-scrollbar">${draft.description || ''}</textarea>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- STEP 3: CONFIGURE EFFECTS -->
-                    <div class="parchment-panel rounded-sm shadow-md">
-                        <div class="bg-stone-900 text-amber-500 p-3 rounded-t-sm border-b-2 border-amber-700 flex items-center gap-3">
-                            <span class="bg-amber-600 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shadow-inner shrink-0">3</span>
-                            <h3 class="font-serif font-bold uppercase tracking-widest text-sm">Configure Effects</h3>
-                            <span class="text-[9px] font-sans text-stone-400 normal-case tracking-normal italic ml-auto hidden sm:block">Select threads on the Loom to unlock tiers.</span>
-                        </div>
-                        <div id="effects-scaffolding-container" class="p-5 space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
-                            ${buildEffectsHTML(metrics, draft, pm, activePc)}
-                        </div>
-                    </div>
-
-                    <!-- STEP 4: REVIEW & UNLEASH -->
-                    <div class="bg-stone-900 text-stone-200 rounded-sm border-2 border-stone-800 shadow-xl relative overflow-hidden">
-                        <div class="absolute top-0 left-0 w-1.5 h-full bg-amber-600"></div>
-                        
-                        <div class="p-4 border-b border-stone-700 bg-stone-950 flex items-center gap-3 pl-5">
-                            <span class="bg-amber-600 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shadow-inner shrink-0">4</span>
-                            <h3 class="font-serif font-bold uppercase tracking-widest text-sm text-amber-500">Review & Unleash</h3>
-                        </div>
-
-                        <div class="p-5 pl-6">
-                            <div class="flex flex-wrap justify-between items-center gap-4">
                                 <div>
-                                    <span class="block text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Essentia Fuel Required</span>
-                                    <div class="flex items-center gap-2">
-                                        <i class="fa-solid fa-droplet text-amber-500 text-xl"></i>
-                                        <strong id="tapestry-cost-out" class="text-3xl font-black font-serif text-amber-400 drop-shadow-md">
-                                            ${draft.isRote ? `<span class="line-through text-stone-500 text-2xl mr-2">${metrics.totalBaseCost}</span>` : ''}${metrics.finalCost}
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Intent & Visualization</label>
+                                    <textarea id="draft-spell-desc" 
+                                              oninput="window.appActions.updateDraftField('description', this.value, false, true)" 
+                                              placeholder="Describe the aesthetic and physical ripples of your magic..." 
+                                              class="w-full glass-input rounded-sm p-3 text-sm resize-y min-h-[80px] shadow-sm custom-scrollbar font-serif"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- STEP 3: CONFIGURE EFFECTS -->
+                        <div class="glass-panel rounded-sm shadow-lg">
+                            <div class="bg-black/40 text-amber-400 p-3 rounded-t-sm border-b border-white/20 flex items-center gap-3">
+                                <span class="bg-amber-500/20 border border-amber-500/50 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shadow-inner shrink-0">3</span>
+                                <h3 class="font-serif font-bold uppercase tracking-widest text-sm drop-shadow-md">Configure Effects</h3>
+                                <span class="text-[9px] font-sans text-gray-400 normal-case tracking-normal italic ml-auto hidden sm:block">Select threads on the Loom to unlock tiers.</span>
+                            </div>
+                            <div id="effects-scaffolding-container" class="p-5 space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
+                                ${buildEffectsHTML(metrics, draft, pm, activePc)}
+                            </div>
+                        </div>
+
+                        <!-- STEP 4: REVIEW & UNLEASH -->
+                        <div class="bg-black/60 text-gray-200 rounded-sm border border-white/20 shadow-xl relative overflow-hidden">
+                            <div class="absolute top-0 left-0 w-1.5 h-full bg-amber-500 shadow-[0_0_15px_#f59e0b]"></div>
+                            
+                            <div class="p-4 border-b border-white/10 bg-black/40 flex items-center gap-3 pl-5">
+                                <span class="bg-amber-500/20 border border-amber-500/50 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shadow-inner shrink-0">4</span>
+                                <h3 class="font-serif font-bold uppercase tracking-widest text-sm text-amber-400 drop-shadow-md">Review & Unleash</h3>
+                            </div>
+
+                            <div class="p-5 pl-6">
+                                <div class="flex flex-wrap justify-between items-center gap-4">
+                                    <div>
+                                        <span class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Essentia Fuel Required</span>
+                                        <div class="flex items-center gap-2">
+                                            <i class="fa-solid fa-droplet text-amber-500 text-xl drop-shadow-[0_0_5px_rgba(245,158,11,0.8)]"></i>
+                                            <strong id="tapestry-cost-out" class="text-3xl font-black font-serif text-amber-400 drop-shadow-md">
+                                                ${draft.isRote ? `<span class="line-through text-gray-500 text-2xl mr-2">${metrics.totalBaseCost}</span>` : ''}${metrics.finalCost}
+                                            </strong>
+                                        </div>
+                                        ${draft.isRote ? `<span class="inline-block mt-2 text-[9px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-1 rounded-sm uppercase tracking-widest font-bold"><i class="fa-solid fa-check-circle mr-1"></i> Rote Discount Applied</span>` : ''}
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Weaving Difficulty</span>
+                                        <strong class="text-2xl font-black font-serif text-white bg-black/40 px-4 py-2 rounded-sm border border-white/10 shadow-inner">
+                                            DC <span id="tapestry-dc-out">${metrics.dc}</span>
                                         </strong>
                                     </div>
-                                    ${draft.isRote ? `<span class="inline-block mt-2 text-[9px] text-emerald-400 bg-emerald-950/50 border border-emerald-900 px-2 py-1 rounded uppercase tracking-widest font-bold"><i class="fa-solid fa-check-circle mr-1"></i> Rote Discount Applied</span>` : ''}
                                 </div>
-                                <div class="text-right">
-                                    <span class="block text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Weaving Difficulty</span>
-                                    <strong class="text-2xl font-black font-serif text-stone-100 bg-stone-800 px-4 py-2 rounded-sm border border-stone-600 shadow-inner">
-                                        DC <span id="tapestry-dc-out">${metrics.dc}</span>
-                                    </strong>
+
+                                <div class="mt-5 pt-4 border-t border-white/10 flex flex-col sm:flex-row gap-3 items-center">
+                                    <input type="text" 
+                                           id="input-rote-memorize-name" 
+                                           placeholder="Scribe configuration to Grimoire..." 
+                                           class="flex-1 w-full glass-input rounded-sm p-2 text-xs text-white outline-none font-serif shadow-inner">
+                                    <button type="button" 
+                                            onclick="window.appActions.memorizeCurrentDraftAsRote('${activePc.id}')"
+                                            class="w-full sm:w-auto px-4 py-2 glass-btn text-amber-400 hover:text-amber-300 transition text-[10px] font-bold uppercase tracking-widest rounded-sm shadow-md whitespace-nowrap">
+                                        <i class="fa-solid fa-feather-pointed mr-1.5"></i> Scribe Rote
+                                    </button>
                                 </div>
-                            </div>
 
-                            <div class="mt-5 pt-4 border-t border-stone-700 flex flex-col sm:flex-row gap-3 items-center">
-                                <input type="text" 
-                                       id="input-rote-memorize-name" 
-                                       placeholder="Scribe configuration to Grimoire..." 
-                                       class="flex-1 w-full bg-[#1c1917] border border-stone-600 rounded-sm p-2 text-xs text-stone-300 outline-none font-serif focus:border-amber-500 shadow-inner">
-                                <button type="button" 
-                                        onclick="window.appActions.memorizeCurrentDraftAsRote('${activePc.id}')"
-                                        class="w-full sm:w-auto px-4 py-2 bg-stone-800 text-amber-400 hover:bg-amber-900 hover:text-amber-50 transition text-[10px] font-bold uppercase tracking-widest rounded-sm border border-stone-600 shadow-md whitespace-nowrap">
-                                    <i class="fa-solid fa-feather-pointed mr-1.5"></i> Scribe Rote
-                                </button>
-                            </div>
-
-                            <div class="mt-4">
-                                <button type="button" 
-                                        id="tapestry-cast-btn"
-                                        onclick="window.appActions.castCurrentPatternSpell('${activePc.id}')"
-                                        class="w-full py-3.5 bg-amber-700 text-stone-950 hover:bg-amber-600 transition-all text-sm font-black uppercase tracking-widest rounded-sm shadow-[0_0_15px_rgba(217,119,6,0.3)] border border-amber-500 flex items-center justify-center gap-2 active:scale-95">
-                                    <i class="fa-solid fa-burst text-lg animate-pulse"></i> Unleash the Pattern
-                                </button>
+                                <div class="mt-4">
+                                    <button type="button" 
+                                            id="tapestry-cast-btn"
+                                            onclick="window.appActions.castCurrentPatternSpell('${activePc.id}')"
+                                            class="w-full py-3.5 bg-gradient-to-r from-amber-600 to-amber-500 text-black hover:from-amber-500 hover:to-amber-400 transition-all text-sm font-black uppercase tracking-widest rounded-sm shadow-[0_0_15px_rgba(245,158,11,0.4)] flex items-center justify-center gap-2 active:scale-95">
+                                        <i class="fa-solid fa-burst text-lg animate-pulse"></i> Unleash the Pattern
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- GRIMOIRE QUICK LOAD -->
-                    <div class="parchment-panel rounded-sm shadow-md">
-                        <div class="bg-stone-200 text-stone-700 p-3 rounded-t-sm border-b border-[#d4c5a9] flex items-center gap-3">
-                            <i class="fa-solid fa-book-journal-whills text-amber-700 ml-1"></i>
-                            <h3 class="font-serif font-bold uppercase tracking-widest text-sm">Memorized Grimoire</h3>
-                        </div>
-                        <div class="p-5">
-                            ${rotesTabHtml}
+                        <!-- GRIMOIRE QUICK LOAD -->
+                        <div class="glass-panel rounded-sm shadow-lg">
+                            <div class="bg-black/20 text-gray-300 p-3 rounded-t-sm border-b border-white/10 flex items-center gap-3">
+                                <i class="fa-solid fa-book-journal-whills text-amber-500 ml-1 drop-shadow-md"></i>
+                                <h3 class="font-serif font-bold uppercase tracking-widest text-sm">Memorized Grimoire</h3>
+                            </div>
+                            <div class="p-5">
+                                ${rotesTabHtml}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1147,8 +1206,7 @@ if (typeof window !== 'undefined') {
             `).join('');
         } else {
             tiersHtml += effectData.tiers.map((t, i) => {
-                // Determine displayed tier number (offset for mandatory if they skip index 0 in the view logic)
-                // However, we just show index as Tier 0,1,2.. for optional, and Tier 1,2,3 for mandatory.
+                // Determine displayed tier number (offset for mandatory since they skip index 0)
                 const dispIdx = isMandatory ? i + 1 : i;
                 return `
                 <div class="flex justify-between items-center p-2 border-b border-stone-200 last:border-0">
@@ -1190,34 +1248,67 @@ if (typeof window !== 'undefined') {
     };
 
     // The core seamless updater function!
-    window.appActions.refreshTapestryUI = () => {
+    window.appActions.refreshTapestryUI = (forcedPmState = null) => {
         const camp = window.appData.activeCampaign;
-        const isDM = camp && camp._isDM;
-        
-        let activePcId = window.appData.activePatternPcId || (camp.playerCharacters && camp.playerCharacters.find(p => p.playerId === window.appData.currentUserUid)?.id) || '';
-        if (!activePcId && isDM && camp.playerCharacters && camp.playerCharacters.length > 0) {
-            const firstValid = camp.playerCharacters.find(p => p.patternMagicUnlocked);
-            activePcId = firstValid ? firstValid.id : camp.playerCharacters[0].id;
-        }
+        const activePcId = window.appData.activePatternPcId || (camp.playerCharacters && camp.playerCharacters.find(p => p.playerId === window.appData.currentUserUid)?.id) || '';
         const activePc = camp.playerCharacters && camp.playerCharacters.find(p => p.id === activePcId);
         if (!activePc) return;
         
-        const pm = getOrInitPatternState(activePc);
+        // Let the caller push a specific PM state (useful during initial render loop)
+        const pm = forcedPmState || getOrInitPatternState(activePc);
         const draft = getOrInitDraftState();
         const primary = draft.patterns[0] || null;
         const supports = draft.patterns.slice(1);
         
-        const radius = 105;
+        const cx = 160; const cy = 160; const radius = 105;
         const patternsList = Object.keys(PATTERN_THEME);
         
-        // 1. ANIMATE THE LOOM
+        // 1. DYNAMIC WEAVE BACKGROUND
+        const weaveEl = document.getElementById('dynamic-weave-layer');
+        if (weaveEl) {
+            const ranks = Object.keys(PATTERN_THEME).map(key => pm[key] || 0);
+            let maxRank = Math.max(...ranks);
+            if (maxRank === 0) maxRank = 1;
+
+            let activeColors = [];
+            Object.keys(PATTERN_THEME).forEach(key => {
+                if ((pm[key] || 0) > 0) activeColors.push(PATTERN_THEME[key].color);
+            });
+
+            if (activeColors.length === 0) {
+                activeColors = ['#1a1a24', '#0a0a0c'];
+            }
+
+            const threadSize = 16;
+            let vGrad = `repeating-linear-gradient(90deg, `;
+            activeColors.forEach((c, i) => {
+                vGrad += `${c} ${i*threadSize}px, ${c} ${(i+1)*threadSize - 2}px, rgba(0,0,0,0.8) ${(i+1)*threadSize - 2}px, rgba(0,0,0,0.8) ${(i+1)*threadSize}px${i < activeColors.length-1 ? ', ' : ''}`;
+            });
+            vGrad += `)`;
+
+            let hGrad = `repeating-linear-gradient(0deg, `;
+            activeColors.reverse().forEach((c, i) => {
+                hGrad += `${c} ${i*threadSize}px, ${c} ${(i+1)*threadSize - 2}px, rgba(0,0,0,0.8) ${(i+1)*threadSize - 2}px, rgba(0,0,0,0.8) ${(i+1)*threadSize}px${i < activeColors.length-1 ? ', ' : ''}`;
+            });
+            hGrad += `)`;
+
+            weaveEl.style.backgroundImage = `${hGrad}, ${vGrad}`;
+            weaveEl.style.backgroundBlendMode = activeColors.length > 2 ? 'screen' : 'normal';
+            weaveEl.style.backgroundColor = '#050505';
+
+            const blurAmount = (5 - maxRank) * 2;
+            const brightness = 0.4 + (maxRank * 0.15);
+            weaveEl.style.filter = `blur(${blurAmount}px) brightness(${brightness})`;
+        }
+
+        // 2. ANIMATE THE LOOM
         if (!primary) {
             patternsList.forEach((key, index) => {
                 const angleDeg = index * (360 / 9) - 90;
                 
                 const btn = document.getElementById(`sigil-btn-${key}`);
                 if (btn) {
-                    btn.classList.remove('pulse-prime-sigil');
+                    btn.classList.remove('pulse-prime-sigil', 'loom-entrance');
                     // Setting these styles natively triggers the CSS transition!
                     btn.style.transform = `rotate(${angleDeg}deg) translateX(${radius}px) rotate(${-angleDeg}deg) scale(1)`;
                     btn.className = 'sigil-btn absolute w-24 h-24 flex flex-col items-center justify-center cursor-pointer z-20 opacity-40 hover:opacity-100 hover:z-[100] group';
@@ -1231,11 +1322,12 @@ if (typeof window !== 'undefined') {
             // Primary Sigil glides to center and gets large
             const primeBtn = document.getElementById(`sigil-btn-${primary}`);
             if (primeBtn) {
-                primeBtn.style.transform = `rotate(-90deg) translateX(8px) rotate(90deg) scale(1.4)`;
+                // X points UP at -90 degrees, so translateX(12px) shifts the icon 12px upward perfectly matching the old layout!
+                primeBtn.style.transform = `rotate(-90deg) translateX(12px) rotate(90deg) scale(1.4)`;
                 const theme = PATTERN_THEME[primary];
                 primeBtn.className = 'sigil-btn absolute w-24 h-24 flex flex-col items-center justify-center cursor-pointer z-[100] opacity-100 pulse-prime-sigil group';
                 const img = primeBtn.querySelector('img');
-                if(img) img.style.filter = `drop-shadow(0 0 8px ${theme.color})`;
+                if(img) img.style.filter = `drop-shadow(0 0 10px ${theme.color})`;
             }
 
             // Orbits glide into 8-point ring
@@ -1247,13 +1339,13 @@ if (typeof window !== 'undefined') {
                 const theme = PATTERN_THEME[key];
                 
                 if (btn) {
-                    btn.classList.remove('pulse-prime-sigil');
+                    btn.classList.remove('pulse-prime-sigil', 'loom-entrance');
                     btn.style.transform = `rotate(${angleDeg}deg) translateX(${radius}px) rotate(${-angleDeg}deg) scale(0.9)`;
                     const img = btn.querySelector('img');
                     
                     if (isSupported) {
                         btn.className = 'sigil-btn absolute w-24 h-24 flex flex-col items-center justify-center cursor-pointer z-[90] hover:z-[100] opacity-100 group';
-                        if(img) img.style.filter = `drop-shadow(0 0 5px ${theme.color})`;
+                        if(img) img.style.filter = `drop-shadow(0 0 8px ${theme.color})`;
                     } else {
                         btn.className = 'sigil-btn absolute w-24 h-24 flex flex-col items-center justify-center cursor-pointer z-10 hover:z-[100] opacity-40 hover:opacity-100 group';
                         if(img) img.style.filter = 'none';
@@ -1262,7 +1354,7 @@ if (typeof window !== 'undefined') {
             });
         }
         
-        // 2. UPDATE FORMS & METRICS (No page reload)
+        // 3. UPDATE FORMS & METRICS (No page reload)
         const metrics = calculateAffinityLimitsAndCosts(activePc, pm, draft);
         const formsContainer = document.getElementById('effects-scaffolding-container');
         if (formsContainer) {
@@ -1272,7 +1364,7 @@ if (typeof window !== 'undefined') {
         const costEl = document.getElementById('tapestry-cost-out');
         if (costEl) {
             if (draft.isRote) {
-                costEl.innerHTML = `<span class="line-through text-stone-500 text-2xl mr-2">${metrics.totalBaseCost}</span>${metrics.finalCost}`;
+                costEl.innerHTML = `<span class="line-through text-gray-500 text-2xl mr-2">${metrics.totalBaseCost}</span>${metrics.finalCost}`;
             } else {
                 costEl.innerHTML = metrics.finalCost;
             }
@@ -1284,15 +1376,21 @@ if (typeof window !== 'undefined') {
         const hintEl = document.getElementById('loom-hint-text');
         if (hintEl) {
             if (draft.patterns.length === 0) hintEl.innerHTML = 'Select a thread from the outer ring to designate as your Primary Sigil.';
-            else if (draft.patterns.length === 9) hintEl.innerHTML = '🚨 <span class="text-amber-700 font-bold">ALL THREADS WOVEN.</span> The Loom sings with absolute cosmic power!';
+            else if (draft.patterns.length === 9) hintEl.innerHTML = '🚨 <span class="text-amber-400 font-bold drop-shadow-md">ALL THREADS WOVEN.</span> The Loom sings with absolute cosmic power!';
             else hintEl.innerHTML = 'Select orbiting sigils to weave Support threads. Active threads define your capabilities.';
         }
 
         const castBtn = document.getElementById('tapestry-cast-btn');
         if (castBtn) {
             let isValid = primary !== null;
-            // The loop checking for 0 values on mandatory tiers was successfully removed to allow baseline T1 casting
-            
+            if (isValid) {
+                for (const [cat, data] of Object.entries(PATTERN_CONFIG.Effects)) {
+                    if (data.mandatory && (draft.effectTiers[cat] || 0) === 0) {
+                        isValid = false;
+                        break;
+                    }
+                }
+            }
             castBtn.disabled = !isValid && !draft.isRote;
             if(castBtn.disabled) castBtn.classList.add('opacity-50', 'cursor-not-allowed', 'grayscale');
             else castBtn.classList.remove('opacity-50', 'cursor-not-allowed', 'grayscale');
@@ -1395,14 +1493,20 @@ if (typeof window !== 'undefined') {
 
         let exceeds = false;
         Object.keys(PATTERN_CONFIG.Effects).forEach(cat => {
-            const isMandatory = PATTERN_CONFIG.Effects[cat].mandatory;
-            const adjustedLimit = isMandatory ? metrics.limits[cat] - 1 : metrics.limits[cat];
-            if ((draft.effectTiers[cat] || 0) > adjustedLimit) exceeds = true;
+            if ((draft.effectTiers[cat] || 0) > metrics.limits[cat]) exceeds = true;
         });
 
         if (exceeds) {
             window.appActions.notify("You cannot scribe a Rote containing elements that exceed your attuned Pattern Ranks.", "error");
             return;
+        }
+
+        // Check mandatory tiers before allowing Rote to save
+        for (const [cat, data] of Object.entries(PATTERN_CONFIG.Effects)) {
+            if (data.mandatory && (draft.effectTiers[cat] || 0) === 0) {
+                window.appActions.notify("All Mandatory spell parameters (Range, Duration, Activation Time, Area/Targets) must be defined before scribing.", "error");
+                return;
+            }
         }
 
         // Setup the Rote structure payload
@@ -1450,10 +1554,12 @@ if (typeof window !== 'undefined') {
         if (draftNameEl) draftNameEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     };
     
+    // Create an explicit binding for deleteRote that safely triggers reRender
     window.appActions.deleteRote = async (pcId, roteId) => {
-        // Automatically proceed without confirm to comply with restrictions
-        const success = await deleteRote(pcId, roteId);
-        if (success) reRender(true);
+        if(confirm("Are you sure you want to permanently erase this Rote from your Grimoire?")) {
+            const success = await deleteRote(pcId, roteId);
+            if (success) reRender(true);
+        }
     };
 
     window.appActions.castCurrentPatternSpell = async (pcId) => {
