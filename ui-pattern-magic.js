@@ -556,7 +556,7 @@ export function getPatternNexusHTML(state) {
 
     let loomHtml = '';
 
-    // INITIAL HTML STATE FOR SPIRAL ANIMATION
+    // INITIAL HTML STATE FOR SPIRAL ANIMATION: Pinned to absolute center, scaled down, and rotated backward 
     patternsList.forEach((key, index) => {
         const theme = PATTERN_THEME[key];
         const rank = pm[key] || 0;
@@ -567,7 +567,7 @@ export function getPatternNexusHTML(state) {
         const angleDeg = index * (360 / 9) - 90;
         const startAngle = angleDeg - 360; 
         
-        // Pin to center, no X translation, fully reversed rotation using valid JS template math
+        // Pin to center (160 - 48 = 112), no X translation, fully reversed rotation
         const initialTransform = `rotate(${startAngle}deg) translateX(0px) rotate(${-startAngle}deg) scale(0.1)`;
 
         loomHtml += `
@@ -605,6 +605,12 @@ export function getPatternNexusHTML(state) {
                 </div>
                 <div class="flex flex-wrap items-center gap-3">
                     ${pcSelectorHtml}
+                    
+                    <!-- NEW GUIDE BUTTON -->
+                    <button onclick="window.appActions.openWeavingGuideModal()" class="px-4 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition text-[10px] font-bold uppercase tracking-wider shadow-md">
+                        <i class="fa-solid fa-graduation-cap mr-2 text-amber-500"></i> Guide
+                    </button>
+
                     <button onclick="window.appActions.setView('adventure')" class="px-4 py-2 bg-[#fdfbf7] text-stone-800 border border-[#d4c5a9] rounded-sm hover:bg-white transition text-[10px] font-bold uppercase tracking-wider shadow-md">
                         <i class="fa-solid fa-door-open mr-2 text-amber-700"></i> Return
                     </button>
@@ -615,7 +621,7 @@ export function getPatternNexusHTML(state) {
 
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
                 
-                <!-- Left Panel: Loom & Attunement -->
+                <!-- Left Panel: Tapestry Loom & Attunement -->
                 <div class="lg:col-span-5 space-y-6">
                     
                     <!-- STEP 1: THE LOOM -->
@@ -844,15 +850,192 @@ export function getPatternNexusHTML(state) {
 if (typeof window !== 'undefined') {
     window.appActions = window.appActions || {};
 
+    // --- GRIMOIRE GUIDE (TUTORIAL) MODAL ---
+    window.appActions.openWeavingGuideModal = () => {
+        const modalHtml = `
+            <div id="weaving-guide-overlay" class="fixed inset-0 bg-stone-950/80 z-[35000] flex items-center justify-center p-4 backdrop-blur-sm" onclick="window.appActions.closeWeavingGuideModal()">
+                <div class="parchment-panel max-w-2xl w-full rounded-sm shadow-2xl relative border-2 border-[#d4c5a9] overflow-hidden flex flex-col max-h-[90vh]" onclick="event.stopPropagation()">
+                    
+                    <div class="h-2 w-full bg-amber-600 shrink-0"></div>
+                    
+                    <button type="button" onclick="window.appActions.closeWeavingGuideModal()" class="absolute top-4 right-4 text-stone-400 hover:text-stone-900 transition-colors bg-white/50 rounded-full w-8 h-8 flex items-center justify-center border border-[#d4c5a9] z-50">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+
+                    <div class="p-5 sm:p-6 bg-stone-900 border-b border-[#d4c5a9] flex justify-between items-center text-amber-50 shrink-0">
+                        <h2 class="text-xl font-black font-serif text-amber-500 tracking-wide flex items-center"><i class="fa-solid fa-graduation-cap mr-3 text-amber-600"></i> Grimoire of Weaving</h2>
+                        <span class="text-[10px] uppercase font-bold tracking-widest text-stone-400 hidden sm:block">A Guide to Pattern Magic</span>
+                    </div>
+
+                    <div class="p-5 sm:p-8 overflow-y-auto custom-scrollbar flex-grow bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-[#fdfbf7]">
+                        
+                        <!-- Page 1 -->
+                        <div id="guide-page-1" class="guide-page">
+                            <h3 class="text-lg font-serif font-bold text-stone-900 border-b border-[#d4c5a9] pb-1.5 mb-4">Step 1: The Loom & Patterns</h3>
+                            <p class="text-sm text-stone-700 font-serif leading-relaxed mb-4">The core of this magic system revolves around <b>Patterns</b>. Each Pattern governs a fundamental aspect of existence (Space, Time, Energy, Mind, etc.). You must select which Patterns you are weaving together to form a spell.</p>
+                            <div class="bg-white p-4 border border-[#d4c5a9] rounded-sm shadow-inner mb-4">
+                                <h4 class="font-bold text-amber-900 text-xs uppercase tracking-widest mb-2"><i class="fa-solid fa-star text-amber-500 mr-1.5"></i> The Prime Pattern</h4>
+                                <p class="text-xs text-stone-600 leading-relaxed font-serif">The very first Pattern you select is considered the <b>Prime Pattern</b>. This is the foundational concept of your spell, and it is the only Pattern that can be pushed to its absolute limits. <br><br>Any additional Patterns you select are considered <b>Support Patterns</b>, lending their influence but in a more controlled manner.</p>
+                            </div>
+                        </div>
+
+                        <!-- Page 2 -->
+                        <div id="guide-page-2" class="guide-page hidden">
+                            <h3 class="text-lg font-serif font-bold text-stone-900 border-b border-[#d4c5a9] pb-1.5 mb-4">Step 2: Essentia & Attunement</h3>
+                            <p class="text-sm text-stone-700 font-serif leading-relaxed mb-4">Before weaving, you must understand your limits. <b>Pattern Rating</b> represents your skill in a specific discipline (Rank 1 to 5). <b>Essentia</b> is the raw magical fuel required to power your spells.</p>
+                            <div class="bg-amber-50 p-4 border border-amber-200 rounded-sm shadow-inner mb-4">
+                                <h4 class="font-bold text-amber-900 text-xs uppercase tracking-widest mb-2"><i class="fa-solid fa-droplet text-amber-600 mr-1.5"></i> Essentia Capacity & Recovery</h4>
+                                <ul class="list-disc ml-4 text-xs text-amber-800 space-y-1.5 font-serif">
+                                    <li>Your maximum Essentia is exactly <b>4 × (Your Total Pattern Ranks)</b>.</li>
+                                    <li>You recover <b>no Essentia</b> on a short rest.</li>
+                                    <li>You recover <b>1d6 Essentia</b> on a long rest.</li>
+                                    <li>You can actively seek out <b>Pattern Nodes</b> (Faint, Resonant, or Vibrant) in the world to safely absorb 1d6, 2d6, or 3d6 Essentia.</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Page 3 -->
+                        <div id="guide-page-3" class="guide-page hidden">
+                            <h3 class="text-lg font-serif font-bold text-stone-900 border-b border-[#d4c5a9] pb-1.5 mb-4">Step 3: Effects & Affinities</h3>
+                            <p class="text-sm text-stone-700 font-serif leading-relaxed mb-4">You build a spell by increasing the Tier of its individual effects (Range, Duration, Damage, etc.). Your ability to raise a Tier depends entirely on your <b>Affinities</b> with the patterns you selected.</p>
+                            
+                            <div class="space-y-3">
+                                <div class="bg-white p-3 border border-stone-200 shadow-sm rounded-sm">
+                                    <h4 class="font-bold text-stone-800 text-xs mb-1"><i class="fa-solid fa-star text-amber-500 mr-1"></i> Primary Affinities</h4>
+                                    <p class="text-xs text-stone-600 font-serif leading-snug">Effects representing the core identity of the pattern. If woven as the <b>Prime</b> pattern, you can access up to <b>Rank + 1</b>. If woven as a Support, you can access up to <b>Rank</b>.</p>
+                                </div>
+                                <div class="bg-white p-3 border border-stone-200 shadow-sm rounded-sm">
+                                    <h4 class="font-bold text-stone-800 text-xs mb-1"><i class="fa-regular fa-star text-amber-500 mr-1"></i> Secondary Affinities</h4>
+                                    <p class="text-xs text-stone-600 font-serif leading-snug">Effects the pattern can influence, but less effectively. You can access up to your <b>Rank</b>, regardless of whether it is Prime or Support.</p>
+                                </div>
+                                <div class="bg-stone-100 p-3 border border-stone-300 shadow-inner rounded-sm">
+                                    <h4 class="font-bold text-stone-800 text-xs mb-1"><i class="fa-solid fa-lock-open text-stone-500 mr-1"></i> Mandatory Baseline</h4>
+                                    <p class="text-[10px] text-stone-600 font-sans leading-snug">To ensure a spell can always be formed, all Mandatory Effects (Range, Duration, Activation Time, Area/Targets) are always available at a baseline of <b>Tier 1</b>, even if none of your selected Patterns have an affinity for them.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Page 4 -->
+                        <div id="guide-page-4" class="guide-page hidden">
+                            <h3 class="text-lg font-serif font-bold text-stone-900 border-b border-[#d4c5a9] pb-1.5 mb-4">Step 4: The Roll & Rotes</h3>
+                            <p class="text-sm text-stone-700 font-serif leading-relaxed mb-4">When weaving a spell, you must roll <b>1d20 + Attribute Mod + Sum of Selected Pattern Ranks</b>. The Difficulty Class (DC) is always <b>5 + Total Essentia Cost</b>.</p>
+                            
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                                <div class="bg-emerald-50 p-3 border border-emerald-200 rounded-sm shadow-inner">
+                                    <h4 class="font-bold text-emerald-900 text-xs uppercase tracking-widest mb-1.5">Degrees of Success</h4>
+                                    <ul class="text-[10px] text-emerald-800 font-serif space-y-1 ml-4 list-disc">
+                                        <li><b>Success:</b> The spell takes effect perfectly.</li>
+                                        <li><b>+5 Over DC:</b> Significant Success! You may upgrade exactly one effect by 1 Tier instantly.</li>
+                                        <li><b>+10 Over DC:</b> Exceptional Success! You may upgrade two different effects by 1 Tier instantly.</li>
+                                    </ul>
+                                </div>
+                                <div class="bg-[#fdfbf7] p-3 border border-[#d4c5a9] rounded-sm shadow-sm">
+                                    <h4 class="font-bold text-amber-900 text-xs uppercase tracking-widest mb-1.5"><i class="fa-solid fa-feather-pointed mr-1"></i> Rotes</h4>
+                                    <p class="text-[10px] text-stone-700 font-serif leading-snug">A Rote is a highly practiced spell. Scribing a configured spell into your Grimoire as a Rote reduces its final Essentia cost (and thus its DC) by <b>1/3</b>! You can memorize a number of Rotes equal to your Prime Pattern's Rank.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Page 5 -->
+                        <div id="guide-page-5" class="guide-page hidden">
+                            <h3 class="text-lg font-serif font-bold text-red-900 border-b border-[#d4c5a9] pb-1.5 mb-4"><i class="fa-solid fa-skull mr-2"></i> The Dangers of the Weave</h3>
+                            <p class="text-sm text-stone-700 font-serif leading-relaxed mb-4">Magic is dangerous. Manipulating the fundamental forces of reality can fracture the mind or unleash catastrophic elemental forces.</p>
+                            
+                            <div class="space-y-4">
+                                <div class="bg-red-50 p-4 border border-red-200 rounded-sm shadow-inner">
+                                    <h4 class="font-bold text-red-900 text-xs uppercase tracking-widest mb-1.5"><i class="fa-solid fa-brain mr-1"></i> Mental Strain (Sanity)</h4>
+                                    <p class="text-xs text-red-800 font-serif leading-snug mb-2">You must make a Sanity Saving Throw against <b>(10 + Essentia Cost)</b> if you:</p>
+                                    <ul class="text-[10px] text-red-700 font-sans space-y-1 ml-4 list-disc">
+                                        <li>Cast a High-Stress Spell (DC 20 or higher).</li>
+                                        <li>Suffer a Chaotic Backlash (Natural roll of 1-5).</li>
+                                        <li>Suffer a Critical Failure (Total roll is 5 or more below the DC).</li>
+                                    </ul>
+                                    <p class="text-[10px] text-red-800 italic mt-2">Failing a Sanity save inflicts Short, Long, or Indefinite Madness depending on the power of the spell cast.</p>
+                                </div>
+                                <div class="bg-stone-900 p-4 border border-stone-700 rounded-sm shadow-md">
+                                    <h4 class="font-bold text-amber-500 text-xs uppercase tracking-widest mb-1.5"><i class="fa-solid fa-burst mr-1"></i> Catastrophic Backlash</h4>
+                                    <p class="text-xs text-stone-300 font-serif leading-snug">If your total roll is <b>5 or more below the DC</b>, the Pattern snaps. The spell fails, you suffer a Sanity Check, and you trigger a Catastrophic Backlash effect (ranging from mental fatigue to taking direct elemental damage based on your Prime Pattern).</p>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                    
+                    <!-- Fixed Pagination Footer -->
+                    <div class="bg-[#e8dec7] p-4 border-t border-[#d4c5a9] flex justify-between items-center shrink-0">
+                        <button type="button" onclick="window.appActions.navGuidePage(-1)" id="guide-prev-btn" class="px-4 py-2 bg-stone-300 text-stone-500 rounded-sm font-bold uppercase tracking-wider text-[10px] cursor-not-allowed shadow-sm transition" disabled><i class="fa-solid fa-chevron-left mr-1.5"></i> Prev</button>
+                        <span id="guide-page-indicator" class="text-xs font-bold font-serif text-stone-600">Page 1 of 5</span>
+                        <button type="button" onclick="window.appActions.navGuidePage(1)" id="guide-next-btn" class="px-4 py-2 bg-stone-900 text-amber-50 hover:bg-stone-800 rounded-sm font-bold uppercase tracking-wider text-[10px] shadow-md transition">Next <i class="fa-solid fa-chevron-right ml-1.5"></i></button>
+                    </div>
+                </div>
+            </div>
+        `;
+        const container = document.getElementById('pattern-info-modal-container');
+        if (container) {
+            container.innerHTML = modalHtml;
+            // Initialize page tracker on the modal element itself so it resets cleanly
+            container.dataset.currentPage = 1; 
+        }
+    };
+
+    window.appActions.closeWeavingGuideModal = () => {
+        const container = document.getElementById('pattern-info-modal-container');
+        if (container) container.innerHTML = '';
+    };
+
+    window.appActions.navGuidePage = (dir) => {
+        const container = document.getElementById('pattern-info-modal-container');
+        if (!container) return;
+
+        let currentPage = parseInt(container.dataset.currentPage) || 1;
+        const totalPages = 5;
+
+        // Hide current
+        const currentEl = document.getElementById(`guide-page-${currentPage}`);
+        if (currentEl) currentEl.classList.add('hidden');
+
+        // Increment
+        currentPage += dir;
+        if (currentPage < 1) currentPage = 1;
+        if (currentPage > totalPages) currentPage = totalPages;
+        container.dataset.currentPage = currentPage;
+
+        // Show new
+        const newEl = document.getElementById(`guide-page-${currentPage}`);
+        if (newEl) newEl.classList.remove('hidden');
+
+        // Update UI
+        document.getElementById('guide-page-indicator').innerText = `Page ${currentPage} of ${totalPages}`;
+
+        const prevBtn = document.getElementById('guide-prev-btn');
+        const nextBtn = document.getElementById('guide-next-btn');
+
+        if (currentPage === 1) {
+            prevBtn.disabled = true;
+            prevBtn.className = "px-4 py-2 bg-stone-300 text-stone-500 rounded-sm font-bold uppercase tracking-wider text-[10px] cursor-not-allowed shadow-sm transition";
+        } else {
+            prevBtn.disabled = false;
+            prevBtn.className = "px-4 py-2 bg-stone-100 text-stone-700 hover:bg-white rounded-sm font-bold uppercase tracking-wider text-[10px] shadow-sm border border-stone-300 transition";
+        }
+
+        if (currentPage === totalPages) {
+            nextBtn.disabled = true;
+            nextBtn.className = "px-4 py-2 bg-stone-300 text-stone-500 rounded-sm font-bold uppercase tracking-wider text-[10px] cursor-not-allowed shadow-sm transition";
+        } else {
+            nextBtn.disabled = false;
+            nextBtn.className = "px-4 py-2 bg-stone-900 text-amber-50 hover:bg-stone-800 rounded-sm font-bold uppercase tracking-wider text-[10px] shadow-md transition";
+        }
+    };
+
+
     window.appActions.openPatternInfoModal = (patternKey) => {
         const theme = PATTERN_THEME[patternKey];
         const configAff = PATTERN_CONFIG.Affinities[patternKey];
         const dmgTypes = PATTERN_CONFIG.DamageTypesByPattern[patternKey] || [];
         
-        // Dynamic fetch of the PC's actual rank for this specific pattern to display the Title
         const camp = window.appData.activeCampaign;
-        const activePcId = window.appData.activePatternPcId || (camp.playerCharacters?.find(p => p.playerId === window.appData.currentUserUid)?.id) || '';
-        const activePc = camp.playerCharacters?.find(p => p.id === activePcId);
+        const activePcId = window.appData.activePatternPcId || (camp.playerCharacters && camp.playerCharacters.find(p => p.playerId === window.appData.currentUserUid)?.id) || '';
+        const activePc = camp.playerCharacters && camp.playerCharacters.find(p => p.id === activePcId);
         const pm = activePc ? getOrInitPatternState(activePc) : {};
         const rank = pm[patternKey] || 0;
         const titleText = rank > 0 ? PATTERN_CONFIG.ExpertiseTitles[rank] : "Unlearned";
@@ -985,8 +1168,8 @@ if (typeof window !== 'undefined') {
     // The core seamless updater function!
     window.appActions.refreshTapestryUI = () => {
         const camp = window.appData.activeCampaign;
-        const activePcId = window.appData.activePatternPcId || (camp.playerCharacters?.find(p => p.playerId === window.appData.currentUserUid)?.id) || '';
-        const activePc = camp.playerCharacters?.find(p => p.id === activePcId);
+        const activePcId = window.appData.activePatternPcId || (camp.playerCharacters && camp.playerCharacters.find(p => p.playerId === window.appData.currentUserUid)?.id) || '';
+        const activePc = camp.playerCharacters && camp.playerCharacters.find(p => p.id === activePcId);
         if (!activePc) return;
         
         const pm = getOrInitPatternState(activePc);
@@ -994,18 +1177,25 @@ if (typeof window !== 'undefined') {
         const primary = draft.patterns[0] || null;
         const supports = draft.patterns.slice(1);
         
-        const radius = 105;
+        const cx = 160; const cy = 160; const radius = 105;
         const patternsList = Object.keys(PATTERN_THEME);
         
         // 1. ANIMATE THE LOOM
         if (!primary) {
             patternsList.forEach((key, index) => {
-                const angleDeg = index * (360 / 9) - 90;
+                const angle = (index * (360 / 9) - 90) * (Math.PI / 180);
+                const x = cx + radius * Math.cos(angle) - 48; 
+                const y = cy + radius * Math.sin(angle) - 48;
                 
                 const btn = document.getElementById(`sigil-btn-${key}`);
                 if (btn) {
-                    btn.classList.remove('pulse-prime-sigil', 'loom-entrance');
-                    btn.style.transform = `rotate(${angleDeg}deg) translateX(${radius}px) rotate(${-angleDeg}deg) scale(1)`;
+                    btn.classList.remove('pulse-prime-sigil');
+                    // Setting these styles natively triggers the CSS transition!
+                    btn.style.transform = `rotate(${angle}rad) translate(${radius}px) rotate(-${angle}rad) scale(1)`;
+                    // Let's use standard trigonometric absolute positioning to avoid transform bugs
+                    btn.style.left = `${x}px`;
+                    btn.style.top = `${y}px`;
+                    btn.style.transform = 'scale(1)';
                     btn.className = 'sigil-btn absolute w-24 h-24 flex flex-col items-center justify-center cursor-pointer z-20 opacity-40 hover:opacity-100 hover:z-[100] group';
                     const img = btn.querySelector('img');
                     if(img) img.style.filter = 'none';
@@ -1017,9 +1207,9 @@ if (typeof window !== 'undefined') {
             // Primary Sigil glides to center and gets large
             const primeBtn = document.getElementById(`sigil-btn-${primary}`);
             if (primeBtn) {
-                // X points UP at -90 degrees, so translateX(12px) shifts the icon 12px upward perfectly matching the old layout visually
-                primeBtn.classList.remove('loom-entrance');
-                primeBtn.style.transform = `rotate(-90deg) translateX(12px) rotate(90deg) scale(1.4)`;
+                primeBtn.style.left = `${cx - 48}px`;
+                primeBtn.style.top = `${cy - 48}px`;
+                primeBtn.style.transform = 'scale(1.4)';
                 const theme = PATTERN_THEME[primary];
                 primeBtn.className = 'sigil-btn absolute w-24 h-24 flex flex-col items-center justify-center cursor-pointer z-[100] opacity-100 pulse-prime-sigil group';
                 const img = primeBtn.querySelector('img');
@@ -1028,15 +1218,19 @@ if (typeof window !== 'undefined') {
 
             // Orbits glide into 8-point ring
             orbitsList.forEach((key, index) => {
-                const angleDeg = index * (360 / 8) - 90;
+                const angle = (index * (360 / 8) - 90) * (Math.PI / 180);
+                const x = cx + radius * Math.cos(angle) - 48;
+                const y = cy + radius * Math.sin(angle) - 48;
                 
                 const btn = document.getElementById(`sigil-btn-${key}`);
                 const isSupported = supports.includes(key);
                 const theme = PATTERN_THEME[key];
                 
                 if (btn) {
-                    btn.classList.remove('pulse-prime-sigil', 'loom-entrance');
-                    btn.style.transform = `rotate(${angleDeg}deg) translateX(${radius}px) rotate(${-angleDeg}deg) scale(0.8)`;
+                    btn.classList.remove('pulse-prime-sigil');
+                    btn.style.left = `${x}px`;
+                    btn.style.top = `${y}px`;
+                    btn.style.transform = 'scale(0.9)';
                     const img = btn.querySelector('img');
                     
                     if (isSupported) {
@@ -1101,7 +1295,7 @@ if (typeof window !== 'undefined') {
     window.appActions.toggleCampaignPcAccess = async (pcId, checked) => {
         const camp = window.appData.activeCampaign;
         if (!camp || !camp._isDM) return;
-        const pc = camp.playerCharacters?.find(p => p.id === pcId);
+        const pc = camp.playerCharacters && camp.playerCharacters.find(p => p.id === pcId);
         if (pc) {
             pc.patternMagicUnlocked = checked;
             await window.appActions.adjustPatternParameter(pcId, 'patternPoints', 0); // triggers Firebase update
@@ -1180,7 +1374,7 @@ if (typeof window !== 'undefined') {
         }
 
         const camp = window.appData.activeCampaign;
-        const pc = camp?.playerCharacters?.find(p => p.id === pcId);
+        const pc = camp && camp.playerCharacters && camp.playerCharacters.find(p => p.id === pcId);
         if (!pc) return;
 
         // Verify that draft configuration meets limit boundaries before saving!
@@ -1225,11 +1419,11 @@ if (typeof window !== 'undefined') {
 
     window.appActions.loadRoteToDraft = (pcId, roteId) => {
         const camp = window.appData.activeCampaign;
-        const pc = camp?.playerCharacters?.find(p => p.id === pcId);
+        const pc = camp && camp.playerCharacters && camp.playerCharacters.find(p => p.id === pcId);
         if (!pc) return;
 
         const pm = pc.patternMagic || {};
-        const rote = pm.rotes?.find(r => r.id === roteId);
+        const rote = pm.rotes && pm.rotes.find(r => r.id === roteId);
         if (!rote) return;
 
         const draft = getOrInitDraftState();
@@ -1266,7 +1460,7 @@ if (typeof window !== 'undefined') {
         }
 
         const camp = window.appData.activeCampaign;
-        const pc = camp?.playerCharacters?.find(p => p.id === pcId);
+        const pc = camp && camp.playerCharacters && camp.playerCharacters.find(p => p.id === pcId);
         if (!pc) return;
 
         const pm = getOrInitPatternState(pc);
