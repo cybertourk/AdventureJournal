@@ -713,7 +713,7 @@ export function getPatternNexusHTML(state) {
                                 </svg>
 
                                 <!-- Node buttons (Tethered to center perfectly) -->
-                                <div class="absolute" style="left: 112px; top: 112px; width: 96px; height: 96px;">
+                                <div class="absolute inset-0">
                                     ${loomHtml}
                                 </div>
                             </div>
