@@ -37,15 +37,15 @@ export const PATTERN_CONFIG = {
         tempus: ['necrotic', 'force']
     },
     Effects: {
-        range: { name: "Range", mandatory: true, tiers: [ { text: "None", cost: 0 }, { text: "Touch", cost: 1 }, { text: "Short (30 feet)", cost: 2 }, { text: "Medium (60 feet)", cost: 3 }, { text: "Long (120 feet)", cost: 4 }, { text: "Sight", cost: 5 } ] },
+        range: { name: "Range", mandatory: true, tiers: [ { text: "Touch/Self", cost: 1 }, { text: "Short (30 feet)", cost: 2 }, { text: "Medium (60 feet)", cost: 3 }, { text: "Long (120 feet)", cost: 4 }, { text: "Sight", cost: 5 } ] },
         duration: { 
             name: "Duration", 
             mandatory: true, 
-            tiers: [ { text: "None", cost: 0 }, { text: "8 Hours", cost: 1 }, { text: "1 Hour", cost: 2 }, { text: "1 Minute", cost: 3 }, { text: "1 Round", cost: 4 }, { text: "Instantaneous", cost: 5 } ],
-            invertedTiers: [ { text: "None", cost: 0 }, { text: "Instantaneous", cost: 1 }, { text: "1 Round", cost: 2 }, { text: "1 Minute", cost: 3 }, { text: "1 Hour", cost: 4 }, { text: "8 Hours", cost: 5 } ]
+            tiers: [ { text: "8 Hours", cost: 1 }, { text: "1 Hour", cost: 2 }, { text: "1 Minute", cost: 3 }, { text: "1 Round", cost: 4 }, { text: "Instantaneous", cost: 5 } ],
+            invertedTiers: [ { text: "Instantaneous", cost: 1 }, { text: "1 Round", cost: 2 }, { text: "1 Minute", cost: 3 }, { text: "1 Hour", cost: 4 }, { text: "8 Hours", cost: 5 } ]
         },
-        activation: { name: "Activation Time", mandatory: true, tiers: [ { text: "None", cost: 0 }, { text: "10 Minutes", cost: 1 }, { text: "1 Minute", cost: 2 }, { text: "1 Round", cost: 3 }, { text: "1 Action", cost: 4 }, { text: "Instantaneous", cost: 5 } ] },
-        areaTargets: { name: "Area/Targets", mandatory: true, tiers: [ { text: "None", cost: 0 }, { text: "Personal or 1 Target", cost: 1 }, { text: "5-foot radius or 3 targets", cost: 2 }, { text: "10-foot radius or 6 targets", cost: 3 }, { text: "20-foot radius or 10 targets", cost: 4 }, { text: "30-foot radius or 15 targets", cost: 5 } ] },
+        activation: { name: "Activation Time", mandatory: true, tiers: [ { text: "10 Minutes", cost: 1 }, { text: "1 Minute", cost: 2 }, { text: "1 Round", cost: 3 }, { text: "1 Action", cost: 4 }, { text: "Instantaneous", cost: 5 } ] },
+        areaTargets: { name: "Area/Targets", mandatory: true, tiers: [ { text: "Personal or 1 Target", cost: 1 }, { text: "5-foot radius or 3 targets", cost: 2 }, { text: "10-foot radius or 6 targets", cost: 3 }, { text: "20-foot radius or 10 targets", cost: 4 }, { text: "30-foot radius or 15 targets", cost: 5 } ] },
         damageHealing: { name: "Damage/Healing", mandatory: false, tiers: [ { text: "None", cost: 0 }, { text: "Minor (2d6 Dmg / 2d4 Heal)", cost: 1 }, { text: "Weak (3d6 Dmg / 3d4 Heal)", cost: 2 }, { text: "Moderate (4d6 Dmg / 4d4 Heal)", cost: 3 }, { text: "Strong (6d6 Dmg / 6d4 Heal)", cost: 4 }, { text: "Extreme (8d6 Dmg / 8d4 Heal)", cost: 5 } ] },
         augmentia: {
             name: "Augmentia",
