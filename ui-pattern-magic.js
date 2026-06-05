@@ -204,7 +204,8 @@ function calculateAffinityLimitsAndCosts(pc, pm, draft) {
         results.finalCost = results.totalBaseCost;
     }
 
-    results.dc = 10 + results.finalCost;
+    // DC Calculation updated to 5 + Cost
+    results.dc = 5 + results.finalCost;
     return results;
 }
 
@@ -555,24 +556,24 @@ export function getPatternNexusHTML(state) {
 
     let loomHtml = '';
 
-    // INITIAL HTML STATE: Everything starts in the dead center, transparent, and tiny.
-    // The setTimeout at the end of this function will trigger refreshTapestryUI() 50ms later,
-    // which applies the final coordinates and triggers the gorgeous CSS spiral transition!
+    // INITIAL HTML STATE FOR SPIRAL ANIMATION
     patternsList.forEach((key, index) => {
         const theme = PATTERN_THEME[key];
         const rank = pm[key] || 0;
         const titleText = rank > 0 ? PATTERN_CONFIG.ExpertiseTitles[rank] : "Unlearned";
         const rankText = rank > 0 ? `(Rank ${rank} - ${titleText})` : `(Unlearned)`;
 
-        // Setup the pre-animation entry state
-        const x = 160 - 48; // Center of SVG minus half the new large button width (96/2)
-        const y = 160 - 48; 
-        const scale = 0.1;
+        // Calculate the orbit angle, then subtract 360 so the animation spins exactly 1 full rotation
+        const angleDeg = index * (360 / 9) - 90;
+        const startAngle = angleDeg - 360; 
+        
+        // Pin to center, no X translation, fully reversed rotation using valid JS template math
+        const initialTransform = `rotate(${startAngle}deg) translateX(0px) rotate(${-startAngle}deg) scale(0.1)`;
 
         loomHtml += `
             <button id="sigil-btn-${key}" type="button" 
                     onclick="window.appActions.toggleWheelPattern('${key}')"
-                    style="left: ${x}px; top: ${y}px; transform: scale(${scale}); color: ${theme.color};"
+                    style="transform: ${initialTransform}; color: ${theme.color};"
                     class="sigil-btn absolute w-24 h-24 flex flex-col items-center justify-center cursor-pointer z-20 opacity-0 group">
                 <img src="${PATTERN_ASSET_BASE_URL}${key}.webp" alt="${theme.label}" class="w-20 h-20 object-contain transition-all duration-500 pointer-events-none" style="filter: none;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                 <span class="text-[11px] font-serif font-bold text-stone-900 mt-1 leading-none drop-shadow-md absolute -bottom-5 whitespace-nowrap bg-[#fdfbf7] px-2 py-0.5 border border-[#d4c5a9] rounded-sm shadow-sm hidden group-hover:block z-[200] pointer-events-none">${theme.label} ${rankText}</span>
@@ -614,14 +615,17 @@ export function getPatternNexusHTML(state) {
 
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
                 
-                <!-- Left Panel -->
+                <!-- Left Panel: Loom & Attunement -->
                 <div class="lg:col-span-5 space-y-6">
                     
-                    <!-- Clean Parchment Loom Widget (No Circles) -->
-                    <div class="p-6 parchment-panel rounded-sm relative">
-                        <h3 class="text-sm font-bold text-amber-900 uppercase tracking-widest font-serif border-b border-[#d4c5a9] pb-2 mb-6 text-center"><i class="fa-solid fa-dharmachakra mr-1.5 text-amber-600"></i> The Loom of Reality</h3>
+                    <!-- STEP 1: THE LOOM -->
+                    <div class="parchment-panel rounded-sm relative shadow-md">
+                        <div class="bg-stone-900 text-amber-500 p-3 rounded-t-sm border-b-2 border-amber-700 flex items-center gap-3">
+                            <span class="bg-amber-600 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shadow-inner shrink-0">1</span>
+                            <h3 class="font-serif font-bold uppercase tracking-widest text-sm">The Loom of Reality</h3>
+                        </div>
                         
-                        <div class="relative w-[320px] h-[320px] flex items-center justify-center p-4 mx-auto mb-6 shrink-0">
+                        <div class="relative w-[320px] h-[320px] flex items-center justify-center p-4 mx-auto my-4 shrink-0">
                             <!-- SVG Loom Threads in Background -->
                             <svg class="absolute inset-0 w-full h-full pointer-events-none ${convergenceSpinClass}" viewBox="0 0 320 320">
                                 <!-- Inner focus ring -->
@@ -629,11 +633,9 @@ export function getPatternNexusHTML(state) {
                                 
                                 ${primary ? Array.from({ length: 8 }).map((_, i) => {
                                     const angle = (i * (360 / 8) - 90) * (Math.PI / 180);
-                                    const x1 = 160 + 35 * Math.cos(angle);
-                                    const y1 = 160 + 35 * Math.sin(angle);
                                     const x2 = 160 + 105 * Math.cos(angle);
                                     const y2 = 160 + 105 * Math.sin(angle);
-                                    return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#d4c5a9" stroke-width="1" stroke-dasharray="2 4" opacity="0.3" />`;
+                                    return `<line x1="160" y1="160" x2="${x2}" y2="${y2}" stroke="#d4c5a9" stroke-width="1" stroke-dasharray="2 4" opacity="0.3" />`;
                                 }).join('') : ''}
                             </svg>
 
@@ -643,7 +645,7 @@ export function getPatternNexusHTML(state) {
                             </div>
                         </div>
 
-                        <div class="p-4 bg-stone-50 border border-[#d4c5a9] rounded-sm text-center text-xs text-stone-600 shadow-inner">
+                        <div class="p-4 bg-stone-50 border-t border-[#d4c5a9] text-center text-xs text-stone-600 shadow-inner rounded-b-sm">
                             <p id="loom-hint-text" class="font-serif leading-relaxed italic">
                                 ${draft.patterns.length === 0 
                                     ? `Select a thread from the outer ring to designate as your Primary Sigil.` 
@@ -654,16 +656,41 @@ export function getPatternNexusHTML(state) {
                         </div>
                     </div>
 
-                    <!-- Player Development: Attunement -->
-                    <div class="p-5 leather-panel rounded-sm relative text-stone-200">
-                        <div class="flex justify-between items-center border-b border-stone-700 pb-3 mb-4">
+                    <!-- HERO'S MATRIX (Combined Attunement & Reservoir) -->
+                    <div class="leather-panel rounded-sm relative text-stone-200 shadow-md">
+                        <div class="flex justify-between items-center border-b border-stone-700 p-4 pb-3">
                             <h3 class="text-sm font-bold text-amber-500 uppercase tracking-widest font-serif flex items-center">
-                                <i class="fa-solid fa-book-open text-amber-700 mr-2"></i> Attunement
+                                <i class="fa-solid fa-bolt text-amber-700 mr-2"></i> Hero's Matrix
                             </h3>
                             <span class="text-[10px] uppercase font-bold tracking-widest text-stone-400 bg-stone-800 px-2 py-1 rounded shadow-inner border border-stone-700">Unspent Points: <span class="text-amber-400">${pm.patternPoints || 0}</span></span>
                         </div>
                         
-                        <div class="grid grid-cols-1 gap-2.5">
+                        <div class="p-4 border-b border-stone-700 bg-[#1c1917]">
+                            <div class="flex justify-between text-[10px] uppercase font-bold tracking-widest text-stone-400 mb-2">
+                                <span class="flex items-center"><i class="fa-solid fa-droplet text-amber-600 mr-1.5"></i> Essentia Reservoir</span>
+                                <span><span class="text-amber-400">${pm.essentia || 0}</span> / ${maxEssentia}</span>
+                            </div>
+                            <div class="flex flex-wrap gap-3 p-3 bg-stone-900 rounded-sm border border-stone-800 justify-center shadow-inner">
+                                ${pipsHtml || `<span class="text-[10px] text-stone-600 italic font-serif">Deepen your Attunement to expand your reservoir.</span>`}
+                            </div>
+                            
+                            <div class="mt-4 pt-4 border-t border-stone-700 flex flex-wrap justify-center gap-2">
+                                <button onclick="window.appActions.rollEssentiaRecovery('${activePc.id}', 'long_rest')" class="px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded border border-stone-600 text-[9px] uppercase font-bold tracking-wider transition shadow-sm flex items-center" title="Recover 1d6">
+                                    <i class="fa-solid fa-bed mr-1.5"></i> Long Rest
+                                </button>
+                                <button onclick="window.appActions.rollEssentiaRecovery('${activePc.id}', 'faint')" class="px-3 py-1.5 bg-[#1c1917] hover:bg-stone-800 text-teal-500 border border-teal-900/50 rounded text-[9px] uppercase font-bold tracking-wider transition shadow-sm flex items-center" title="Recover 1d6">
+                                    <i class="fa-solid fa-tower-observation mr-1.5"></i> Faint Echo
+                                </button>
+                                <button onclick="window.appActions.rollEssentiaRecovery('${activePc.id}', 'resonant')" class="px-3 py-1.5 bg-[#1c1917] hover:bg-stone-800 text-fuchsia-500 border border-fuchsia-900/50 rounded text-[9px] uppercase font-bold tracking-wider transition shadow-sm flex items-center" title="Recover 2d6">
+                                    <i class="fa-solid fa-monument mr-1.5"></i> Resonant Locus
+                                </button>
+                                <button onclick="window.appActions.rollEssentiaRecovery('${activePc.id}', 'vibrant')" class="px-3 py-1.5 bg-[#1c1917] hover:bg-stone-800 text-amber-500 border border-amber-700/50 rounded text-[9px] uppercase font-bold tracking-wider transition shadow-sm flex items-center" title="Recover 3d6">
+                                    <i class="fa-solid fa-gopuram mr-1.5"></i> Vibrant Nexus
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="p-4 grid grid-cols-1 gap-2.5">
                             ${Object.entries(PATTERN_THEME).map(([key, theme]) => {
                                 const val = pm[key] || 0;
                                 const canAdd = (pm.patternPoints || 0) > 0 && val < 5;
@@ -699,75 +726,60 @@ export function getPatternNexusHTML(state) {
                 <!-- Right Panel: Cast Configuration Engine -->
                 <div class="lg:col-span-7 space-y-6">
                     
-                    <!-- Essentia Reservoir -->
-                    <div class="p-5 leather-panel rounded-sm relative text-stone-200">
-                        <div class="flex justify-between items-center border-b border-stone-700 pb-3 mb-4">
-                            <h3 class="text-sm font-bold text-amber-500 uppercase tracking-widest font-serif flex items-center">
-                                <i class="fa-solid fa-droplet text-amber-700 mr-2"></i> Essentia Reservoir
-                            </h3>
-                            <span class="text-[10px] uppercase font-bold tracking-widest text-stone-400 bg-stone-800 px-2 py-1 rounded shadow-inner border border-stone-700">Capacity: <span class="text-amber-400">${pm.essentia || 0} / ${maxEssentia}</span></span>
+                    <!-- STEP 2: SPELL IDENTITY -->
+                    <div class="parchment-panel rounded-sm shadow-md">
+                        <div class="bg-stone-900 text-amber-500 p-3 rounded-t-sm border-b-2 border-amber-700 flex items-center gap-3">
+                            <span class="bg-amber-600 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shadow-inner shrink-0">2</span>
+                            <h3 class="font-serif font-bold uppercase tracking-widest text-sm">Spell Identity & Intent</h3>
                         </div>
-                        <div class="flex flex-wrap gap-3 p-4 bg-[#1c1917] rounded-sm border border-stone-800 justify-center min-h-[50px] shadow-inner">
-                            ${pipsHtml || `<span class="text-[10px] text-stone-600 italic font-serif">Deepen your Attunement to expand your reservoir.</span>`}
-                        </div>
-                        
-                        <div class="mt-4 pt-4 border-t border-stone-700 flex flex-wrap justify-center gap-2">
-                            <button onclick="window.appActions.rollEssentiaRecovery('${activePc.id}', 'long_rest')" class="px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded border border-stone-600 text-[9px] uppercase font-bold tracking-wider transition shadow-sm flex items-center" title="Recover 1d6">
-                                <i class="fa-solid fa-bed mr-1.5"></i> Long Rest
-                            </button>
-                            <button onclick="window.appActions.rollEssentiaRecovery('${activePc.id}', 'faint')" class="px-3 py-1.5 bg-[#1c1917] hover:bg-stone-800 text-teal-500 border border-teal-900/50 rounded text-[9px] uppercase font-bold tracking-wider transition shadow-sm flex items-center" title="Recover 1d6">
-                                <i class="fa-solid fa-tower-observation mr-1.5"></i> Faint Echo
-                            </button>
-                            <button onclick="window.appActions.rollEssentiaRecovery('${activePc.id}', 'resonant')" class="px-3 py-1.5 bg-[#1c1917] hover:bg-stone-800 text-fuchsia-500 border border-fuchsia-900/50 rounded text-[9px] uppercase font-bold tracking-wider transition shadow-sm flex items-center" title="Recover 2d6">
-                                <i class="fa-solid fa-monument mr-1.5"></i> Resonant Locus
-                            </button>
-                            <button onclick="window.appActions.rollEssentiaRecovery('${activePc.id}', 'vibrant')" class="px-3 py-1.5 bg-[#1c1917] hover:bg-stone-800 text-amber-500 border border-amber-700/50 rounded text-[9px] uppercase font-bold tracking-wider transition shadow-sm flex items-center" title="Recover 3d6">
-                                <i class="fa-solid fa-gopuram mr-1.5"></i> Vibrant Nexus
-                            </button>
+                        <div class="p-5">
+                            <div class="grid grid-cols-1 sm:grid-cols-12 gap-4 mb-5">
+                                <div class="sm:col-span-8">
+                                    <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Tapestry Designation (Name)</label>
+                                    <input type="text" 
+                                           id="draft-spell-name" 
+                                           oninput="window.appActions.updateDraftField('name', this.value, false, true)" 
+                                           value="${draft.name || ''}" 
+                                           placeholder="Provide a name for this spell..." 
+                                           class="w-full bg-white border border-[#d4c5a9] rounded-sm p-2.5 text-sm text-stone-900 font-bold font-serif outline-none shadow-sm focus:border-amber-600 transition-colors">
+                                </div>
+                                <div class="sm:col-span-4 flex items-end">
+                                    ${abilitySelectorHtml}
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Intent & Visualization</label>
+                                <textarea id="draft-spell-desc" 
+                                          oninput="window.appActions.updateDraftField('description', this.value, false, true)" 
+                                          placeholder="Describe the aesthetic and physical ripples of your magic..." 
+                                          class="w-full bg-white border border-[#d4c5a9] rounded-sm p-3 text-sm text-stone-800 outline-none font-serif focus:border-amber-600 resize-y min-h-[80px] shadow-sm custom-scrollbar">${draft.description || ''}</textarea>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Spell Form Formulation Engine -->
-                    <div class="p-5 sm:p-6 parchment-panel rounded-sm relative">
-                        <h3 class="text-sm font-bold text-amber-900 uppercase tracking-widest font-serif border-b border-[#d4c5a9] pb-2 mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                            <span><i class="fa-solid fa-wand-sparkles mr-1.5 text-amber-600"></i> Weaving the Threads</span>
-                            <span class="text-[9px] font-sans text-stone-500 normal-case tracking-normal italic font-normal">Select threads on the Loom to unlock tiers.</span>
-                        </h3>
-
-                        <!-- Draft Spell Identity -->
-                        <div class="grid grid-cols-1 sm:grid-cols-12 gap-4 mb-5">
-                            <div class="sm:col-span-8">
-                                <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Tapestry Designation (Name)</label>
-                                <input type="text" 
-                                       id="draft-spell-name" 
-                                       oninput="window.appActions.updateDraftField('name', this.value, false, true)" 
-                                       value="${draft.name || ''}" 
-                                       placeholder="Provide a name for this spell..." 
-                                       class="w-full bg-white border border-[#d4c5a9] rounded-sm p-2.5 text-sm text-stone-900 font-bold font-serif outline-none shadow-sm focus:border-amber-600 transition-colors">
-                            </div>
-                            <div class="sm:col-span-4 flex items-end">
-                                ${abilitySelectorHtml}
-                            </div>
+                    <!-- STEP 3: CONFIGURE EFFECTS -->
+                    <div class="parchment-panel rounded-sm shadow-md">
+                        <div class="bg-stone-900 text-amber-500 p-3 rounded-t-sm border-b-2 border-amber-700 flex items-center gap-3">
+                            <span class="bg-amber-600 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shadow-inner shrink-0">3</span>
+                            <h3 class="font-serif font-bold uppercase tracking-widest text-sm">Configure Effects</h3>
+                            <span class="text-[9px] font-sans text-stone-400 normal-case tracking-normal italic ml-auto hidden sm:block">Select threads on the Loom to unlock tiers.</span>
                         </div>
-
-                        <div class="mb-6">
-                            <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Intent & Visualization</label>
-                            <textarea id="draft-spell-desc" 
-                                      oninput="window.appActions.updateDraftField('description', this.value, false, true)" 
-                                      placeholder="Describe the aesthetic and physical ripples of your magic..." 
-                                      class="w-full bg-white border border-[#d4c5a9] rounded-sm p-3 text-sm text-stone-800 outline-none font-serif focus:border-amber-600 resize-y min-h-[80px] shadow-sm custom-scrollbar">${draft.description || ''}</textarea>
-                        </div>
-
-                        <!-- Active Effects Scaffolding -->
-                        <div id="effects-scaffolding-container" class="space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar pr-2 mb-6">
+                        <div id="effects-scaffolding-container" class="p-5 space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
                             ${buildEffectsHTML(metrics, draft, pm, activePc)}
                         </div>
+                    </div>
 
-                        <!-- Cost Outputs & Casting Trigger Card -->
-                        <div class="p-5 bg-stone-900 text-stone-200 rounded-sm border-2 border-stone-800 shadow-xl relative overflow-hidden">
-                            <div class="absolute top-0 left-0 w-1.5 h-full bg-amber-600"></div>
-                            
-                            <div class="flex flex-wrap justify-between items-center gap-4 pl-3">
+                    <!-- STEP 4: REVIEW & UNLEASH -->
+                    <div class="bg-stone-900 text-stone-200 rounded-sm border-2 border-stone-800 shadow-xl relative overflow-hidden">
+                        <div class="absolute top-0 left-0 w-1.5 h-full bg-amber-600"></div>
+                        
+                        <div class="p-4 border-b border-stone-700 bg-stone-950 flex items-center gap-3 pl-5">
+                            <span class="bg-amber-600 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shadow-inner shrink-0">4</span>
+                            <h3 class="font-serif font-bold uppercase tracking-widest text-sm text-amber-500">Review & Unleash</h3>
+                        </div>
+
+                        <div class="p-5 pl-6">
+                            <div class="flex flex-wrap justify-between items-center gap-4">
                                 <div>
                                     <span class="block text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Essentia Fuel Required</span>
                                     <div class="flex items-center gap-2">
@@ -786,7 +798,7 @@ export function getPatternNexusHTML(state) {
                                 </div>
                             </div>
 
-                            <div class="mt-5 pt-4 border-t border-stone-700 flex flex-col sm:flex-row gap-3 items-center pl-3">
+                            <div class="mt-5 pt-4 border-t border-stone-700 flex flex-col sm:flex-row gap-3 items-center">
                                 <input type="text" 
                                        id="input-rote-memorize-name" 
                                        placeholder="Scribe configuration to Grimoire..." 
@@ -798,7 +810,7 @@ export function getPatternNexusHTML(state) {
                                 </button>
                             </div>
 
-                            <div class="mt-4 pl-3">
+                            <div class="mt-4">
                                 <button type="button" 
                                         id="tapestry-cast-btn"
                                         onclick="window.appActions.castCurrentPatternSpell('${activePc.id}')"
@@ -809,12 +821,15 @@ export function getPatternNexusHTML(state) {
                         </div>
                     </div>
 
-                    <div class="p-5 sm:p-6 parchment-panel rounded-sm relative">
-                        <h3 class="text-sm font-bold text-amber-900 uppercase tracking-widest font-serif border-b border-[#d4c5a9] pb-2 mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                            <span><i class="fa-solid fa-book-journal-whills mr-1.5 text-amber-600"></i> Memorized Grimoire</span>
-                            <span class="text-[9px] font-sans text-stone-500 normal-case tracking-normal italic font-normal">Loading a Rote discounts its Essentia cost.</span>
-                        </h3>
-                        ${rotesTabHtml}
+                    <!-- GRIMOIRE QUICK LOAD -->
+                    <div class="parchment-panel rounded-sm shadow-md">
+                        <div class="bg-stone-200 text-stone-700 p-3 rounded-t-sm border-b border-[#d4c5a9] flex items-center gap-3">
+                            <i class="fa-solid fa-book-journal-whills text-amber-700 ml-1"></i>
+                            <h3 class="font-serif font-bold uppercase tracking-widest text-sm">Memorized Grimoire</h3>
+                        </div>
+                        <div class="p-5">
+                            ${rotesTabHtml}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -846,8 +861,8 @@ if (typeof window !== 'undefined') {
         let secondaryHtml = '';
         
         if (configAff) {
-            primaryHtml = configAff.primary.map(p => `<span class="bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wider shadow-sm">${p}</span>`).join(' ');
-            secondaryHtml = configAff.secondary.map(p => `<span class="bg-stone-100 text-stone-600 border border-stone-300 px-2 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wider shadow-sm">${p}</span>`).join(' ');
+            primaryHtml = configAff.primary.map(p => `<span class="bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wider shadow-sm">${PATTERN_CONFIG.Effects[p]?.name || p}</span>`).join(' ');
+            secondaryHtml = configAff.secondary.map(p => `<span class="bg-stone-100 text-stone-600 border border-stone-300 px-2 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wider shadow-sm">${PATTERN_CONFIG.Effects[p]?.name || p}</span>`).join(' ');
         }
         
         const dmgHtml = dmgTypes.map(d => `<span class="bg-red-100 text-red-900 border border-red-300 px-2 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wider shadow-sm">${d}</span>`).join(' ');
@@ -970,8 +985,8 @@ if (typeof window !== 'undefined') {
     // The core seamless updater function!
     window.appActions.refreshTapestryUI = () => {
         const camp = window.appData.activeCampaign;
-        const activePcId = window.appData.activePatternPcId || (camp.playerCharacters && camp.playerCharacters.find(p => p.playerId === window.appData.currentUserUid)?.id) || '';
-        const activePc = camp.playerCharacters && camp.playerCharacters.find(p => p.id === activePcId);
+        const activePcId = window.appData.activePatternPcId || (camp.playerCharacters?.find(p => p.playerId === window.appData.currentUserUid)?.id) || '';
+        const activePc = camp.playerCharacters?.find(p => p.id === activePcId);
         if (!activePc) return;
         
         const pm = getOrInitPatternState(activePc);
@@ -979,22 +994,18 @@ if (typeof window !== 'undefined') {
         const primary = draft.patterns[0] || null;
         const supports = draft.patterns.slice(1);
         
-        const cx = 160; const cy = 160; const radius = 105;
+        const radius = 105;
         const patternsList = Object.keys(PATTERN_THEME);
         
         // 1. ANIMATE THE LOOM
         if (!primary) {
             patternsList.forEach((key, index) => {
-                const angle = (index * (360 / 9) - 90) * (Math.PI / 180);
-                const x = cx + radius * Math.cos(angle) - 48; // Updated for larger 96px bounds
-                const y = cy + radius * Math.sin(angle) - 48;
+                const angleDeg = index * (360 / 9) - 90;
                 
                 const btn = document.getElementById(`sigil-btn-${key}`);
                 if (btn) {
                     btn.classList.remove('pulse-prime-sigil', 'loom-entrance');
-                    btn.style.left = `${x}px`;
-                    btn.style.top = `${y}px`;
-                    btn.style.transform = 'scale(1)';
+                    btn.style.transform = `rotate(${angleDeg}deg) translateX(${radius}px) rotate(${-angleDeg}deg) scale(1)`;
                     btn.className = 'sigil-btn absolute w-24 h-24 flex flex-col items-center justify-center cursor-pointer z-20 opacity-40 hover:opacity-100 hover:z-[100] group';
                     const img = btn.querySelector('img');
                     if(img) img.style.filter = 'none';
@@ -1006,10 +1017,9 @@ if (typeof window !== 'undefined') {
             // Primary Sigil glides to center and gets large
             const primeBtn = document.getElementById(`sigil-btn-${primary}`);
             if (primeBtn) {
+                // X points UP at -90 degrees, so translateX(12px) shifts the icon 12px upward perfectly matching the old layout visually
                 primeBtn.classList.remove('loom-entrance');
-                primeBtn.style.left = `${cx - 48}px`; // Updated for 96px bounds
-                primeBtn.style.top = `${cy - 48}px`;
-                primeBtn.style.transform = 'scale(1.2)'; // Scaled down slightly to fit the larger base size nicely
+                primeBtn.style.transform = `rotate(-90deg) translateX(12px) rotate(90deg) scale(1.4)`;
                 const theme = PATTERN_THEME[primary];
                 primeBtn.className = 'sigil-btn absolute w-24 h-24 flex flex-col items-center justify-center cursor-pointer z-[100] opacity-100 pulse-prime-sigil group';
                 const img = primeBtn.querySelector('img');
@@ -1018,9 +1028,7 @@ if (typeof window !== 'undefined') {
 
             // Orbits glide into 8-point ring
             orbitsList.forEach((key, index) => {
-                const angle = (index * (360 / 8) - 90) * (Math.PI / 180);
-                const x = cx + radius * Math.cos(angle) - 48; // Updated for 96px bounds
-                const y = cy + radius * Math.sin(angle) - 48;
+                const angleDeg = index * (360 / 8) - 90;
                 
                 const btn = document.getElementById(`sigil-btn-${key}`);
                 const isSupported = supports.includes(key);
@@ -1028,9 +1036,7 @@ if (typeof window !== 'undefined') {
                 
                 if (btn) {
                     btn.classList.remove('pulse-prime-sigil', 'loom-entrance');
-                    btn.style.left = `${x}px`;
-                    btn.style.top = `${y}px`;
-                    btn.style.transform = 'scale(0.8)'; // Scaled down for orbit perspective
+                    btn.style.transform = `rotate(${angleDeg}deg) translateX(${radius}px) rotate(${-angleDeg}deg) scale(0.8)`;
                     const img = btn.querySelector('img');
                     
                     if (isSupported) {
@@ -1095,7 +1101,7 @@ if (typeof window !== 'undefined') {
     window.appActions.toggleCampaignPcAccess = async (pcId, checked) => {
         const camp = window.appData.activeCampaign;
         if (!camp || !camp._isDM) return;
-        const pc = camp.playerCharacters && camp.playerCharacters.find(p => p.id === pcId);
+        const pc = camp.playerCharacters?.find(p => p.id === pcId);
         if (pc) {
             pc.patternMagicUnlocked = checked;
             await window.appActions.adjustPatternParameter(pcId, 'patternPoints', 0); // triggers Firebase update
@@ -1174,7 +1180,7 @@ if (typeof window !== 'undefined') {
         }
 
         const camp = window.appData.activeCampaign;
-        const pc = camp && camp.playerCharacters && camp.playerCharacters.find(p => p.id === pcId);
+        const pc = camp?.playerCharacters?.find(p => p.id === pcId);
         if (!pc) return;
 
         // Verify that draft configuration meets limit boundaries before saving!
@@ -1219,11 +1225,11 @@ if (typeof window !== 'undefined') {
 
     window.appActions.loadRoteToDraft = (pcId, roteId) => {
         const camp = window.appData.activeCampaign;
-        const pc = camp && camp.playerCharacters && camp.playerCharacters.find(p => p.id === pcId);
+        const pc = camp?.playerCharacters?.find(p => p.id === pcId);
         if (!pc) return;
 
         const pm = pc.patternMagic || {};
-        const rote = pm.rotes && pm.rotes.find(r => r.id === roteId);
+        const rote = pm.rotes?.find(r => r.id === roteId);
         if (!rote) return;
 
         const draft = getOrInitDraftState();
@@ -1260,7 +1266,7 @@ if (typeof window !== 'undefined') {
         }
 
         const camp = window.appData.activeCampaign;
-        const pc = camp && camp.playerCharacters && camp.playerCharacters.find(p => p.id === pcId);
+        const pc = camp?.playerCharacters?.find(p => p.id === pcId);
         if (!pc) return;
 
         const pm = getOrInitPatternState(pc);
@@ -1283,7 +1289,7 @@ if (typeof window !== 'undefined') {
             roteName: draft.roteName
         };
 
-        await window.appActions.castPatternSpell(pcId, castConfig);
+        await castPatternSpell(pcId, castConfig);
 
         // Reset temporary non-rote draft casting parameters after successful cast!
         if (!draft.isRote) {
