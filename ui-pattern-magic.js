@@ -1183,19 +1183,16 @@ if (typeof window !== 'undefined') {
         // 1. ANIMATE THE LOOM
         if (!primary) {
             patternsList.forEach((key, index) => {
-                const angle = (index * (360 / 9) - 90) * (Math.PI / 180);
-                const x = cx + radius * Math.cos(angle) - 48; 
-                const y = cy + radius * Math.sin(angle) - 48;
+                const angleDeg = index * (360 / 9) - 90;
                 
                 const btn = document.getElementById(`sigil-btn-${key}`);
                 if (btn) {
                     btn.classList.remove('pulse-prime-sigil');
                     // Setting these styles natively triggers the CSS transition!
-                    btn.style.transform = `rotate(${angle}rad) translate(${radius}px) rotate(-${angle}rad) scale(1)`;
-                    // Let's use standard trigonometric absolute positioning to avoid transform bugs
-                    btn.style.left = `${x}px`;
-                    btn.style.top = `${y}px`;
-                    btn.style.transform = 'scale(1)';
+                    // Restore pure polar coordinate transform for the spiral!
+                    btn.style.left = '112px';
+                    btn.style.top = '112px';
+                    btn.style.transform = `rotate(${angleDeg}deg) translateX(${radius}px) rotate(${-angleDeg}deg) scale(1)`;
                     btn.className = 'sigil-btn absolute w-24 h-24 flex flex-col items-center justify-center cursor-pointer z-20 opacity-40 hover:opacity-100 hover:z-[100] group';
                     const img = btn.querySelector('img');
                     if(img) img.style.filter = 'none';
@@ -1207,9 +1204,9 @@ if (typeof window !== 'undefined') {
             // Primary Sigil glides to center and gets large
             const primeBtn = document.getElementById(`sigil-btn-${primary}`);
             if (primeBtn) {
-                primeBtn.style.left = `${cx - 48}px`;
-                primeBtn.style.top = `${cy - 48}px`;
-                primeBtn.style.transform = 'scale(1.4)';
+                primeBtn.style.left = '112px';
+                primeBtn.style.top = '112px';
+                primeBtn.style.transform = `rotate(-90deg) translateX(8px) rotate(90deg) scale(1.4)`;
                 const theme = PATTERN_THEME[primary];
                 primeBtn.className = 'sigil-btn absolute w-24 h-24 flex flex-col items-center justify-center cursor-pointer z-[100] opacity-100 pulse-prime-sigil group';
                 const img = primeBtn.querySelector('img');
@@ -1218,9 +1215,7 @@ if (typeof window !== 'undefined') {
 
             // Orbits glide into 8-point ring
             orbitsList.forEach((key, index) => {
-                const angle = (index * (360 / 8) - 90) * (Math.PI / 180);
-                const x = cx + radius * Math.cos(angle) - 48;
-                const y = cy + radius * Math.sin(angle) - 48;
+                const angleDeg = index * (360 / 8) - 90;
                 
                 const btn = document.getElementById(`sigil-btn-${key}`);
                 const isSupported = supports.includes(key);
@@ -1228,9 +1223,9 @@ if (typeof window !== 'undefined') {
                 
                 if (btn) {
                     btn.classList.remove('pulse-prime-sigil');
-                    btn.style.left = `${x}px`;
-                    btn.style.top = `${y}px`;
-                    btn.style.transform = 'scale(0.9)';
+                    btn.style.left = '112px';
+                    btn.style.top = '112px';
+                    btn.style.transform = `rotate(${angleDeg}deg) translateX(${radius}px) rotate(${-angleDeg}deg) scale(0.9)`;
                     const img = btn.querySelector('img');
                     
                     if (isSupported) {
