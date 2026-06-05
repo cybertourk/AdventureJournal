@@ -457,7 +457,9 @@ export const castPatternSpell = async (pcId, castConfig) => {
     const abilityMod = Math.floor(((parseInt(pc[castConfig.ability]) || 10) - 10) / 2);
     const selectedRanksSum = castConfig.patterns.reduce((sum, key) => sum + (pm[key] || 0), 0);
     const totalRoll = d20 + abilityMod + selectedRanksSum;
-    const dc = 10 + cost;
+    
+    // NEW: Base DC formula updated from 10 + cost to 5 + cost!
+    const dc = 5 + cost;
 
     let successType = "failure";
     let messageText = "";
@@ -530,6 +532,7 @@ export const castPatternSpell = async (pcId, castConfig) => {
         `;
     }
     if (isSanityRequired) {
+        // We will test Sanity Save against a standard 10+Cost to remain appropriately deadly for high-cost spells
         const sanityDc = 10 + cost;
         actionButtonsHtml += `
             <button onclick="window.appActions.resolvePatternSanityCheck('${pcId}', ${sanityDc}, ${dc}, '${cardId}')" id="btn-sanity-${cardId}" class="w-full py-2.5 bg-stone-800 hover:bg-stone-700 text-amber-50 rounded-sm font-bold uppercase text-[10px] tracking-widest shadow-md transition mt-2">
