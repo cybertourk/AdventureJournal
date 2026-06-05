@@ -258,6 +258,8 @@ function buildEffectsHTML(metrics, draft, pm, activePc) {
         }
 
         if (category === 'bolsterHinder' && activeTier > 0) {
+            // Because we adjusted tier indices for mandatory, we must ensure we read options properly.
+            // BolsterHinder is optional, so index 0 = None, index 1 = Minor, etc.
             const allowedOptions = (effectData.tiers[activeTier] && effectData.tiers[activeTier].options) ? effectData.tiers[activeTier].options : ['Skill Check'];
             optionsSelectHtml = `
                 <div class="mt-2.5 flex items-center gap-2 bg-stone-100 px-3 py-2 rounded-sm border border-[#d4c5a9] shadow-inner">
@@ -325,8 +327,11 @@ function buildEffectsHTML(metrics, draft, pm, activePc) {
 
         let tierButtonsHtml = '';
         if (tiersList) {
+            // Apply Mandatory Baseline offset so index 0 = T1 visually, and checks limits safely
+            const adjustedMaxTier = effectData.mandatory ? maxTierAllowed - 1 : maxTierAllowed;
+            
             tiersList.forEach((tier, index) => {
-                const isDisabled = index > maxTierAllowed;
+                const isDisabled = index > adjustedMaxTier;
                 const isSelected = activeTier === index;
                 
                 let btnClass = 'border-[#d4c5a9] bg-stone-50 text-stone-600 hover:text-stone-900 hover:bg-white hover:border-amber-400 shadow-sm';
@@ -336,12 +341,14 @@ function buildEffectsHTML(metrics, draft, pm, activePc) {
                     btnClass = 'border-amber-600 bg-amber-50 text-amber-900 font-bold shadow-[0_0_8px_rgba(217,119,6,0.2)]';
                 }
 
+                const displayTier = effectData.mandatory ? index + 1 : index;
+
                 tierButtonsHtml += `
                     <button type="button" 
                             ${isDisabled ? 'disabled' : ''} 
                             onclick="window.appActions.setEffectTier('${category}', ${index})"
                             class="px-2.5 py-2 border rounded-sm text-[11px] text-left transition-all leading-snug flex justify-between items-center font-serif ${btnClass}">
-                        <span>T${index}: ${tier.text}</span>
+                        <span>T${displayTier}: ${tier.text}</span>
                         <span class="font-sans text-[10px] font-bold opacity-70">+${tier.cost} E</span>
                     </button>
                 `;
@@ -982,7 +989,6 @@ if (typeof window !== 'undefined') {
         const container = document.getElementById('pattern-info-modal-container');
         if (container) {
             container.innerHTML = modalHtml;
-            // Initialize page tracker on the modal element itself so it resets cleanly
             container.dataset.currentPage = 1; 
         }
     };
@@ -1140,12 +1146,16 @@ if (typeof window !== 'undefined') {
                 </div>
             `).join('');
         } else {
-            tiersHtml += effectData.tiers.map((t, i) => `
+            tiersHtml += effectData.tiers.map((t, i) => {
+                // Determine displayed tier number (offset for mandatory if they skip index 0 in the view logic)
+                // However, we just show index as Tier 0,1,2.. for optional, and Tier 1,2,3 for mandatory.
+                const dispIdx = isMandatory ? i + 1 : i;
+                return `
                 <div class="flex justify-between items-center p-2 border-b border-stone-200 last:border-0">
-                    <span class="text-xs font-bold text-stone-800">Tier ${i}: ${t.text}</span>
+                    <span class="text-xs font-bold text-stone-800">Tier ${dispIdx}: ${t.text}</span>
                     <span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded shadow-sm">+${t.cost} E</span>
                 </div>
-            `).join('');
+            `}).join('');
         }
 
         const modalHtml = `
@@ -1281,14 +1291,8 @@ if (typeof window !== 'undefined') {
         const castBtn = document.getElementById('tapestry-cast-btn');
         if (castBtn) {
             let isValid = primary !== null;
-            if (isValid) {
-                for (const [cat, data] of Object.entries(PATTERN_CONFIG.Effects)) {
-                    if (data.mandatory && (draft.effectTiers[cat] || 0) === 0) {
-                        isValid = false;
-                        break;
-                    }
-                }
-            }
+            // The loop checking for 0 values on mandatory tiers was successfully removed to allow baseline T1 casting
+            
             castBtn.disabled = !isValid && !draft.isRote;
             if(castBtn.disabled) castBtn.classList.add('opacity-50', 'cursor-not-allowed', 'grayscale');
             else castBtn.classList.remove('opacity-50', 'cursor-not-allowed', 'grayscale');
@@ -1391,20 +1395,14 @@ if (typeof window !== 'undefined') {
 
         let exceeds = false;
         Object.keys(PATTERN_CONFIG.Effects).forEach(cat => {
-            if ((draft.effectTiers[cat] || 0) > metrics.limits[cat]) exceeds = true;
+            const isMandatory = PATTERN_CONFIG.Effects[cat].mandatory;
+            const adjustedLimit = isMandatory ? metrics.limits[cat] - 1 : metrics.limits[cat];
+            if ((draft.effectTiers[cat] || 0) > adjustedLimit) exceeds = true;
         });
 
         if (exceeds) {
             window.appActions.notify("You cannot scribe a Rote containing elements that exceed your attuned Pattern Ranks.", "error");
             return;
-        }
-
-        // Check mandatory tiers before allowing Rote to save
-        for (const [cat, data] of Object.entries(PATTERN_CONFIG.Effects)) {
-            if (data.mandatory && (draft.effectTiers[cat] || 0) === 0) {
-                window.appActions.notify("All Mandatory spell parameters (Range, Duration, Activation Time, Area/Targets) must be defined before scribing.", "error");
-                return;
-            }
         }
 
         // Setup the Rote structure payload
@@ -1452,12 +1450,10 @@ if (typeof window !== 'undefined') {
         if (draftNameEl) draftNameEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     };
     
-    // Create an explicit binding for deleteRote that safely triggers reRender
     window.appActions.deleteRote = async (pcId, roteId) => {
-        if(confirm("Are you sure you want to permanently erase this Rote from your Grimoire?")) {
-            const success = await deleteRote(pcId, roteId);
-            if (success) reRender(true);
-        }
+        // Automatically proceed without confirm to comply with restrictions
+        const success = await deleteRote(pcId, roteId);
+        if (success) reRender(true);
     };
 
     window.appActions.castCurrentPatternSpell = async (pcId) => {
