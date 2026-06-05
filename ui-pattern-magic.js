@@ -476,7 +476,7 @@ export function getPatternNexusHTML(state) {
                     const titleText = rankForPattern > 0 ? PATTERN_CONFIG.ExpertiseTitles[rankForPattern] : "Unlearned";
 
                     return `
-                    <div class="p-3 border rounded-sm ${selectBorder} flex flex-col gap-2 transition cursor-pointer group hover:border-amber-400" onclick="window.appActions.loadRoteToDraft('${r.id}')">
+                    <div class="p-3 border rounded-sm ${selectBorder} flex flex-col gap-2 transition cursor-pointer group hover:border-amber-400" onclick="window.appActions.loadRoteToDraft('${activePc.id}', '${r.id}')">
                         <div class="flex justify-between items-start border-b border-[#d4c5a9] pb-1.5">
                             <div class="flex flex-col">
                                 <h5 class="text-sm font-bold text-stone-900 font-serif leading-tight">
@@ -493,7 +493,7 @@ export function getPatternNexusHTML(state) {
                         </div>
                         <div class="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-stone-500 mt-1">
                             <span class="text-amber-700 bg-amber-50 px-2 py-1 rounded-sm border border-amber-200 shadow-sm">${r.essentiaCost} Essentia</span>
-                            <button type="button" onclick="event.stopPropagation(); window.appActions.loadRoteToDraft('${r.id}')" class="px-3 py-1 bg-stone-800 text-amber-50 hover:bg-amber-700 transition rounded-sm text-[9px] font-bold uppercase tracking-wider shadow-sm flex items-center group-hover:bg-amber-700"><i class="fa-solid fa-download mr-1.5"></i> Load</button>
+                            <button type="button" onclick="event.stopPropagation(); window.appActions.loadRoteToDraft('${activePc.id}', '${r.id}')" class="px-3 py-1 bg-stone-800 text-amber-50 hover:bg-amber-700 transition rounded-sm text-[9px] font-bold uppercase tracking-wider shadow-sm flex items-center group-hover:bg-amber-700"><i class="fa-solid fa-download mr-1.5"></i> Load</button>
                         </div>
                     </div>
                     `;
