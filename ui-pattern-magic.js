@@ -381,7 +381,12 @@ export function getPatternNexusHTML(state) {
     const myUid = state.currentUserUid;
     const isDM = camp._isDM;
 
-    const activePcId = state.activePatternPcId || (camp.playerCharacters?.find(p => p.playerId === myUid)?.id) || '';
+    // Fetch active PC, with intelligent DM fallback
+    let activePcId = state.activePatternPcId || (camp.playerCharacters?.find(p => p.playerId === myUid)?.id) || '';
+    if (!activePcId && isDM && camp.playerCharacters && camp.playerCharacters.length > 0) {
+        const firstValid = camp.playerCharacters.find(p => p.patternMagicUnlocked);
+        activePcId = firstValid ? firstValid.id : camp.playerCharacters[0].id;
+    }
     const activePc = camp.playerCharacters?.find(p => p.id === activePcId);
     
     if (!activePc) {
@@ -1498,3 +1503,4 @@ if (typeof window !== 'undefined') {
         reRender(true);
     };
 }
+```
