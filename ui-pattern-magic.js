@@ -953,8 +953,8 @@ if (typeof window !== 'undefined') {
                                     <p class="text-[10px] text-red-800 italic mt-2">Failing a Sanity save inflicts Short, Long, or Indefinite Madness depending on the power of the spell cast.</p>
                                 </div>
                                 <div class="bg-stone-900 p-4 border border-stone-700 rounded-sm shadow-md">
-                                    <h4 class="font-bold text-amber-500 text-xs uppercase tracking-widest mb-1.5"><i class="fa-solid fa-burst mr-1"></i> Catastrophic Backlash</h4>
-                                    <p class="text-xs text-stone-300 font-serif leading-snug">If your total roll is <b>5 or more below the DC</b>, the Pattern snaps. The spell fails, you suffer a Sanity Check, and you trigger a Catastrophic Backlash effect (ranging from mental fatigue to taking direct elemental damage based on your Prime Pattern).</p>
+                                    <h4 class="font-bold text-amber-500 text-xs uppercase tracking-widest mb-1.5"><i class="fa-solid fa-burst mr-1"></i> Critical Failure</h4>
+                                    <p class="text-xs text-stone-300 font-serif leading-snug">If your total roll is <b>5 or more below the DC</b>, the Pattern snaps. The spell fails, you suffer a Sanity Check, and you must roll on the Catastrophic Failure table (ranging from mental fatigue to taking direct elemental damage based on your Prime Pattern).</p>
                                 </div>
                             </div>
                         </div>
