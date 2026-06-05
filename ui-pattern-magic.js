@@ -380,8 +380,8 @@ export function getPatternNexusHTML(state) {
     const myUid = state.currentUserUid;
     const isDM = camp._isDM;
 
-    const activePcId = state.activePatternPcId || (camp.playerCharacters && camp.playerCharacters.find(p => p.playerId === myUid)?.id) || '';
-    const activePc = camp.playerCharacters && camp.playerCharacters.find(p => p.id === activePcId);
+    const activePcId = state.activePatternPcId || (camp.playerCharacters?.find(p => p.playerId === myUid)?.id) || '';
+    const activePc = camp.playerCharacters?.find(p => p.id === activePcId);
     
     if (!activePc) {
         return `
@@ -420,12 +420,12 @@ export function getPatternNexusHTML(state) {
         <div class="flex items-center gap-2 bg-[#fdfbf7] px-3 py-1.5 border border-[#d4c5a9] rounded-sm shadow-sm">
             <span class="text-[10px] uppercase tracking-widest text-stone-500 font-bold"><i class="fa-solid fa-user-circle mr-1"></i> Weaver:</span>
             <select onchange="window.appActions.switchPatternPc(this.value)" class="bg-transparent text-stone-900 border-none outline-none text-sm font-bold font-serif cursor-pointer py-0.5">
-                ${camp.playerCharacters ? camp.playerCharacters.map(p => {
+                ${camp.playerCharacters?.map(p => {
                     const hasAccess = p.patternMagicUnlocked || isDM;
                     if (!hasAccess) return '';
                     const isSelected = p.id === activePcId ? 'selected' : '';
                     return `<option value="${p.id}" ${isSelected}>${p.name}</option>`;
-                }).join('') : ''}
+                }).join('')}
             </select>
         </div>
     `;
@@ -460,23 +460,30 @@ export function getPatternNexusHTML(state) {
                 ${memorizedRotesList.map(r => {
                     const isSelected = draft.selectedRoteId === r.id;
                     const selectBorder = isSelected ? 'border-amber-600 shadow-[0_0_8px_rgba(217,119,6,0.2)] bg-amber-50' : 'border-[#d4c5a9] bg-white hover:border-amber-400';
+                    const listDisplay = r.patterns.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' + ');
+                    
+                    const rankForPattern = pm[r.primaryPattern] || 0;
+                    const titleText = rankForPattern > 0 ? PATTERN_CONFIG.ExpertiseTitles[rankForPattern] : "Unlearned";
 
                     return `
-                    <div class="p-3 border rounded-sm ${selectBorder} flex flex-col gap-2 transition cursor-pointer group hover:border-amber-400" onclick="window.appActions.loadRoteToDraft('${activePc.id}', '${r.id}')">
+                    <div class="p-3 border rounded-sm ${selectBorder} flex flex-col gap-2 transition cursor-pointer group hover:border-amber-400" onclick="window.appActions.loadRoteToDraft('${r.id}')">
                         <div class="flex justify-between items-start border-b border-[#d4c5a9] pb-1.5">
-                            <h5 class="text-sm font-bold text-stone-900 font-serif leading-tight">
-                                <i class="fa-solid fa-scroll ${isSelected ? 'text-amber-600' : 'text-stone-400'} mr-1"></i> ${r.name}
-                            </h5>
+                            <div class="flex flex-col">
+                                <h5 class="text-sm font-bold text-stone-900 font-serif leading-tight">
+                                    <i class="fa-solid fa-scroll ${isSelected ? 'text-amber-600' : 'text-stone-400'} mr-1"></i> ${r.name}
+                                </h5>
+                                <span class="text-[9px] font-bold uppercase tracking-widest text-amber-700/80 mt-1">${r.primaryPattern} • ${titleText}</span>
+                            </div>
                             <button type="button" onclick="event.stopPropagation(); window.appActions.deleteRote('${activePc.id}', '${r.id}')" class="text-stone-400 hover:text-red-700 transition px-1" title="Erase Rote">
                                 <i class="fa-solid fa-trash text-xs"></i>
                             </button>
                         </div>
                         <div class="flex flex-wrap gap-1 text-[9px] font-bold uppercase tracking-widest text-stone-500 mb-1">
-                            ${r.patterns ? r.patterns.map(p => `<span class="bg-stone-100 border border-stone-200 px-1.5 py-0.5 rounded-sm">${p.charAt(0).toUpperCase() + p.slice(1)}</span>`).join('') : ''}
+                            ${r.patterns.map(p => `<span class="bg-stone-100 border border-stone-200 px-1.5 py-0.5 rounded-sm">${p.charAt(0).toUpperCase() + p.slice(1)}</span>`).join('')}
                         </div>
                         <div class="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-stone-500 mt-1">
                             <span class="text-amber-700 bg-amber-50 px-2 py-1 rounded-sm border border-amber-200 shadow-sm">${r.essentiaCost} Essentia</span>
-                            <button type="button" onclick="event.stopPropagation(); window.appActions.loadRoteToDraft('${activePc.id}', '${r.id}')" class="px-3 py-1 bg-stone-800 text-amber-50 hover:bg-amber-700 transition rounded-sm text-[9px] font-bold uppercase tracking-wider shadow-sm flex items-center group-hover:bg-amber-700"><i class="fa-solid fa-download mr-1.5"></i> Load Rote</button>
+                            <button type="button" onclick="event.stopPropagation(); window.appActions.loadRoteToDraft('${r.id}')" class="px-3 py-1 bg-stone-800 text-amber-50 hover:bg-amber-700 transition rounded-sm text-[9px] font-bold uppercase tracking-wider shadow-sm flex items-center group-hover:bg-amber-700"><i class="fa-solid fa-download mr-1.5"></i> Load</button>
                         </div>
                     </div>
                     `;
@@ -548,32 +555,34 @@ export function getPatternNexusHTML(state) {
 
     let loomHtml = '';
 
-    // INITIAL HTML STATE: Pinned to absolute center, scaled down, and rotated backward 
-    // to force a true 360-degree CSS spiral entrance sequence without optional chaining or spread issues!
+    // INITIAL HTML STATE: Everything starts in the dead center, transparent, and tiny.
+    // The setTimeout at the end of this function will trigger refreshTapestryUI() 50ms later,
+    // which applies the final coordinates and triggers the gorgeous CSS spiral transition!
     patternsList.forEach((key, index) => {
         const theme = PATTERN_THEME[key];
         const rank = pm[key] || 0;
-        const rankText = rank > 0 ? `(Rank ${rank})` : `(Unlearned)`;
+        const titleText = rank > 0 ? PATTERN_CONFIG.ExpertiseTitles[rank] : "Unlearned";
+        const rankText = rank > 0 ? `(Rank ${rank} - ${titleText})` : `(Unlearned)`;
 
-        const angleDeg = index * (360 / 9) - 90;
-        const startAngle = angleDeg - 360; 
-        
-        const initialTransform = `rotate(${startAngle}deg) translateX(0px) rotate(${-startAngle}deg) scale(0.1)`;
+        // Setup the pre-animation entry state
+        const x = 160 - 48; // Center of SVG minus half the new large button width (96/2)
+        const y = 160 - 48; 
+        const scale = 0.1;
 
         loomHtml += `
             <button id="sigil-btn-${key}" type="button" 
                     onclick="window.appActions.toggleWheelPattern('${key}')"
-                    style="transform: ${initialTransform}; color: ${theme.color};"
+                    style="left: ${x}px; top: ${y}px; transform: scale(${scale}); color: ${theme.color};"
                     class="sigil-btn absolute w-24 h-24 flex flex-col items-center justify-center cursor-pointer z-20 opacity-0 group">
                 <img src="${PATTERN_ASSET_BASE_URL}${key}.webp" alt="${theme.label}" class="w-20 h-20 object-contain transition-all duration-500 pointer-events-none" style="filter: none;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                <span class="text-[11px] font-serif font-bold text-stone-900 mt-1 leading-none drop-shadow-md absolute -bottom-4 whitespace-nowrap bg-[#fdfbf7] px-2 py-0.5 border border-[#d4c5a9] rounded-sm shadow-sm hidden group-hover:block z-[200] pointer-events-none">${theme.label} ${rankText}</span>
+                <span class="text-[11px] font-serif font-bold text-stone-900 mt-1 leading-none drop-shadow-md absolute -bottom-5 whitespace-nowrap bg-[#fdfbf7] px-2 py-0.5 border border-[#d4c5a9] rounded-sm shadow-sm hidden group-hover:block z-[200] pointer-events-none">${theme.label} ${rankText}</span>
             </button>
         `;
     });
 
     const convergenceSpinClass = isConvergence ? 'spin-loom-slow' : '';
 
-    // Trigger the CSS entrance spiral safely
+    // Trigger the CSS entrance spiral!
     setTimeout(() => {
         if (window.appActions && window.appActions.refreshTapestryUI) {
             window.appActions.refreshTapestryUI();
@@ -660,6 +669,7 @@ export function getPatternNexusHTML(state) {
                                 const canAdd = (pm.patternPoints || 0) > 0 && val < 5;
                                 const isFocused = draft.patterns.includes(key);
                                 const focusClass = isFocused ? 'border-amber-600/50 bg-stone-800/80 shadow-sm' : 'border-stone-800 bg-[#1c1917]';
+                                const titleText = val > 0 ? PATTERN_CONFIG.ExpertiseTitles[val] : "Unlearned";
 
                                 return `
                                 <div class="flex items-center justify-between p-3 border rounded-sm ${focusClass} transition-colors group cursor-pointer" onclick="window.appActions.openPatternInfoModal('${key}')">
@@ -668,6 +678,7 @@ export function getPatternNexusHTML(state) {
                                         <div>
                                             <span class="text-xs font-bold text-stone-200 font-serif tracking-wide block leading-none mb-1 group-hover:text-amber-400 transition-colors">${theme.label} <i class="fa-solid fa-circle-info ml-1 text-stone-500 text-[10px]"></i></span>
                                             <span class="text-[9px] text-stone-500 font-sans uppercase tracking-widest leading-none block">${theme.desc}</span>
+                                            <span class="text-[8px] font-bold uppercase tracking-widest text-amber-600/80 mt-1 block">${titleText}</span>
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-3">
@@ -698,6 +709,21 @@ export function getPatternNexusHTML(state) {
                         </div>
                         <div class="flex flex-wrap gap-3 p-4 bg-[#1c1917] rounded-sm border border-stone-800 justify-center min-h-[50px] shadow-inner">
                             ${pipsHtml || `<span class="text-[10px] text-stone-600 italic font-serif">Deepen your Attunement to expand your reservoir.</span>`}
+                        </div>
+                        
+                        <div class="mt-4 pt-4 border-t border-stone-700 flex flex-wrap justify-center gap-2">
+                            <button onclick="window.appActions.rollEssentiaRecovery('${activePc.id}', 'long_rest')" class="px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded border border-stone-600 text-[9px] uppercase font-bold tracking-wider transition shadow-sm flex items-center" title="Recover 1d6">
+                                <i class="fa-solid fa-bed mr-1.5"></i> Long Rest
+                            </button>
+                            <button onclick="window.appActions.rollEssentiaRecovery('${activePc.id}', 'faint')" class="px-3 py-1.5 bg-[#1c1917] hover:bg-stone-800 text-teal-500 border border-teal-900/50 rounded text-[9px] uppercase font-bold tracking-wider transition shadow-sm flex items-center" title="Recover 1d6">
+                                <i class="fa-solid fa-tower-observation mr-1.5"></i> Faint Echo
+                            </button>
+                            <button onclick="window.appActions.rollEssentiaRecovery('${activePc.id}', 'resonant')" class="px-3 py-1.5 bg-[#1c1917] hover:bg-stone-800 text-fuchsia-500 border border-fuchsia-900/50 rounded text-[9px] uppercase font-bold tracking-wider transition shadow-sm flex items-center" title="Recover 2d6">
+                                <i class="fa-solid fa-monument mr-1.5"></i> Resonant Locus
+                            </button>
+                            <button onclick="window.appActions.rollEssentiaRecovery('${activePc.id}', 'vibrant')" class="px-3 py-1.5 bg-[#1c1917] hover:bg-stone-800 text-amber-500 border border-amber-700/50 rounded text-[9px] uppercase font-bold tracking-wider transition shadow-sm flex items-center" title="Recover 3d6">
+                                <i class="fa-solid fa-gopuram mr-1.5"></i> Vibrant Nexus
+                            </button>
                         </div>
                     </div>
 
@@ -760,7 +786,6 @@ export function getPatternNexusHTML(state) {
                                 </div>
                             </div>
 
-                            <!-- Save Rote Form -->
                             <div class="mt-5 pt-4 border-t border-stone-700 flex flex-col sm:flex-row gap-3 items-center pl-3">
                                 <input type="text" 
                                        id="input-rote-memorize-name" 
@@ -773,7 +798,6 @@ export function getPatternNexusHTML(state) {
                                 </button>
                             </div>
 
-                            <!-- Weave Spell Trigger -->
                             <div class="mt-4 pl-3">
                                 <button type="button" 
                                         id="tapestry-cast-btn"
@@ -810,6 +834,14 @@ if (typeof window !== 'undefined') {
         const configAff = PATTERN_CONFIG.Affinities[patternKey];
         const dmgTypes = PATTERN_CONFIG.DamageTypesByPattern[patternKey] || [];
         
+        // Dynamic fetch of the PC's actual rank for this specific pattern to display the Title
+        const camp = window.appData.activeCampaign;
+        const activePcId = window.appData.activePatternPcId || (camp.playerCharacters?.find(p => p.playerId === window.appData.currentUserUid)?.id) || '';
+        const activePc = camp.playerCharacters?.find(p => p.id === activePcId);
+        const pm = activePc ? getOrInitPatternState(activePc) : {};
+        const rank = pm[patternKey] || 0;
+        const titleText = rank > 0 ? PATTERN_CONFIG.ExpertiseTitles[rank] : "Unlearned";
+        
         let primaryHtml = '';
         let secondaryHtml = '';
         
@@ -837,7 +869,7 @@ if (typeof window !== 'undefined') {
                             </div>
                             <div>
                                 <h2 class="text-3xl font-black font-serif text-stone-900 tracking-wide">${theme.label}</h2>
-                                <p class="text-[11px] font-bold uppercase tracking-widest" style="color: ${theme.color};">${theme.desc}</p>
+                                <p class="text-[11px] font-bold uppercase tracking-widest" style="color: ${theme.color};">${theme.desc} • <span class="text-stone-500">${titleText}</span></p>
                             </div>
                         </div>
 
@@ -947,19 +979,22 @@ if (typeof window !== 'undefined') {
         const primary = draft.patterns[0] || null;
         const supports = draft.patterns.slice(1);
         
-        const radius = 105;
+        const cx = 160; const cy = 160; const radius = 105;
         const patternsList = Object.keys(PATTERN_THEME);
         
         // 1. ANIMATE THE LOOM
         if (!primary) {
             patternsList.forEach((key, index) => {
-                const angleDeg = index * (360 / 9) - 90;
+                const angle = (index * (360 / 9) - 90) * (Math.PI / 180);
+                const x = cx + radius * Math.cos(angle) - 48; // Updated for larger 96px bounds
+                const y = cy + radius * Math.sin(angle) - 48;
                 
                 const btn = document.getElementById(`sigil-btn-${key}`);
                 if (btn) {
-                    btn.classList.remove('pulse-prime-sigil');
-                    // Setting these styles natively triggers the CSS transition!
-                    btn.style.transform = `rotate(${angleDeg}deg) translateX(${radius}px) rotate(${-angleDeg}deg) scale(0.9)`;
+                    btn.classList.remove('pulse-prime-sigil', 'loom-entrance');
+                    btn.style.left = `${x}px`;
+                    btn.style.top = `${y}px`;
+                    btn.style.transform = 'scale(1)';
                     btn.className = 'sigil-btn absolute w-24 h-24 flex flex-col items-center justify-center cursor-pointer z-20 opacity-40 hover:opacity-100 hover:z-[100] group';
                     const img = btn.querySelector('img');
                     if(img) img.style.filter = 'none';
@@ -971,8 +1006,10 @@ if (typeof window !== 'undefined') {
             // Primary Sigil glides to center and gets large
             const primeBtn = document.getElementById(`sigil-btn-${primary}`);
             if (primeBtn) {
-                // X points UP at -90 degrees, so translateX(8px) shifts the icon 8px upward perfectly matching the old layout!
-                primeBtn.style.transform = `rotate(-90deg) translateX(8px) rotate(90deg) scale(1.15)`;
+                primeBtn.classList.remove('loom-entrance');
+                primeBtn.style.left = `${cx - 48}px`; // Updated for 96px bounds
+                primeBtn.style.top = `${cy - 48}px`;
+                primeBtn.style.transform = 'scale(1.2)'; // Scaled down slightly to fit the larger base size nicely
                 const theme = PATTERN_THEME[primary];
                 primeBtn.className = 'sigil-btn absolute w-24 h-24 flex flex-col items-center justify-center cursor-pointer z-[100] opacity-100 pulse-prime-sigil group';
                 const img = primeBtn.querySelector('img');
@@ -981,15 +1018,19 @@ if (typeof window !== 'undefined') {
 
             // Orbits glide into 8-point ring
             orbitsList.forEach((key, index) => {
-                const angleDeg = index * (360 / 8) - 90;
+                const angle = (index * (360 / 8) - 90) * (Math.PI / 180);
+                const x = cx + radius * Math.cos(angle) - 48; // Updated for 96px bounds
+                const y = cy + radius * Math.sin(angle) - 48;
                 
                 const btn = document.getElementById(`sigil-btn-${key}`);
                 const isSupported = supports.includes(key);
                 const theme = PATTERN_THEME[key];
                 
                 if (btn) {
-                    btn.classList.remove('pulse-prime-sigil');
-                    btn.style.transform = `rotate(${angleDeg}deg) translateX(${radius}px) rotate(${-angleDeg}deg) scale(0.75)`;
+                    btn.classList.remove('pulse-prime-sigil', 'loom-entrance');
+                    btn.style.left = `${x}px`;
+                    btn.style.top = `${y}px`;
+                    btn.style.transform = 'scale(0.8)'; // Scaled down for orbit perspective
                     const img = btn.querySelector('img');
                     
                     if (isSupported) {
@@ -1242,7 +1283,7 @@ if (typeof window !== 'undefined') {
             roteName: draft.roteName
         };
 
-        await castPatternSpell(pcId, castConfig);
+        await window.appActions.castPatternSpell(pcId, castConfig);
 
         // Reset temporary non-rote draft casting parameters after successful cast!
         if (!draft.isRote) {
