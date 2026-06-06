@@ -1,114 +1,23 @@
 import { reRender, generateId } from './state.js';
-import { PATTERN_CONFIG, getOrInitPatternState } from './actions-pattern-magic.js';
+import { 
+    PATTERN_CONFIG, 
+    getOrInitPatternState, 
+    upgradePatternRank, 
+    adjustPatternParameter, 
+    setPcEssentia, 
+    saveRote, 
+    deleteRote, 
+    castPatternSpell 
+} from './actions-pattern-magic.js';
 import {
     PATTERN_THEME,
     PATTERN_ASSET_BASE_URL,
+    injectTapestryStyles,
     getOrInitDraftState,
     calculateAffinityLimitsAndCosts,
     buildEffectsHTML
 } from './ui-pattern-utils.js';
-
-// Auto-binds all our interactive clicks, modals, and animation logic!
-import './ui-pattern-events.js'; 
-
-// =========================================================================
-// CSS Injection for Arcane Tapestry & Loom Effects (Glassmorphism Version)
-// =========================================================================
-const injectTapestryStyles = () => {
-    if (document.getElementById('tapestry-glass-styles')) return;
-    const style = document.createElement('style');
-    style.id = 'tapestry-glass-styles';
-    style.innerHTML = `
-        .dynamic-weave-bg {
-            position: absolute;
-            inset: -5%;
-            z-index: 0;
-            transition: filter 1.5s ease-in-out, background 1.5s ease-in-out;
-            animation: driftWeave 30s linear infinite alternate;
-        }
-        @keyframes driftWeave {
-            0% { transform: scale(1.05) translate(0, 0); }
-            100% { transform: scale(1.05) translate(-1%, -1%); }
-        }
-        .weave-vignette {
-            position: absolute;
-            inset: 0;
-            z-index: 1;
-            background: radial-gradient(circle at center, transparent 10%, rgba(5,5,5,0.7) 70%, rgba(0,0,0,0.95) 100%);
-            pointer-events: none;
-        }
-
-        /* Glassmorphism UI */
-        .glass-panel {
-            background-color: rgba(20, 20, 25, 0.6);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255,255,255,0.1);
-        }
-        .glass-input {
-            background-color: rgba(0, 0, 0, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: #f3f4f6;
-            transition: all 0.2s;
-        }
-        .glass-input:focus {
-            background-color: rgba(0, 0, 0, 0.6);
-            border-color: #f59e0b;
-            outline: none;
-            box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
-        }
-        .glass-btn {
-            background-color: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(4px);
-            transition: all 0.2s;
-        }
-        .glass-btn:hover:not(:disabled) {
-            background-color: rgba(255, 255, 255, 0.2);
-            border-color: rgba(255, 255, 255, 0.4);
-        }
-        .glass-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .loom-circle {
-            background: radial-gradient(circle, rgba(10,10,12,0.6) 0%, rgba(5,5,5,0.9) 100%);
-            box-shadow: inset 0 0 30px rgba(0,0,0,0.9), 0 0 20px rgba(217, 119, 6, 0.1);
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        .sigil-btn {
-            transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
-            /* PERFECT CENTER PIN: (320px container / 2) - (96px button / 2) = 160 - 48 = 112px */
-            left: 112px; 
-            top: 112px;
-        }
-        .pulse-prime-sigil img {
-            animation: pulsePrimeSigil 3s ease-in-out infinite alternate;
-        }
-        @keyframes pulsePrimeSigil {
-            0% { filter: drop-shadow(0 0 8px currentColor); transform: scale(1); }
-            100% { filter: drop-shadow(0 0 20px currentColor); transform: scale(1.05); }
-        }
-        @keyframes loomAppear {
-            0% { opacity: 0; filter: blur(4px); transform: scale(0.1); }
-            100% { opacity: 1; filter: blur(0px); transform: scale(1); }
-        }
-        .loom-entrance {
-            animation: loomAppear 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-        }
-        .spin-loom-slow {
-            animation: spinLoom 40s linear infinite;
-        }
-        @keyframes spinLoom {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    `;
-    document.head.appendChild(style);
-};
+import './ui-pattern-events.js';
 
 // =========================================================================
 // Main Pattern Tapestry HTML Render
@@ -121,63 +30,54 @@ export function getPatternNexusHTML(state) {
     const myUid = state.currentUserUid;
     const isDM = camp._isDM;
 
-    const activePcId = state.activePatternPcId || (camp.playerCharacters && camp.playerCharacters.find(p => p.playerId === myUid)?.id) || '';
-    const activePc = camp.playerCharacters && camp.playerCharacters.find(p => p.id === activePcId);
+    const activePcId = state.activePatternPcId || (camp.playerCharacters?.find(p => p.playerId === myUid)?.id) || '';
+    const activePc = camp.playerCharacters?.find(p => p.id === activePcId);
     
     if (!activePc) {
         return `
-        <div class="arcane-tapestry-bg relative min-h-screen font-sans overflow-hidden">
-            <div id="dynamic-weave-layer" class="dynamic-weave-bg"></div>
-            <div class="weave-vignette"></div>
-            <div class="relative z-10 flex flex-col items-center justify-center min-h-screen p-8">
-                <div class="max-w-md text-center p-8 glass-panel rounded-sm relative">
-                    <i class="fa-solid fa-book-journal-whills text-amber-500 text-4xl mb-4 drop-shadow-lg"></i>
-                    <h3 class="font-bold text-2xl text-white mb-2 font-serif drop-shadow-md">No Hero Available</h3>
-                    <p class="text-sm text-gray-300 leading-relaxed mb-6 font-serif">Before you can weave the threads of reality, a hero must be initialized and bound to your account.</p>
-                    <button onclick="window.appActions.setView('pc-manager')" class="px-6 py-2 glass-btn text-white rounded-sm uppercase tracking-wider text-xs font-bold shadow-md transition-all">Open Roster</button>
-                </div>
+        <div class="arcane-tapestry-bg min-h-screen flex flex-col items-center justify-center p-8 font-serif">
+            <div class="max-w-md text-center p-8 parchment-panel rounded-sm relative">
+                <i class="fa-solid fa-book-journal-whills text-amber-700 text-4xl mb-4"></i>
+                <h3 class="font-bold text-2xl text-stone-900 mb-2">No Hero Available</h3>
+                <p class="text-sm text-stone-600 leading-relaxed mb-6">Before you can weave the threads of reality, a hero must be initialized and bound to your account.</p>
+                <button onclick="window.appActions.setView('pc-manager')" class="px-6 py-2 bg-stone-900 text-amber-50 rounded-sm uppercase tracking-wider text-xs font-bold shadow-md hover:bg-stone-800 transition-all">Open Roster</button>
             </div>
         </div>
         `;
     }
 
     const pm = getOrInitPatternState(activePc);
+    
+    // --- SCOPE FIX: Re-initialize draft and metrics locally ---
     const draft = getOrInitDraftState();
+    const primary = draft.patterns[0] || null;
     const metrics = calculateAffinityLimitsAndCosts(activePc, pm, draft);
+    // -----------------------------------------------------------
 
     const isUnlocked = activePc.patternMagicUnlocked === true || (pm.spatia + pm.wyird + pm.dynamis + pm.vitar + pm.formus + pm.mentis + pm.arcani + pm.umbrus + pm.tempus > 0);
     
     if (!isUnlocked && !isDM) {
         return `
-        <div class="arcane-tapestry-bg relative min-h-screen font-sans overflow-hidden">
-            <div id="dynamic-weave-layer" class="dynamic-weave-bg"></div>
-            <div class="weave-vignette"></div>
-            <div class="relative z-10 flex flex-col items-center justify-center min-h-screen p-8">
-                <div class="max-w-md text-center p-8 glass-panel rounded-sm relative">
-                    <i class="fa-solid fa-eye-slash text-gray-400 text-4xl mb-4 drop-shadow-lg"></i>
-                    <h3 class="font-bold text-2xl text-white mb-2 font-serif drop-shadow-md">The Tapestry is Hidden</h3>
-                    <p class="text-sm text-gray-300 leading-relaxed mb-6 font-serif">Your mind has not yet awakened to the Patterns of reality. The Dungeon Master must unlock this potential within your character sheet.</p>
-                    <button onclick="window.appActions.setView('adventure')" class="px-6 py-2 glass-btn text-white rounded-sm uppercase tracking-wider text-xs font-bold shadow-md transition-all">Return to Campaign</button>
-                </div>
+        <div class="arcane-tapestry-bg min-h-screen flex flex-col items-center justify-center p-8 font-serif">
+            <div class="max-w-md text-center p-8 parchment-panel rounded-sm relative">
+                <i class="fa-solid fa-eye-slash text-stone-400 text-4xl mb-4"></i>
+                <h3 class="font-bold text-2xl text-stone-900 mb-2">The Tapestry is Hidden</h3>
+                <p class="text-sm text-stone-600 leading-relaxed mb-6">Your mind has not yet awakened to the Patterns of reality. The Dungeon Master must unlock this potential within your character sheet.</p>
+                <button onclick="window.appActions.setView('adventure')" class="px-6 py-2 bg-stone-900 text-amber-50 rounded-sm uppercase tracking-wider text-xs font-bold shadow-md hover:bg-stone-800 transition-all">Return to Campaign</button>
             </div>
         </div>
         `;
     }
 
-    // Character Switching Interface
-    const allowedWeavers = (camp.playerCharacters || []).filter(p => {
-        const hasAccess = p.patternMagicUnlocked || isDM;
-        const isOwner = p.playerId === myUid;
-        return hasAccess && (isOwner || isDM);
-    });
-
     const pcSelectorHtml = `
-        <div class="flex items-center gap-2 glass-panel px-3 py-1.5 border border-white/20 rounded-sm shadow-sm">
-            <span class="text-[10px] uppercase tracking-widest text-gray-400 font-bold"><i class="fa-solid fa-user-circle mr-1"></i> Weaver:</span>
-            <select onchange="window.appActions.switchPatternPc(this.value)" class="bg-transparent text-white border-none outline-none text-sm font-bold font-serif cursor-pointer py-0.5">
-                ${allowedWeavers.map(p => {
+        <div class="flex items-center gap-2 bg-[#fdfbf7] px-3 py-1.5 border border-[#d4c5a9] rounded-sm shadow-sm">
+            <span class="text-[10px] uppercase tracking-widest text-stone-500 font-bold"><i class="fa-solid fa-user-circle mr-1"></i> Weaver:</span>
+            <select onchange="window.appActions.switchPatternPc(this.value)" class="bg-transparent text-stone-900 border-none outline-none text-sm font-bold font-serif cursor-pointer py-0.5">
+                ${camp.playerCharacters?.map(p => {
+                    const hasAccess = p.patternMagicUnlocked || isDM;
+                    if (!hasAccess) return '';
                     const isSelected = p.id === activePcId ? 'selected' : '';
-                    return `<option class="text-black" value="${p.id}" ${isSelected}>${p.name}</option>`;
+                    return `<option value="${p.id}" ${isSelected}>${p.name}</option>`;
                 }).join('')}
             </select>
         </div>
@@ -189,11 +89,11 @@ export function getPatternNexusHTML(state) {
     let pipsHtml = '';
     for (let i = 1; i <= maxEssentia; i++) {
         const isFilled = pm.essentia >= i;
-        const color = isFilled ? 'bg-amber-500 border-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.8)]' : 'bg-black/50 border-white/20 shadow-inner';
+        const color = isFilled ? 'bg-amber-500 border-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.8)]' : 'bg-stone-800 border-stone-600 shadow-inner';
         pipsHtml += `
             <button type="button" 
                     onclick="window.appActions.setPcEssentia('${activePc.id}', ${i})"
-                    class="w-4 h-4 rounded-full border ${color} transition-all duration-300 hover:scale-125"
+                    class="w-4 h-4 rounded-full border-2 ${color} transition-all duration-300 hover:scale-125"
                     title="Set Essentia to ${i}/${maxEssentia}">
             </button>
         `;
@@ -203,8 +103,8 @@ export function getPatternNexusHTML(state) {
     let rotesTabHtml = '';
     if (memorizedRotesList.length === 0) {
         rotesTabHtml = `
-            <div class="p-6 text-center border border-dashed border-white/20 bg-black/20 rounded-sm">
-                <p class="text-gray-400 italic text-xs font-serif">No rotes currently inscribed in your grimoire.</p>
+            <div class="p-6 text-center border border-dashed border-[#d4c5a9] bg-stone-50 rounded-sm">
+                <p class="text-stone-500 italic text-xs font-serif">No rotes currently inscribed in your grimoire.</p>
             </div>
         `;
     } else {
@@ -212,31 +112,24 @@ export function getPatternNexusHTML(state) {
             <div class="space-y-3 max-h-[350px] overflow-y-auto custom-scrollbar pr-2">
                 ${memorizedRotesList.map(r => {
                     const isSelected = draft.selectedRoteId === r.id;
-                    const selectBorder = isSelected ? 'border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.3)] bg-amber-500/10' : 'border-white/20 bg-black/40 hover:border-amber-400/50';
-                    const listDisplay = r.patterns.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' + ');
-                    
-                    const rankForPattern = pm[r.primaryPattern] || 0;
-                    const titleText = rankForPattern > 0 ? PATTERN_CONFIG.ExpertiseTitles[rankForPattern] : "Unlearned";
+                    const selectBorder = isSelected ? 'border-amber-600 shadow-[0_0_8px_rgba(217,119,6,0.2)] bg-amber-50' : 'border-[#d4c5a9] bg-white hover:border-amber-400';
 
                     return `
-                    <div class="p-3 border rounded-sm ${selectBorder} flex flex-col gap-2 transition cursor-pointer group hover:bg-black/60" onclick="window.appActions.loadRoteToDraft('${activePc.id}', '${r.id}')">
-                        <div class="flex justify-between items-start border-b border-white/20 pb-1.5">
-                            <div class="flex flex-col">
-                                <h5 class="text-sm font-bold text-white font-serif leading-tight drop-shadow-md">
-                                    <i class="fa-solid fa-scroll ${isSelected ? 'text-amber-500' : 'text-gray-400'} mr-1"></i> ${r.name}
-                                </h5>
-                                <span class="text-[9px] font-bold uppercase tracking-widest text-amber-500/80 mt-1">${r.primaryPattern} • ${titleText}</span>
-                            </div>
-                            <button type="button" onclick="event.stopPropagation(); window.appActions.deleteRote('${activePc.id}', '${r.id}')" class="text-gray-500 hover:text-red-500 transition px-1" title="Erase Rote">
+                    <div class="p-3 border rounded-sm ${selectBorder} flex flex-col gap-2 transition cursor-pointer group hover:border-amber-400" onclick="window.appActions.loadRoteToDraft('${activePc.id}', '${r.id}')">
+                        <div class="flex justify-between items-start border-b border-[#d4c5a9] pb-1.5">
+                            <h5 class="text-sm font-bold text-stone-900 font-serif leading-tight">
+                                <i class="fa-solid fa-scroll ${isSelected ? 'text-amber-600' : 'text-stone-400'} mr-1"></i> ${r.name}
+                            </h5>
+                            <button type="button" onclick="event.stopPropagation(); window.appActions.deleteRote('${activePc.id}', '${r.id}')" class="text-stone-400 hover:text-red-700 transition px-1" title="Erase Rote">
                                 <i class="fa-solid fa-trash text-xs"></i>
                             </button>
                         </div>
-                        <div class="flex flex-wrap gap-1 text-[9px] font-bold uppercase tracking-widest text-gray-300 mb-1">
-                            ${r.patterns.map(p => `<span class="bg-black/50 border border-white/10 px-1.5 py-0.5 rounded-sm">${p.charAt(0).toUpperCase() + p.slice(1)}</span>`).join('')}
+                        <div class="flex flex-wrap gap-1 text-[9px] font-bold uppercase tracking-widest text-stone-500 mb-1">
+                            ${r.patterns ? r.patterns.map(p => `<span class="bg-stone-100 border border-stone-200 px-1.5 py-0.5 rounded-sm">${p.charAt(0).toUpperCase() + p.slice(1)}</span>`).join('') : ''}
                         </div>
-                        <div class="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-gray-400 mt-1">
-                            <span class="text-amber-400 bg-amber-500/20 px-2 py-1 rounded-sm border border-amber-500/30 shadow-sm">${r.essentiaCost} Essentia</span>
-                            <button type="button" onclick="event.stopPropagation(); window.appActions.loadRoteToDraft('${activePc.id}', '${r.id}')" class="px-3 py-1 glass-btn text-white transition rounded-sm text-[9px] font-bold uppercase tracking-wider shadow-sm flex items-center hover:text-amber-300"><i class="fa-solid fa-download mr-1.5"></i> Load</button>
+                        <div class="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-stone-500 mt-1">
+                            <span class="text-amber-700 bg-amber-50 px-2 py-1 rounded-sm border border-amber-200 shadow-sm">${r.essentiaCost} Essentia</span>
+                            <button type="button" onclick="event.stopPropagation(); window.appActions.loadRoteToDraft('${activePc.id}', '${r.id}')" class="px-3 py-1 bg-stone-800 text-amber-50 hover:bg-amber-700 transition rounded-sm text-[9px] font-bold uppercase tracking-wider shadow-sm flex items-center group-hover:bg-amber-700"><i class="fa-solid fa-download mr-1.5"></i> Load Rote</button>
                         </div>
                     </div>
                     `;
@@ -245,29 +138,39 @@ export function getPatternNexusHTML(state) {
         `;
     }
 
+    const abilitySelectorHtml = `
+        <div class="w-full">
+            <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Attuned Attribute</label>
+            <select onchange="window.appActions.updateDraftField('ability', this.value, false)" class="w-full bg-white border border-[#d4c5a9] rounded-sm p-2.5 text-sm text-stone-900 font-bold font-sans outline-none shadow-sm focus:border-amber-600 transition-colors cursor-pointer uppercase tracking-wider">
+                <option value="int" ${draft.ability === 'int' ? 'selected' : ''}>Intelligence (${activePc.int || 10})</option>
+                <option value="wis" ${draft.ability === 'wis' ? 'selected' : ''}>Wisdom (${activePc.wis || 10})</option>
+                <option value="cha" ${draft.ability === 'cha' ? 'selected' : ''}>Charisma (${activePc.cha || 10})</option>
+            </select>
+        </div>
+    `;
+
     let dmAdministrationPanelHtml = '';
     if (isDM) {
         dmAdministrationPanelHtml = `
-            <!-- DM Administration Layer -->
-            <div class="p-5 glass-panel border border-white/20 rounded-sm mb-8 shadow-lg">
-                <h3 class="text-sm font-bold font-serif text-amber-400 uppercase tracking-widest flex items-center border-b border-white/20 pb-2 mb-5 drop-shadow-md">
-                    <i class="fa-solid fa-crown text-amber-500 mr-2"></i> Dungeon Master's Loom Control
+            <div class="p-5 bg-stone-900 border border-stone-700 rounded-sm mb-8 shadow-md">
+                <h3 class="text-sm font-bold font-serif text-amber-500 uppercase tracking-widest flex items-center border-b border-stone-700 pb-2 mb-5">
+                    <i class="fa-solid fa-crown text-amber-600 mr-2"></i> Dungeon Master's Loom Control
                 </h3>
                 
-                <div class="flex flex-wrap items-center justify-between gap-4 mb-5 bg-black/40 p-4 rounded-sm border border-white/10 shadow-inner">
+                <div class="flex flex-wrap items-center justify-between gap-4 mb-5 bg-[#1c1917] p-4 rounded-sm border border-stone-800 shadow-inner">
                     <div class="flex items-center gap-3">
-                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Loom Access:</span>
+                        <span class="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Loom Access:</span>
                         <label class="flex items-center cursor-pointer">
-                            <input type="checkbox" onchange="window.appActions.toggleCampaignPcAccess('${activePc.id}', this.checked)" ${activePc.patternMagicUnlocked ? 'checked' : ''} class="w-5 h-5 text-amber-500 rounded cursor-pointer border-gray-600 bg-black/60 shadow-sm focus:ring-amber-500">
-                            <span class="ml-2 text-xs font-bold text-gray-200">Awakened</span>
+                            <input type="checkbox" onchange="window.appActions.toggleCampaignPcAccess('${activePc.id}', this.checked)" ${activePc.patternMagicUnlocked ? 'checked' : ''} class="w-5 h-5 text-amber-600 rounded cursor-pointer border-stone-600 bg-stone-800 shadow-sm focus:ring-amber-500">
+                            <span class="ml-2 text-xs font-bold text-stone-300">Awakened</span>
                         </label>
                     </div>
                     <div class="flex items-center gap-3">
-                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Unspent Mastery Points:</span>
-                        <div class="flex items-center gap-2 bg-black/60 px-2 py-1 rounded border border-white/10 shadow-sm">
-                            <button onclick="window.appActions.adjustPatternParameter('${activePc.id}', 'patternPoints', -1)" class="w-6 h-6 flex items-center justify-center bg-white/10 text-gray-300 hover:text-red-400 hover:bg-white/20 transition rounded-sm font-bold"><i class="fa-solid fa-minus text-xs"></i></button>
-                            <span class="text-sm font-black text-amber-400 w-6 text-center drop-shadow-md">${pm.patternPoints || 0}</span>
-                            <button onclick="window.appActions.adjustPatternParameter('${activePc.id}', 'patternPoints', 1)" class="w-6 h-6 flex items-center justify-center bg-white/10 text-gray-300 hover:text-emerald-400 hover:bg-white/20 transition rounded-sm font-bold"><i class="fa-solid fa-plus text-xs"></i></button>
+                        <span class="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Unspent Mastery Points:</span>
+                        <div class="flex items-center gap-2 bg-stone-800 px-2 py-1 rounded border border-stone-700 shadow-sm">
+                            <button onclick="window.appActions.adjustPatternParameter('${activePc.id}', 'patternPoints', -1)" class="w-6 h-6 flex items-center justify-center bg-stone-700 text-stone-300 hover:text-red-400 hover:bg-stone-600 transition rounded-sm font-bold"><i class="fa-solid fa-minus text-xs"></i></button>
+                            <span class="text-sm font-black text-amber-400 w-6 text-center">${pm.patternPoints || 0}</span>
+                            <button onclick="window.appActions.adjustPatternParameter('${activePc.id}', 'patternPoints', 1)" class="w-6 h-6 flex items-center justify-center bg-stone-700 text-stone-300 hover:text-emerald-400 hover:bg-stone-600 transition rounded-sm font-bold"><i class="fa-solid fa-plus text-xs"></i></button>
                         </div>
                     </div>
                 </div>
@@ -276,12 +179,12 @@ export function getPatternNexusHTML(state) {
                     ${Object.entries(PATTERN_THEME).map(([key, theme]) => {
                         const val = pm[key] || 0;
                         return `
-                        <div class="flex flex-col items-center justify-center p-3 bg-black/40 border border-white/10 rounded-sm shadow-inner gap-2">
-                            <span class="text-[10px] font-serif font-bold uppercase tracking-wider drop-shadow-md" style="color: ${theme.color};">${key}</span>
-                            <div class="flex items-center gap-1.5 bg-black/60 px-1.5 py-1 rounded border border-white/10">
-                                <button onclick="window.appActions.adjustPatternParameter('${activePc.id}', '${key}', -1)" class="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-red-400 transition font-bold"><i class="fa-solid fa-minus text-[10px]"></i></button>
-                                <span class="text-xs font-black text-white w-4 text-center drop-shadow-md">${val}</span>
-                                <button onclick="window.appActions.adjustPatternParameter('${activePc.id}', '${key}', 1)" class="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-emerald-400 transition font-bold"><i class="fa-solid fa-plus text-[10px]"></i></button>
+                        <div class="flex flex-col items-center justify-center p-3 bg-[#1c1917] border border-stone-800 rounded-sm shadow-inner gap-2">
+                            <span class="text-[10px] font-serif font-bold uppercase tracking-wider" style="color: ${theme.color};">${key}</span>
+                            <div class="flex items-center gap-1.5 bg-stone-800 px-1.5 py-1 rounded border border-stone-700">
+                                <button onclick="window.appActions.adjustPatternParameter('${activePc.id}', '${key}', -1)" class="w-5 h-5 flex items-center justify-center text-stone-400 hover:text-red-400 transition font-bold"><i class="fa-solid fa-minus text-[10px]"></i></button>
+                                <span class="text-xs font-black text-stone-200 w-4 text-center">${val}</span>
+                                <button onclick="window.appActions.adjustPatternParameter('${activePc.id}', '${key}', 1)" class="w-5 h-5 flex items-center justify-center text-stone-400 hover:text-emerald-400 transition font-bold"><i class="fa-solid fa-plus text-[10px]"></i></button>
                             </div>
                         </div>
                         `;
@@ -291,310 +194,543 @@ export function getPatternNexusHTML(state) {
         `;
     }
 
-    const patternsList = Object.keys(PATTERN_THEME);
-    const isConvergence = draft.patterns.length === 9;
-
-    let loomHtml = '';
-
-    // Generate Layout Positions synchronously so they never appear invisible!
-    patternsList.forEach((key, index) => {
-        const theme = PATTERN_THEME[key];
-        const rank = pm[key] || 0;
-        const rankText = rank > 0 ? `(Rank ${rank})` : `(Unlearned)`;
-
-        // For the unconstrained aesthetic, we use pure rotate/translate math from the center pin.
-        // We start with them collapsed at the center so the CSS animation expands them outward.
-        const angleDeg = index * (360 / 9) - 90;
-        const startAngle = angleDeg - 360; 
-        
-        const initialTransform = `rotate(${startAngle}deg) translateX(0px) rotate(${-startAngle}deg) scale(0.1)`;
-
-        loomHtml += `
-            <button id="sigil-btn-${key}" type="button" 
-                    onclick="window.appActions.toggleWheelPattern('${key}')"
-                    style="transform: ${initialTransform}; color: ${theme.color};"
-                    class="sigil-btn absolute w-24 h-24 flex flex-col items-center justify-center cursor-pointer z-20 opacity-0 group">
-                <img src="${PATTERN_ASSET_BASE_URL}${key}.webp" alt="${theme.label}" class="w-20 h-20 object-contain transition-all duration-500 pointer-events-none" style="filter: none;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                <span class="text-[11px] font-serif font-bold text-white mt-1 leading-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] absolute -bottom-5 whitespace-nowrap bg-black/60 px-2 py-0.5 border border-white/20 rounded-sm shadow-md hidden group-hover:block z-[200] pointer-events-none">${theme.label} ${rankText}</span>
-            </button>
-        `;
-    });
-
-    const convergenceSpinClass = isConvergence ? 'spin-loom-slow' : '';
-
-    // Trigger the CSS entrance spiral safely!
-    setTimeout(() => {
-        if (window.appActions && window.appActions.refreshTapestryUI) {
-            window.appActions.refreshTapestryUI(pm);
-        }
-    }, 50);
-
     return `
-    <div class="arcane-tapestry-bg relative min-h-screen font-sans overflow-hidden">
-        
-        <!-- The Dynamic Weave Background Layer -->
-        <div id="dynamic-weave-layer" class="dynamic-weave-bg"></div>
-        <div class="weave-vignette"></div>
-
-        <!-- Foreground UI Layer -->
-        <div class="relative z-10 w-full h-full overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 text-gray-200">
-            <div id="pattern-info-modal-container"></div>
-            <div class="max-w-6xl mx-auto">
-                
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 border-b border-white/20 pb-5">
-                    <div>
-                        <div class="flex items-center gap-3">
-                            <i class="fa-solid fa-compass-drafting text-amber-400 text-3xl drop-shadow-[0_0_10px_rgba(251,191,36,0.6)]"></i>
-                            <h2 class="text-3xl font-serif font-black tracking-wide text-white drop-shadow-md">The Pattern Tapestry</h2>
-                        </div>
-                        <p class="text-[10px] text-amber-300 font-bold uppercase tracking-widest mt-2 drop-shadow-md">Weave the fundamental threads of reality.</p>
+    <div class="arcane-tapestry-bg min-h-screen text-stone-900 p-4 sm:p-6 lg:p-8 font-sans border-2 border-stone-900 shadow-2xl relative">
+        <div id="pattern-info-modal-container"></div>
+        <div class="max-w-6xl mx-auto">
+            
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 border-b border-[#78350f] pb-5">
+                <div>
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-compass-drafting text-amber-500 text-3xl drop-shadow-md"></i>
+                        <h2 class="text-3xl font-serif font-black tracking-wide text-[#f4ebd8] drop-shadow-lg">The Pattern Tapestry</h2>
                     </div>
-                    <div class="flex flex-wrap items-center gap-3">
-                        ${pcSelectorHtml}
-                        
-                        <!-- NEW GUIDE BUTTON -->
-                        <button onclick="window.appActions.openWeavingGuideModal()" class="px-4 py-2 glass-btn text-white rounded-sm transition text-[10px] font-bold uppercase tracking-wider shadow-md">
-                            <i class="fa-solid fa-graduation-cap mr-2 text-amber-400"></i> Guide
-                        </button>
+                    <p class="text-[10px] text-amber-600/80 font-bold uppercase tracking-widest mt-2">Weave the fundamental threads of reality.</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-3">
+                    ${pcSelectorHtml}
+                    <button onclick="window.appActions.setView('adventure')" class="px-4 py-2 bg-[#fdfbf7] text-stone-800 border border-[#d4c5a9] rounded-sm hover:bg-white transition text-[10px] font-bold uppercase tracking-wider shadow-md">
+                        <i class="fa-solid fa-door-open mr-2 text-amber-700"></i> Return
+                    </button>
+                </div>
+            </div>
 
-                        <button onclick="window.appActions.setView('adventure')" class="px-4 py-2 glass-btn text-white rounded-sm transition text-[10px] font-bold uppercase tracking-wider shadow-md">
-                            <i class="fa-solid fa-door-open mr-2 text-amber-400"></i> Return
-                        </button>
+            ${dmAdministrationPanelHtml}
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+                
+                <!-- Left Panel -->
+                <div class="lg:col-span-5 space-y-6">
+                    
+                    <!-- Clean Parchment Loom Widget (No Circles) -->
+                    <div class="p-6 parchment-panel rounded-sm relative">
+                        <h3 class="text-sm font-bold text-amber-900 uppercase tracking-widest font-serif border-b border-[#d4c5a9] pb-2 mb-6 text-center"><i class="fa-solid fa-dharmachakra mr-1.5 text-amber-600"></i> The Loom of Reality</h3>
+                        
+                        <div class="relative w-[320px] h-[320px] flex items-center justify-center p-4 mx-auto mb-6 shrink-0">
+                            <!-- SVG Loom Threads in Background -->
+                            <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 320 320">
+                                <!-- Inner focus ring -->
+                                <circle cx="160" cy="160" r="45" fill="none" stroke="#d4c5a9" stroke-width="1" opacity="0.3" stroke-dasharray="2 4" />
+                                
+                                ${primary ? Array.from({ length: 8 }).map((_, i) => {
+                                    const angle = (i * (360 / 8) - 90) * (Math.PI / 180);
+                                    const x1 = 160 + 35 * Math.cos(angle);
+                                    const y1 = 160 + 35 * Math.sin(angle);
+                                    const x2 = 160 + 105 * Math.cos(angle);
+                                    const y2 = 160 + 105 * Math.sin(angle);
+                                    return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#d4c5a9" stroke-width="1" stroke-dasharray="2 4" opacity="0.3" />`;
+                                }).join('') : ''}
+                            </svg>
+
+                            <!-- Node buttons -->
+                            <div class="absolute inset-0" id="loom-nodes-container"></div>
+                        </div>
+
+                        <div class="p-4 bg-stone-50 border border-[#d4c5a9] rounded-sm text-center text-xs text-stone-600 shadow-inner">
+                            <p id="loom-hint-text" class="font-serif leading-relaxed italic">
+                                ${draft.patterns.length === 0 
+                                    ? `Select a thread from the outer ring to designate as your Primary Sigil.` 
+                                    : draft.patterns.length === 9 
+                                    ? `🚨 <span class="text-amber-700 font-bold">ALL THREADS WOVEN.</span> The Loom sings with absolute cosmic power!` 
+                                    : `Select orbiting sigils to weave Support threads. Active threads define your capabilities.`}
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Player Development: Attunement -->
+                    <div class="p-5 leather-panel rounded-sm relative text-stone-200">
+                        <div class="flex justify-between items-center border-b border-stone-700 pb-3 mb-4">
+                            <h3 class="text-sm font-bold text-amber-500 uppercase tracking-widest font-serif flex items-center">
+                                <i class="fa-solid fa-book-open text-amber-700 mr-2"></i> Attunement
+                            </h3>
+                            <span class="text-[10px] uppercase font-bold tracking-widest text-stone-400 bg-stone-800 px-2 py-1 rounded shadow-inner border border-stone-700">Unspent Points: <span class="text-amber-400">${pm.patternPoints || 0}</span></span>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 gap-2.5">
+                            ${Object.entries(PATTERN_THEME).map(([key, theme]) => {
+                                const val = pm[key] || 0;
+                                const canAdd = (pm.patternPoints || 0) > 0 && val < 5;
+                                const isFocused = draft.patterns.includes(key);
+                                const focusClass = isFocused ? 'border-amber-600/50 bg-stone-800/80 shadow-sm' : 'border-stone-800 bg-[#1c1917]';
+
+                                return `
+                                <div class="flex items-center justify-between p-3 border rounded-sm ${focusClass} transition-colors group cursor-pointer" onclick="window.appActions.openPatternInfoModal('${key}')">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-3 h-3 rounded-full shadow-inner border border-black group-hover:scale-125 transition-transform" style="background-color: ${theme.color};"></div>
+                                        <div>
+                                            <span class="text-xs font-bold text-stone-200 font-serif tracking-wide block leading-none mb-1 group-hover:text-amber-400 transition-colors">${theme.label} <i class="fa-solid fa-circle-info ml-1 text-stone-500 text-[10px]"></i></span>
+                                            <span class="text-[9px] text-stone-500 font-sans uppercase tracking-widest leading-none block">${theme.desc}</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-sm font-serif font-bold text-stone-300 w-8 text-right" onclick="event.stopPropagation()">${val} / 5</span>
+                                        ${canAdd ? `
+                                            <button onclick="event.stopPropagation(); window.appActions.upgradePatternRank('${activePc.id}', '${key}')" class="px-2.5 py-1.5 bg-stone-700 hover:bg-emerald-700 text-stone-200 hover:text-white border border-stone-600 hover:border-emerald-600 rounded-sm transition-all text-[9px] font-bold uppercase tracking-wider shadow-md">
+                                                <i class="fa-solid fa-arrow-up mr-1"></i> Train
+                                            </button>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                                `;
+                            }).join('')}
+                        </div>
                     </div>
                 </div>
 
-                ${dmAdministrationPanelHtml}
-
-                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+                <!-- Right Panel: Cast Configuration Engine -->
+                <div class="lg:col-span-7 space-y-6">
                     
-                    <!-- Left Panel -->
-                    <div class="lg:col-span-5 space-y-6">
-                        
-                        <!-- STEP 1: THE LOOM -->
-                        <div class="glass-panel rounded-sm relative shadow-lg">
-                            <div class="bg-black/40 text-amber-400 p-3 rounded-t-sm border-b border-white/20 flex items-center gap-3">
-                                <span class="bg-amber-500/20 border border-amber-500/50 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shadow-inner shrink-0">1</span>
-                                <h3 class="font-serif font-bold uppercase tracking-widest text-sm drop-shadow-md">The Loom of Reality</h3>
-                            </div>
-                            
-                            <div class="relative w-[320px] h-[320px] flex items-center justify-center p-4 mx-auto my-4 shrink-0">
-                                <!-- SVG Loom Threads in Background -->
-                                <svg class="absolute inset-0 w-full h-full pointer-events-none ${convergenceSpinClass}" viewBox="0 0 320 320">
-                                    <!-- Inner focus ring -->
-                                    <circle cx="160" cy="160" r="45" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1" opacity="0.3" stroke-dasharray="2 4" />
-                                    
-                                    ${primary ? Array.from({ length: 8 }).map((_, i) => {
-                                        const angle = (i * (360 / 8) - 90) * (Math.PI / 180);
-                                        const x2 = 160 + 105 * Math.cos(angle);
-                                        const y2 = 160 + 105 * Math.sin(angle);
-                                        return `<line x1="160" y1="160" x2="${x2}" y2="${y2}" stroke="rgba(255,255,255,0.4)" stroke-width="1" stroke-dasharray="2 4" opacity="0.3" />`;
-                                    }).join('') : ''}
-                                </svg>
+                    <!-- Essentia Reservoir -->
+                    <div class="p-5 leather-panel rounded-sm relative text-stone-200">
+                        <div class="flex justify-between items-center border-b border-stone-700 pb-3 mb-4">
+                            <h3 class="text-sm font-bold text-amber-500 uppercase tracking-widest font-serif flex items-center">
+                                <i class="fa-solid fa-droplet text-amber-700 mr-2"></i> Essentia Reservoir
+                            </h3>
+                            <span class="text-[10px] uppercase font-bold tracking-widest text-stone-400 bg-stone-800 px-2 py-1 rounded shadow-inner border border-stone-700">Capacity: <span class="text-amber-400">${pm.essentia || 0} / ${maxEssentia}</span></span>
+                        </div>
+                        <div class="flex flex-wrap gap-3 p-4 bg-[#1c1917] rounded-sm border border-stone-800 justify-center min-h-[50px] shadow-inner">
+                            ${pipsHtml || `<span class="text-[10px] text-stone-600 italic font-serif">Deepen your Attunement to expand your reservoir.</span>`}
+                        </div>
+                    </div>
 
-                                <!-- Node buttons (Tethered to center perfectly) -->
-                                <div class="absolute inset-0">
-                                    ${loomHtml}
-                                </div>
-                            </div>
+                    <!-- Spell Form Formulation Engine -->
+                    <div class="p-5 sm:p-6 parchment-panel rounded-sm relative">
+                        <h3 class="text-sm font-bold text-amber-900 uppercase tracking-widest font-serif border-b border-[#d4c5a9] pb-2 mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <span><i class="fa-solid fa-wand-sparkles mr-1.5 text-amber-600"></i> Weaving the Threads</span>
+                            <span class="text-[9px] font-sans text-stone-500 normal-case tracking-normal italic font-normal">Select threads on the Loom to unlock tiers.</span>
+                        </h3>
 
-                            <div class="p-4 bg-black/40 border-t border-white/10 text-center text-xs text-gray-300 shadow-inner rounded-b-sm">
-                                <p id="loom-hint-text" class="font-serif leading-relaxed italic">
-                                    ${draft.patterns.length === 0 
-                                        ? `Select a thread from the outer ring to designate as your Primary Sigil.` 
-                                        : draft.patterns.length === 9 
-                                        ? `🚨 <span class="text-amber-400 font-bold drop-shadow-md">ALL THREADS WOVEN.</span> The Loom sings with absolute cosmic power!` 
-                                        : `Select orbiting sigils to weave Support threads. Active threads define your capabilities.`}
-                                </p>
+                        <!-- Draft Spell Identity -->
+                        <div class="grid grid-cols-1 sm:grid-cols-12 gap-4 mb-5">
+                            <div class="sm:col-span-8">
+                                <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Tapestry Designation (Name)</label>
+                                <input type="text" 
+                                       id="draft-spell-name" 
+                                       oninput="window.appActions.updateDraftField('name', this.value, false, true)" 
+                                       value="${draft.name || ''}" 
+                                       placeholder="Provide a name for this spell..." 
+                                       class="w-full bg-white border border-[#d4c5a9] rounded-sm p-2.5 text-sm text-stone-900 font-bold font-serif outline-none shadow-sm focus:border-amber-600 transition-colors">
+                            </div>
+                            <div class="sm:col-span-4 flex items-end">
+                                ${abilitySelectorHtml}
                             </div>
                         </div>
 
-                        <!-- HERO'S MATRIX (Combined Attunement & Reservoir) -->
-                        <div class="glass-panel rounded-sm relative text-gray-200 shadow-lg">
-                            <div class="flex justify-between items-center border-b border-white/20 p-4 pb-3">
-                                <h3 class="text-sm font-bold text-amber-400 uppercase tracking-widest font-serif flex items-center drop-shadow-md">
-                                    <i class="fa-solid fa-bolt mr-2"></i> Hero's Matrix
-                                </h3>
-                                <span class="text-[10px] uppercase font-bold tracking-widest text-gray-400 bg-black/40 px-2 py-1 rounded shadow-inner border border-white/10">Unspent Points: <span class="text-amber-400">${pm.patternPoints || 0}</span></span>
-                            </div>
+                        <div class="mb-6">
+                            <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5">Intent & Visualization</label>
+                            <textarea id="draft-spell-desc" 
+                                      oninput="window.appActions.updateDraftField('description', this.value, false, true)" 
+                                      placeholder="Describe the aesthetic and physical ripples of your magic..." 
+                                      class="w-full bg-white border border-[#d4c5a9] rounded-sm p-3 text-sm text-stone-800 outline-none font-serif focus:border-amber-600 resize-y min-h-[80px] shadow-sm custom-scrollbar">${draft.description || ''}</textarea>
+                        </div>
+
+                        <!-- Active Effects Scaffolding -->
+                        <div id="effects-scaffolding-container" class="space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar pr-2 mb-6">
+                            ${buildEffectsHTML(metrics, draft, pm, activePc)}
+                        </div>
+
+                        <!-- Cost Outputs & Casting Trigger Card -->
+                        <div class="p-5 bg-stone-900 text-stone-200 rounded-sm border-2 border-stone-800 shadow-xl relative overflow-hidden">
+                            <div class="absolute top-0 left-0 w-1.5 h-full bg-amber-600"></div>
                             
-                            <div class="p-4 border-b border-white/10 bg-black/20">
-                                <div class="flex justify-between text-[10px] uppercase font-bold tracking-widest text-gray-400 mb-2">
-                                    <span class="flex items-center"><i class="fa-solid fa-droplet text-amber-500 mr-1.5 drop-shadow-md"></i> Essentia Reservoir</span>
-                                    <span><span class="text-amber-400 drop-shadow-md">${pm.essentia || 0}</span> / ${maxEssentia}</span>
+                            <div class="flex flex-wrap justify-between items-center gap-4 pl-3">
+                                <div>
+                                    <span class="block text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Essentia Fuel Required</span>
+                                    <div class="flex items-center gap-2">
+                                        <i class="fa-solid fa-droplet text-amber-500 text-xl"></i>
+                                        <strong id="tapestry-cost-out" class="text-3xl font-black font-serif text-amber-400 drop-shadow-md">
+                                            ${draft.isRote ? `<span class="line-through text-stone-500 text-2xl mr-2">${metrics.totalBaseCost}</span>` : ''}${metrics.finalCost}
+                                        </strong>
+                                    </div>
+                                    ${draft.isRote ? `<span class="inline-block mt-2 text-[9px] text-emerald-400 bg-emerald-950/50 border border-emerald-900 px-2 py-1 rounded uppercase tracking-widest font-bold"><i class="fa-solid fa-check-circle mr-1"></i> Rote Discount Applied</span>` : ''}
                                 </div>
-                                <div class="flex flex-wrap gap-3 p-3 bg-black/60 rounded-sm border border-white/10 justify-center shadow-inner">
-                                    ${pipsHtml || `<span class="text-[10px] text-gray-500 italic font-serif">Deepen your Attunement to expand your reservoir.</span>`}
-                                </div>
-                                
-                                <div class="mt-4 pt-4 border-t border-white/10 flex flex-wrap justify-center gap-2">
-                                    <button onclick="window.appActions.rollEssentiaRecovery('${activePc.id}', 'long_rest')" class="px-3 py-1.5 glass-btn text-gray-300 rounded text-[9px] uppercase font-bold tracking-wider transition shadow-sm flex items-center" title="Recover 1d6">
-                                        <i class="fa-solid fa-bed mr-1.5"></i> Long Rest
-                                    </button>
-                                    <button onclick="window.appActions.rollEssentiaRecovery('${activePc.id}', 'faint')" class="px-3 py-1.5 bg-black/40 hover:bg-black/60 text-teal-400 border border-teal-500/30 hover:border-teal-400/60 rounded text-[9px] uppercase font-bold tracking-wider transition shadow-sm flex items-center" title="Recover 1d6">
-                                        <i class="fa-solid fa-tower-observation mr-1.5"></i> Faint Echo
-                                    </button>
-                                    <button onclick="window.appActions.rollEssentiaRecovery('${activePc.id}', 'resonant')" class="px-3 py-1.5 bg-black/40 hover:bg-black/60 text-fuchsia-400 border border-fuchsia-500/30 hover:border-fuchsia-400/60 rounded text-[9px] uppercase font-bold tracking-wider transition shadow-sm flex items-center" title="Recover 2d6">
-                                        <i class="fa-solid fa-monument mr-1.5"></i> Resonant Locus
-                                    </button>
-                                    <button onclick="window.appActions.rollEssentiaRecovery('${activePc.id}', 'vibrant')" class="px-3 py-1.5 bg-black/40 hover:bg-black/60 text-amber-400 border border-amber-500/30 hover:border-amber-400/60 rounded text-[9px] uppercase font-bold tracking-wider transition shadow-sm flex items-center" title="Recover 3d6">
-                                        <i class="fa-solid fa-gopuram mr-1.5"></i> Vibrant Nexus
-                                    </button>
+                                <div class="text-right">
+                                    <span class="block text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Weaving Difficulty</span>
+                                    <strong class="text-2xl font-black font-serif text-stone-100 bg-stone-800 px-4 py-2 rounded-sm border border-stone-600 shadow-inner">
+                                        DC <span id="tapestry-dc-out">${metrics.dc}</span>
+                                    </strong>
                                 </div>
                             </div>
 
-                            <div class="p-4 grid grid-cols-1 gap-2.5">
-                                ${Object.entries(PATTERN_THEME).map(([key, theme]) => {
-                                    const val = pm[key] || 0;
-                                    const canAdd = (pm.patternPoints || 0) > 0 && val < 5;
-                                    const isFocused = draft.patterns.includes(key);
-                                    const focusClass = isFocused ? 'border-amber-500/50 bg-black/60 shadow-[0_0_10px_rgba(245,158,11,0.1)]' : 'border-white/10 bg-black/20 hover:bg-black/40 hover:border-white/30';
-                                    const titleText = val > 0 ? PATTERN_CONFIG.ExpertiseTitles[val] : "Unlearned";
+                            <!-- Save Rote Form -->
+                            <div class="mt-5 pt-4 border-t border-stone-700 flex flex-col sm:flex-row gap-3 items-center pl-3">
+                                <input type="text" 
+                                       id="input-rote-memorize-name" 
+                                       placeholder="Scribe configuration to Grimoire..." 
+                                       class="flex-1 w-full bg-[#1c1917] border border-stone-600 rounded-sm p-2 text-xs text-stone-300 outline-none font-serif focus:border-amber-500 shadow-inner">
+                                <button type="button" 
+                                        onclick="window.appActions.memorizeCurrentDraftAsRote('${activePc.id}')"
+                                        class="w-full sm:w-auto px-4 py-2 bg-stone-800 text-amber-400 hover:bg-amber-900 hover:text-amber-50 transition text-[10px] font-bold uppercase tracking-widest rounded-sm border border-stone-600 shadow-md whitespace-nowrap">
+                                    <i class="fa-solid fa-feather-pointed mr-1.5"></i> Scribe Rote
+                                </button>
+                            </div>
 
-                                    return `
-                                    <div class="flex items-center justify-between p-3 border rounded-sm ${focusClass} transition-colors group cursor-pointer" onclick="window.appActions.openPatternInfoModal('${key}')">
-                                        <div class="flex items-center gap-3">
-                                            <div class="w-3 h-3 rounded-full shadow-[0_0_5px_currentColor] border border-black/50 group-hover:scale-125 transition-transform" style="background-color: ${theme.color}; color: ${theme.color};"></div>
-                                            <div>
-                                                <span class="text-xs font-bold text-white font-serif tracking-wide block leading-none mb-1 group-hover:text-amber-400 transition-colors drop-shadow-md">${theme.label} <i class="fa-solid fa-circle-info ml-1 text-gray-500 text-[10px]"></i></span>
-                                                <span class="text-[9px] text-gray-400 font-sans uppercase tracking-widest leading-none block">${theme.desc}</span>
-                                                <span class="text-[8px] font-bold uppercase tracking-widest text-amber-500/80 mt-1 block">${titleText}</span>
-                                            </div>
-                                        </div>
-                                        <div class="flex items-center gap-3">
-                                            <span class="text-sm font-serif font-bold text-gray-200 w-8 text-right drop-shadow-md" onclick="event.stopPropagation()">${val} / 5</span>
-                                            ${canAdd ? `
-                                                <button onclick="event.stopPropagation(); window.appActions.upgradePatternRank('${activePc.id}', '${key}')" class="px-2.5 py-1.5 glass-btn hover:bg-emerald-500/20 hover:border-emerald-500/50 hover:text-emerald-400 text-gray-300 rounded-sm transition-all text-[9px] font-bold uppercase tracking-wider shadow-md">
-                                                    <i class="fa-solid fa-arrow-up mr-1"></i> Train
-                                                </button>
-                                            ` : ''}
-                                        </div>
-                                    </div>
-                                    `;
-                                }).join('')}
+                            <!-- Weave Spell Trigger -->
+                            <div class="mt-4 pl-3">
+                                <button type="button" 
+                                        id="tapestry-cast-btn"
+                                        onclick="window.appActions.castCurrentPatternSpell('${activePc.id}')"
+                                        class="w-full py-3.5 bg-amber-700 text-stone-950 hover:bg-amber-600 transition-all text-sm font-black uppercase tracking-widest rounded-sm shadow-[0_0_15px_rgba(217,119,6,0.3)] border border-amber-500 flex items-center justify-center gap-2 active:scale-95">
+                                    <i class="fa-solid fa-burst text-lg animate-pulse"></i> Unleash the Pattern
+                                </button>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Right Panel: Cast Configuration Engine -->
-                    <div class="lg:col-span-7 space-y-6">
-                        
-                        <!-- STEP 2: SPELL IDENTITY -->
-                        <div class="glass-panel rounded-sm shadow-lg">
-                            <div class="bg-black/40 text-amber-400 p-3 rounded-t-sm border-b border-white/20 flex items-center gap-3">
-                                <span class="bg-amber-500/20 border border-amber-500/50 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shadow-inner shrink-0">2</span>
-                                <h3 class="font-serif font-bold uppercase tracking-widest text-sm drop-shadow-md">Spell Identity & Intent</h3>
-                            </div>
-                            <div class="p-5">
-                                <div class="grid grid-cols-1 sm:grid-cols-12 gap-4 mb-5">
-                                    <div class="sm:col-span-8">
-                                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Tapestry Designation (Name)</label>
-                                        <input type="text" 
-                                               id="draft-spell-name" 
-                                               oninput="window.appActions.updateDraftField('name', this.value, false, true)" 
-                                               value="${draft.name || ''}" 
-                                               placeholder="Provide a name for this spell..." 
-                                               class="w-full glass-input rounded-sm p-2.5 text-sm font-bold font-serif shadow-sm transition-colors">
-                                    </div>
-                                    <div class="sm:col-span-4 flex items-end">
-                                        <!-- Stack the Attuned Attribute Label and Select vertically to prevent overflow -->
-                                        <div class="w-full">
-                                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Attuned Attribute</label>
-                                            <select onchange="window.appActions.updateDraftField('ability', this.value, false)" class="w-full glass-input shadow-sm rounded text-white text-xs font-bold font-sans outline-none cursor-pointer uppercase tracking-wider p-2.5">
-                                                <option class="text-black" value="int" ${draft.ability === 'int' ? 'selected' : ''}>Intelligence (${activePc.int || 10})</option>
-                                                <option class="text-black" value="wis" ${draft.ability === 'wis' ? 'selected' : ''}>Wisdom (${activePc.wis || 10})</option>
-                                                <option class="text-black" value="cha" ${draft.ability === 'cha' ? 'selected' : ''}>Charisma (${activePc.cha || 10})</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Intent & Visualization</label>
-                                    <textarea id="draft-spell-desc" 
-                                              oninput="window.appActions.updateDraftField('description', this.value, false, true)" 
-                                              placeholder="Describe the aesthetic and physical ripples of your magic..." 
-                                              class="w-full glass-input rounded-sm p-3 text-sm resize-y min-h-[80px] shadow-sm custom-scrollbar font-serif"></textarea>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- STEP 3: CONFIGURE EFFECTS -->
-                        <div class="glass-panel rounded-sm shadow-lg">
-                            <div class="bg-black/40 text-amber-400 p-3 rounded-t-sm border-b border-white/20 flex items-center gap-3">
-                                <span class="bg-amber-500/20 border border-amber-500/50 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shadow-inner shrink-0">3</span>
-                                <h3 class="font-serif font-bold uppercase tracking-widest text-sm drop-shadow-md">Configure Effects</h3>
-                                <span class="text-[9px] font-sans text-gray-400 normal-case tracking-normal italic ml-auto hidden sm:block">Select threads on the Loom to unlock tiers.</span>
-                            </div>
-                            <div id="effects-scaffolding-container" class="p-5 space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
-                                ${buildEffectsHTML(metrics, draft, pm, activePc)}
-                            </div>
-                        </div>
-
-                        <!-- STEP 4: REVIEW & UNLEASH -->
-                        <div class="bg-black/60 text-gray-200 rounded-sm border border-white/20 shadow-xl relative overflow-hidden">
-                            <div class="absolute top-0 left-0 w-1.5 h-full bg-amber-500 shadow-[0_0_15px_#f59e0b]"></div>
-                            
-                            <div class="p-4 border-b border-white/10 bg-black/40 flex items-center gap-3 pl-5">
-                                <span class="bg-amber-500/20 border border-amber-500/50 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shadow-inner shrink-0">4</span>
-                                <h3 class="font-serif font-bold uppercase tracking-widest text-sm text-amber-400 drop-shadow-md">Review & Unleash</h3>
-                            </div>
-
-                            <div class="p-5 pl-6">
-                                <div class="flex flex-wrap justify-between items-center gap-4">
-                                    <div>
-                                        <span class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Essentia Fuel Required</span>
-                                        <div class="flex items-center gap-2">
-                                            <i class="fa-solid fa-droplet text-amber-500 text-xl drop-shadow-[0_0_5px_rgba(245,158,11,0.8)]"></i>
-                                            <strong id="tapestry-cost-out" class="text-3xl font-black font-serif text-amber-400 drop-shadow-md">
-                                                ${draft.isRote ? `<span class="line-through text-gray-500 text-2xl mr-2">${metrics.totalBaseCost}</span>` : ''}${metrics.finalCost}
-                                            </strong>
-                                        </div>
-                                        ${draft.isRote ? `<span class="inline-block mt-2 text-[9px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-1 rounded-sm uppercase tracking-widest font-bold"><i class="fa-solid fa-check-circle mr-1"></i> Rote Discount Applied</span>` : ''}
-                                    </div>
-                                    <div class="text-right">
-                                        <span class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Weaving Difficulty</span>
-                                        <strong class="text-2xl font-black font-serif text-white bg-black/40 px-4 py-2 rounded-sm border border-white/10 shadow-inner">
-                                            DC <span id="tapestry-dc-out">${metrics.dc}</span>
-                                        </strong>
-                                    </div>
-                                </div>
-
-                                <div class="mt-5 pt-4 border-t border-white/10 flex flex-col sm:flex-row gap-3 items-center">
-                                    <input type="text" 
-                                           id="input-rote-memorize-name" 
-                                           placeholder="Scribe configuration to Grimoire..." 
-                                           class="flex-1 w-full glass-input rounded-sm p-2 text-xs text-white outline-none font-serif shadow-inner">
-                                    <button type="button" 
-                                            onclick="window.appActions.memorizeCurrentDraftAsRote('${activePc.id}')"
-                                            class="w-full sm:w-auto px-4 py-2 glass-btn text-amber-400 hover:text-amber-300 transition text-[10px] font-bold uppercase tracking-widest rounded-sm shadow-md whitespace-nowrap">
-                                        <i class="fa-solid fa-feather-pointed mr-1.5"></i> Scribe Rote
-                                    </button>
-                                </div>
-
-                                <div class="mt-4">
-                                    <button type="button" 
-                                            id="tapestry-cast-btn"
-                                            onclick="window.appActions.castCurrentPatternSpell('${activePc.id}')"
-                                            class="w-full py-3.5 bg-gradient-to-r from-amber-600 to-amber-500 text-black hover:from-amber-500 hover:to-amber-400 transition-all text-sm font-black uppercase tracking-widest rounded-sm shadow-[0_0_15px_rgba(245,158,11,0.4)] flex items-center justify-center gap-2 active:scale-95">
-                                        <i class="fa-solid fa-burst text-lg animate-pulse"></i> Unleash the Pattern
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- GRIMOIRE QUICK LOAD -->
-                        <div class="glass-panel rounded-sm shadow-lg">
-                            <div class="bg-black/20 text-gray-300 p-3 rounded-t-sm border-b border-white/10 flex items-center gap-3">
-                                <i class="fa-solid fa-book-journal-whills text-amber-500 ml-1 drop-shadow-md"></i>
-                                <h3 class="font-serif font-bold uppercase tracking-widest text-sm">Memorized Grimoire</h3>
-                            </div>
-                            <div class="p-5">
-                                ${rotesTabHtml}
-                            </div>
-                        </div>
+                    <div class="p-5 sm:p-6 parchment-panel rounded-sm relative">
+                        <h3 class="text-sm font-bold text-amber-900 uppercase tracking-widest font-serif border-b border-[#d4c5a9] pb-2 mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <span><i class="fa-solid fa-book-journal-whills mr-1.5 text-amber-600"></i> Memorized Grimoire</span>
+                            <span class="text-[9px] font-sans text-stone-500 normal-case tracking-normal italic font-normal">Loading a Rote discounts its Essentia cost.</span>
+                        </h3>
+                        ${rotesTabHtml}
                     </div>
                 </div>
             </div>
         </div>
     </div>
     `;
+}
+
+// =========================================================================
+// UI EVENT BINDINGS & ACTIONS (Seamless Updates bypassing reRender)
+// =========================================================================
+if (typeof window !== 'undefined') {
+    window.appActions = window.appActions || {};
+
+    // The core seamless updater function!
+    window.appActions.refreshTapestryUI = () => {
+        const camp = window.appData.activeCampaign;
+        const activePcId = window.appData.activePatternPcId || (camp.playerCharacters?.find(p => p.playerId === window.appData.currentUserUid)?.id) || '';
+        const activePc = camp.playerCharacters?.find(p => p.id === activePcId);
+        if (!activePc) return;
+        
+        const pm = getOrInitPatternState(activePc);
+        const draft = getOrInitDraftState();
+        const primary = draft.patterns[0] || null;
+        const supports = draft.patterns.slice(1);
+        
+        const cx = 160; const cy = 160; const radius = 105;
+        const patternsList = Object.keys(PATTERN_THEME);
+        
+        // 1. ANIMATE THE LOOM
+        if (!primary) {
+            patternsList.forEach((key, index) => {
+                const angle = (index * (360 / 9) - 90) * (Math.PI / 180);
+                const x = cx + radius * Math.cos(angle) - 32; 
+                const y = cy + radius * Math.sin(angle) - 32;
+                
+                const btn = document.getElementById(`sigil-btn-${key}`);
+                if (btn) {
+                    btn.classList.remove('pulse-prime-sigil');
+                    // Setting these styles natively triggers the CSS transition!
+                    btn.style.left = `${x}px`;
+                    btn.style.top = `${y}px`;
+                    btn.style.transform = 'scale(1)';
+                    btn.className = 'sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-20 opacity-40 hover:opacity-100 hover:z-[100] group';
+                    const img = btn.querySelector('img');
+                    if(img) img.style.filter = 'none';
+                }
+            });
+        } else {
+            const orbitsList = patternsList.filter(k => k !== primary);
+            
+            // Primary Sigil glides to center and gets large
+            const primeBtn = document.getElementById(`sigil-btn-${primary}`);
+            if (primeBtn) {
+                primeBtn.style.left = `${cx - 32}px`;
+                primeBtn.style.top = `${cy - 40}px`;
+                primeBtn.style.transform = 'scale(1.4)';
+                const theme = PATTERN_THEME[primary];
+                primeBtn.className = 'sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-[100] opacity-100 pulse-prime-sigil group';
+                const img = primeBtn.querySelector('img');
+                if(img) img.style.filter = `drop-shadow(0 0 8px ${theme.color})`;
+            }
+
+            // Orbits glide into 8-point ring
+            orbitsList.forEach((key, index) => {
+                const angle = (index * (360 / 8) - 90) * (Math.PI / 180);
+                const x = cx + radius * Math.cos(angle) - 32;
+                const y = cy + radius * Math.sin(angle) - 32;
+                
+                const btn = document.getElementById(`sigil-btn-${key}`);
+                const isSupported = supports.includes(key);
+                const theme = PATTERN_THEME[key];
+                
+                if (btn) {
+                    btn.classList.remove('pulse-prime-sigil');
+                    btn.style.left = `${x}px`;
+                    btn.style.top = `${y}px`;
+                    btn.style.transform = 'scale(0.9)';
+                    const img = btn.querySelector('img');
+                    
+                    if (isSupported) {
+                        btn.className = 'sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-[90] hover:z-[100] opacity-100 group';
+                        if(img) img.style.filter = `drop-shadow(0 0 5px ${theme.color})`;
+                    } else {
+                        btn.className = 'sigil-btn absolute w-16 h-16 flex flex-col items-center justify-center cursor-pointer z-10 hover:z-[100] opacity-40 hover:opacity-100 group';
+                        if(img) img.style.filter = 'none';
+                    }
+                }
+            });
+        }
+        
+        // 2. UPDATE FORMS & METRICS (No page reload)
+        const metrics = calculateAffinityLimitsAndCosts(activePc, pm, draft);
+        const formsContainer = document.getElementById('effects-scaffolding-container');
+        if (formsContainer) {
+            formsContainer.innerHTML = buildEffectsHTML(metrics, draft, pm, activePc);
+        }
+        
+        const costEl = document.getElementById('tapestry-cost-out');
+        if (costEl) costEl.innerText = metrics.finalCost;
+        
+        const dcEl = document.getElementById('tapestry-dc-out');
+        if (dcEl) dcEl.innerText = metrics.dc;
+        
+        const hintEl = document.getElementById('loom-hint-text');
+        if (hintEl) {
+            if (draft.patterns.length === 0) hintEl.innerHTML = 'Select a thread from the outer ring to designate as your Primary Sigil.';
+            else if (draft.patterns.length === 9) hintEl.innerHTML = '🚨 <span class="text-amber-700 font-bold">ALL THREADS WOVEN.</span> The Loom sings with absolute cosmic power!';
+            else hintEl.innerHTML = 'Select orbiting sigils to weave Support threads. Active threads define your capabilities.';
+        }
+
+        const castBtn = document.getElementById('tapestry-cast-btn');
+        if (castBtn) {
+            let isValid = primary !== null;
+            if (isValid) {
+                for (const [cat, data] of Object.entries(PATTERN_CONFIG.Effects)) {
+                    if (data.mandatory && (draft.effectTiers[cat] || 0) === 0) {
+                        isValid = false;
+                        break;
+                    }
+                }
+            }
+            castBtn.disabled = !isValid && !draft.isRote;
+            if(castBtn.disabled) castBtn.classList.add('opacity-50', 'cursor-not-allowed', 'grayscale');
+            else castBtn.classList.remove('opacity-50', 'cursor-not-allowed', 'grayscale');
+        }
+    };
+
+    window.appActions.switchPatternPc = (pcId) => {
+        window.appData.activePatternPcId = pcId;
+        reRender(true); // Hard reload is fine for character switching
+    };
+
+    window.appActions.toggleCampaignPcAccess = async (pcId, checked) => {
+        const camp = window.appData.activeCampaign;
+        if (!camp || !camp._isDM) return;
+        const pc = camp.playerCharacters && camp.playerCharacters.find(p => p.id === pcId);
+        if (pc) {
+            pc.patternMagicUnlocked = checked;
+            await window.appActions.adjustPatternParameter(pcId, 'patternPoints', 0); // triggers Firebase update
+        }
+    };
+
+    window.appActions.updateDraftField = (path, value, shouldRender = false, skipUIUpdate = false) => {
+        const draft = getOrInitDraftState();
+        if (path.startsWith('effectTiers.')) {
+            const field = path.split('.')[1];
+            draft.effectTiers[field] = value;
+        } else {
+            draft[path] = value;
+        }
+        
+        if (shouldRender) reRender(true);
+        else if (!skipUIUpdate) window.appActions.refreshTapestryUI(); // Silent update!
+    };
+
+    window.appActions.toggleWheelPattern = (patternKey) => {
+        const draft = getOrInitDraftState();
+        const prim = draft.patterns[0];
+
+        if (!prim) {
+            // First click: Element becomes Primary Vector
+            draft.patterns = [patternKey];
+            draft.isRote = false;
+            draft.selectedRoteId = '';
+        } else if (prim === patternKey) {
+            // Clicking Primary again: Disbands vectors entirely
+            draft.patterns = [];
+            draft.isRote = false;
+            draft.selectedRoteId = '';
+        } else {
+            // Toggles supporting vectors on orbit nodes
+            const index = draft.patterns.indexOf(patternKey);
+            if (index > -1) {
+                draft.patterns.splice(index, 1);
+            } else {
+                draft.patterns.push(patternKey);
+            }
+            draft.isRote = false;
+            draft.selectedRoteId = '';
+        }
+        window.appActions.refreshTapestryUI(); // Seamless animation!
+    };
+
+    window.appActions.toggleDurationInversion = (checked) => {
+        const draft = getOrInitDraftState();
+        draft.effectTiers.durationInverted = checked;
+        draft.effectTiers.duration = 0; // reset tier selection
+        window.appActions.refreshTapestryUI();
+    };
+
+    window.appActions.setEffectTier = (category, tierIndex) => {
+        const draft = getOrInitDraftState();
+        draft.effectTiers[category] = tierIndex;
+        draft.isRote = false;
+        draft.selectedRoteId = '';
+        window.appActions.refreshTapestryUI();
+    };
+
+    window.appActions.memorizeCurrentDraftAsRote = async (pcId) => {
+        const nameInput = document.getElementById('input-rote-memorize-name');
+        const name = nameInput ? nameInput.value.trim() : '';
+
+        if (!name) {
+            window.appActions.notify("Your Grimoire requires a name for this Rote before scribing.", "error");
+            return;
+        }
+
+        const draft = getOrInitDraftState();
+        if (draft.patterns.length === 0) {
+            window.appActions.notify("Weave threads on the Loom to configure a spell before saving.", "error");
+            return;
+        }
+
+        const camp = window.appData.activeCampaign;
+        const pc = camp?.playerCharacters?.find(p => p.id === pcId);
+        if (!pc) return;
+
+        // Verify that draft configuration meets limit boundaries before saving!
+        const pm = getOrInitPatternState(pc);
+        const metrics = calculateAffinityLimitsAndCosts(pc, pm, draft);
+
+        let exceeds = false;
+        Object.keys(PATTERN_CONFIG.Effects).forEach(cat => {
+            if ((draft.effectTiers[cat] || 0) > metrics.limits[cat]) exceeds = true;
+        });
+
+        if (exceeds) {
+            window.appActions.notify("You cannot scribe a Rote containing elements that exceed your attuned Pattern Ranks.", "error");
+            return;
+        }
+
+        // Setup the Rote structure payload
+        const rotePayload = {
+            name: name,
+            primaryPattern: draft.patterns[0],
+            essentiaCost: metrics.totalBaseCost - Math.floor(metrics.totalBaseCost / 3), // locked discounted cost
+            description: draft.description,
+            ability: draft.ability,
+            patterns: [...draft.patterns],
+            effectTiers: { ...draft.effectTiers }
+        };
+
+        const success = await window.appActions.saveRote(pcId, rotePayload);
+        if (success) {
+            if (nameInput) nameInput.value = '';
+            reRender(true);
+        }
+    };
+
+    window.appActions.loadRoteToDraft = (pcId, roteId) => {
+        const camp = window.appData.activeCampaign;
+        const pc = camp?.playerCharacters?.find(p => p.id === pcId);
+        if (!pc) return;
+
+        const pm = pc.patternMagic || {};
+        const rote = pm.rotes?.find(r => r.id === roteId);
+        if (!rote) return;
+
+        const draft = getOrInitDraftState();
+        draft.name = rote.name;
+        draft.description = rote.description;
+        draft.ability = rote.ability;
+        draft.patterns = [...rote.patterns];
+        draft.effectTiers = { ...rote.effectTiers };
+        draft.isRote = true;
+        draft.roteName = rote.name;
+        draft.selectedRoteId = rote.id;
+
+        // Use seamless update to fill the forms and animate the loom instantly
+        window.appActions.refreshTapestryUI(); 
+        
+        // Auto-scroll to the top of the form for convenience
+        document.getElementById('draft-spell-name')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+    
+    // Create an explicit binding for deleteRote that safely triggers reRender
+    window.appActions.deleteRote = async (pcId, roteId) => {
+        if(confirm("Are you sure you want to permanently erase this Rote from your Grimoire?")) {
+            const success = await deleteRote(pcId, roteId);
+            if (success) reRender(true);
+        }
+    };
+
+    window.appActions.castCurrentPatternSpell = async (pcId) => {
+        const draft = getOrInitDraftState();
+        if (draft.patterns.length === 0) {
+            window.appActions.notify("A Primary Thread must be woven into the Loom before unleashing magic.", "error");
+            return;
+        }
+
+        const camp = window.appData.activeCampaign;
+        const pc = camp?.playerCharacters?.find(p => p.id === pcId);
+        if (!pc) return;
+
+        const pm = getOrInitPatternState(pc);
+        const metrics = calculateAffinityLimitsAndCosts(pc, pm, draft);
+
+        if (pm.essentia < metrics.finalCost) {
+            window.appActions.notify("Your Essentia Reservoir lacks the fuel required to weave this Pattern.", "error");
+            return;
+        }
+
+        // Build config payload for roll actions
+        const castConfig = {
+            name: draft.name || 'Unlabeled Spell',
+            description: draft.description,
+            ability: draft.ability,
+            patterns: [...draft.patterns],
+            effectTiers: { ...draft.effectTiers },
+            essentiaCost: metrics.finalCost,
+            isRote: draft.isRote,
+            roteName: draft.roteName
+        };
+
+        await castPatternSpell(pcId, castConfig);
+
+        // Reset temporary non-rote draft casting parameters after successful cast!
+        if (!draft.isRote) {
+            draft.name = '';
+            draft.description = '';
+            draft.patterns = [];
+            Object.keys(draft.effectTiers).forEach(key => {
+                if (typeof draft.effectTiers[key] === 'number') draft.effectTiers[key] = 0;
+            });
+            draft.effectTiers.durationInverted = false;
+        }
+
+        reRender(true);
+    };
 }
