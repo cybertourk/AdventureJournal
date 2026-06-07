@@ -18,6 +18,9 @@ import {
     injectTapestryStyles
 } from './ui-pattern-utils.js';
 
+// Load our event listeners and UI actions into window.appActions
+import './ui-pattern-events.js';
+
 // =========================================================================
 // Main Pattern Tapestry HTML Render
 // =========================================================================
