@@ -1,7 +1,7 @@
 import { PATTERN_CONFIG } from './actions-pattern-magic.js';
 
 // =========================================================================
-// ZEB: UPDATE LINE 6 WITH YOUR ACTUAL GITHUB USERNAME AND REPO NAME!
+// ZEB: UPDATE LINE 7 WITH YOUR ACTUAL GITHUB USERNAME AND REPO NAME!
 // =========================================================================
 export const PATTERN_ASSET_BASE_URL = "https://raw.githubusercontent.com/cybertourk/AdventureJournal/main/";
 
@@ -43,6 +43,13 @@ export const injectTapestryStyles = () => {
             0% { filter: drop-shadow(0 0 8px currentColor); transform: scale(1); }
             100% { filter: drop-shadow(0 0 16px currentColor); transform: scale(1.05); }
         }
+        @keyframes loomAppear {
+            0% { opacity: 0; filter: blur(4px); }
+            100% { opacity: 1; filter: blur(0px); }
+        }
+        .loom-entrance {
+            animation: loomAppear 0.8s ease-out forwards;
+        }
         .spin-loom-slow {
             animation: spinLoom 40s linear infinite;
         }
@@ -73,7 +80,7 @@ export const EFFECT_TOOLTIPS = {
     activation: "The action economy and time required to cast the spell.",
     areaTargets: "The physical space or number of entities encompassed by the spell.",
     damageHealing: "The raw force, elemental energy, or restorative life woven into the spell.",
-    augmentia: "Alterations to physical laws, matter, or environmental properties.<br><br><div class='bg-stone-900/60 border border-stone-700 p-2 rounded-sm mt-2'><strong class='text-amber-500 block border-b border-stone-700 pb-1 mb-1 text-[10px] uppercase tracking-widest'>V5 Benchmark Examples</strong><ul class='space-y-1.5 text-[11px] mt-2'><li><b>Minor (+1):</b> Water Breathing, Feather Fall, Jump, detecting magic</li><li><b>Weak (+2):</b> Alter Self (minor physical changes), Longstrider, Spider Climb</li><li><b>Moderate (+3):</b> Fly, Haste, Slow, Gaseous Form, Water Walk</li><li><b>Strong (+4):</b> Alter Self (significant physical changes), Teleportation</li><li><b>Major (+5):</b> True Polymorph, Teleport, Plane Shift, Time Stop</li></ul></div>",
+    augmentia: "Alterations to physical laws, matter, or environmental properties.<br><br><div class='bg-stone-900/60 border border-stone-700 p-2 rounded-sm mt-2'><strong class='text-amber-500 block border-b border-stone-700 pb-1 mb-1 text-[10px] uppercase tracking-widest'>V5 Benchmark Examples</strong><ul class='space-y-1.5 text-[11px] mt-2'><li><b>Minor (+1):</b> Water Breathing, Feather Fall, Jump, detecting magic</li><li><b>Weak (+2):</b> Alter Self (minor physical changes), Longstrider, Spider Climb</li><li><b>Moderate (+3):</b> Fly, Haste, Slow, Gaseous Form, Water Walk</li><li><b>Strong (+4):</b> Alter Self (significant physical changes), Teleportation</li><li><b>Major (+5):</b> True Polymorph, Plane Shift, Time Stop</li></ul></div>",
     bolsterHinder: "Direct enhancements or supernatural penalties applied to checks and saves.<br><br><div class='bg-stone-900/60 border border-stone-700 p-2 rounded-sm mt-2'><strong class='text-amber-500 block border-b border-stone-700 pb-1 mb-1 text-[10px] uppercase tracking-widest'>Target Options by Tier</strong><ul class='space-y-1 text-[11px] mt-2'><li><b>Minor (+1):</b> Skill check</li><li><b>Weak (+2):</b> Skill check, saving throw, ability check</li><li><b>Moderate (+3):</b> Skill check, saving throw, ability check, attack roll</li><li><b>Strong (+4):</b> Skill, saving throw, ability check, attack roll, damage roll</li><li><b>Major (+5):</b> Skill, saving throw, ability check, attack roll, damage roll, AC</li></ul></div>"
 };
 
@@ -221,9 +228,9 @@ export function buildEffectsHTML(metrics, draft, pm, activePc) {
         if (primary) {
             const primAff = PATTERN_CONFIG.Affinities[primary];
             if (primAff && primAff.primary.includes(category)) {
-                starHtml = `<i class="fa-solid fa-star text-amber-500 ml-2" title="Primary Affinity"></i>`;
+                starHtml = `<i class="fa-solid fa-star text-amber-500 ml-2 drop-shadow-md" title="Primary Affinity"></i>`;
             } else if (primAff && primAff.secondary.includes(category)) {
-                starHtml = `<i class="fa-regular fa-star text-amber-500 ml-2" title="Secondary Affinity"></i>`;
+                starHtml = `<i class="fa-regular fa-star text-amber-500 ml-2 drop-shadow-md" title="Secondary Affinity"></i>`;
             }
         }
 
@@ -238,10 +245,10 @@ export function buildEffectsHTML(metrics, draft, pm, activePc) {
             if (activePatterns.includes('vitar') && !allowedTypes.includes('healing')) allowedTypes.push('healing');
 
             optionsSelectHtml = `
-                <div class="mt-2.5 flex items-center gap-2 bg-stone-100 px-3 py-2 rounded-sm border border-[#d4c5a9] shadow-inner">
-                    <span class="text-[10px] font-bold text-stone-500 uppercase tracking-widest"><i class="fa-solid fa-bolt mr-1.5 text-amber-600"></i> Energy Type:</span>
-                    <select onchange="window.appActions.updateDraftField('effectTiers.damageType', this.value)" class="bg-white border border-[#d4c5a9] rounded-sm text-stone-900 text-xs font-bold font-serif outline-none p-1 flex-grow shadow-sm capitalize hover:border-amber-400 transition-colors cursor-pointer">
-                        ${allowedTypes.map(t => `<option value="${t}" ${draft.effectTiers.damageType === t ? 'selected' : ''}>${t}</option>`).join('')}
+                <div class="mt-2.5 flex items-center gap-2 bg-black/40 px-3 py-2 rounded-sm border border-white/20 shadow-inner">
+                    <span class="text-[10px] font-bold text-stone-400 uppercase tracking-widest"><i class="fa-solid fa-bolt mr-1.5 text-amber-500"></i> Energy Type:</span>
+                    <select onchange="window.appActions.updateDraftField('effectTiers.damageType', this.value)" class="glass-input rounded-sm text-white text-xs font-bold font-serif outline-none p-1 flex-grow shadow-sm capitalize hover:border-amber-400 cursor-pointer">
+                        ${allowedTypes.map(t => `<option class="text-black" value="${t}" ${draft.effectTiers.damageType === t ? 'selected' : ''}>${t}</option>`).join('')}
                     </select>
                 </div>
             `;
@@ -251,10 +258,10 @@ export function buildEffectsHTML(metrics, draft, pm, activePc) {
             const adjustedActiveTierForOptions = isMandatory ? activeTier : activeTier;
             const allowedOptions = (effectData.tiers[adjustedActiveTierForOptions] && effectData.tiers[adjustedActiveTierForOptions].options) ? effectData.tiers[adjustedActiveTierForOptions].options : ['Skill Check'];
             optionsSelectHtml = `
-                <div class="mt-2.5 flex items-center gap-2 bg-stone-100 px-3 py-2 rounded-sm border border-[#d4c5a9] shadow-inner">
-                    <span class="text-[10px] font-bold text-stone-500 uppercase tracking-widest"><i class="fa-solid fa-shield-halved mr-1.5 text-amber-600"></i> Target:</span>
-                    <select onchange="window.appActions.updateDraftField('effectTiers.bolsterHinderTarget', this.value)" class="bg-white border border-[#d4c5a9] rounded-sm text-stone-900 text-xs font-bold font-serif outline-none p-1 flex-grow shadow-sm hover:border-amber-400 transition-colors cursor-pointer">
-                        ${allowedOptions.map(opt => `<option value="${opt}" ${draft.effectTiers.bolsterHinderTarget === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                <div class="mt-2.5 flex items-center gap-2 bg-black/40 px-3 py-2 rounded-sm border border-white/20 shadow-inner">
+                    <span class="text-[10px] font-bold text-stone-400 uppercase tracking-widest"><i class="fa-solid fa-shield-halved mr-1.5 text-amber-500"></i> Target:</span>
+                    <select onchange="window.appActions.updateDraftField('effectTiers.bolsterHinderTarget', this.value)" class="glass-input rounded-sm text-white text-xs font-bold font-serif outline-none p-1 flex-grow shadow-sm hover:border-amber-400 cursor-pointer">
+                        ${allowedOptions.map(opt => `<option class="text-black" value="${opt}" ${draft.effectTiers.bolsterHinderTarget === opt ? 'selected' : ''}>${opt}</option>`).join('')}
                     </select>
                 </div>
             `;
@@ -262,40 +269,40 @@ export function buildEffectsHTML(metrics, draft, pm, activePc) {
 
         if (category === 'augmentia' && activeTier > 0) {
             const examples = (effectData.tiers[activeTier] && effectData.tiers[activeTier].examples) ? effectData.tiers[activeTier].examples : [];
-            let exampleOptionsHtml = '<option value="">-- Select an Example --</option>';
+            let exampleOptionsHtml = '<option class="text-black" value="">-- Select an Example --</option>';
             if (examples.length > 0) {
                 examples.forEach(ex => {
                     const sanitizedTip = (ex.tip || '').replace(/"/g, '&quot;');
-                    exampleOptionsHtml += `<option value="${ex.name}" title="${sanitizedTip}">${ex.name}</option>`;
+                    exampleOptionsHtml += `<option class="text-black" value="${ex.name}" title="${sanitizedTip}">${ex.name}</option>`;
                 });
                 optionsSelectHtml = `
-                    <div class="mt-2.5 flex flex-col gap-2 bg-stone-100 px-3 py-2.5 rounded-sm border border-[#d4c5a9] shadow-inner">
+                    <div class="mt-2.5 flex flex-col gap-2 bg-black/40 px-3 py-2.5 rounded-sm border border-white/20 shadow-inner">
                         <div class="flex flex-col gap-1">
-                            <span class="text-[10px] font-bold text-stone-500 uppercase tracking-widest flex items-center"><i class="fa-solid fa-lightbulb mr-1.5 text-amber-500"></i> Known Alterations</span>
-                            <select onchange="document.getElementById('draft-aug-custom-${activeTier}').value = this.value; window.appActions.updateDraftField('effectTiers.augmentiaCustom', this.value);" class="w-full bg-white border border-[#d4c5a9] rounded-sm p-1.5 text-xs text-stone-900 outline-none font-serif shadow-sm cursor-pointer hover:border-amber-400 transition-colors">
+                            <span class="text-[10px] font-bold text-stone-400 uppercase tracking-widest flex items-center"><i class="fa-solid fa-lightbulb mr-1.5 text-amber-400"></i> Known Alterations</span>
+                            <select onchange="document.getElementById('draft-aug-custom-${activeTier}').value = this.value; window.appActions.updateDraftField('effectTiers.augmentiaCustom', this.value);" class="w-full glass-input rounded-sm p-1.5 text-xs text-white outline-none font-serif shadow-sm cursor-pointer hover:border-amber-400">
                                 ${exampleOptionsHtml}
                             </select>
                         </div>
-                        <div class="flex flex-col gap-1 mt-1 border-t border-[#d4c5a9] pt-2">
-                            <span class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Custom Effect Detail</span>
+                        <div class="flex flex-col gap-1 mt-1 border-t border-white/10 pt-2">
+                            <span class="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Custom Effect Detail</span>
                             <input type="text" 
                                    id="draft-aug-custom-${activeTier}"
                                    oninput="window.appActions.updateDraftField('effectTiers.augmentiaCustom', this.value, false, true)" 
                                    value="${draft.effectTiers.augmentiaCustom || ''}" 
                                    placeholder="Or describe a custom alteration..." 
-                                   class="w-full bg-white border border-[#d4c5a9] rounded-sm p-2 text-xs text-stone-900 outline-none font-serif shadow-sm focus:border-amber-600 transition-colors">
+                                   class="w-full glass-input rounded-sm p-2 text-xs text-white outline-none font-serif shadow-sm focus:border-amber-500 transition-colors">
                         </div>
                     </div>
                 `;
             } else {
                  optionsSelectHtml = `
-                    <div class="mt-2.5 flex flex-col gap-1.5 bg-stone-100 px-3 py-2 rounded-sm border border-[#d4c5a9] shadow-inner">
-                        <span class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Custom Effect Detail:</span>
+                    <div class="mt-2.5 flex flex-col gap-1.5 bg-black/40 px-3 py-2 rounded-sm border border-white/20 shadow-inner">
+                        <span class="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Custom Effect Detail:</span>
                         <input type="text" 
                                oninput="window.appActions.updateDraftField('effectTiers.augmentiaCustom', this.value, false, true)" 
                                value="${draft.effectTiers.augmentiaCustom || ''}" 
                                placeholder="Describe the alteration..." 
-                               class="w-full bg-white border border-[#d4c5a9] rounded-sm p-2 text-xs text-stone-900 outline-none font-serif shadow-sm focus:border-amber-600 transition-colors">
+                               class="w-full glass-input rounded-sm p-2 text-xs text-white outline-none font-serif shadow-sm focus:border-amber-500 transition-colors">
                     </div>
                 `;
             }
@@ -304,11 +311,11 @@ export function buildEffectsHTML(metrics, draft, pm, activePc) {
         let specialToggleHtml = '';
         if (category === 'duration') {
             specialToggleHtml = `
-                <label class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-stone-600 cursor-pointer select-none hover:text-amber-700 transition-colors">
+                <label class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-stone-300 cursor-pointer select-none hover:text-amber-400 transition-colors">
                     <input type="checkbox" 
                            onchange="window.appActions.toggleDurationInversion(this.checked)" 
                            ${draft.effectTiers.durationInverted ? 'checked' : ''} 
-                           class="w-4 h-4 text-amber-600 bg-white border-stone-400 rounded-sm focus:ring-amber-500 shadow-sm cursor-pointer">
+                           class="w-4 h-4 text-amber-500 bg-black/40 border-white/40 rounded-sm focus:ring-amber-500 shadow-sm cursor-pointer">
                     <span>Longer is Better</span>
                 </label>
             `;
@@ -323,11 +330,11 @@ export function buildEffectsHTML(metrics, draft, pm, activePc) {
                 const isDisabled = index > adjustedMaxTier;
                 const isSelected = activeTier === index;
                 
-                let btnClass = 'border-[#d4c5a9] bg-stone-50 text-stone-600 hover:text-stone-900 hover:bg-white hover:border-amber-400 shadow-sm';
+                let btnClass = 'glass-btn text-gray-300 hover:text-white';
                 if (isDisabled) {
-                    btnClass = 'border-stone-200 bg-stone-100 text-stone-400 cursor-not-allowed shadow-none';
+                    btnClass = 'border-white/10 bg-black/60 text-gray-500 cursor-not-allowed shadow-none';
                 } else if (isSelected) {
-                    btnClass = 'border-amber-600 bg-amber-50 text-amber-900 font-bold shadow-[0_0_8px_rgba(217,119,6,0.2)]';
+                    btnClass = 'border-amber-500 bg-amber-500/20 text-white font-bold shadow-[0_0_8px_rgba(245,158,11,0.4)]';
                 }
 
                 const displayTier = isMandatory ? index + 1 : index;
@@ -344,16 +351,19 @@ export function buildEffectsHTML(metrics, draft, pm, activePc) {
             });
         }
 
-        const labelColorClass = maxTierAllowed > 0 ? 'text-stone-900' : 'text-stone-500';
-        const subtextColorClass = maxTierAllowed > 0 ? 'text-amber-700' : 'text-stone-400';
+        const labelColorClass = maxTierAllowed > 0 ? 'text-white' : 'text-stone-400';
+        const subtextColorClass = maxTierAllowed > 0 ? 'text-amber-500' : 'text-stone-500';
 
         html += `
-            <div class="p-4 bg-white border border-[#d4c5a9] rounded-sm shadow-sm">
-                <div class="flex justify-between items-start mb-3 gap-2 flex-wrap border-b border-[#d4c5a9] pb-2">
-                    <div class="flex items-center">
-                        <h4 class="text-sm font-bold font-serif ${labelColorClass}">${labelText}</h4>
-                        <button type="button" onclick="window.appActions.openEffectInfoModal('${category}')" class="ml-2 text-stone-400 hover:text-amber-600 cursor-pointer transition-colors" title="View Effect Details"><i class="fa-solid fa-circle-info text-xs"></i></button>
-                        ${starHtml}
+            <div class="p-4 glass-panel rounded-sm">
+                <div class="flex justify-between items-start mb-3 gap-2 flex-wrap border-b border-white/20 pb-2">
+                    <div>
+                        <div class="flex items-center">
+                            <h4 class="text-sm font-bold font-serif ${labelColorClass} drop-shadow-md">${labelText}</h4>
+                            <button type="button" onclick="window.appActions.openEffectInfoModal('${category}')" class="ml-2 text-stone-400 hover:text-amber-400 cursor-pointer transition-colors drop-shadow-md" title="View Details"><i class="fa-solid fa-circle-info text-xs"></i></button>
+                            ${starHtml}
+                        </div>
+                        <span class="text-[9px] font-sans uppercase font-bold tracking-widest ${subtextColorClass} drop-shadow-md">${subtext}</span>
                     </div>
                     ${specialToggleHtml}
                 </div>
