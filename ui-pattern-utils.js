@@ -1,7 +1,7 @@
 import { PATTERN_CONFIG } from './actions-pattern-magic.js';
 
 // =========================================================================
-// ZEB: UPDATE LINE 7 WITH YOUR ACTUAL GITHUB USERNAME AND REPO NAME!
+// ZEB: UPDATE LINE 18 WITH YOUR ACTUAL GITHUB USERNAME AND REPO NAME!
 // =========================================================================
 export const PATTERN_ASSET_BASE_URL = "https://raw.githubusercontent.com/cybertourk/AdventureJournal/main/";
 
@@ -13,26 +13,69 @@ export const injectTapestryStyles = () => {
     const style = document.createElement('style');
     style.id = 'tapestry-core-styles';
     style.innerHTML = `
-        .arcane-tapestry-bg {
-            background-color: #292524;
-            background-image: url('https://www.transparenttextures.com/patterns/woven.png'), radial-gradient(circle at center, #44403c 0%, #1c1917 100%);
+        .dynamic-weave-bg {
+            position: absolute;
+            inset: -5%; /* Slight bleed to allow for pulsing without showing edges */
+            z-index: 0;
+            transition: filter 1.5s ease-in-out, background 1.5s ease-in-out;
+            /* Animated drifting effect */
+            animation: driftWeave 30s linear infinite alternate;
         }
-        .parchment-panel {
-            background-color: #fdfbf7;
-            background-image: url('https://www.transparenttextures.com/patterns/aged-paper.png');
-            border: 1px solid #d4c5a9;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06), inset 0 0 20px rgba(212, 197, 169, 0.2);
+        @keyframes driftWeave {
+            0% { transform: scale(1.05) translate(0, 0); }
+            100% { transform: scale(1.05) translate(-1%, -1%); }
         }
-        .leather-panel {
-            background-color: #292524;
-            background-image: url('https://www.transparenttextures.com/patterns/leather.png');
-            border: 2px solid #1c1917;
-            box-shadow: inset 0 0 15px rgba(0,0,0,0.8), 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+        .weave-vignette {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            background: radial-gradient(circle at center, transparent 10%, rgba(5,5,5,0.7) 70%, rgba(0,0,0,0.95) 100%);
+            pointer-events: none;
+        }
+
+        /* Glassmorphism UI */
+        .glass-panel {
+            background-color: rgba(20, 20, 25, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255,255,255,0.1);
+        }
+        .glass-input {
+            background-color: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #f3f4f6;
+            transition: all 0.2s;
+        }
+        .glass-input:focus {
+            background-color: rgba(0, 0, 0, 0.6);
+            border-color: #f59e0b;
+            outline: none;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+        }
+        .glass-btn {
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(4px);
+            transition: all 0.2s;
+        }
+        .glass-btn:hover:not(:disabled) {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+        .glass-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .loom-circle {
+            background: radial-gradient(circle, rgba(10,10,12,0.6) 0%, rgba(5,5,5,0.9) 100%);
+            box-shadow: inset 0 0 30px rgba(0,0,0,0.9), 0 0 20px rgba(217, 119, 6, 0.1);
+            border: 1px solid rgba(255,255,255,0.1);
         }
         .sigil-btn {
-            /* Transform handles the spiral, Opacity handles the fade-in */
-            transition: transform 1s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.8s ease;
-            /* Permanently pin all sigils perfectly to the center of the 320x320 SVG (160 - 48 = 112) */
+            transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+            /* PERFECT CENTER PIN: (320px container / 2) - (96px button / 2) = 160 - 48 = 112px */
             left: 112px; 
             top: 112px;
         }
@@ -41,14 +84,14 @@ export const injectTapestryStyles = () => {
         }
         @keyframes pulsePrimeSigil {
             0% { filter: drop-shadow(0 0 8px currentColor); transform: scale(1); }
-            100% { filter: drop-shadow(0 0 16px currentColor); transform: scale(1.05); }
+            100% { filter: drop-shadow(0 0 20px currentColor); transform: scale(1.05); }
         }
         @keyframes loomAppear {
-            0% { opacity: 0; filter: blur(4px); }
-            100% { opacity: 1; filter: blur(0px); }
+            0% { opacity: 0; filter: blur(4px); transform: scale(0.1); }
+            100% { opacity: 1; filter: blur(0px); transform: scale(1); }
         }
         .loom-entrance {
-            animation: loomAppear 0.8s ease-out forwards;
+            animation: loomAppear 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
         .spin-loom-slow {
             animation: spinLoom 40s linear infinite;
@@ -63,25 +106,25 @@ export const injectTapestryStyles = () => {
 
 // Map each of the 9 magical disciplines to its rich, esoteric dye/ink color
 export const PATTERN_THEME = {
-    spatia: { label: "Spatia", desc: "Space & Dimensions", color: "#0d9488" }, // Teal
-    wyird: { label: "Wyird", desc: "Fate & Chaos", color: "#9333ea" }, // Purple
-    dynamis: { label: "Dynamis", desc: "Energy & Elements", color: "#dc2626" }, // Crimson
-    vitar: { label: "Vitar", desc: "Life & Healing", color: "#16a34a" }, // Emerald
-    formus: { label: "Formus", desc: "Structure & Matter", color: "#475569" }, // Slate
-    mentis: { label: "Mentis", desc: "Mind & Memory", color: "#db2777" }, // Rose
-    arcani: { label: "Arcani", desc: "Pure Force & Magic", color: "#2563eb" }, // Sapphire
-    umbrus: { label: "Umbrus", desc: "Shadow & Cold", color: "#312e81" }, // Indigo
-    tempus: { label: "Tempus", desc: "Time & Entropy", color: "#d97706" }  // Topaz
+    spatia: { label: "Spatia", desc: "Space & Dimensions", color: "#0ea5e9" }, // Bright Teal
+    wyird: { label: "Wyird", desc: "Fate & Chaos", color: "#a855f7" }, // Vivid Purple
+    dynamis: { label: "Dynamis", desc: "Energy & Elements", color: "#ef4444" }, // Bright Red
+    vitar: { label: "Vitar", desc: "Life & Healing", color: "#22c55e" }, // Vivid Green
+    formus: { label: "Formus", desc: "Structure & Matter", color: "#94a3b8" }, // Silver
+    mentis: { label: "Mentis", desc: "Mind & Memory", color: "#ec4899" }, // Pink
+    arcani: { label: "Arcani", desc: "Pure Force & Magic", color: "#3b82f6" }, // Bright Blue
+    umbrus: { label: "Umbrus", desc: "Shadow & Cold", color: "#4f46e5" }, // Deep Indigo
+    tempus: { label: "Tempus", desc: "Time & Entropy", color: "#f59e0b" }  // Bright Orange
 };
 
 export const EFFECT_TOOLTIPS = {
     range: "Dictates the maximum distance at which you can weave this magic.",
-    duration: "The length of time the physical ripples of your magic persist.<br><br><div class='bg-stone-900/60 border border-stone-700 p-2 rounded-sm mt-2'><strong class='text-amber-500 block border-b border-stone-700 pb-1 mb-1 text-[10px] uppercase tracking-widest'>The Rule of Cost</strong><ul class='space-y-1.5 text-[11px] mt-2'><li><b>Shorter is Better (Default):</b> Used when a sudden impact is the goal. <i>(e.g., An instantaneous fireball costs 5E, but a slow, delayed blast costs less)</i>.</li><li><b>Longer is Better (Toggle):</b> Used for buffs, debuffs, or utility where maintaining the effect over time is the goal. <i>(e.g., Flying for 8 hours costs 5E, but flying for 1 round costs 2E)</i>.</li></ul></div>",
+    duration: "The length of time the physical ripples of your magic persist.<br><br><div class='bg-amber-900/40 border border-amber-500/50 p-2 rounded-sm text-[10px]'><strong class='text-amber-400 block mb-1'>The Rule of Cost:</strong> The more beneficial the timing is to your spell's intent, the higher the Essentia cost will be.</div><ul class='space-y-1.5 text-[11px] mt-2'><li><b>Shorter is Better (Default):</b> Used when a sudden impact is the goal. <i>(e.g., an instantaneous fireball costs 5E, but a slow, delayed blast costs less)</i>.</li><li><b>Longer is Better (Toggle):</b> Used for buffs, debuffs, or utility where maintaining the effect over time is the goal. <i>(e.g., flying for 8 hours costs 5E, but flying for 1 round costs 2E)</i>.</li></ul>",
     activation: "The action economy and time required to cast the spell.",
     areaTargets: "The physical space or number of entities encompassed by the spell.",
     damageHealing: "The raw force, elemental energy, or restorative life woven into the spell.",
-    augmentia: "Alterations to physical laws, matter, or environmental properties.<br><br><div class='bg-stone-900/60 border border-stone-700 p-2 rounded-sm mt-2'><strong class='text-amber-500 block border-b border-stone-700 pb-1 mb-1 text-[10px] uppercase tracking-widest'>V5 Benchmark Examples</strong><ul class='space-y-1.5 text-[11px] mt-2'><li><b>Minor (+1):</b> Water Breathing, Feather Fall, Jump, detecting magic</li><li><b>Weak (+2):</b> Alter Self (minor physical changes), Longstrider, Spider Climb</li><li><b>Moderate (+3):</b> Fly, Haste, Slow, Gaseous Form, Water Walk</li><li><b>Strong (+4):</b> Alter Self (significant physical changes), Teleportation</li><li><b>Major (+5):</b> True Polymorph, Plane Shift, Time Stop</li></ul></div>",
-    bolsterHinder: "Direct enhancements or supernatural penalties applied to checks and saves.<br><br><div class='bg-stone-900/60 border border-stone-700 p-2 rounded-sm mt-2'><strong class='text-amber-500 block border-b border-stone-700 pb-1 mb-1 text-[10px] uppercase tracking-widest'>Target Options by Tier</strong><ul class='space-y-1 text-[11px] mt-2'><li><b>Minor (+1):</b> Skill check</li><li><b>Weak (+2):</b> Skill check, saving throw, ability check</li><li><b>Moderate (+3):</b> Skill check, saving throw, ability check, attack roll</li><li><b>Strong (+4):</b> Skill, saving throw, ability check, attack roll, damage roll</li><li><b>Major (+5):</b> Skill, saving throw, ability check, attack roll, damage roll, AC</li></ul></div>"
+    augmentia: "Alterations to physical laws, matter, or environmental properties.<br><br><div class='bg-stone-900/60 border border-stone-600 p-2 rounded-sm mt-2'><strong class='text-stone-300 block border-b border-stone-700 pb-1 mb-1 text-[10px] uppercase tracking-widest'>V5 Benchmark Examples</strong><ul class='space-y-1.5 text-[11px] mt-2'><li><b>Minor (+1):</b> Water Breathing, Feather Fall, Jump, detecting magic</li><li><b>Weak (+2):</b> Alter Self (minor physical changes), Longstrider, Spider Climb</li><li><b>Moderate (+3):</b> Fly, Haste, Slow, Gaseous Form, Water Walk</li><li><b>Strong (+4):</b> Alter Self (significant physical changes), Teleportation</li><li><b>Major (+5):</b> True Polymorph, Teleport, Plane Shift, Time Stop</li></ul></div>",
+    bolsterHinder: "Direct enhancements or supernatural penalties applied to checks and saves.<br><br><div class='bg-stone-900/60 border border-stone-600 p-2 rounded-sm mt-2'><strong class='text-stone-300 block border-b border-stone-700 pb-1 mb-1 text-[10px] uppercase tracking-widest'>Target Options by Tier</strong><ul class='space-y-1 text-[11px] mt-2'><li><b>Minor (+1):</b> Skill check</li><li><b>Weak (+2):</b> Skill check, saving throw, ability check</li><li><b>Moderate (+3):</b> Skill check, saving throw, ability check, attack roll</li><li><b>Strong (+4):</b> Skill, saving throw, ability check, attack roll, damage roll</li><li><b>Major (+5):</b> Skill, saving throw, ability check, attack roll, damage roll, AC</li></ul></div>"
 };
 
 // Ensure our draft state exists globally on active session load
