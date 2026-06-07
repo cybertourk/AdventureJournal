@@ -4,16 +4,14 @@ import {
     getOrInitPatternState, 
     saveRote, 
     deleteRote, 
-    castPatternSpell,
-    adjustPatternParameter
+    castPatternSpell 
 } from './actions-pattern-magic.js';
-import {
-    PATTERN_THEME,
-    PATTERN_ASSET_BASE_URL,
-    EFFECT_TOOLTIPS,
-    getOrInitDraftState,
-    calculateAffinityLimitsAndCosts,
-    buildEffectsHTML
+import { 
+    PATTERN_THEME, 
+    PATTERN_ASSET_BASE_URL, 
+    getOrInitDraftState, 
+    calculateAffinityLimitsAndCosts, 
+    buildEffectsHTML 
 } from './ui-pattern-utils.js';
 
 // =========================================================================
@@ -198,6 +196,7 @@ if (typeof window !== 'undefined') {
         }
     };
 
+
     window.appActions.openPatternInfoModal = (patternKey) => {
         const theme = PATTERN_THEME[patternKey];
         const configAff = PATTERN_CONFIG.Affinities[patternKey];
@@ -213,8 +212,6 @@ if (typeof window !== 'undefined') {
         
         const pm = activePc ? getOrInitPatternState(activePc) : {};
         const rank = pm[patternKey] || 0;
-        
-        // Use the proper title based on rank
         const titleText = rank > 0 ? PATTERN_CONFIG.ExpertiseTitles[rank] : "Unlearned";
         
         let primaryHtml = '';
@@ -282,8 +279,25 @@ if (typeof window !== 'undefined') {
     };
 
     window.appActions.openEffectInfoModal = (category) => {
+        // Fetch tooltip data
+        // ... requires EFFECT_TOOLTIPS from ui-pattern-utils.js ...
+        // So we will grab it from PATTERN_CONFIG or just rely on a global lookup
+        // We actually imported it from utils! But wait, we didn't export EFFECT_TOOLTIPS from utils.
+        // Let's assume we either export it, or reconstruct it here.
+        // Actually, since I didn't export EFFECT_TOOLTIPS in the previous block, let's redefine it here just for this modal to be safe.
+        const EFFECT_TOOLTIPS_LOCAL = {
+            range: "Dictates the maximum distance at which you can weave this magic.",
+            duration: "The length of time the physical ripples of your magic persist.<br><br><div class='bg-amber-900/40 border border-amber-500/50 p-2 rounded-sm text-[10px]'><strong class='text-amber-400 block mb-1'>The Rule of Cost:</strong> The more beneficial the timing is to your spell's intent, the higher the Essentia cost will be.</div><ul class='space-y-1.5 text-[11px] mt-2'><li><b>Shorter is Better (Default):</b> Used when a sudden impact is the goal. <i>(e.g., an instantaneous fireball costs 5E, but a slow, delayed blast costs less)</i>.</li><li><b>Longer is Better (Toggle):</b> Used for buffs, debuffs, or utility where maintaining the effect over time is the goal. <i>(e.g., flying for 8 hours costs 5E, but flying for 1 round costs 2E)</i>.</li></ul>",
+            activation: "The action economy and time required to cast the spell.",
+            areaTargets: "The physical space or number of entities encompassed by the spell.",
+            damageHealing: "The raw force, elemental energy, or restorative life woven into the spell.",
+            augmentia: "Alterations to physical laws, matter, or environmental properties.<br><br><div class='bg-stone-900/60 border border-stone-600 p-2 rounded-sm mt-2'><strong class='text-stone-300 block border-b border-stone-700 pb-1 mb-1 text-[10px] uppercase tracking-widest'>V5 Benchmark Examples</strong><ul class='space-y-1.5 text-[11px] mt-2'><li><b>Minor (+1):</b> Water Breathing, Feather Fall, Jump, detecting magic</li><li><b>Weak (+2):</b> Alter Self (minor physical changes), Longstrider, Spider Climb</li><li><b>Moderate (+3):</b> Fly, Haste, Slow, Gaseous Form, Water Walk</li><li><b>Strong (+4):</b> Alter Self (significant physical changes), Teleportation</li><li><b>Major (+5):</b> True Polymorph, Teleport, Plane Shift, Time Stop</li></ul></div>",
+            bolsterHinder: "Direct enhancements or supernatural penalties applied to checks and saves.<br><br><div class='bg-stone-900/60 border border-stone-600 p-2 rounded-sm mt-2'><strong class='text-stone-300 block border-b border-stone-700 pb-1 mb-1 text-[10px] uppercase tracking-widest'>Target Options by Tier</strong><ul class='space-y-1 text-[11px] mt-2'><li><b>Minor (+1):</b> Skill check</li><li><b>Weak (+2):</b> Skill check, saving throw, ability check</li><li><b>Moderate (+3):</b> Skill check, saving throw, ability check, attack roll</li><li><b>Strong (+4):</b> Skill, saving throw, ability check, attack roll, damage roll</li><li><b>Major (+5):</b> Skill, saving throw, ability check, attack roll, damage roll, AC</li></ul></div>"
+        };
+
+
         const effectData = PATTERN_CONFIG.Effects[category];
-        const tooltipText = EFFECT_TOOLTIPS[category] || effectData.description || '';
+        const tooltipText = EFFECT_TOOLTIPS_LOCAL[category] || effectData.description || '';
         const isMandatory = effectData.mandatory;
 
         let tiersHtml = '';
