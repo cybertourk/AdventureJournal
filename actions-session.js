@@ -199,7 +199,6 @@ export const _gatherSessionDraft = () => {
         return grabVisibility(container);
     };
 
-    // Parse Dates
     const realDateInput = document.getElementById('draft-real-date')?.value;
     let timestamp = session?.timestamp || Date.now();
     let displayDateObj = new Date();
@@ -248,14 +247,14 @@ export const _gatherSessionDraft = () => {
             lootValue: calculateLootValue(lootText),
             lootVisibility: getStaticVis('input-draft-loot'),
             
-            scenes: window.appActions._readDynamicList('container-scenes', (row, idx) => ({
+            scenes: _readDynamicList('container-scenes', (row, idx) => ({
                 id: idx + 1,
                 text: row.querySelector('.scene-hidden-input')?.value || '',
                 visibility: grabVisibility(row)
             })),
             
             // Reads the hidden fields to ensure player authors and original IDs are preserved!
-            clues: window.appActions._readDynamicList('container-clues', (row, idx) => {
+            clues: _readDynamicList('container-clues', (row, idx) => {
                 const idInput = row.querySelector('.clue-id-input')?.value;
                 const authorInput = row.querySelector('.clue-author-input')?.value;
                 return {
@@ -478,7 +477,7 @@ export const saveSession = async () => {
     const newAdventures = camp.adventures.map(a => {
         if (a.id !== adv.id) return a;
 
-        const isNewSession = !a.sessions.some(s => s.id === draft.sessionData.id);
+        const isNewSession = !(a.sessions || []).some(s => s.id === draft.sessionData.id);
         const newSessions = isNewSession 
             ? [...(a.sessions || []), draft.sessionData]
             : a.sessions.map(s => s.id === draft.sessionData.id ? draft.sessionData : s);
@@ -801,8 +800,9 @@ export const deleteChronicleEntry = async (entryId) => {
 export const addLogScene = () => {
     const container = document.getElementById('container-scenes');
     if(!container) return;
-    const idx = container.children.length;
-    const inputId = `scene-input-${idx}`;
+    const idx = container.children.length; // keep length for visual naming "Scene X"
+    const uniqueIdStr = generateId();
+    const inputId = `scene-input-${uniqueIdStr}`;
     
     const html = `
         <div class="mb-4 scene-row vis-container bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm shadow-sm flex flex-col group cursor-text" onclick="window.appActions.openUniversalEditor('${inputId}', 'Scene ${idx + 1}')">
