@@ -1,112 +1,120 @@
 import { PATTERN_CONFIG } from './actions-pattern-magic.js';
 
+// =========================================================================
+// ZEB: UPDATE LINE 18 WITH YOUR ACTUAL GITHUB USERNAME AND REPO NAME!
+// =========================================================================
 export const PATTERN_ASSET_BASE_URL = "https://raw.githubusercontent.com/cybertourk/AdventureJournal/main/";
 
 // =========================================================================
-// CSS Injection for Arcane Tapestry & Loom Effects
+// CSS Injection for Arcane Tapestry & Loom Effects (VIBRANT LIGHT THEME)
 // =========================================================================
 export const injectTapestryStyles = () => {
     if (document.getElementById('tapestry-core-styles')) return;
     const style = document.createElement('style');
     style.id = 'tapestry-core-styles';
     style.innerHTML = `
-        /* VIBRANT COSMIC WEAVE BACKGROUND */
+        /* VIBRANT WOVEN BACKGROUND */
         .dynamic-weave-bg {
             position: absolute;
             inset: -5%;
             z-index: 0;
-            /* Deep, vibrant astral gradient */
-            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 40%, #312e81 80%, #0f172a 100%);
-            background-size: 200% 200%;
-            animation: driftWeave 25s ease-in-out infinite;
+            /* Highly saturated, primary-color multi-stop gradient */
+            background: linear-gradient(135deg, #06b6d4, #3b82f6, #9333ea, #ec4899, #ef4444, #f59e0b, #84cc16);
+            background-size: 400% 400%;
+            animation: driftWeave 25s ease-in-out infinite alternate;
         }
         @keyframes driftWeave {
-            0% { background-position: 0% 50%; transform: scale(1); }
-            50% { background-position: 100% 50%; transform: scale(1.05); }
-            100% { background-position: 0% 50%; transform: scale(1); }
-        }
-        
-        /* SOFTER VIGNETTE TO LET COLORS THROUGH */
-        .weave-vignette {
-            position: absolute;
-            inset: 0;
-            z-index: 1;
-            background: radial-gradient(circle at center, transparent 0%, rgba(15, 23, 42, 0.5) 50%, rgba(2, 6, 23, 0.95) 100%);
-            pointer-events: none;
+            0% { background-position: 0% 50%; transform: scale(1.05); }
+            50% { background-position: 100% 50%; transform: scale(1); }
+            100% { background-position: 0% 50%; transform: scale(1.05); }
         }
 
-        /* NEW: THREAD TEXTURE OVERLAY */
+        /* TIGHT FABRIC WEAVE TEXTURE */
         .fabric-texture {
             position: absolute;
             inset: 0;
-            z-index: 2;
-            opacity: 0.12;
+            z-index: 1;
+            opacity: 0.35;
             background-image:
-                linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px),
-                linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px);
-            background-size: 6px 6px;
+                linear-gradient(90deg, rgba(0,0,0,0.15) 2px, transparent 2px),
+                linear-gradient(rgba(0,0,0,0.15) 2px, transparent 2px);
+            background-size: 8px 8px;
             pointer-events: none;
         }
 
-        /* BRIGHTER, CLEANER GLASSMORPHISM */
+        /* BRIGHT SOFT VIGNETTE */
+        .weave-vignette {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            background: radial-gradient(circle at center, rgba(255,255,255,0.2) 0%, rgba(0,0,0,0.5) 100%);
+            pointer-events: none;
+        }
+
+        /* FROSTED LIGHT GLASS UI */
         .glass-panel {
-            background-color: rgba(30, 35, 55, 0.65);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-top: 1px solid rgba(255, 255, 255, 0.35); /* Stronger top reflection */
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.1);
+            background-color: rgba(255, 255, 255, 0.35);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            border-top: 1px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255,255,255,0.5);
         }
         .glass-input {
-            background-color: rgba(10, 15, 30, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            color: #f3f4f6;
+            background-color: rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            color: #0f172a; /* Deep Slate 900 */
             transition: all 0.2s;
         }
+        .glass-input::placeholder {
+            color: #475569;
+        }
         .glass-input:focus {
-            background-color: rgba(15, 20, 40, 0.8);
-            border-color: #f59e0b;
+            background-color: rgba(255, 255, 255, 0.8);
+            border-color: #3b82f6; /* Bright Blue */
             outline: none;
-            box-shadow: 0 0 12px rgba(245, 158, 11, 0.4);
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
         }
         .glass-btn {
-            background-color: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(4px);
+            background-color: rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            color: #0f172a;
+            backdrop-filter: blur(8px);
             transition: all 0.2s;
         }
         .glass-btn:hover:not(:disabled) {
-            background-color: rgba(255, 255, 255, 0.15);
-            border-color: rgba(255, 255, 255, 0.5);
-            box-shadow: 0 0 10px rgba(255,255,255,0.1);
+            background-color: rgba(255, 255, 255, 0.8);
+            border-color: #ffffff;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            color: #1d4ed8; /* Blue 700 */
         }
         .glass-btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+            background-color: rgba(255,255,255,0.2);
         }
 
-        /* ETHEREAL LOOM */
+        /* BRIGHT ETHEREAL LOOM */
         .loom-circle {
-            background: radial-gradient(circle, rgba(30,35,60,0.5) 0%, rgba(5,10,20,0.8) 100%);
-            box-shadow: inset 0 0 40px rgba(0,0,0,0.8), 0 0 30px rgba(99, 102, 241, 0.2);
-            border: 1px solid rgba(255,255,255,0.15);
+            background: radial-gradient(circle, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.1) 100%);
+            box-shadow: inset 0 0 40px rgba(255,255,255,0.6), 0 0 20px rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255,255,255,0.6);
         }
         .sigil-btn {
             transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
             left: 112px; 
             top: 112px;
         }
-        /* Make prime sigil glow vibrantly */
         .pulse-prime-sigil img {
-            animation: pulsePrimeSigil 3s ease-in-out infinite alternate;
+            animation: pulsePrimeSigil 2s ease-in-out infinite alternate;
         }
         @keyframes pulsePrimeSigil {
-            0% { filter: brightness(1.5) drop-shadow(0 0 12px currentColor); transform: scale(1); }
-            100% { filter: brightness(1.8) drop-shadow(0 0 25px currentColor); transform: scale(1.08); }
+            0% { filter: drop-shadow(0 0 10px currentColor) brightness(1.2); transform: scale(1); }
+            100% { filter: drop-shadow(0 0 25px currentColor) brightness(1.5); transform: scale(1.1); }
         }
         @keyframes loomAppear {
-            0% { opacity: 0; filter: blur(8px); transform: scale(0.1) rotate(-90deg); }
-            100% { opacity: 1; filter: blur(0px); transform: scale(1) rotate(0deg); }
+            0% { opacity: 0; filter: blur(4px); transform: scale(0.1); }
+            100% { opacity: 1; filter: blur(0px); transform: scale(1); }
         }
         .loom-entrance {
             animation: loomAppear 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
@@ -122,28 +130,32 @@ export const injectTapestryStyles = () => {
     document.head.appendChild(style);
 };
 
+// =========================================================================
+// PURE PRIMARY & VIBRANT NEON COLORS
+// =========================================================================
 export const PATTERN_THEME = {
-    spatia: { label: "Spatia", desc: "Space & Dimensions", color: "#38bdf8" }, // Bright Cyan
-    wyird: { label: "Wyird", desc: "Fate & Chaos", color: "#c084fc" }, // Bright Purple
-    dynamis: { label: "Dynamis", desc: "Energy & Elements", color: "#f87171" }, // Bright Red
-    vitar: { label: "Vitar", desc: "Life & Healing", color: "#4ade80" }, // Bright Green
-    formus: { label: "Formus", desc: "Structure & Matter", color: "#cbd5e1" }, // Bright Silver
-    mentis: { label: "Mentis", desc: "Mind & Memory", color: "#f472b6" }, // Bright Pink
-    arcani: { label: "Arcani", desc: "Pure Force & Magic", color: "#60a5fa" }, // Bright Blue
-    umbrus: { label: "Umbrus", desc: "Shadow & Cold", color: "#818cf8" }, // Bright Indigo
-    tempus: { label: "Tempus", desc: "Time & Entropy", color: "#fbbf24" }  // Bright Amber
+    spatia: { label: "Spatia", desc: "Space & Dimensions", color: "#06b6d4" }, // Cyan
+    wyird: { label: "Wyird", desc: "Fate & Chaos", color: "#a855f7" }, // Purple
+    dynamis: { label: "Dynamis", desc: "Energy & Elements", color: "#ef4444" }, // Bright Red
+    vitar: { label: "Vitar", desc: "Life & Healing", color: "#22c55e" }, // Lime Green
+    formus: { label: "Formus", desc: "Structure & Matter", color: "#f59e0b" }, // Golden Orange
+    mentis: { label: "Mentis", desc: "Mind & Memory", color: "#ec4899" }, // Hot Pink
+    arcani: { label: "Arcani", desc: "Pure Force & Magic", color: "#3b82f6" }, // Royal Blue
+    umbrus: { label: "Umbrus", desc: "Shadow & Cold", color: "#4338ca" }, // Deep Indigo
+    tempus: { label: "Tempus", desc: "Time & Entropy", color: "#f97316" }  // Vibrant Orange
 };
 
 export const EFFECT_TOOLTIPS = {
     range: "Dictates the maximum distance at which you can weave this magic.",
-    duration: "The length of time the physical ripples of your magic persist.<br><br><div class='bg-amber-900/40 border border-amber-500/50 p-2 rounded-sm text-[10px]'><strong class='text-amber-400 block mb-1'>The Rule of Cost:</strong> The more beneficial the timing is to your spell's intent, the higher the Essentia cost will be.</div><ul class='space-y-1.5 text-[11px] mt-2'><li><b>Shorter is Better (Default):</b> Used when a sudden impact is the goal. <i>(e.g., an instantaneous fireball costs 5E, but a slow, delayed blast costs less)</i>.</li><li><b>Longer is Better (Toggle):</b> Used for buffs, debuffs, or utility where maintaining the effect over time is the goal. <i>(e.g., flying for 8 hours costs 5E, but flying for 1 round costs 2E)</i>.</li></ul>",
+    duration: "The length of time the physical ripples of your magic persist.<br><br><div class='bg-blue-100 border border-blue-300 p-2 rounded-sm text-[10px]'><strong class='text-blue-800 block mb-1'>The Rule of Cost:</strong> The more beneficial the timing is to your spell's intent, the higher the Essentia cost will be.</div><ul class='space-y-1.5 text-[11px] mt-2 text-slate-800'><li><b>Shorter is Better (Default):</b> Used when a sudden impact is the goal. <i>(e.g., an instantaneous fireball costs 5E, but a slow, delayed blast costs less)</i>.</li><li><b>Longer is Better (Toggle):</b> Used for buffs, debuffs, or utility where maintaining the effect over time is the goal. <i>(e.g., flying for 8 hours costs 5E, but flying for 1 round costs 2E)</i>.</li></ul>",
     activation: "The action economy and time required to cast the spell.",
     areaTargets: "The physical space or number of entities encompassed by the spell.",
     damageHealing: "The raw force, elemental energy, or restorative life woven into the spell.",
-    augmentia: "Alterations to physical laws, matter, or environmental properties.<br><br><div class='bg-stone-900/60 border border-stone-600 p-2 rounded-sm mt-2'><strong class='text-stone-300 block border-b border-stone-700 pb-1 mb-1 text-[10px] uppercase tracking-widest'>V5 Benchmark Examples</strong><ul class='space-y-1.5 text-[11px] mt-2'><li><b>Minor (+1):</b> Water Breathing, Feather Fall, Jump, detecting magic</li><li><b>Weak (+2):</b> Alter Self (minor physical changes), Longstrider, Spider Climb</li><li><b>Moderate (+3):</b> Fly, Haste, Slow, Gaseous Form, Water Walk</li><li><b>Strong (+4):</b> Alter Self (significant physical changes), Teleportation</li><li><b>Major (+5):</b> True Polymorph, Teleport, Plane Shift, Time Stop</li></ul></div>",
-    bolsterHinder: "Direct enhancements or supernatural penalties applied to checks and saves.<br><br><div class='bg-stone-900/60 border border-stone-600 p-2 rounded-sm mt-2'><strong class='text-stone-300 block border-b border-stone-700 pb-1 mb-1 text-[10px] uppercase tracking-widest'>Target Options by Tier</strong><ul class='space-y-1 text-[11px] mt-2'><li><b>Minor (+1):</b> Skill check</li><li><b>Weak (+2):</b> Skill check, saving throw, ability check</li><li><b>Moderate (+3):</b> Skill check, saving throw, ability check, attack roll</li><li><b>Strong (+4):</b> Skill, saving throw, ability check, attack roll, damage roll</li><li><b>Major (+5):</b> Skill, saving throw, ability check, attack roll, damage roll, AC</li></ul></div>"
+    augmentia: "Alterations to physical laws, matter, or environmental properties.<br><br><div class='bg-white/80 border border-slate-300 p-2 rounded-sm mt-2'><strong class='text-blue-700 block border-b border-slate-300 pb-1 mb-1 text-[10px] uppercase tracking-widest'>V5 Benchmark Examples</strong><ul class='space-y-1.5 text-[11px] mt-2 text-slate-800'><li><b>Minor (+1):</b> Water Breathing, Feather Fall, Jump, detecting magic</li><li><b>Weak (+2):</b> Alter Self (minor physical changes), Longstrider, Spider Climb</li><li><b>Moderate (+3):</b> Fly, Haste, Slow, Gaseous Form, Water Walk</li><li><b>Strong (+4):</b> Alter Self (significant physical changes), Teleportation</li><li><b>Major (+5):</b> True Polymorph, Teleport, Plane Shift, Time Stop</li></ul></div>",
+    bolsterHinder: "Direct enhancements or supernatural penalties applied to checks and saves.<br><br><div class='bg-white/80 border border-slate-300 p-2 rounded-sm mt-2'><strong class='text-blue-700 block border-b border-slate-300 pb-1 mb-1 text-[10px] uppercase tracking-widest'>Target Options by Tier</strong><ul class='space-y-1 text-[11px] mt-2 text-slate-800'><li><b>Minor (+1):</b> Skill check</li><li><b>Weak (+2):</b> Skill check, saving throw, ability check</li><li><b>Moderate (+3):</b> Skill check, saving throw, ability check, attack roll</li><li><b>Strong (+4):</b> Skill, saving throw, ability check, attack roll, damage roll</li><li><b>Major (+5):</b> Skill, saving throw, ability check, attack roll, damage roll, AC</li></ul></div>"
 };
 
+// Ensure our draft state exists globally on active session load
 export const getOrInitDraftState = () => {
     if (!window.appData.patternSpellDraft || typeof window.appData.patternSpellDraft !== 'object') {
         window.appData.patternSpellDraft = {
@@ -172,20 +184,22 @@ export const getOrInitDraftState = () => {
     return window.appData.patternSpellDraft;
 };
 
+// =========================================================================
+// Real-time Affinity and Cost Calculation Engines
+// =========================================================================
 export function calculateAffinityLimitsAndCosts(pc, pm, draft) {
     const primary = draft.patterns[0] || null;
     const supports = draft.patterns.slice(1);
     
     const results = {
-        limits: {}, // category: max allowable tier
-        costs: {},  // category: active cost
+        limits: {}, 
+        costs: {},  
         totalBaseCost: 0,
         finalCost: 0,
-        dc: 5, // V5 Rule Change: Base DC is 5 + Cost
+        dc: 5, 
         affinitiesActiveText: {}
     };
 
-    // Calculate maximum allowable tiers for all 7 effect categories
     Object.keys(PATTERN_CONFIG.Effects).forEach(category => {
         let maxTier = 0;
         let activeAffText = 'Restricted (Tier 0)';
@@ -215,7 +229,6 @@ export function calculateAffinityLimitsAndCosts(pc, pm, draft) {
             });
         }
 
-        // MANDATORY BASELINE RULE
         if (PATTERN_CONFIG.Effects[category] && PATTERN_CONFIG.Effects[category].mandatory) {
             if (maxTier < 1) {
                 maxTier = 1;
@@ -227,7 +240,6 @@ export function calculateAffinityLimitsAndCosts(pc, pm, draft) {
         results.affinitiesActiveText[category] = activeAffText;
     });
 
-    // Compute costs based on configured draft tiers
     Object.keys(PATTERN_CONFIG.Effects).forEach(category => {
         const tier = draft.effectTiers[category] || 0;
         const config = PATTERN_CONFIG.Effects[category];
@@ -257,6 +269,9 @@ export function calculateAffinityLimitsAndCosts(pc, pm, draft) {
     return results;
 }
 
+// =========================================================================
+// Dynamic Forms Builder (LIGHT VIBRANT THEME)
+// =========================================================================
 export function buildEffectsHTML(metrics, draft, pm, activePc) {
     let html = '';
     const primary = draft.patterns[0] || null;
@@ -272,13 +287,14 @@ export function buildEffectsHTML(metrics, draft, pm, activePc) {
             ? effectData.invertedTiers 
             : effectData.tiers;
 
+        // Affinity Star Logic
         let starHtml = '';
         if (primary) {
             const primAff = PATTERN_CONFIG.Affinities[primary];
             if (primAff && primAff.primary.includes(category)) {
-                starHtml = `<i class="fa-solid fa-star text-amber-400 ml-2 drop-shadow-[0_0_5px_rgba(251,191,36,0.8)]" title="Primary Affinity"></i>`;
+                starHtml = `<i class="fa-solid fa-star text-blue-600 ml-2 drop-shadow-sm" title="Primary Affinity"></i>`;
             } else if (primAff && primAff.secondary.includes(category)) {
-                starHtml = `<i class="fa-regular fa-star text-amber-400 ml-2 drop-shadow-[0_0_5px_rgba(251,191,36,0.8)]" title="Secondary Affinity"></i>`;
+                starHtml = `<i class="fa-regular fa-star text-blue-600 ml-2 drop-shadow-sm" title="Secondary Affinity"></i>`;
             }
         }
 
@@ -293,10 +309,10 @@ export function buildEffectsHTML(metrics, draft, pm, activePc) {
             if (activePatterns.includes('vitar') && !allowedTypes.includes('healing')) allowedTypes.push('healing');
 
             optionsSelectHtml = `
-                <div class="mt-2.5 flex items-center gap-2 bg-slate-900/40 px-3 py-2 rounded-sm border border-slate-500/30 shadow-inner">
-                    <span class="text-[10px] font-bold text-slate-300 uppercase tracking-widest"><i class="fa-solid fa-bolt mr-1.5 text-amber-400"></i> Energy Type:</span>
-                    <select onchange="window.appActions.updateDraftField('effectTiers.damageType', this.value)" class="glass-input rounded-sm text-white text-xs font-bold font-serif outline-none p-1 flex-grow shadow-sm capitalize hover:border-amber-400 cursor-pointer">
-                        ${allowedTypes.map(t => `<option class="text-black" value="${t}" ${draft.effectTiers.damageType === t ? 'selected' : ''}>${t}</option>`).join('')}
+                <div class="mt-2.5 flex items-center gap-2 bg-white/50 px-3 py-2 rounded-sm border border-white/60 shadow-inner">
+                    <span class="text-[10px] font-bold text-slate-700 uppercase tracking-widest"><i class="fa-solid fa-bolt mr-1.5 text-blue-600"></i> Energy Type:</span>
+                    <select onchange="window.appActions.updateDraftField('effectTiers.damageType', this.value)" class="glass-input rounded-sm text-slate-900 text-xs font-bold font-serif outline-none p-1 flex-grow shadow-sm capitalize cursor-pointer">
+                        ${allowedTypes.map(t => `<option class="text-slate-900 bg-white" value="${t}" ${draft.effectTiers.damageType === t ? 'selected' : ''}>${t}</option>`).join('')}
                     </select>
                 </div>
             `;
@@ -306,10 +322,10 @@ export function buildEffectsHTML(metrics, draft, pm, activePc) {
             const adjustedActiveTierForOptions = isMandatory ? activeTier : activeTier;
             const allowedOptions = (effectData.tiers[adjustedActiveTierForOptions] && effectData.tiers[adjustedActiveTierForOptions].options) ? effectData.tiers[adjustedActiveTierForOptions].options : ['Skill Check'];
             optionsSelectHtml = `
-                <div class="mt-2.5 flex items-center gap-2 bg-slate-900/40 px-3 py-2 rounded-sm border border-slate-500/30 shadow-inner">
-                    <span class="text-[10px] font-bold text-slate-300 uppercase tracking-widest"><i class="fa-solid fa-shield-halved mr-1.5 text-amber-400"></i> Target:</span>
-                    <select onchange="window.appActions.updateDraftField('effectTiers.bolsterHinderTarget', this.value)" class="glass-input rounded-sm text-white text-xs font-bold font-serif outline-none p-1 flex-grow shadow-sm hover:border-amber-400 cursor-pointer">
-                        ${allowedOptions.map(opt => `<option class="text-black" value="${opt}" ${draft.effectTiers.bolsterHinderTarget === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                <div class="mt-2.5 flex items-center gap-2 bg-white/50 px-3 py-2 rounded-sm border border-white/60 shadow-inner">
+                    <span class="text-[10px] font-bold text-slate-700 uppercase tracking-widest"><i class="fa-solid fa-shield-halved mr-1.5 text-blue-600"></i> Target:</span>
+                    <select onchange="window.appActions.updateDraftField('effectTiers.bolsterHinderTarget', this.value)" class="glass-input rounded-sm text-slate-900 text-xs font-bold font-serif outline-none p-1 flex-grow shadow-sm cursor-pointer">
+                        ${allowedOptions.map(opt => `<option class="text-slate-900 bg-white" value="${opt}" ${draft.effectTiers.bolsterHinderTarget === opt ? 'selected' : ''}>${opt}</option>`).join('')}
                     </select>
                 </div>
             `;
@@ -317,40 +333,40 @@ export function buildEffectsHTML(metrics, draft, pm, activePc) {
 
         if (category === 'augmentia' && activeTier > 0) {
             const examples = (effectData.tiers[activeTier] && effectData.tiers[activeTier].examples) ? effectData.tiers[activeTier].examples : [];
-            let exampleOptionsHtml = '<option class="text-black" value="">-- Select an Example --</option>';
+            let exampleOptionsHtml = '<option class="text-slate-900 bg-white" value="">-- Select an Example --</option>';
             if (examples.length > 0) {
                 examples.forEach(ex => {
                     const sanitizedTip = (ex.tip || '').replace(/"/g, '&quot;');
-                    exampleOptionsHtml += `<option class="text-black" value="${ex.name}" title="${sanitizedTip}">${ex.name}</option>`;
+                    exampleOptionsHtml += `<option class="text-slate-900 bg-white" value="${ex.name}" title="${sanitizedTip}">${ex.name}</option>`;
                 });
                 optionsSelectHtml = `
-                    <div class="mt-2.5 flex flex-col gap-2 bg-slate-900/40 px-3 py-2.5 rounded-sm border border-slate-500/30 shadow-inner">
+                    <div class="mt-2.5 flex flex-col gap-2 bg-white/50 px-3 py-2.5 rounded-sm border border-white/60 shadow-inner">
                         <div class="flex flex-col gap-1">
-                            <span class="text-[10px] font-bold text-slate-300 uppercase tracking-widest flex items-center"><i class="fa-solid fa-lightbulb mr-1.5 text-amber-400"></i> Known Alterations</span>
-                            <select onchange="document.getElementById('draft-aug-custom-${activeTier}').value = this.value; window.appActions.updateDraftField('effectTiers.augmentiaCustom', this.value);" class="w-full glass-input rounded-sm p-1.5 text-xs text-white outline-none font-serif shadow-sm cursor-pointer hover:border-amber-400">
+                            <span class="text-[10px] font-bold text-slate-700 uppercase tracking-widest flex items-center"><i class="fa-solid fa-lightbulb mr-1.5 text-blue-600"></i> Known Alterations</span>
+                            <select onchange="document.getElementById('draft-aug-custom-${activeTier}').value = this.value; window.appActions.updateDraftField('effectTiers.augmentiaCustom', this.value);" class="w-full glass-input rounded-sm p-1.5 text-xs text-slate-900 outline-none font-serif shadow-sm cursor-pointer">
                                 ${exampleOptionsHtml}
                             </select>
                         </div>
-                        <div class="flex flex-col gap-1 mt-1 border-t border-slate-600/30 pt-2">
-                            <span class="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Custom Effect Detail</span>
+                        <div class="flex flex-col gap-1 mt-1 border-t border-slate-300 pt-2">
+                            <span class="text-[10px] font-bold text-slate-700 uppercase tracking-widest">Custom Effect Detail</span>
                             <input type="text" 
                                    id="draft-aug-custom-${activeTier}"
                                    oninput="window.appActions.updateDraftField('effectTiers.augmentiaCustom', this.value, false, true)" 
                                    value="${draft.effectTiers.augmentiaCustom || ''}" 
                                    placeholder="Or describe a custom alteration..." 
-                                   class="w-full glass-input rounded-sm p-2 text-xs text-white outline-none font-serif shadow-sm focus:border-amber-400 transition-colors">
+                                   class="w-full glass-input rounded-sm p-2 text-xs text-slate-900 outline-none font-serif shadow-sm transition-colors">
                         </div>
                     </div>
                 `;
             } else {
                  optionsSelectHtml = `
-                    <div class="mt-2.5 flex flex-col gap-1.5 bg-slate-900/40 px-3 py-2 rounded-sm border border-slate-500/30 shadow-inner">
-                        <span class="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Custom Effect Detail:</span>
+                    <div class="mt-2.5 flex flex-col gap-1.5 bg-white/50 px-3 py-2 rounded-sm border border-white/60 shadow-inner">
+                        <span class="text-[10px] font-bold text-slate-700 uppercase tracking-widest">Custom Effect Detail:</span>
                         <input type="text" 
                                oninput="window.appActions.updateDraftField('effectTiers.augmentiaCustom', this.value, false, true)" 
                                value="${draft.effectTiers.augmentiaCustom || ''}" 
                                placeholder="Describe the alteration..." 
-                               class="w-full glass-input rounded-sm p-2 text-xs text-white outline-none font-serif shadow-sm focus:border-amber-400 transition-colors">
+                               class="w-full glass-input rounded-sm p-2 text-xs text-slate-900 outline-none font-serif shadow-sm transition-colors">
                     </div>
                 `;
             }
@@ -359,11 +375,11 @@ export function buildEffectsHTML(metrics, draft, pm, activePc) {
         let specialToggleHtml = '';
         if (category === 'duration') {
             specialToggleHtml = `
-                <label class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-200 cursor-pointer select-none hover:text-amber-300 transition-colors">
+                <label class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-700 cursor-pointer select-none hover:text-blue-700 transition-colors">
                     <input type="checkbox" 
                            onchange="window.appActions.toggleDurationInversion(this.checked)" 
                            ${draft.effectTiers.durationInverted ? 'checked' : ''} 
-                           class="w-4 h-4 text-amber-500 bg-slate-800 border-slate-500 rounded-sm focus:ring-amber-500 shadow-sm cursor-pointer">
+                           class="w-4 h-4 text-blue-600 bg-white/50 border-white/60 rounded-sm focus:ring-blue-500 shadow-sm cursor-pointer">
                     <span>Longer is Better</span>
                 </label>
             `;
@@ -377,11 +393,11 @@ export function buildEffectsHTML(metrics, draft, pm, activePc) {
                 const isDisabled = index > adjustedMaxTier;
                 const isSelected = activeTier === index;
                 
-                let btnClass = 'glass-btn text-slate-300 hover:text-white';
+                let btnClass = 'glass-btn text-slate-800';
                 if (isDisabled) {
-                    btnClass = 'border-slate-700/50 bg-slate-900/60 text-slate-500 cursor-not-allowed shadow-none';
+                    btnClass = 'border-white/30 bg-white/30 text-slate-500 cursor-not-allowed shadow-none';
                 } else if (isSelected) {
-                    btnClass = 'border-amber-400 bg-amber-500/20 text-white font-bold shadow-[0_0_12px_rgba(251,191,36,0.4)]';
+                    btnClass = 'border-blue-500 bg-blue-600 text-white font-bold shadow-[0_0_10px_rgba(37,99,235,0.4)]';
                 }
 
                 const displayTier = isMandatory ? index + 1 : index;
@@ -398,19 +414,19 @@ export function buildEffectsHTML(metrics, draft, pm, activePc) {
             });
         }
 
-        const labelColorClass = maxTierAllowed > 0 ? 'text-white' : 'text-slate-400';
-        const subtextColorClass = maxTierAllowed > 0 ? 'text-amber-400' : 'text-slate-500';
+        const labelColorClass = maxTierAllowed > 0 ? 'text-slate-900' : 'text-slate-500';
+        const subtextColorClass = maxTierAllowed > 0 ? 'text-blue-700' : 'text-slate-500';
 
         html += `
             <div class="p-4 glass-panel rounded-sm">
-                <div class="flex justify-between items-start mb-3 gap-2 flex-wrap border-b border-white/20 pb-2">
+                <div class="flex justify-between items-start mb-3 gap-2 flex-wrap border-b border-white/60 pb-2">
                     <div>
                         <div class="flex items-center">
-                            <h4 class="text-sm font-bold font-serif ${labelColorClass} drop-shadow-md">${labelText}</h4>
-                            <button type="button" onclick="window.appActions.openEffectInfoModal('${category}')" class="ml-2 text-slate-300 hover:text-amber-400 cursor-pointer transition-colors drop-shadow-md" title="View Details"><i class="fa-solid fa-circle-info text-xs"></i></button>
+                            <h4 class="text-sm font-bold font-serif ${labelColorClass} drop-shadow-sm">${labelText}</h4>
+                            <button type="button" onclick="window.appActions.openEffectInfoModal('${category}')" class="ml-2 text-slate-500 hover:text-blue-600 cursor-pointer transition-colors drop-shadow-sm" title="View Details"><i class="fa-solid fa-circle-info text-xs"></i></button>
                             ${starHtml}
                         </div>
-                        <span class="text-[9px] font-sans uppercase font-bold tracking-widest ${subtextColorClass} drop-shadow-md">${subtext}</span>
+                        <span class="text-[9px] font-sans uppercase font-bold tracking-widest ${subtextColorClass} drop-shadow-sm">${subtext}</span>
                     </div>
                     ${specialToggleHtml}
                 </div>
