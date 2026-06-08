@@ -1,5 +1,5 @@
 import { renderLevelOptions, renderSmartField } from './ui-core.js';
-import { reRender } from './state.js';
+import { reRender, generateId } from './state.js';
 
 // Helper to generate the visibility toggle button
 function renderVisToggle(visObj) {
@@ -355,7 +355,7 @@ export function getSessionEditHTML(state) {
             <!-- Footer Actions -->
             <div class="bg-[#e8dec7] p-3 sm:p-4 border-t border-stone-400 flex justify-end gap-2 shrink-0 z-10 shadow-[0_-4px_10px_rgba(0,0,0,0.1)]">
                 <button onclick="window.appActions.setView('adventure')" class="px-4 py-2 text-stone-600 border border-stone-400 rounded-sm hover:bg-stone-300 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs">Discard Changes</button>
-                <button onclick="window.appActions.saveSession()" class="px-5 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs flex items-center shadow-md"><i class="fa-solid fa-floppy-disk mr-2"></i> Inscribe Private Notes</button>
+                <button onclick="window.appActions.saveSession()" class="px-5 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-700 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs flex items-center shadow-md"><i class="fa-solid fa-floppy-disk mr-2"></i> Inscribe Private Notes</button>
             </div>
         </div>
         `;
@@ -407,23 +407,24 @@ export function getSessionEditHTML(state) {
     let scenesHtml = '';
     if (session.scenes && session.scenes.length > 0) {
         session.scenes.forEach((scene, i) => {
+            const sceneId = scene.id || generateId();
             const safeText = (scene.text || '').replace(/"/g, '&quot;').replace(/\n/g, '&#10;');
             const parsedText = scene.text ? window.appActions.parseSmartText(scene.text) : '<span class="text-stone-400 italic font-sans">Tap to describe the scene...</span>';
             const visHtml = renderVisToggle(scene.visibility);
             
             scenesHtml += `
-            <div class="mb-4 scene-row vis-container bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm shadow-sm flex flex-col group cursor-text" onclick="window.appActions.openUniversalEditor('scene-input-${i}', 'Scene ${i + 1}')">
+            <div class="mb-4 scene-row vis-container bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm shadow-sm flex flex-col group cursor-text" onclick="window.appActions.openUniversalEditor('scene-input-${sceneId}', 'Scene ${i + 1}')">
                 <div class="flex justify-between items-center bg-[#f4ebd8] px-3 py-1.5 border-b border-[#d4c5a9] rounded-t-sm">
                     <span class="text-[10px] text-stone-500 font-bold uppercase tracking-widest">Scene ${i + 1}</span>
                     <div class="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity items-center">
                         ${visHtml}
                         <div class="w-px h-3 bg-stone-300"></div>
-                        <button type="button" class="text-[10px] text-stone-500 hover:text-blue-600 uppercase font-bold transition" onclick="event.stopPropagation(); window.appActions.openUniversalEditor('scene-input-${i}', 'Scene ${i + 1}')"><i class="fa-solid fa-pen"></i> Edit</button>
+                        <button type="button" class="text-[10px] text-stone-500 hover:text-blue-600 uppercase font-bold transition" onclick="event.stopPropagation(); window.appActions.openUniversalEditor('scene-input-${sceneId}', 'Scene ${i + 1}')"><i class="fa-solid fa-pen"></i> Edit</button>
                         <button type="button" class="text-[10px] text-red-800 hover:text-red-600 uppercase font-bold transition" onclick="event.stopPropagation(); this.closest('.scene-row').remove()"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 </div>
-                <input type="hidden" id="scene-input-${i}" class="scene-hidden-input" value="${safeText}">
-                <div id="view-scene-input-${i}" class="w-full text-stone-800 text-xs sm:text-sm p-3 min-h-[4rem] leading-relaxed whitespace-pre-wrap font-serif group-hover:bg-white transition">
+                <input type="hidden" id="scene-input-${sceneId}" class="scene-hidden-input" value="${safeText}">
+                <div id="view-scene-input-${sceneId}" class="w-full text-stone-800 text-xs sm:text-sm p-3 min-h-[4rem] leading-relaxed whitespace-pre-wrap font-serif group-hover:bg-white transition">
                     ${parsedText}
                 </div>
             </div>`;
@@ -452,7 +453,7 @@ export function getSessionEditHTML(state) {
                 <i class="fa-solid fa-magnifying-glass text-stone-400 ml-1 shrink-0"></i>
                 <input type="hidden" class="vis-mode-input" value="${mode}">
                 <input type="hidden" class="vis-players-input" value="${players}">
-                <input type="hidden" class="clue-id-input" value="${clue.id || ''}">
+                <input type="hidden" class="clue-id-input" value="${clue.id || generateId()}">
                 <input type="hidden" class="clue-author-input" value="${clue.authorId || ''}">
                 
                 ${authorBadge}
@@ -733,7 +734,7 @@ export function getSessionEditHTML(state) {
         <!-- Footer Actions -->
         <div class="bg-[#e8dec7] p-3 sm:p-4 border-t border-stone-400 flex justify-end gap-2 shrink-0 z-10 shadow-[0_-4px_10px_rgba(0,0,0,0.1)]">
             <button onclick="window.appActions.setView('adventure')" class="px-4 py-2 text-stone-600 border border-stone-400 rounded-sm hover:bg-stone-300 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs">Discard Changes</button>
-            <button onclick="window.appActions.saveSession()" class="px-5 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs flex items-center shadow-md"><i class="fa-solid fa-floppy-disk mr-2"></i> Inscribe Record</button>
+            <button onclick="window.appActions.saveSession()" class="px-5 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-700 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs flex items-center shadow-md"><i class="fa-solid fa-floppy-disk mr-2"></i> Inscribe Record</button>
         </div>
     </div>
     `;
