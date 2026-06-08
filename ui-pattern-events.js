@@ -20,6 +20,16 @@ import {
 if (typeof window !== 'undefined') {
     window.appActions = window.appActions || {};
 
+    // Helper function for notifications
+    const showNotification = (message, type = 'info') => {
+        if (window.appActions && typeof window.appActions.notify === 'function') {
+            window.appActions.notify(message, type);
+        } else {
+            alert(`${type.toUpperCase()}: ${message}`);
+            console.warn(`Notify missing in appActions. Fallback alert triggered: ${message}`);
+        }
+    };
+
     // --- GRIMOIRE GUIDE (TUTORIAL) MODAL ---
     window.appActions.openWeavingGuideModal = () => {
         const modalHtml = `
@@ -279,12 +289,6 @@ if (typeof window !== 'undefined') {
     };
 
     window.appActions.openEffectInfoModal = (category) => {
-        // Fetch tooltip data
-        // ... requires EFFECT_TOOLTIPS from ui-pattern-utils.js ...
-        // So we will grab it from PATTERN_CONFIG or just rely on a global lookup
-        // We actually imported it from utils! But wait, we didn't export EFFECT_TOOLTIPS from utils.
-        // Let's assume we either export it, or reconstruct it here.
-        // Actually, since I didn't export EFFECT_TOOLTIPS in the previous block, let's redefine it here just for this modal to be safe.
         const EFFECT_TOOLTIPS_LOCAL = {
             range: "Dictates the maximum distance at which you can weave this magic.",
             duration: "The length of time the physical ripples of your magic persist.<br><br><div class='bg-amber-900/40 border border-amber-500/50 p-2 rounded-sm text-[10px]'><strong class='text-amber-400 block mb-1'>The Rule of Cost:</strong> The more beneficial the timing is to your spell's intent, the higher the Essentia cost will be.</div><ul class='space-y-1.5 text-[11px] mt-2'><li><b>Shorter is Better (Default):</b> Used when a sudden impact is the goal. <i>(e.g., an instantaneous fireball costs 5E, but a slow, delayed blast costs less)</i>.</li><li><b>Longer is Better (Toggle):</b> Used for buffs, debuffs, or utility where maintaining the effect over time is the goal. <i>(e.g., flying for 8 hours costs 5E, but flying for 1 round costs 2E)</i>.</li></ul>",
@@ -547,13 +551,13 @@ if (typeof window !== 'undefined') {
         const name = nameInput ? nameInput.value.trim() : '';
 
         if (!name) {
-            window.appActions.notify("Your Grimoire requires a name for this Rote before scribing.", "error");
+            showNotification("Your Grimoire requires a name for this Rote before scribing.", "error");
             return;
         }
 
         const draft = getOrInitDraftState();
         if (draft.patterns.length === 0) {
-            window.appActions.notify("Weave threads on the Loom to configure a spell before saving.", "error");
+            showNotification("Weave threads on the Loom to configure a spell before saving.", "error");
             return;
         }
 
@@ -571,14 +575,14 @@ if (typeof window !== 'undefined') {
         });
 
         if (exceeds) {
-            window.appActions.notify("You cannot scribe a Rote containing elements that exceed your attuned Pattern Ranks.", "error");
+            showNotification("You cannot scribe a Rote containing elements that exceed your attuned Pattern Ranks.", "error");
             return;
         }
 
         // Check mandatory tiers before allowing Rote to save
         for (const [cat, data] of Object.entries(PATTERN_CONFIG.Effects)) {
             if (data.mandatory && (draft.effectTiers[cat] || 0) === 0) {
-                window.appActions.notify("All Mandatory spell parameters (Range, Duration, Activation Time, Area/Targets) must be defined before scribing.", "error");
+                showNotification("All Mandatory spell parameters (Range, Duration, Activation Time, Area/Targets) must be defined before scribing.", "error");
                 return;
             }
         }
@@ -594,7 +598,7 @@ if (typeof window !== 'undefined') {
             effectTiers: { ...draft.effectTiers }
         };
 
-        const success = await window.appActions.saveRote(pcId, rotePayload);
+        const success = await saveRote(pcId, rotePayload);
         if (success) {
             if (nameInput) nameInput.value = '';
             reRender(true);
@@ -639,7 +643,7 @@ if (typeof window !== 'undefined') {
     window.appActions.castCurrentPatternSpell = async (pcId) => {
         const draft = getOrInitDraftState();
         if (draft.patterns.length === 0) {
-            window.appActions.notify("A Primary Thread must be woven into the Loom before unleashing magic.", "error");
+            showNotification("A Primary Thread must be woven into the Loom before unleashing magic.", "error");
             return;
         }
 
@@ -651,7 +655,7 @@ if (typeof window !== 'undefined') {
         const metrics = calculateAffinityLimitsAndCosts(pc, pm, draft);
 
         if (pm.essentia < metrics.finalCost) {
-            window.appActions.notify("Your Essentia Reservoir lacks the fuel required to weave this Pattern.", "error");
+            showNotification("Your Essentia Reservoir lacks the fuel required to weave this Pattern.", "error");
             return;
         }
 
