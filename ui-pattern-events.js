@@ -463,7 +463,8 @@ if (typeof window !== 'undefined') {
             let isValid = primary !== null;
             if (isValid) {
                 for (const [cat, data] of Object.entries(PATTERN_CONFIG.Effects)) {
-                    if (data.mandatory && (draft.effectTiers[cat] || 0) === 0) {
+                    // FIX: Allow 0 since index 0 represents the default Tier 1
+                    if (data.mandatory && (draft.effectTiers[cat] === undefined || draft.effectTiers[cat] < 0)) {
                         isValid = false;
                         break;
                     }
@@ -581,7 +582,8 @@ if (typeof window !== 'undefined') {
 
         // Check mandatory tiers before allowing Rote to save
         for (const [cat, data] of Object.entries(PATTERN_CONFIG.Effects)) {
-            if (data.mandatory && (draft.effectTiers[cat] || 0) === 0) {
+            // FIX: Allow 0 since index 0 represents the default Tier 1
+            if (data.mandatory && (draft.effectTiers[cat] === undefined || draft.effectTiers[cat] < 0)) {
                 showNotification("All Mandatory spell parameters (Range, Duration, Activation Time, Area/Targets) must be defined before scribing.", "error");
                 return;
             }
