@@ -18,15 +18,23 @@ export const injectTapestryStyles = () => {
             position: absolute;
             inset: -5%;
             z-index: 0;
-            /* Highly saturated, primary-color multi-stop gradient */
-            background: linear-gradient(135deg, #06b6d4, #3b82f6, #9333ea, #ec4899, #ef4444, #f59e0b, #84cc16);
-            background-size: 400% 400%;
-            animation: driftWeave 25s ease-in-out infinite alternate;
+            /* Tightly banded rainbow gradient so no single color dominates */
+            background: linear-gradient(135deg, 
+                #0ea5e9 0%,   /* Bright Teal */
+                #3b82f6 15%,  /* Royal Blue */
+                #8b5cf6 30%,  /* Violet */
+                #ec4899 45%,  /* Pink */
+                #ef4444 60%,  /* Red */
+                #f97316 75%,  /* Orange */
+                #eab308 88%,  /* Yellow */
+                #22c55e 100%  /* Green */
+            );
+            background-size: 200% 200%;
+            animation: driftWeave 15s ease-in-out infinite alternate;
         }
         @keyframes driftWeave {
-            0% { background-position: 0% 50%; transform: scale(1.05); }
-            50% { background-position: 100% 50%; transform: scale(1); }
-            100% { background-position: 0% 50%; transform: scale(1.05); }
+            0% { background-position: 0% 0%; transform: scale(1.05); }
+            100% { background-position: 100% 100%; transform: scale(1.05); }
         }
 
         /* TIGHT FABRIC WEAVE TEXTURE */
@@ -34,11 +42,12 @@ export const injectTapestryStyles = () => {
             position: absolute;
             inset: 0;
             z-index: 1;
-            opacity: 0.35;
+            opacity: 0.4;
+            /* Creates a realistic over-under woven thread look */
             background-image:
-                linear-gradient(90deg, rgba(0,0,0,0.15) 2px, transparent 2px),
-                linear-gradient(rgba(0,0,0,0.15) 2px, transparent 2px);
-            background-size: 8px 8px;
+                linear-gradient(90deg, rgba(0,0,0,0.3) 1px, transparent 1px, transparent 3px, rgba(255,255,255,0.3) 3px, rgba(255,255,255,0.3) 4px),
+                linear-gradient(0deg, rgba(0,0,0,0.3) 1px, transparent 1px, transparent 3px, rgba(255,255,255,0.3) 3px, rgba(255,255,255,0.3) 4px);
+            background-size: 4px 4px;
             pointer-events: none;
         }
 
