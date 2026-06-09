@@ -25,41 +25,98 @@ export const injectTapestryStyles = () => {
             position: absolute;
             inset: -5%;
             z-index: 0;
-            background-image: 
-                repeating-linear-gradient(
-                    to bottom,
-                    rgba(236, 72, 153, 0.6) 0px, rgba(236, 72, 153, 0.6) 32px,
-                    rgba(59, 130, 246, 0.6) 32px, rgba(59, 130, 246, 0.6) 64px,
-                    rgba(234, 179, 8, 0.6) 64px, rgba(234, 179, 8, 0.6) 96px,
-                    rgba(14, 165, 233, 0.6) 96px, rgba(14, 165, 233, 0.6) 128px
-                ),
-                repeating-linear-gradient(
-                    to right,
-                    #0ea5e9 0px, #0ea5e9 32px,
-                    #a855f7 32px, #a855f7 64px,
-                    #22c55e 64px, #22c55e 96px,
-                    #ef4444 96px, #ef4444 128px,
-                    #3b82f6 128px, #3b82f6 160px,
-                    #f97316 160px, #f97316 192px
-                );
-            animation: driftWeave 30s linear infinite alternate;
+            --sz: 30px; /* Thread thickness */
+            
+            /* Shifting Vibrant Palette */
+            --w1: hsl(calc(var(--cycle-hue) + 0), 100%, 55%);
+            --w2: hsl(calc(var(--cycle-hue) + 60), 100%, 55%);
+            --w3: hsl(calc(var(--cycle-hue) + 120), 100%, 55%);
+            --w4: hsl(calc(var(--cycle-hue) + 180), 100%, 55%);
+            
+            --v1: hsl(calc(var(--cycle-hue) + 240), 100%, 55%);
+            --v2: hsl(calc(var(--cycle-hue) + 300), 100%, 55%);
+            --v3: hsl(calc(var(--cycle-hue) + 30), 100%, 55%);
+            --v4: hsl(calc(var(--cycle-hue) + 210), 100%, 55%);
+
+            background-color: #050505;
+            background-image:
+                /* 1. Micro-strands horizontal */
+                repeating-linear-gradient(to bottom, rgba(255,255,255,0) 0, rgba(255,255,255,0.4) 1.5px, rgba(0,0,0,0.6) 3.5px, rgba(0,0,0,0) 5px),
+                /* 2. Micro-strands vertical */
+                repeating-linear-gradient(to right, rgba(255,255,255,0) 0, rgba(255,255,255,0.4) 1.5px, rgba(0,0,0,0.6) 3.5px, rgba(0,0,0,0) 5px),
+                
+                /* 3. Thread Bevel Shadows (Horizontal edges) */
+                repeating-linear-gradient(to bottom, rgba(0,0,0,0.85) 0, transparent 4px, transparent calc(var(--sz) - 4px), rgba(0,0,0,0.85) var(--sz)),
+                /* 4. Thread Bevel Shadows (Vertical edges) */
+                repeating-linear-gradient(to right, rgba(0,0,0,0.85) 0, transparent 4px, transparent calc(var(--sz) - 4px), rgba(0,0,0,0.85) var(--sz)),
+
+                /* 5. Ambient Occlusion (Darken intersections perfectly) */
+                conic-gradient(from 0deg, rgba(0,0,0,0.7) 90deg, transparent 90deg 180deg, rgba(0,0,0,0.7) 180deg 270deg, transparent 270deg),
+
+                /* --- THE WEAVE PATTERN --- */
+                /* Row 1 (Weft) */
+                repeating-linear-gradient(to right, var(--w1) 0 var(--sz), transparent var(--sz) calc(var(--sz)*2)),
+                /* Row 2 (Weft) */
+                repeating-linear-gradient(to right, transparent 0 var(--sz), var(--w2) var(--sz) calc(var(--sz)*2)),
+                /* Row 3 (Weft) */
+                repeating-linear-gradient(to right, var(--w3) 0 var(--sz), transparent var(--sz) calc(var(--sz)*2)),
+                /* Row 4 (Weft) */
+                repeating-linear-gradient(to right, transparent 0 var(--sz), var(--w4) var(--sz) calc(var(--sz)*2)),
+                
+                /* Vertical Base Colors (Warp) */
+                repeating-linear-gradient(to right, var(--v1) 0 var(--sz), var(--v2) var(--sz) calc(var(--sz)*2), var(--v3) calc(var(--sz)*2) calc(var(--sz)*3), var(--v4) calc(var(--sz)*3) calc(var(--sz)*4));
+
+            background-size:
+                100% 5px,              /* micro h */
+                5px 100%,              /* micro v */
+                100% var(--sz),        /* bevel h */
+                var(--sz) 100%,        /* bevel v */
+                calc(var(--sz)*2) calc(var(--sz)*2), /* AO shadow grid */
+                100% calc(var(--sz)*4),/* row 1 */
+                100% calc(var(--sz)*4),/* row 2 */
+                100% calc(var(--sz)*4),/* row 3 */
+                100% calc(var(--sz)*4),/* row 4 */
+                calc(var(--sz)*4) 100%;/* vert base */
+
+            background-position:
+                0 0, 0 0, 0 0, 0 0, 0 0,
+                0 0,                     /* row 1 */
+                0 var(--sz),             /* row 2 */
+                0 calc(var(--sz)*2),     /* row 3 */
+                0 calc(var(--sz)*3),     /* row 4 */
+                0 0;                     /* vert base */
+
+            background-blend-mode:
+                overlay, overlay, multiply, multiply, multiply, normal, normal, normal, normal, normal;
+
+            animation: driftWeave 40s linear infinite;
         }
+
         @keyframes driftWeave {
-            0% { background-position: 0px 0px; transform: scale(1.05); }
-            100% { background-position: 128px 128px; transform: scale(1.05); }
+            0% { 
+                background-position: 
+                    0 0, 0 0, 0 0, 0 0, 0 0, 
+                    0 0, 0 var(--sz), 0 calc(var(--sz)*2), 0 calc(var(--sz)*3), 0 0; 
+            }
+            100% { 
+                background-position: 
+                    0 calc(var(--sz)*4), 
+                    calc(var(--sz)*4) 0, 
+                    0 calc(var(--sz)*4), 
+                    calc(var(--sz)*4) 0, 
+                    calc(var(--sz)*4) calc(var(--sz)*4), 
+                    0 calc(var(--sz)*4), 
+                    0 calc(var(--sz)*5), 
+                    0 calc(var(--sz)*6), 
+                    0 calc(var(--sz)*7), 
+                    calc(var(--sz)*4) 0; 
+            }
         }
 
         /* CHUNKY FABRIC WEAVE TEXTURE */
         .fabric-texture {
-            position: absolute;
-            inset: 0;
-            z-index: 1;
-            opacity: 1;
-            background-image:
-                linear-gradient(90deg, rgba(0,0,0,0.4) 0px, rgba(255,255,255,0.3) 3px, transparent 6px, transparent 26px, rgba(0,0,0,0.2) 29px, rgba(0,0,0,0.5) 32px),
-                linear-gradient(0deg, rgba(0,0,0,0.4) 0px, rgba(255,255,255,0.3) 3px, transparent 6px, transparent 26px, rgba(0,0,0,0.2) 29px, rgba(0,0,0,0.5) 32px);
-            background-size: 32px 32px;
-            pointer-events: none;
+            /* We can hide the old texture layer, as our new weave has native micro-strands! */
+            display: none; 
         }
 
         /* BRIGHT SOFT VIGNETTE */
