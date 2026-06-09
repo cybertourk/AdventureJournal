@@ -37,17 +37,17 @@ export const injectTapestryStyles = () => {
             100% { background-position: 100% 100%; transform: scale(1.05); }
         }
 
-        /* TIGHT FABRIC WEAVE TEXTURE */
+        /* CHUNKY FABRIC WEAVE TEXTURE */
         .fabric-texture {
             position: absolute;
             inset: 0;
             z-index: 1;
-            opacity: 0.4;
-            /* Creates a realistic over-under woven thread look */
+            opacity: 0.65;
+            /* Creates a thick, highly visible over-under woven ribbon look */
             background-image:
-                linear-gradient(90deg, rgba(0,0,0,0.3) 1px, transparent 1px, transparent 3px, rgba(255,255,255,0.3) 3px, rgba(255,255,255,0.3) 4px),
-                linear-gradient(0deg, rgba(0,0,0,0.3) 1px, transparent 1px, transparent 3px, rgba(255,255,255,0.3) 3px, rgba(255,255,255,0.3) 4px);
-            background-size: 4px 4px;
+                linear-gradient(90deg, rgba(0,0,0,0.7) 0px, rgba(255,255,255,0.3) 4px, transparent 8px, transparent 24px, rgba(0,0,0,0.4) 28px, rgba(0,0,0,0.8) 32px),
+                linear-gradient(0deg, rgba(0,0,0,0.7) 0px, rgba(255,255,255,0.3) 4px, transparent 8px, transparent 24px, rgba(0,0,0,0.4) 28px, rgba(0,0,0,0.8) 32px);
+            background-size: 32px 32px;
             pointer-events: none;
         }
 
