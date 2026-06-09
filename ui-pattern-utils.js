@@ -19,7 +19,6 @@ export const injectTapestryStyles = () => {
             inset: -5%;
             z-index: 0;
             /* Creates distinct, hard-edged alternating columns/rows of bright, contrasting colors */
-            /* Removed the black background and blend modes so colors render purely! */
             background-image: 
                 repeating-linear-gradient(
                     to bottom,
@@ -44,18 +43,9 @@ export const injectTapestryStyles = () => {
             100% { background-position: 128px 128px; transform: scale(1.05); }
         }
 
-        /* CHUNKY FABRIC WEAVE TEXTURE */
+        /* FABRIC TEXTURE - GRID REMOVED PER USER REQUEST */
         .fabric-texture {
-            position: absolute;
-            inset: 0;
-            z-index: 1;
-            opacity: 1;
-            /* Subtler shadows to keep the weave 3D without crushing the bright background colors */
-            background-image:
-                linear-gradient(90deg, rgba(0,0,0,0.4) 0px, rgba(255,255,255,0.3) 3px, transparent 6px, transparent 26px, rgba(0,0,0,0.2) 29px, rgba(0,0,0,0.5) 32px),
-                linear-gradient(0deg, rgba(0,0,0,0.4) 0px, rgba(255,255,255,0.3) 3px, transparent 6px, transparent 26px, rgba(0,0,0,0.2) 29px, rgba(0,0,0,0.5) 32px);
-            background-size: 32px 32px;
-            pointer-events: none;
+            display: none; 
         }
 
         /* BRIGHT SOFT VIGNETTE */
