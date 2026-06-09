@@ -38,7 +38,7 @@ export function getPatternNexusHTML(state) {
             <div class="fabric-texture"></div>
             <div class="weave-vignette"></div>
             <div class="relative z-10 flex flex-col items-center justify-center min-h-screen p-8">
-                <div class="max-w-md text-center p-8 glass-panel rounded-sm relative">
+                <div class="max-w-md text-center p-8 glass-panel rounded-sm relative" style="--base-hue: ${Math.floor(Math.random() * 360)}deg;">
                     <i class="fa-solid fa-book-journal-whills text-amber-400 text-4xl mb-4 drop-shadow-[0_0_15px_rgba(251,191,36,0.6)]"></i>
                     <h3 class="font-bold text-2xl text-white mb-2 font-serif drop-shadow-md">No Hero Available</h3>
                     <p class="text-sm text-slate-300 leading-relaxed mb-6 font-serif">Before you can weave the threads of reality, a hero must be initialized and bound to your account.</p>
@@ -62,7 +62,7 @@ export function getPatternNexusHTML(state) {
             <div class="fabric-texture"></div>
             <div class="weave-vignette"></div>
             <div class="relative z-10 flex flex-col items-center justify-center min-h-screen p-8">
-                <div class="max-w-md text-center p-8 glass-panel rounded-sm relative">
+                <div class="max-w-md text-center p-8 glass-panel rounded-sm relative" style="--base-hue: ${Math.floor(Math.random() * 360)}deg;">
                     <i class="fa-solid fa-eye-slash text-slate-400 text-4xl mb-4 drop-shadow-lg"></i>
                     <h3 class="font-bold text-2xl text-white mb-2 font-serif drop-shadow-md">The Tapestry is Hidden</h3>
                     <p class="text-sm text-slate-300 leading-relaxed mb-6 font-serif">Your mind has not yet awakened to the Patterns of reality. The Dungeon Master must unlock this potential within your character sheet.</p>
@@ -80,7 +80,7 @@ export function getPatternNexusHTML(state) {
     });
 
     const pcSelectorHtml = `
-        <div class="flex items-center gap-2 glass-panel px-3 py-1.5 rounded-sm shadow-sm">
+        <div class="flex items-center gap-2 glass-panel px-3 py-1.5 rounded-sm shadow-sm" style="--base-hue: ${Math.floor(Math.random() * 360)}deg;">
             <span class="text-[10px] uppercase tracking-widest text-slate-300 font-bold"><i class="fa-solid fa-user-circle mr-1 text-amber-400"></i> Weaver:</span>
             <select onchange="window.appActions.switchPatternPc(this.value)" class="bg-transparent text-white border-none outline-none text-sm font-bold font-serif cursor-pointer py-0.5">
                 ${allowedWeavers.map(p => {
@@ -155,7 +155,7 @@ export function getPatternNexusHTML(state) {
     let dmAdministrationPanelHtml = '';
     if (isDM) {
         dmAdministrationPanelHtml = `
-            <div class="p-5 glass-panel rounded-sm mb-8 shadow-lg">
+            <div class="p-5 glass-panel rounded-sm mb-8 shadow-lg" style="--base-hue: ${Math.floor(Math.random() * 360)}deg;">
                 <h3 class="text-sm font-bold font-serif text-amber-400 uppercase tracking-widest flex items-center border-b border-white/20 pb-2 mb-5 drop-shadow-md">
                     <i class="fa-solid fa-crown text-amber-400 mr-2 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]"></i> Dungeon Master's Loom Control
                 </h3>
@@ -268,7 +268,7 @@ export function getPatternNexusHTML(state) {
                     <div class="lg:col-span-5 space-y-6">
                         
                         <!-- STEP 1: THE LOOM -->
-                        <div class="glass-panel rounded-sm relative">
+                        <div class="glass-panel rounded-sm relative" style="--base-hue: ${Math.floor(Math.random() * 360)}deg;">
                             <div class="bg-slate-900/40 text-amber-400 p-3 rounded-t-sm border-b border-white/10 flex items-center gap-3">
                                 <span class="bg-amber-500/20 border border-amber-400/50 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shadow-inner shrink-0">1</span>
                                 <h3 class="font-serif font-bold uppercase tracking-widest text-sm drop-shadow-md">The Loom of Reality</h3>
@@ -301,7 +301,7 @@ export function getPatternNexusHTML(state) {
                         </div>
 
                         <!-- HERO'S MATRIX -->
-                        <div class="glass-panel rounded-sm relative text-slate-200">
+                        <div class="glass-panel rounded-sm relative text-slate-200" style="--base-hue: ${Math.floor(Math.random() * 360)}deg;">
                             <div class="flex justify-between items-center border-b border-white/10 p-4 pb-3">
                                 <h3 class="text-sm font-bold text-amber-400 uppercase tracking-widest font-serif flex items-center drop-shadow-md">
                                     <i class="fa-solid fa-bolt mr-2 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]"></i> Hero's Matrix
@@ -370,7 +370,7 @@ export function getPatternNexusHTML(state) {
                     <div class="lg:col-span-7 space-y-6">
                         
                         <!-- STEP 2: SPELL IDENTITY -->
-                        <div class="glass-panel rounded-sm">
+                        <div class="glass-panel rounded-sm" style="--base-hue: ${Math.floor(Math.random() * 360)}deg;">
                             <div class="bg-slate-900/40 text-amber-400 p-3 rounded-t-sm border-b border-white/10 flex items-center gap-3">
                                 <span class="bg-amber-500/20 border border-amber-400/50 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shadow-inner shrink-0">2</span>
                                 <h3 class="font-serif font-bold uppercase tracking-widest text-sm drop-shadow-md">Spell Identity & Intent</h3>
@@ -408,7 +408,7 @@ export function getPatternNexusHTML(state) {
                         </div>
 
                         <!-- STEP 3: CONFIGURE EFFECTS -->
-                        <div class="glass-panel rounded-sm">
+                        <div class="glass-panel rounded-sm" style="--base-hue: ${Math.floor(Math.random() * 360)}deg;">
                             <div class="bg-slate-900/40 text-amber-400 p-3 rounded-t-sm border-b border-white/10 flex items-center gap-3">
                                 <span class="bg-amber-500/20 border border-amber-400/50 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shadow-inner shrink-0">3</span>
                                 <h3 class="font-serif font-bold uppercase tracking-widest text-sm drop-shadow-md">Configure Effects</h3>
@@ -420,8 +420,7 @@ export function getPatternNexusHTML(state) {
                         </div>
 
                         <!-- STEP 4: REVIEW & UNLEASH -->
-                        <div class="bg-slate-900/80 text-slate-200 rounded-sm border border-slate-600/50 shadow-[0_15px_30px_rgba(0,0,0,0.6)] relative overflow-hidden backdrop-blur-md">
-                            <div class="absolute top-0 left-0 w-1.5 h-full bg-amber-400 shadow-[0_0_20px_#facc15]"></div>
+                        <div class="glass-panel rounded-sm text-slate-200" style="--base-hue: ${Math.floor(Math.random() * 360)}deg;">
                             
                             <div class="p-4 border-b border-slate-700/50 bg-slate-950/40 flex items-center gap-3 pl-5">
                                 <span class="bg-amber-500/20 border border-amber-400/50 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shadow-inner shrink-0">4</span>
@@ -472,7 +471,7 @@ export function getPatternNexusHTML(state) {
                         </div>
 
                         <!-- GRIMOIRE QUICK LOAD -->
-                        <div class="glass-panel rounded-sm">
+                        <div class="glass-panel rounded-sm" style="--base-hue: ${Math.floor(Math.random() * 360)}deg;">
                             <div class="bg-slate-900/30 text-slate-200 p-3 rounded-t-sm border-b border-white/10 flex items-center gap-3">
                                 <i class="fa-solid fa-book-journal-whills text-amber-400 ml-1 drop-shadow-md"></i>
                                 <h3 class="font-serif font-bold uppercase tracking-widest text-sm">Memorized Grimoire</h3>
