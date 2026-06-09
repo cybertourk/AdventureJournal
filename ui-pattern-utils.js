@@ -23,9 +23,13 @@ export const injectTapestryStyles = () => {
         /* VIBRANT WOVEN BACKGROUND - HIGH FIDELITY STRANDS */
         .dynamic-weave-bg {
             position: absolute;
-            inset: 0; /* Removed the extra -20% since it no longer drifts */
+            inset: -4%; /* Expand past edges to hide the warping from the organic filter */
             z-index: 0;
-            --sz: 48px; /* Width of a single thick thread */
+            --sz: 24px; /* Thinner threads for a finer tapestry */
+            
+            /* Organic Tapestry Distortion Filter */
+            /* This SVG filter creates natural, wavy imperfections so the strands aren't perfectly straight */
+            filter: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='organic-weave'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.035' numOctaves='3' result='noise'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='noise' scale='4' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/svg%3E#organic-weave");
             
             /* Independent Strand Colors using integer multipliers for seamless loops at different speeds */
             --c-v1: hsl(calc(var(--cycle-hue) * 1 + 0deg), 90%, 45%);
@@ -45,10 +49,10 @@ export const injectTapestryStyles = () => {
             /* VERTICAL THREADS (The bottom layer) */
             background-color: #050505;
             background-image: 
-                /* 1. Micro strands (adds the fiber texture) */
-                repeating-linear-gradient(to right, rgba(255,255,255,0.1) 0px, rgba(0,0,0,0.6) 2px, rgba(255,255,255,0.1) 4px),
-                /* 2. 3D Bevel (makes it a tube instead of a flat block) */
-                repeating-linear-gradient(to right, rgba(0,0,0,0.9) 0px, rgba(0,0,0,0) 8px, rgba(255,255,255,0.35) calc(var(--sz)/2), rgba(0,0,0,0) calc(var(--sz) - 8px), rgba(0,0,0,0.9) var(--sz)),
+                /* 1. Micro strands (tighter for thinner threads) */
+                repeating-linear-gradient(to right, rgba(255,255,255,0.1) 0px, rgba(0,0,0,0.6) 1.5px, rgba(255,255,255,0.1) 3px),
+                /* 2. 3D Bevel (scaled down) */
+                repeating-linear-gradient(to right, rgba(0,0,0,0.9) 0px, rgba(0,0,0,0) 4px, rgba(255,255,255,0.35) calc(var(--sz)/2), rgba(0,0,0,0) calc(var(--sz) - 4px), rgba(0,0,0,0.9) var(--sz)),
                 /* 3. Base Colors (6-color repeating spectrum) */
                 repeating-linear-gradient(to right, 
                     var(--c-v1) 0, var(--c-v1) var(--sz), 
@@ -71,12 +75,12 @@ export const injectTapestryStyles = () => {
             inset: 0;
             
             background-image: 
-                /* 1. Shadows cast BY the vertical threads crossing OVER this horizontal thread */
-                repeating-linear-gradient(to right, rgba(0,0,0,0.85) 0px, transparent 10px, transparent calc(var(--sz) - 10px), rgba(0,0,0,0.85) var(--sz)),
-                /* 2. Micro strands (horizontal texture) */
-                repeating-linear-gradient(to bottom, rgba(255,255,255,0.1) 0px, rgba(0,0,0,0.6) 2px, rgba(255,255,255,0.1) 4px),
-                /* 3. 3D Bevel (horizontal tube shape) */
-                repeating-linear-gradient(to bottom, rgba(0,0,0,0.9) 0px, rgba(0,0,0,0) 8px, rgba(255,255,255,0.35) calc(var(--sz)/2), rgba(0,0,0,0) calc(var(--sz) - 8px), rgba(0,0,0,0.9) var(--sz)),
+                /* 1. Shadows cast BY the vertical threads (scaled down) */
+                repeating-linear-gradient(to right, rgba(0,0,0,0.85) 0px, transparent 6px, transparent calc(var(--sz) - 6px), rgba(0,0,0,0.85) var(--sz)),
+                /* 2. Micro strands (tighter for thinner threads) */
+                repeating-linear-gradient(to bottom, rgba(255,255,255,0.1) 0px, rgba(0,0,0,0.6) 1.5px, rgba(255,255,255,0.1) 3px),
+                /* 3. 3D Bevel (scaled down) */
+                repeating-linear-gradient(to bottom, rgba(0,0,0,0.9) 0px, rgba(0,0,0,0) 4px, rgba(255,255,255,0.35) calc(var(--sz)/2), rgba(0,0,0,0) calc(var(--sz) - 4px), rgba(0,0,0,0.9) var(--sz)),
                 /* 4. Base Colors (6-color repeating spectrum) */
                 repeating-linear-gradient(to bottom, 
                     var(--c-h1) 0, var(--c-h1) var(--sz), 
