@@ -73,14 +73,13 @@ export const injectTapestryStyles = () => {
 
         /* FROSTED LIGHT GLASS UI */
         .glass-panel {
-            background-color: rgba(255, 255, 255, 0.35);
+            background-color: rgba(255, 255, 255, 0.25);
             backdrop-filter: blur(24px);
             -webkit-backdrop-filter: blur(24px);
-            border: 1px solid rgba(255, 255, 255, 0.6);
-            border-top: 1px solid rgba(255, 255, 255, 0.9);
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255,255,255,0.5);
+            /* Removed standard borders to make the animated border the star */
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255,255,255,0.3);
             position: relative;
-            overflow: hidden;
+            /* Removed overflow: hidden so the glow and mote are perfectly round and not clipped */
             --base-hue: 200deg;
             --cycle-hue: 0deg;
             animation: colorCycle 20s linear infinite;
@@ -94,19 +93,25 @@ export const injectTapestryStyles = () => {
         .glass-panel::before {
             content: "";
             position: absolute;
-            top: -2px; left: -2px; right: -2px; bottom: -2px;
+            inset: 0; /* Align perfectly with panel edges */
             border: 2px solid transparent;
             border-radius: inherit;
             pointer-events: none;
-            z-index: -1;
+            z-index: 1; /* Bring above background */
+            /* Cross-browser mask for gradient borders */
+            -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
             mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
             mask-composite: exclude;
+            /* More vibrant colors for the border */
             background: linear-gradient(90deg, 
-                hsl(calc(var(--base-hue) + var(--cycle-hue)), 80%, 60%), 
-                hsl(calc(var(--base-hue) + var(--cycle-hue) + 60deg), 80%, 60%)
+                hsl(calc(var(--base-hue) + var(--cycle-hue)), 100%, 60%), 
+                hsl(calc(var(--base-hue) + var(--cycle-hue) + 60deg), 100%, 60%)
             ) border-box;
             background-size: 200% 100%;
-            animation: borderGlow 6s linear infinite;
+            animation: borderGlow 4s linear infinite;
+            /* A subtle drop shadow on the border itself for extra pop */
+            filter: drop-shadow(0 0 3px hsl(calc(var(--base-hue) + var(--cycle-hue)), 100%, 70%));
         }
 
         @keyframes borderGlow {
@@ -117,12 +122,13 @@ export const injectTapestryStyles = () => {
         .glass-panel::after {
             content: "";
             position: absolute;
-            width: 8px;
-            height: 8px;
-            background: hsl(calc(var(--base-hue) + var(--cycle-hue)), 100%, 70%);
+            width: 10px; /* Slightly larger mote */
+            height: 10px;
+            background: hsl(calc(var(--base-hue) + var(--cycle-hue)), 100%, 75%);
             border-radius: 50%;
-            box-shadow: 0 0 10px hsl(calc(var(--base-hue) + var(--cycle-hue)), 100%, 70%), 
-                        0 0 20px hsl(calc(var(--base-hue) + var(--cycle-hue)), 100%, 50%);
+            /* Enhanced mote glow */
+            box-shadow: 0 0 12px hsl(calc(var(--base-hue) + var(--cycle-hue)), 100%, 75%), 
+                        0 0 25px hsl(calc(var(--base-hue) + var(--cycle-hue)), 100%, 60%);
             z-index: 10;
             offset-path: rect(0 100% 100% 0 round 4px);
             animation: travelMote 8s linear infinite;
