@@ -27,16 +27,16 @@ export const injectTapestryStyles = () => {
             z-index: 0;
             --sz: 30px; /* Thread thickness */
             
-            /* Shifting Vibrant Palette */
-            --w1: hsl(calc(var(--cycle-hue) + 0), 100%, 55%);
-            --w2: hsl(calc(var(--cycle-hue) + 60), 100%, 55%);
-            --w3: hsl(calc(var(--cycle-hue) + 120), 100%, 55%);
-            --w4: hsl(calc(var(--cycle-hue) + 180), 100%, 55%);
+            /* Shifting Vibrant Palette - Fixed with 'deg' units! */
+            --w1: hsl(calc(var(--cycle-hue) + 0deg), 100%, 55%);
+            --w2: hsl(calc(var(--cycle-hue) + 60deg), 100%, 55%);
+            --w3: hsl(calc(var(--cycle-hue) + 120deg), 100%, 55%);
+            --w4: hsl(calc(var(--cycle-hue) + 180deg), 100%, 55%);
             
-            --v1: hsl(calc(var(--cycle-hue) + 240), 100%, 55%);
-            --v2: hsl(calc(var(--cycle-hue) + 300), 100%, 55%);
-            --v3: hsl(calc(var(--cycle-hue) + 30), 100%, 55%);
-            --v4: hsl(calc(var(--cycle-hue) + 210), 100%, 55%);
+            --v1: hsl(calc(var(--cycle-hue) + 240deg), 100%, 55%);
+            --v2: hsl(calc(var(--cycle-hue) + 300deg), 100%, 55%);
+            --v3: hsl(calc(var(--cycle-hue) + 30deg), 100%, 55%);
+            --v4: hsl(calc(var(--cycle-hue) + 210deg), 100%, 55%);
 
             background-color: #050505;
             background-image:
@@ -89,7 +89,8 @@ export const injectTapestryStyles = () => {
             background-blend-mode:
                 overlay, overlay, multiply, multiply, multiply, normal, normal, normal, normal, normal;
 
-            animation: driftWeave 40s linear infinite;
+            /* Added colorCycle so the background shifts colors too! */
+            animation: driftWeave 40s linear infinite, colorCycle 30s linear infinite;
         }
 
         @keyframes driftWeave {
