@@ -96,7 +96,9 @@ export const injectTapestryStyles = () => {
             100% { background-position: 400% 50%; }
         }
 
-        .mote-light {
+        /* Every glass-panel will now automatically contain a mote-light */
+        .glass-panel::after {
+            content: "";
             position: absolute;
             width: 8px;
             height: 8px;
@@ -464,7 +466,6 @@ export function buildEffectsHTML(metrics, draft, pm, activePc) {
 
         html += `
             <div class="p-4 glass-panel rounded-sm">
-                <div class="mote-light"></div>
                 <div class="flex justify-between items-start mb-3 gap-2 flex-wrap border-b border-white/60 pb-2">
                     <div>
                         <div class="flex items-center">
