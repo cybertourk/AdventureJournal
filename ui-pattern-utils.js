@@ -74,7 +74,13 @@ export const injectTapestryStyles = () => {
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255,255,255,0.5);
             position: relative;
             overflow: hidden;
-            --base-hue: 200deg; 
+            --base-hue: 200deg;
+            animation: colorCycle 20s linear infinite;
+        }
+
+        @keyframes colorCycle {
+            0% { --base-hue: 0deg; }
+            100% { --base-hue: 360deg; }
         }
         
         .glass-panel::before {
@@ -87,7 +93,6 @@ export const injectTapestryStyles = () => {
             z-index: -1;
             mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
             mask-composite: exclude;
-            /* Using HSL for dynamic color shifting */
             background: linear-gradient(90deg, hsl(var(--base-hue), 80%, 60%), hsl(calc(var(--base-hue) + 60deg), 80%, 60%)) border-box;
             background-size: 200% 100%;
             animation: borderGlow 6s linear infinite;
@@ -98,7 +103,6 @@ export const injectTapestryStyles = () => {
             100% { background-position: 200% 0%; }
         }
 
-        /* Mote styling updated to use dynamic HSL */
         .glass-panel::after {
             content: "";
             position: absolute;
@@ -117,6 +121,7 @@ export const injectTapestryStyles = () => {
             to { offset-distance: 100%; }
         }
 
+        /* Glass UI Element Styles */
         .glass-input {
             background-color: rgba(255, 255, 255, 0.5);
             border: 1px solid rgba(255, 255, 255, 0.7);
