@@ -74,6 +74,8 @@ export const injectTapestryStyles = () => {
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255,255,255,0.5);
             position: relative;
             overflow: hidden;
+            /* Default base hue, overridden by inline style */
+            --base-hue: 200deg; 
         }
         
         .glass-panel::before {
@@ -88,12 +90,19 @@ export const injectTapestryStyles = () => {
             mask-composite: exclude;
             background: linear-gradient(90deg, #3b82f6, #ec4899, #f59e0b, #3b82f6) border-box;
             background-size: 400%;
-            animation: borderGlow 6s linear infinite;
+            /* Apply the panel's individual base hue shift */
+            filter: hue-rotate(var(--base-hue));
+            animation: borderGlow 6s linear infinite, colorCycle 20s linear infinite;
         }
 
         @keyframes borderGlow {
             0% { background-position: 0% 50%; }
             100% { background-position: 400% 50%; }
+        }
+
+        @keyframes colorCycle {
+            0% { filter: hue-rotate(var(--base-hue)); }
+            100% { filter: hue-rotate(calc(var(--base-hue) + 360deg)); }
         }
 
         /* Every glass-panel will now automatically contain a mote-light */
@@ -107,7 +116,8 @@ export const injectTapestryStyles = () => {
             box-shadow: 0 0 10px white, 0 0 20px #3b82f6;
             z-index: 10;
             offset-path: rect(0 100% 100% 0 round 4px);
-            animation: travelMote 8s linear infinite;
+            animation: travelMote 8s linear infinite, colorCycle 20s linear infinite;
+            filter: hue-rotate(var(--base-hue));
         }
 
         @keyframes travelMote {
@@ -463,9 +473,10 @@ export function buildEffectsHTML(metrics, draft, pm, activePc) {
 
         const labelColorClass = maxTierAllowed > 0 ? 'text-slate-900' : 'text-slate-500';
         const subtextColorClass = maxTierAllowed > 0 ? 'text-blue-700' : 'text-slate-500';
+        const randomHue = Math.floor(Math.random() * 360);
 
         html += `
-            <div class="p-4 glass-panel rounded-sm">
+            <div class="p-4 glass-panel rounded-sm" style="--base-hue: ${randomHue}deg;">
                 <div class="flex justify-between items-start mb-3 gap-2 flex-wrap border-b border-white/60 pb-2">
                     <div>
                         <div class="flex items-center">
