@@ -18,34 +18,28 @@ export const injectTapestryStyles = () => {
             position: absolute;
             inset: -5%;
             z-index: 0;
-            /* Creates distinct, hard-edged alternating columns/rows of bright, contrasting colors */
             background-image: 
                 repeating-linear-gradient(
                     to bottom,
-                    rgba(236, 72, 153, 0.6) 0px, rgba(236, 72, 153, 0.6) 32px, /* Pink */
-                    rgba(59, 130, 246, 0.6) 32px, rgba(59, 130, 246, 0.6) 64px, /* Blue */
-                    rgba(234, 179, 8, 0.6) 64px, rgba(234, 179, 8, 0.6) 96px, /* Yellow */
-                    rgba(14, 165, 233, 0.6) 96px, rgba(14, 165, 233, 0.6) 128px /* Cyan */
+                    rgba(236, 72, 153, 0.6) 0px, rgba(236, 72, 153, 0.6) 32px,
+                    rgba(59, 130, 246, 0.6) 32px, rgba(59, 130, 246, 0.6) 64px,
+                    rgba(234, 179, 8, 0.6) 64px, rgba(234, 179, 8, 0.6) 96px,
+                    rgba(14, 165, 233, 0.6) 96px, rgba(14, 165, 233, 0.6) 128px
                 ),
                 repeating-linear-gradient(
                     to right,
-                    #0ea5e9 0px, #0ea5e9 32px, /* Cyan */
-                    #a855f7 32px, #a855f7 64px, /* Purple */
-                    #22c55e 64px, #22c55e 96px, /* Green */
-                    #ef4444 96px, #ef4444 128px, /* Red */
-                    #3b82f6 128px, #3b82f6 160px, /* Blue */
-                    #f97316 160px, #f97316 192px /* Orange */
+                    #0ea5e9 0px, #0ea5e9 32px,
+                    #a855f7 32px, #a855f7 64px,
+                    #22c55e 64px, #22c55e 96px,
+                    #ef4444 96px, #ef4444 128px,
+                    #3b82f6 128px, #3b82f6 160px,
+                    #f97316 160px, #f97316 192px
                 );
             animation: driftWeave 30s linear infinite alternate;
         }
         @keyframes driftWeave {
             0% { background-position: 0px 0px; transform: scale(1.05); }
             100% { background-position: 128px 128px; transform: scale(1.05); }
-        }
-
-        /* FABRIC TEXTURE - GRID REMOVED PER USER REQUEST */
-        .fabric-texture {
-            display: none; 
         }
 
         /* BRIGHT SOFT VIGNETTE */
@@ -59,17 +53,36 @@ export const injectTapestryStyles = () => {
 
         /* FROSTED LIGHT GLASS UI */
         .glass-panel {
+            position: relative;
             background-color: rgba(255, 255, 255, 0.35);
             backdrop-filter: blur(24px);
             -webkit-backdrop-filter: blur(24px);
             border: 1px solid rgba(255, 255, 255, 0.6);
             border-top: 1px solid rgba(255, 255, 255, 0.9);
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255,255,255,0.5);
+            z-index: 0;
         }
+        
+        /* MOVING MOTE EFFECT */
+        .glass-panel::after {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            border-radius: inherit;
+            background: conic-gradient(from 0deg, transparent 80%, #fbbf24 100%);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask-composite: exclude;
+            -webkit-mask-composite: destination-out;
+            animation: spin 4s linear infinite;
+            z-index: -1;
+        }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
         .glass-input {
             background-color: rgba(255, 255, 255, 0.5);
             border: 1px solid rgba(255, 255, 255, 0.7);
-            color: #0f172a; /* Deep Slate 900 */
+            color: #0f172a;
             transition: all 0.2s;
         }
         .glass-input::placeholder {
@@ -77,7 +90,7 @@ export const injectTapestryStyles = () => {
         }
         .glass-input:focus {
             background-color: rgba(255, 255, 255, 0.8);
-            border-color: #3b82f6; /* Bright Blue */
+            border-color: #3b82f6;
             outline: none;
             box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
         }
@@ -92,7 +105,7 @@ export const injectTapestryStyles = () => {
             background-color: rgba(255, 255, 255, 0.8);
             border-color: #ffffff;
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            color: #1d4ed8; /* Blue 700 */
+            color: #1d4ed8;
         }
         .glass-btn:disabled {
             opacity: 0.5;
@@ -136,19 +149,17 @@ export const injectTapestryStyles = () => {
     document.head.appendChild(style);
 };
 
-// =========================================================================
 // PURE PRIMARY & VIBRANT NEON COLORS
-// =========================================================================
 export const PATTERN_THEME = {
-    spatia: { label: "Spatia", desc: "Space & Dimensions", color: "#06b6d4" }, // Cyan
-    wyird: { label: "Wyird", desc: "Fate & Chaos", color: "#a855f7" }, // Purple
-    dynamis: { label: "Dynamis", desc: "Energy & Elements", color: "#ef4444" }, // Bright Red
-    vitar: { label: "Vitar", desc: "Life & Healing", color: "#22c55e" }, // Lime Green
-    formus: { label: "Formus", desc: "Structure & Matter", color: "#f59e0b" }, // Golden Orange
-    mentis: { label: "Mentis", desc: "Mind & Memory", color: "#ec4899" }, // Hot Pink
-    arcani: { label: "Arcani", desc: "Pure Force & Magic", color: "#3b82f6" }, // Royal Blue
-    umbrus: { label: "Umbrus", desc: "Shadow & Cold", color: "#4338ca" }, // Deep Indigo
-    tempus: { label: "Tempus", desc: "Time & Entropy", color: "#f97316" }  // Vibrant Orange
+    spatia: { label: "Spatia", desc: "Space & Dimensions", color: "#06b6d4" },
+    wyird: { label: "Wyird", desc: "Fate & Chaos", color: "#a855f7" },
+    dynamis: { label: "Dynamis", desc: "Energy & Elements", color: "#ef4444" },
+    vitar: { label: "Vitar", desc: "Life & Healing", color: "#22c55e" },
+    formus: { label: "Formus", desc: "Structure & Matter", color: "#f59e0b" },
+    mentis: { label: "Mentis", desc: "Mind & Memory", color: "#ec4899" },
+    arcani: { label: "Arcani", desc: "Pure Force & Magic", color: "#3b82f6" },
+    umbrus: { label: "Umbrus", desc: "Shadow & Cold", color: "#4338ca" },
+    tempus: { label: "Tempus", desc: "Time & Entropy", color: "#f97316" }
 };
 
 export const EFFECT_TOOLTIPS = {
@@ -161,14 +172,13 @@ export const EFFECT_TOOLTIPS = {
     bolsterHinder: "Direct enhancements or supernatural penalties applied to checks and saves.<br><br><div class='bg-white/80 border border-slate-300 p-2 rounded-sm mt-2'><strong class='text-blue-700 block border-b border-slate-300 pb-1 mb-1 text-[10px] uppercase tracking-widest'>Target Options by Tier</strong><ul class='space-y-1 text-[11px] mt-2 text-slate-800'><li><b>Minor (+1):</b> Skill check</li><li><b>Weak (+2):</b> Skill check, saving throw, ability check</li><li><b>Moderate (+3):</b> Skill check, saving throw, ability check, attack roll</li><li><b>Strong (+4):</b> Skill, saving throw, ability check, attack roll, damage roll</li><li><b>Major (+5):</b> Skill, saving throw, ability check, attack roll, damage roll, AC</li></ul></div>"
 };
 
-// Ensure our draft state exists globally on active session load
 export const getOrInitDraftState = () => {
     if (!window.appData.patternSpellDraft || typeof window.appData.patternSpellDraft !== 'object') {
         window.appData.patternSpellDraft = {
             name: '',
             description: '',
             ability: 'int',
-            patterns: [], // Index 0 is Primary, remainder are supporting
+            patterns: [],
             effectTiers: {
                 range: 0,
                 duration: 0,
@@ -190,9 +200,6 @@ export const getOrInitDraftState = () => {
     return window.appData.patternSpellDraft;
 };
 
-// =========================================================================
-// Real-time Affinity and Cost Calculation Engines
-// =========================================================================
 export function calculateAffinityLimitsAndCosts(pc, pm, draft) {
     const primary = draft.patterns[0] || null;
     const supports = draft.patterns.slice(1);
@@ -275,9 +282,6 @@ export function calculateAffinityLimitsAndCosts(pc, pm, draft) {
     return results;
 }
 
-// =========================================================================
-// Dynamic Forms Builder (LIGHT VIBRANT THEME)
-// =========================================================================
 export function buildEffectsHTML(metrics, draft, pm, activePc) {
     let html = '';
     const primary = draft.patterns[0] || null;
@@ -293,7 +297,6 @@ export function buildEffectsHTML(metrics, draft, pm, activePc) {
             ? effectData.invertedTiers 
             : effectData.tiers;
 
-        // Affinity Star Logic
         let starHtml = '';
         if (primary) {
             const primAff = PATTERN_CONFIG.Affinities[primary];
