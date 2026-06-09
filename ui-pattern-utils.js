@@ -20,103 +20,92 @@ export const injectTapestryStyles = () => {
             inherits: true;
         }
 
-        /* VIBRANT WOVEN BACKGROUND */
+        /* VIBRANT WOVEN BACKGROUND - HIGH FIDELITY STRANDS */
         .dynamic-weave-bg {
             position: absolute;
-            inset: -5%;
+            inset: -20%; /* Extra space to allow for drifting */
             z-index: 0;
-            --sz: 30px; /* Thread thickness */
+            --sz: 48px; /* Width of a single thick thread */
             
-            /* Shifting Vibrant Palette - Fixed with 'deg' units! */
-            --w1: hsl(calc(var(--cycle-hue) + 0deg), 100%, 55%);
-            --w2: hsl(calc(var(--cycle-hue) + 60deg), 100%, 55%);
-            --w3: hsl(calc(var(--cycle-hue) + 120deg), 100%, 55%);
-            --w4: hsl(calc(var(--cycle-hue) + 180deg), 100%, 55%);
-            
-            --v1: hsl(calc(var(--cycle-hue) + 240deg), 100%, 55%);
-            --v2: hsl(calc(var(--cycle-hue) + 300deg), 100%, 55%);
-            --v3: hsl(calc(var(--cycle-hue) + 30deg), 100%, 55%);
-            --v4: hsl(calc(var(--cycle-hue) + 210deg), 100%, 55%);
+            /* Rainbow Spectrum variables */
+            --c-v1: hsl(calc(var(--cycle-hue) + 0deg), 90%, 45%);
+            --c-v2: hsl(calc(var(--cycle-hue) + 60deg), 90%, 45%);
+            --c-v3: hsl(calc(var(--cycle-hue) + 120deg), 90%, 45%);
+            --c-v4: hsl(calc(var(--cycle-hue) + 180deg), 90%, 45%);
+            --c-v5: hsl(calc(var(--cycle-hue) + 240deg), 90%, 45%);
+            --c-v6: hsl(calc(var(--cycle-hue) + 300deg), 90%, 45%);
 
+            --c-h1: hsl(calc(var(--cycle-hue) + 30deg), 90%, 45%);
+            --c-h2: hsl(calc(var(--cycle-hue) + 90deg), 90%, 45%);
+            --c-h3: hsl(calc(var(--cycle-hue) + 150deg), 90%, 45%);
+            --c-h4: hsl(calc(var(--cycle-hue) + 210deg), 90%, 45%);
+            --c-h5: hsl(calc(var(--cycle-hue) + 270deg), 90%, 45%);
+            --c-h6: hsl(calc(var(--cycle-hue) + 330deg), 90%, 45%);
+
+            /* VERTICAL THREADS (The bottom layer) */
             background-color: #050505;
-            background-image:
-                /* 1. Micro-strands horizontal */
-                repeating-linear-gradient(to bottom, rgba(255,255,255,0) 0, rgba(255,255,255,0.4) 1.5px, rgba(0,0,0,0.6) 3.5px, rgba(0,0,0,0) 5px),
-                /* 2. Micro-strands vertical */
-                repeating-linear-gradient(to right, rgba(255,255,255,0) 0, rgba(255,255,255,0.4) 1.5px, rgba(0,0,0,0.6) 3.5px, rgba(0,0,0,0) 5px),
-                
-                /* 3. Thread Bevel Shadows (Horizontal edges) */
-                repeating-linear-gradient(to bottom, rgba(0,0,0,0.85) 0, transparent 4px, transparent calc(var(--sz) - 4px), rgba(0,0,0,0.85) var(--sz)),
-                /* 4. Thread Bevel Shadows (Vertical edges) */
-                repeating-linear-gradient(to right, rgba(0,0,0,0.85) 0, transparent 4px, transparent calc(var(--sz) - 4px), rgba(0,0,0,0.85) var(--sz)),
-
-                /* 5. Ambient Occlusion (Darken intersections perfectly) */
-                conic-gradient(from 0deg, rgba(0,0,0,0.7) 90deg, transparent 90deg 180deg, rgba(0,0,0,0.7) 180deg 270deg, transparent 270deg),
-
-                /* --- THE WEAVE PATTERN --- */
-                /* Row 1 (Weft) */
-                repeating-linear-gradient(to right, var(--w1) 0 var(--sz), transparent var(--sz) calc(var(--sz)*2)),
-                /* Row 2 (Weft) */
-                repeating-linear-gradient(to right, transparent 0 var(--sz), var(--w2) var(--sz) calc(var(--sz)*2)),
-                /* Row 3 (Weft) */
-                repeating-linear-gradient(to right, var(--w3) 0 var(--sz), transparent var(--sz) calc(var(--sz)*2)),
-                /* Row 4 (Weft) */
-                repeating-linear-gradient(to right, transparent 0 var(--sz), var(--w4) var(--sz) calc(var(--sz)*2)),
-                
-                /* Vertical Base Colors (Warp) */
-                repeating-linear-gradient(to right, var(--v1) 0 var(--sz), var(--v2) var(--sz) calc(var(--sz)*2), var(--v3) calc(var(--sz)*2) calc(var(--sz)*3), var(--v4) calc(var(--sz)*3) calc(var(--sz)*4));
-
-            background-size:
-                100% 5px,              /* micro h */
-                5px 100%,              /* micro v */
-                100% var(--sz),        /* bevel h */
-                var(--sz) 100%,        /* bevel v */
-                calc(var(--sz)*2) calc(var(--sz)*2), /* AO shadow grid */
-                100% calc(var(--sz)*4),/* row 1 */
-                100% calc(var(--sz)*4),/* row 2 */
-                100% calc(var(--sz)*4),/* row 3 */
-                100% calc(var(--sz)*4),/* row 4 */
-                calc(var(--sz)*4) 100%;/* vert base */
-
-            background-position:
-                0 0, 0 0, 0 0, 0 0, 0 0,
-                0 0,                     /* row 1 */
-                0 var(--sz),             /* row 2 */
-                0 calc(var(--sz)*2),     /* row 3 */
-                0 calc(var(--sz)*3),     /* row 4 */
-                0 0;                     /* vert base */
-
-            background-blend-mode:
-                overlay, overlay, multiply, multiply, multiply, normal, normal, normal, normal, normal;
-
-            /* Added colorCycle so the background shifts colors too! */
-            animation: driftWeave 40s linear infinite, colorCycle 30s linear infinite;
+            background-image: 
+                /* 1. Micro strands (adds the fiber texture) */
+                repeating-linear-gradient(to right, rgba(255,255,255,0.1) 0px, rgba(0,0,0,0.6) 2px, rgba(255,255,255,0.1) 4px),
+                /* 2. 3D Bevel (makes it a tube instead of a flat block) */
+                repeating-linear-gradient(to right, rgba(0,0,0,0.9) 0px, rgba(0,0,0,0) 8px, rgba(255,255,255,0.35) calc(var(--sz)/2), rgba(0,0,0,0) calc(var(--sz) - 8px), rgba(0,0,0,0.9) var(--sz)),
+                /* 3. Base Colors (6-color repeating spectrum) */
+                repeating-linear-gradient(to right, 
+                    var(--c-v1) 0, var(--c-v1) var(--sz), 
+                    var(--c-v2) var(--sz), var(--c-v2) calc(var(--sz)*2), 
+                    var(--c-v3) calc(var(--sz)*2), var(--c-v3) calc(var(--sz)*3),
+                    var(--c-v4) calc(var(--sz)*3), var(--c-v4) calc(var(--sz)*4),
+                    var(--c-v5) calc(var(--sz)*4), var(--c-v5) calc(var(--sz)*5),
+                    var(--c-v6) calc(var(--sz)*5), var(--c-v6) calc(var(--sz)*6));
+            
+            background-blend-mode: overlay, hard-light, normal;
+            
+            /* Animate both color AND physical drift */
+            animation: driftWeavePos 40s linear infinite;
         }
 
-        @keyframes driftWeave {
-            0% { 
-                background-position: 
-                    0 0, 0 0, 0 0, 0 0, 0 0, 
-                    0 0, 0 var(--sz), 0 calc(var(--sz)*2), 0 calc(var(--sz)*3), 0 0; 
-            }
-            100% { 
-                background-position: 
-                    0 calc(var(--sz)*4), 
-                    calc(var(--sz)*4) 0, 
-                    0 calc(var(--sz)*4), 
-                    calc(var(--sz)*4) 0, 
-                    calc(var(--sz)*4) calc(var(--sz)*4), 
-                    0 calc(var(--sz)*4), 
-                    0 calc(var(--sz)*5), 
-                    0 calc(var(--sz)*6), 
-                    0 calc(var(--sz)*7), 
-                    calc(var(--sz)*4) 0; 
-            }
+        /* HORIZONTAL THREADS (The top layer) */
+        .dynamic-weave-bg::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            
+            background-image: 
+                /* 1. Shadows cast BY the vertical threads crossing OVER this horizontal thread */
+                repeating-linear-gradient(to right, rgba(0,0,0,0.85) 0px, transparent 10px, transparent calc(var(--sz) - 10px), rgba(0,0,0,0.85) var(--sz)),
+                /* 2. Micro strands (horizontal texture) */
+                repeating-linear-gradient(to bottom, rgba(255,255,255,0.1) 0px, rgba(0,0,0,0.6) 2px, rgba(255,255,255,0.1) 4px),
+                /* 3. 3D Bevel (horizontal tube shape) */
+                repeating-linear-gradient(to bottom, rgba(0,0,0,0.9) 0px, rgba(0,0,0,0) 8px, rgba(255,255,255,0.35) calc(var(--sz)/2), rgba(0,0,0,0) calc(var(--sz) - 8px), rgba(0,0,0,0.9) var(--sz)),
+                /* 4. Base Colors (6-color repeating spectrum) */
+                repeating-linear-gradient(to bottom, 
+                    var(--c-h1) 0, var(--c-h1) var(--sz), 
+                    var(--c-h2) var(--sz), var(--c-h2) calc(var(--sz)*2), 
+                    var(--c-h3) calc(var(--sz)*2), var(--c-h3) calc(var(--sz)*3),
+                    var(--c-h4) calc(var(--sz)*3), var(--c-h4) calc(var(--sz)*4),
+                    var(--c-h5) calc(var(--sz)*4), var(--c-h5) calc(var(--sz)*5),
+                    var(--c-h6) calc(var(--sz)*5), var(--c-h6) calc(var(--sz)*6));
+            
+            background-blend-mode: multiply, overlay, hard-light, normal;
+            
+            /* THE MAGIC WEAVE MASK */
+            /* This checkerboard punches alternating holes in the horizontal layer, revealing the vertical layer below */
+            -webkit-mask-image: conic-gradient(from 0deg, rgba(0,0,0,0) 90deg, rgba(0,0,0,1) 90deg 180deg, rgba(0,0,0,0) 180deg 270deg, rgba(0,0,0,1) 270deg);
+            mask-image: conic-gradient(from 0deg, rgba(0,0,0,0) 90deg, rgba(0,0,0,1) 90deg 180deg, rgba(0,0,0,0) 180deg 270deg, rgba(0,0,0,1) 270deg);
+            -webkit-mask-size: calc(var(--sz)*2) calc(var(--sz)*2);
+            mask-size: calc(var(--sz)*2) calc(var(--sz)*2);
+            
+            /* Drop shadow creates the 3D pop of the horizontal threads sitting ON TOP of the vertical ones */
+            filter: drop-shadow(0px 8px 6px rgba(0,0,0,0.9));
+        }
+
+        @keyframes driftWeavePos {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(calc(var(--sz) * -6), calc(var(--sz) * -6)); }
         }
 
         /* CHUNKY FABRIC WEAVE TEXTURE */
         .fabric-texture {
-            /* We can hide the old texture layer, as our new weave has native micro-strands! */
             display: none; 
         }
 
