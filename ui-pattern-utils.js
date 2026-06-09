@@ -23,24 +23,24 @@ export const injectTapestryStyles = () => {
         /* VIBRANT WOVEN BACKGROUND - HIGH FIDELITY STRANDS */
         .dynamic-weave-bg {
             position: absolute;
-            inset: -20%; /* Extra space to allow for drifting */
+            inset: 0; /* Removed the extra -20% since it no longer drifts */
             z-index: 0;
             --sz: 48px; /* Width of a single thick thread */
             
-            /* Rainbow Spectrum variables */
-            --c-v1: hsl(calc(var(--cycle-hue) + 0deg), 90%, 45%);
-            --c-v2: hsl(calc(var(--cycle-hue) + 60deg), 90%, 45%);
-            --c-v3: hsl(calc(var(--cycle-hue) + 120deg), 90%, 45%);
-            --c-v4: hsl(calc(var(--cycle-hue) + 180deg), 90%, 45%);
-            --c-v5: hsl(calc(var(--cycle-hue) + 240deg), 90%, 45%);
-            --c-v6: hsl(calc(var(--cycle-hue) + 300deg), 90%, 45%);
+            /* Independent Strand Colors using integer multipliers for seamless loops at different speeds */
+            --c-v1: hsl(calc(var(--cycle-hue) * 1 + 0deg), 90%, 45%);
+            --c-v2: hsl(calc(var(--cycle-hue) * -2 + 60deg), 90%, 45%);
+            --c-v3: hsl(calc(var(--cycle-hue) * 3 + 120deg), 90%, 45%);
+            --c-v4: hsl(calc(var(--cycle-hue) * -1 + 180deg), 90%, 45%);
+            --c-v5: hsl(calc(var(--cycle-hue) * 2 + 240deg), 90%, 45%);
+            --c-v6: hsl(calc(var(--cycle-hue) * -3 + 300deg), 90%, 45%);
 
-            --c-h1: hsl(calc(var(--cycle-hue) + 30deg), 90%, 45%);
-            --c-h2: hsl(calc(var(--cycle-hue) + 90deg), 90%, 45%);
-            --c-h3: hsl(calc(var(--cycle-hue) + 150deg), 90%, 45%);
-            --c-h4: hsl(calc(var(--cycle-hue) + 210deg), 90%, 45%);
-            --c-h5: hsl(calc(var(--cycle-hue) + 270deg), 90%, 45%);
-            --c-h6: hsl(calc(var(--cycle-hue) + 330deg), 90%, 45%);
+            --c-h1: hsl(calc(var(--cycle-hue) * -2 + 30deg), 90%, 45%);
+            --c-h2: hsl(calc(var(--cycle-hue) * 3 + 90deg), 90%, 45%);
+            --c-h3: hsl(calc(var(--cycle-hue) * -1 + 150deg), 90%, 45%);
+            --c-h4: hsl(calc(var(--cycle-hue) * 2 + 210deg), 90%, 45%);
+            --c-h5: hsl(calc(var(--cycle-hue) * -3 + 270deg), 90%, 45%);
+            --c-h6: hsl(calc(var(--cycle-hue) * 1 + 330deg), 90%, 45%);
 
             /* VERTICAL THREADS (The bottom layer) */
             background-color: #050505;
@@ -60,8 +60,8 @@ export const injectTapestryStyles = () => {
             
             background-blend-mode: overlay, hard-light, normal;
             
-            /* Animate both color AND physical drift */
-            animation: driftWeavePos 40s linear infinite;
+            /* Animate ONLY the colors now */
+            animation: colorCycle 60s linear infinite;
         }
 
         /* HORIZONTAL THREADS (The top layer) */
@@ -97,11 +97,6 @@ export const injectTapestryStyles = () => {
             
             /* Drop shadow creates the 3D pop of the horizontal threads sitting ON TOP of the vertical ones */
             filter: drop-shadow(0px 8px 6px rgba(0,0,0,0.9));
-        }
-
-        @keyframes driftWeavePos {
-            0% { transform: translate(0, 0); }
-            100% { transform: translate(calc(var(--sz) * -6), calc(var(--sz) * -6)); }
         }
 
         /* CHUNKY FABRIC WEAVE TEXTURE */
