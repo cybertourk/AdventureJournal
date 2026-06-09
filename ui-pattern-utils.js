@@ -13,6 +13,13 @@ export const injectTapestryStyles = () => {
     const style = document.createElement('style');
     style.id = 'tapestry-core-styles';
     style.innerHTML = `
+        /* Register the property for animation */
+        @property --cycle-hue {
+            syntax: '<angle>';
+            initial-value: 0deg;
+            inherits: true;
+        }
+
         /* VIBRANT WOVEN BACKGROUND */
         .dynamic-weave-bg {
             position: absolute;
@@ -75,12 +82,13 @@ export const injectTapestryStyles = () => {
             position: relative;
             overflow: hidden;
             --base-hue: 200deg;
+            --cycle-hue: 0deg;
             animation: colorCycle 20s linear infinite;
         }
 
         @keyframes colorCycle {
-            0% { --base-hue: 0deg; }
-            100% { --base-hue: 360deg; }
+            0% { --cycle-hue: 0deg; }
+            100% { --cycle-hue: 360deg; }
         }
         
         .glass-panel::before {
@@ -93,7 +101,10 @@ export const injectTapestryStyles = () => {
             z-index: -1;
             mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
             mask-composite: exclude;
-            background: linear-gradient(90deg, hsl(var(--base-hue), 80%, 60%), hsl(calc(var(--base-hue) + 60deg), 80%, 60%)) border-box;
+            background: linear-gradient(90deg, 
+                hsl(calc(var(--base-hue) + var(--cycle-hue)), 80%, 60%), 
+                hsl(calc(var(--base-hue) + var(--cycle-hue) + 60deg), 80%, 60%)
+            ) border-box;
             background-size: 200% 100%;
             animation: borderGlow 6s linear infinite;
         }
@@ -108,9 +119,10 @@ export const injectTapestryStyles = () => {
             position: absolute;
             width: 8px;
             height: 8px;
-            background: hsl(var(--base-hue), 100%, 70%);
+            background: hsl(calc(var(--base-hue) + var(--cycle-hue)), 100%, 70%);
             border-radius: 50%;
-            box-shadow: 0 0 10px hsl(var(--base-hue), 100%, 70%), 0 0 20px hsl(var(--base-hue), 100%, 50%);
+            box-shadow: 0 0 10px hsl(calc(var(--base-hue) + var(--cycle-hue)), 100%, 70%), 
+                        0 0 20px hsl(calc(var(--base-hue) + var(--cycle-hue)), 100%, 50%);
             z-index: 10;
             offset-path: rect(0 100% 100% 0 round 4px);
             animation: travelMote 8s linear infinite;
