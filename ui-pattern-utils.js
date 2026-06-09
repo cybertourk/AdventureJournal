@@ -25,7 +25,7 @@ export const injectTapestryStyles = () => {
             position: absolute;
             inset: -4%; /* Expand past edges to hide the warping from the organic filter */
             z-index: 0;
-            --sz: 24px; /* Thinner threads for a finer tapestry */
+            --sz: 18px; /* 25% thinner threads for a much finer tapestry */
             
             /* Organic Tapestry Distortion Filter */
             /* This SVG filter creates natural, wavy imperfections so the strands aren't perfectly straight */
@@ -50,9 +50,9 @@ export const injectTapestryStyles = () => {
             background-color: #050505;
             background-image: 
                 /* 1. Micro strands (tighter for thinner threads) */
-                repeating-linear-gradient(to right, rgba(255,255,255,0.1) 0px, rgba(0,0,0,0.6) 1.5px, rgba(255,255,255,0.1) 3px),
-                /* 2. 3D Bevel (scaled down) */
-                repeating-linear-gradient(to right, rgba(0,0,0,0.9) 0px, rgba(0,0,0,0) 4px, rgba(255,255,255,0.35) calc(var(--sz)/2), rgba(0,0,0,0) calc(var(--sz) - 4px), rgba(0,0,0,0.9) var(--sz)),
+                repeating-linear-gradient(to right, rgba(255,255,255,0.1) 0px, rgba(0,0,0,0.6) 1px, rgba(255,255,255,0.1) 2px),
+                /* 2. 3D Bevel (scaled down to 3px) */
+                repeating-linear-gradient(to right, rgba(0,0,0,0.9) 0px, rgba(0,0,0,0) 3px, rgba(255,255,255,0.35) calc(var(--sz)/2), rgba(0,0,0,0) calc(var(--sz) - 3px), rgba(0,0,0,0.9) var(--sz)),
                 /* 3. Base Colors (6-color repeating spectrum) */
                 repeating-linear-gradient(to right, 
                     var(--c-v1) 0, var(--c-v1) var(--sz), 
@@ -75,12 +75,12 @@ export const injectTapestryStyles = () => {
             inset: 0;
             
             background-image: 
-                /* 1. Shadows cast BY the vertical threads (scaled down) */
-                repeating-linear-gradient(to right, rgba(0,0,0,0.85) 0px, transparent 6px, transparent calc(var(--sz) - 6px), rgba(0,0,0,0.85) var(--sz)),
+                /* 1. Shadows cast BY the vertical threads (scaled down to 4.5px) */
+                repeating-linear-gradient(to right, rgba(0,0,0,0.85) 0px, transparent 4.5px, transparent calc(var(--sz) - 4.5px), rgba(0,0,0,0.85) var(--sz)),
                 /* 2. Micro strands (tighter for thinner threads) */
-                repeating-linear-gradient(to bottom, rgba(255,255,255,0.1) 0px, rgba(0,0,0,0.6) 1.5px, rgba(255,255,255,0.1) 3px),
-                /* 3. 3D Bevel (scaled down) */
-                repeating-linear-gradient(to bottom, rgba(0,0,0,0.9) 0px, rgba(0,0,0,0) 4px, rgba(255,255,255,0.35) calc(var(--sz)/2), rgba(0,0,0,0) calc(var(--sz) - 4px), rgba(0,0,0,0.9) var(--sz)),
+                repeating-linear-gradient(to bottom, rgba(255,255,255,0.1) 0px, rgba(0,0,0,0.6) 1px, rgba(255,255,255,0.1) 2px),
+                /* 3. 3D Bevel (scaled down to 3px) */
+                repeating-linear-gradient(to bottom, rgba(0,0,0,0.9) 0px, rgba(0,0,0,0) 3px, rgba(255,255,255,0.35) calc(var(--sz)/2), rgba(0,0,0,0) calc(var(--sz) - 3px), rgba(0,0,0,0.9) var(--sz)),
                 /* 4. Base Colors (6-color repeating spectrum) */
                 repeating-linear-gradient(to bottom, 
                     var(--c-h1) 0, var(--c-h1) var(--sz), 
