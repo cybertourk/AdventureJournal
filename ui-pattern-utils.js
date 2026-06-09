@@ -18,8 +18,6 @@ export const injectTapestryStyles = () => {
             position: absolute;
             inset: -5%;
             z-index: 0;
-            /* Creates distinct, hard-edged alternating columns/rows of bright, contrasting colors */
-            /* Removed the black background and blend modes so colors render purely! */
             background-image: 
                 repeating-linear-gradient(
                     to bottom,
@@ -50,7 +48,6 @@ export const injectTapestryStyles = () => {
             inset: 0;
             z-index: 1;
             opacity: 1;
-            /* Subtler shadows to keep the weave 3D without crushing the bright background colors */
             background-image:
                 linear-gradient(90deg, rgba(0,0,0,0.4) 0px, rgba(255,255,255,0.3) 3px, transparent 6px, transparent 26px, rgba(0,0,0,0.2) 29px, rgba(0,0,0,0.5) 32px),
                 linear-gradient(0deg, rgba(0,0,0,0.4) 0px, rgba(255,255,255,0.3) 3px, transparent 6px, transparent 26px, rgba(0,0,0,0.2) 29px, rgba(0,0,0,0.5) 32px);
@@ -67,7 +64,7 @@ export const injectTapestryStyles = () => {
             pointer-events: none;
         }
 
-        /* FROSTED LIGHT GLASS UI */
+        /* FROSTED LIGHT GLASS UI WITH GLOWING BORDER MOTE */
         .glass-panel {
             background-color: rgba(255, 255, 255, 0.35);
             backdrop-filter: blur(24px);
@@ -75,11 +72,51 @@ export const injectTapestryStyles = () => {
             border: 1px solid rgba(255, 255, 255, 0.6);
             border-top: 1px solid rgba(255, 255, 255, 0.9);
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255,255,255,0.5);
+            position: relative;
+            overflow: hidden;
         }
+        
+        .glass-panel::before {
+            content: "";
+            position: absolute;
+            top: -2px; left: -2px; right: -2px; bottom: -2px;
+            border: 2px solid transparent;
+            border-radius: inherit;
+            pointer-events: none;
+            z-index: -1;
+            mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+            mask-composite: exclude;
+            background: linear-gradient(90deg, #3b82f6, #ec4899, #f59e0b, #3b82f6) border-box;
+            background-size: 400%;
+            animation: borderGlow 6s linear infinite;
+        }
+
+        @keyframes borderGlow {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 400% 50%; }
+        }
+
+        .mote-light {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 0 10px white, 0 0 20px #3b82f6;
+            z-index: 10;
+            offset-path: rect(0 100% 100% 0 round 4px);
+            animation: travelMote 8s linear infinite;
+        }
+
+        @keyframes travelMote {
+            from { offset-distance: 0%; }
+            to { offset-distance: 100%; }
+        }
+
         .glass-input {
             background-color: rgba(255, 255, 255, 0.5);
             border: 1px solid rgba(255, 255, 255, 0.7);
-            color: #0f172a; /* Deep Slate 900 */
+            color: #0f172a;
             transition: all 0.2s;
         }
         .glass-input::placeholder {
@@ -87,7 +124,7 @@ export const injectTapestryStyles = () => {
         }
         .glass-input:focus {
             background-color: rgba(255, 255, 255, 0.8);
-            border-color: #3b82f6; /* Bright Blue */
+            border-color: #3b82f6;
             outline: none;
             box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
         }
@@ -102,7 +139,7 @@ export const injectTapestryStyles = () => {
             background-color: rgba(255, 255, 255, 0.8);
             border-color: #ffffff;
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            color: #1d4ed8; /* Blue 700 */
+            color: #1d4ed8;
         }
         .glass-btn:disabled {
             opacity: 0.5;
@@ -150,15 +187,15 @@ export const injectTapestryStyles = () => {
 // PURE PRIMARY & VIBRANT NEON COLORS
 // =========================================================================
 export const PATTERN_THEME = {
-    spatia: { label: "Spatia", desc: "Space & Dimensions", color: "#06b6d4" }, // Cyan
-    wyird: { label: "Wyird", desc: "Fate & Chaos", color: "#a855f7" }, // Purple
-    dynamis: { label: "Dynamis", desc: "Energy & Elements", color: "#ef4444" }, // Bright Red
-    vitar: { label: "Vitar", desc: "Life & Healing", color: "#22c55e" }, // Lime Green
-    formus: { label: "Formus", desc: "Structure & Matter", color: "#f59e0b" }, // Golden Orange
-    mentis: { label: "Mentis", desc: "Mind & Memory", color: "#ec4899" }, // Hot Pink
-    arcani: { label: "Arcani", desc: "Pure Force & Magic", color: "#3b82f6" }, // Royal Blue
-    umbrus: { label: "Umbrus", desc: "Shadow & Cold", color: "#4338ca" }, // Deep Indigo
-    tempus: { label: "Tempus", desc: "Time & Entropy", color: "#f97316" }  // Vibrant Orange
+    spatia: { label: "Spatia", desc: "Space & Dimensions", color: "#06b6d4" },
+    wyird: { label: "Wyird", desc: "Fate & Chaos", color: "#a855f7" },
+    dynamis: { label: "Dynamis", desc: "Energy & Elements", color: "#ef4444" },
+    vitar: { label: "Vitar", desc: "Life & Healing", color: "#22c55e" },
+    formus: { label: "Formus", desc: "Structure & Matter", color: "#f59e0b" },
+    mentis: { label: "Mentis", desc: "Mind & Memory", color: "#ec4899" },
+    arcani: { label: "Arcani", desc: "Pure Force & Magic", color: "#3b82f6" },
+    umbrus: { label: "Umbrus", desc: "Shadow & Cold", color: "#4338ca" },
+    tempus: { label: "Tempus", desc: "Time & Entropy", color: "#f97316" }
 };
 
 export const EFFECT_TOOLTIPS = {
@@ -171,14 +208,13 @@ export const EFFECT_TOOLTIPS = {
     bolsterHinder: "Direct enhancements or supernatural penalties applied to checks and saves.<br><br><div class='bg-white/80 border border-slate-300 p-2 rounded-sm mt-2'><strong class='text-blue-700 block border-b border-slate-300 pb-1 mb-1 text-[10px] uppercase tracking-widest'>Target Options by Tier</strong><ul class='space-y-1 text-[11px] mt-2 text-slate-800'><li><b>Minor (+1):</b> Skill check</li><li><b>Weak (+2):</b> Skill check, saving throw, ability check</li><li><b>Moderate (+3):</b> Skill check, saving throw, ability check, attack roll</li><li><b>Strong (+4):</b> Skill, saving throw, ability check, attack roll, damage roll</li><li><b>Major (+5):</b> Skill, saving throw, ability check, attack roll, damage roll, AC</li></ul></div>"
 };
 
-// Ensure our draft state exists globally on active session load
 export const getOrInitDraftState = () => {
     if (!window.appData.patternSpellDraft || typeof window.appData.patternSpellDraft !== 'object') {
         window.appData.patternSpellDraft = {
             name: '',
             description: '',
             ability: 'int',
-            patterns: [], // Index 0 is Primary, remainder are supporting
+            patterns: [],
             effectTiers: {
                 range: 0,
                 duration: 0,
@@ -200,9 +236,6 @@ export const getOrInitDraftState = () => {
     return window.appData.patternSpellDraft;
 };
 
-// =========================================================================
-// Real-time Affinity and Cost Calculation Engines
-// =========================================================================
 export function calculateAffinityLimitsAndCosts(pc, pm, draft) {
     const primary = draft.patterns[0] || null;
     const supports = draft.patterns.slice(1);
@@ -285,9 +318,6 @@ export function calculateAffinityLimitsAndCosts(pc, pm, draft) {
     return results;
 }
 
-// =========================================================================
-// Dynamic Forms Builder (LIGHT VIBRANT THEME)
-// =========================================================================
 export function buildEffectsHTML(metrics, draft, pm, activePc) {
     let html = '';
     const primary = draft.patterns[0] || null;
@@ -303,7 +333,6 @@ export function buildEffectsHTML(metrics, draft, pm, activePc) {
             ? effectData.invertedTiers 
             : effectData.tiers;
 
-        // Affinity Star Logic
         let starHtml = '';
         if (primary) {
             const primAff = PATTERN_CONFIG.Affinities[primary];
@@ -435,6 +464,7 @@ export function buildEffectsHTML(metrics, draft, pm, activePc) {
 
         html += `
             <div class="p-4 glass-panel rounded-sm">
+                <div class="mote-light"></div>
                 <div class="flex justify-between items-start mb-3 gap-2 flex-wrap border-b border-white/60 pb-2">
                     <div>
                         <div class="flex items-center">
