@@ -21,19 +21,19 @@ export const injectTapestryStyles = () => {
             background-image: 
                 repeating-linear-gradient(
                     to bottom,
-                    rgba(236, 72, 153, 0.6) 0px, rgba(236, 72, 153, 0.6) 32px, /* Pink */
-                    rgba(59, 130, 246, 0.6) 32px, rgba(59, 130, 246, 0.6) 64px, /* Blue */
-                    rgba(234, 179, 8, 0.6) 64px, rgba(234, 179, 8, 0.6) 96px, /* Yellow */
-                    rgba(14, 165, 233, 0.6) 96px, rgba(14, 165, 233, 0.6) 128px /* Cyan */
+                    rgba(236, 72, 153, 0.6) 0px, rgba(236, 72, 153, 0.6) 32px,
+                    rgba(59, 130, 246, 0.6) 32px, rgba(59, 130, 246, 0.6) 64px,
+                    rgba(234, 179, 8, 0.6) 64px, rgba(234, 179, 8, 0.6) 96px,
+                    rgba(14, 165, 233, 0.6) 96px, rgba(14, 165, 233, 0.6) 128px
                 ),
                 repeating-linear-gradient(
                     to right,
-                    #0ea5e9 0px, #0ea5e9 32px, /* Cyan */
-                    #a855f7 32px, #a855f7 64px, /* Purple */
-                    #22c55e 64px, #22c55e 96px, /* Green */
-                    #ef4444 96px, #ef4444 128px, /* Red */
-                    #3b82f6 128px, #3b82f6 160px, /* Blue */
-                    #f97316 160px, #f97316 192px /* Orange */
+                    #0ea5e9 0px, #0ea5e9 32px,
+                    #a855f7 32px, #a855f7 64px,
+                    #22c55e 64px, #22c55e 96px,
+                    #ef4444 96px, #ef4444 128px,
+                    #3b82f6 128px, #3b82f6 160px,
+                    #f97316 160px, #f97316 192px
                 );
             animation: driftWeave 30s linear infinite alternate;
         }
@@ -64,7 +64,7 @@ export const injectTapestryStyles = () => {
             pointer-events: none;
         }
 
-        /* FROSTED LIGHT GLASS UI WITH GLOWING BORDER MOTE */
+        /* FROSTED LIGHT GLASS UI */
         .glass-panel {
             background-color: rgba(255, 255, 255, 0.35);
             backdrop-filter: blur(24px);
@@ -74,7 +74,6 @@ export const injectTapestryStyles = () => {
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255,255,255,0.5);
             position: relative;
             overflow: hidden;
-            /* Default base hue, overridden by inline style */
             --base-hue: 200deg; 
         }
         
@@ -88,36 +87,29 @@ export const injectTapestryStyles = () => {
             z-index: -1;
             mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
             mask-composite: exclude;
-            background: linear-gradient(90deg, #3b82f6, #ec4899, #f59e0b, #3b82f6) border-box;
-            background-size: 400%;
-            /* Apply the panel's individual base hue shift */
-            filter: hue-rotate(var(--base-hue));
-            animation: borderGlow 6s linear infinite, colorCycle 20s linear infinite;
+            /* Using HSL for dynamic color shifting */
+            background: linear-gradient(90deg, hsl(var(--base-hue), 80%, 60%), hsl(calc(var(--base-hue) + 60deg), 80%, 60%)) border-box;
+            background-size: 200% 100%;
+            animation: borderGlow 6s linear infinite;
         }
 
         @keyframes borderGlow {
-            0% { background-position: 0% 50%; }
-            100% { background-position: 400% 50%; }
+            0% { background-position: 0% 0%; }
+            100% { background-position: 200% 0%; }
         }
 
-        @keyframes colorCycle {
-            0% { filter: hue-rotate(var(--base-hue)); }
-            100% { filter: hue-rotate(calc(var(--base-hue) + 360deg)); }
-        }
-
-        /* Every glass-panel will now automatically contain a mote-light */
+        /* Mote styling updated to use dynamic HSL */
         .glass-panel::after {
             content: "";
             position: absolute;
             width: 8px;
             height: 8px;
-            background: white;
+            background: hsl(var(--base-hue), 100%, 70%);
             border-radius: 50%;
-            box-shadow: 0 0 10px white, 0 0 20px #3b82f6;
+            box-shadow: 0 0 10px hsl(var(--base-hue), 100%, 70%), 0 0 20px hsl(var(--base-hue), 100%, 50%);
             z-index: 10;
             offset-path: rect(0 100% 100% 0 round 4px);
-            animation: travelMote 8s linear infinite, colorCycle 20s linear infinite;
-            filter: hue-rotate(var(--base-hue));
+            animation: travelMote 8s linear infinite;
         }
 
         @keyframes travelMote {
@@ -159,7 +151,6 @@ export const injectTapestryStyles = () => {
             background-color: rgba(255,255,255,0.2);
         }
 
-        /* BRIGHT ETHEREAL LOOM */
         .loom-circle {
             background: radial-gradient(circle, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.1) 100%);
             box-shadow: inset 0 0 40px rgba(255,255,255,0.6), 0 0 20px rgba(255, 255, 255, 0.2);
@@ -195,9 +186,6 @@ export const injectTapestryStyles = () => {
     document.head.appendChild(style);
 };
 
-// =========================================================================
-// PURE PRIMARY & VIBRANT NEON COLORS
-// =========================================================================
 export const PATTERN_THEME = {
     spatia: { label: "Spatia", desc: "Space & Dimensions", color: "#06b6d4" },
     wyird: { label: "Wyird", desc: "Fate & Chaos", color: "#a855f7" },
