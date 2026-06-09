@@ -19,25 +19,24 @@ export const injectTapestryStyles = () => {
             inset: -5%;
             z-index: 0;
             /* Creates distinct, hard-edged alternating columns/rows of bright, contrasting colors */
-            background-color: #000;
+            /* Removed the black background and blend modes so colors render purely! */
             background-image: 
-                repeating-linear-gradient(
-                    to right,
-                    rgba(14, 165, 233, 0.9) 0px, rgba(14, 165, 233, 0.9) 32px, /* Cyan */
-                    rgba(168, 85, 247, 0.9) 32px, rgba(168, 85, 247, 0.9) 64px, /* Purple */
-                    rgba(34, 197, 94, 0.9) 64px, rgba(34, 197, 94, 0.9) 96px, /* Green */
-                    rgba(239, 68, 68, 0.9) 96px, rgba(239, 68, 68, 0.9) 128px, /* Red */
-                    rgba(59, 130, 246, 0.9) 128px, rgba(59, 130, 246, 0.9) 160px, /* Blue */
-                    rgba(249, 115, 22, 0.9) 160px, rgba(249, 115, 22, 0.9) 192px /* Orange */
-                ),
                 repeating-linear-gradient(
                     to bottom,
                     rgba(236, 72, 153, 0.6) 0px, rgba(236, 72, 153, 0.6) 32px, /* Pink */
                     rgba(59, 130, 246, 0.6) 32px, rgba(59, 130, 246, 0.6) 64px, /* Blue */
                     rgba(234, 179, 8, 0.6) 64px, rgba(234, 179, 8, 0.6) 96px, /* Yellow */
                     rgba(14, 165, 233, 0.6) 96px, rgba(14, 165, 233, 0.6) 128px /* Cyan */
+                ),
+                repeating-linear-gradient(
+                    to right,
+                    #0ea5e9 0px, #0ea5e9 32px, /* Cyan */
+                    #a855f7 32px, #a855f7 64px, /* Purple */
+                    #22c55e 64px, #22c55e 96px, /* Green */
+                    #ef4444 96px, #ef4444 128px, /* Red */
+                    #3b82f6 128px, #3b82f6 160px, /* Blue */
+                    #f97316 160px, #f97316 192px /* Orange */
                 );
-            background-blend-mode: overlay;
             animation: driftWeave 30s linear infinite alternate;
         }
         @keyframes driftWeave {
@@ -50,11 +49,11 @@ export const injectTapestryStyles = () => {
             position: absolute;
             inset: 0;
             z-index: 1;
-            opacity: 0.9;
-            /* Creates a thick, highly visible over-under woven ribbon look */
+            opacity: 1;
+            /* Subtler shadows to keep the weave 3D without crushing the bright background colors */
             background-image:
-                linear-gradient(90deg, rgba(0,0,0,0.8) 0px, rgba(255,255,255,0.4) 4px, transparent 8px, transparent 24px, rgba(0,0,0,0.5) 28px, rgba(0,0,0,0.9) 32px),
-                linear-gradient(0deg, rgba(0,0,0,0.8) 0px, rgba(255,255,255,0.4) 4px, transparent 8px, transparent 24px, rgba(0,0,0,0.5) 28px, rgba(0,0,0,0.9) 32px);
+                linear-gradient(90deg, rgba(0,0,0,0.4) 0px, rgba(255,255,255,0.3) 3px, transparent 6px, transparent 26px, rgba(0,0,0,0.2) 29px, rgba(0,0,0,0.5) 32px),
+                linear-gradient(0deg, rgba(0,0,0,0.4) 0px, rgba(255,255,255,0.3) 3px, transparent 6px, transparent 26px, rgba(0,0,0,0.2) 29px, rgba(0,0,0,0.5) 32px);
             background-size: 32px 32px;
             pointer-events: none;
         }
@@ -64,7 +63,7 @@ export const injectTapestryStyles = () => {
             position: absolute;
             inset: 0;
             z-index: 2;
-            background: radial-gradient(circle at center, rgba(255,255,255,0.2) 0%, rgba(0,0,0,0.6) 100%);
+            background: radial-gradient(circle at center, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0.5) 100%);
             pointer-events: none;
         }
 
