@@ -13,59 +13,46 @@ export const injectTapestryStyles = () => {
     const style = document.createElement('style');
     style.id = 'tapestry-core-styles';
     style.innerHTML = `
-        /* Register the property for animation */
-        @property --cycle-hue {
-            syntax: '<angle>';
-            initial-value: 0deg;
-            inherits: true;
-        }
+        /* PERFORMANCE UPDATE: 
+           Removed the @property --cycle-hue registration. 
+           We now use GPU-accelerated filter: hue-rotate() to prevent CPU repainting. 
+        */
 
-        /* VIBRANT WOVEN BACKGROUND - HIGH FIDELITY STRANDS */
+        /* VIBRANT WOVEN BACKGROUND - OPTIMIZED FOR MOBILE */
         .dynamic-weave-bg {
             position: absolute;
             inset: -4%; /* Expand past edges to hide the warping from the organic filter */
             z-index: 0;
             --sz: 18px; /* 25% thinner threads for a much finer tapestry */
             
-            /* Organic Tapestry Distortion Filter */
-            /* This SVG filter creates natural, wavy imperfections so the strands aren't perfectly straight */
+            /* Organic Tapestry Distortion Filter applied ONCE to the static container */
             filter: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='organic-weave'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.035' numOctaves='3' result='noise'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='noise' scale='4' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/svg%3E#organic-weave");
-            
-            /* Independent Strand Colors using integer multipliers for seamless loops at different speeds */
-            --c-v1: hsl(calc(var(--cycle-hue) * 1 + 0deg), 90%, 45%);
-            --c-v2: hsl(calc(var(--cycle-hue) * -2 + 60deg), 90%, 45%);
-            --c-v3: hsl(calc(var(--cycle-hue) * 3 + 120deg), 90%, 45%);
-            --c-v4: hsl(calc(var(--cycle-hue) * -1 + 180deg), 90%, 45%);
-            --c-v5: hsl(calc(var(--cycle-hue) * 2 + 240deg), 90%, 45%);
-            --c-v6: hsl(calc(var(--cycle-hue) * -3 + 300deg), 90%, 45%);
+        }
 
-            --c-h1: hsl(calc(var(--cycle-hue) * -2 + 30deg), 90%, 45%);
-            --c-h2: hsl(calc(var(--cycle-hue) * 3 + 90deg), 90%, 45%);
-            --c-h3: hsl(calc(var(--cycle-hue) * -1 + 150deg), 90%, 45%);
-            --c-h4: hsl(calc(var(--cycle-hue) * 2 + 210deg), 90%, 45%);
-            --c-h5: hsl(calc(var(--cycle-hue) * -3 + 270deg), 90%, 45%);
-            --c-h6: hsl(calc(var(--cycle-hue) * 1 + 330deg), 90%, 45%);
-
-            /* VERTICAL THREADS (The bottom layer) */
+        /* VERTICAL THREADS (The bottom layer) */
+        .dynamic-weave-bg::before {
+            content: "";
+            position: absolute;
+            inset: 0;
             background-color: #050505;
+            
+            /* Static gradients drawn once */
             background-image: 
-                /* 1. Micro strands (tighter for thinner threads) */
                 repeating-linear-gradient(to right, rgba(255,255,255,0.1) 0px, rgba(0,0,0,0.6) 1px, rgba(255,255,255,0.1) 2px),
-                /* 2. 3D Bevel (scaled down to 3px) */
                 repeating-linear-gradient(to right, rgba(0,0,0,0.9) 0px, rgba(0,0,0,0) 3px, rgba(255,255,255,0.35) calc(var(--sz)/2), rgba(0,0,0,0) calc(var(--sz) - 3px), rgba(0,0,0,0.9) var(--sz)),
-                /* 3. Base Colors (6-color repeating spectrum) */
                 repeating-linear-gradient(to right, 
-                    var(--c-v1) 0, var(--c-v1) var(--sz), 
-                    var(--c-v2) var(--sz), var(--c-v2) calc(var(--sz)*2), 
-                    var(--c-v3) calc(var(--sz)*2), var(--c-v3) calc(var(--sz)*3),
-                    var(--c-v4) calc(var(--sz)*3), var(--c-v4) calc(var(--sz)*4),
-                    var(--c-v5) calc(var(--sz)*4), var(--c-v5) calc(var(--sz)*5),
-                    var(--c-v6) calc(var(--sz)*5), var(--c-v6) calc(var(--sz)*6));
+                    hsl(0, 90%, 45%) 0, hsl(0, 90%, 45%) var(--sz), 
+                    hsl(60, 90%, 45%) var(--sz), hsl(60, 90%, 45%) calc(var(--sz)*2), 
+                    hsl(120, 90%, 45%) calc(var(--sz)*2), hsl(120, 90%, 45%) calc(var(--sz)*3),
+                    hsl(180, 90%, 45%) calc(var(--sz)*3), hsl(180, 90%, 45%) calc(var(--sz)*4),
+                    hsl(240, 90%, 45%) calc(var(--sz)*4), hsl(240, 90%, 45%) calc(var(--sz)*5),
+                    hsl(300, 90%, 45%) calc(var(--sz)*5), hsl(300, 90%, 45%) calc(var(--sz)*6));
             
             background-blend-mode: overlay, hard-light, normal;
             
-            /* Animate ONLY the colors now */
-            animation: colorCycle 60s linear infinite;
+            /* Hardware-accelerated color shift */
+            animation: fastHue 25s linear infinite;
+            will-change: filter;
         }
 
         /* HORIZONTAL THREADS (The top layer) */
@@ -74,33 +61,40 @@ export const injectTapestryStyles = () => {
             position: absolute;
             inset: 0;
             
+            /* Static gradients drawn once */
             background-image: 
-                /* 1. Shadows cast BY the vertical threads (scaled down to 4.5px) */
                 repeating-linear-gradient(to right, rgba(0,0,0,0.85) 0px, transparent 4.5px, transparent calc(var(--sz) - 4.5px), rgba(0,0,0,0.85) var(--sz)),
-                /* 2. Micro strands (tighter for thinner threads) */
                 repeating-linear-gradient(to bottom, rgba(255,255,255,0.1) 0px, rgba(0,0,0,0.6) 1px, rgba(255,255,255,0.1) 2px),
-                /* 3. 3D Bevel (scaled down to 3px) */
                 repeating-linear-gradient(to bottom, rgba(0,0,0,0.9) 0px, rgba(0,0,0,0) 3px, rgba(255,255,255,0.35) calc(var(--sz)/2), rgba(0,0,0,0) calc(var(--sz) - 3px), rgba(0,0,0,0.9) var(--sz)),
-                /* 4. Base Colors (6-color repeating spectrum) */
                 repeating-linear-gradient(to bottom, 
-                    var(--c-h1) 0, var(--c-h1) var(--sz), 
-                    var(--c-h2) var(--sz), var(--c-h2) calc(var(--sz)*2), 
-                    var(--c-h3) calc(var(--sz)*2), var(--c-h3) calc(var(--sz)*3),
-                    var(--c-h4) calc(var(--sz)*3), var(--c-h4) calc(var(--sz)*4),
-                    var(--c-h5) calc(var(--sz)*4), var(--c-h5) calc(var(--sz)*5),
-                    var(--c-h6) calc(var(--sz)*5), var(--c-h6) calc(var(--sz)*6));
+                    hsl(30, 90%, 45%) 0, hsl(30, 90%, 45%) var(--sz), 
+                    hsl(90, 90%, 45%) var(--sz), hsl(90, 90%, 45%) calc(var(--sz)*2), 
+                    hsl(150, 90%, 45%) calc(var(--sz)*2), hsl(150, 90%, 45%) calc(var(--sz)*3),
+                    hsl(210, 90%, 45%) calc(var(--sz)*3), hsl(210, 90%, 45%) calc(var(--sz)*4),
+                    hsl(270, 90%, 45%) calc(var(--sz)*4), hsl(270, 90%, 45%) calc(var(--sz)*5),
+                    hsl(330, 90%, 45%) calc(var(--sz)*5), hsl(330, 90%, 45%) calc(var(--sz)*6));
             
             background-blend-mode: multiply, overlay, hard-light, normal;
             
-            /* THE MAGIC WEAVE MASK */
-            /* This checkerboard punches alternating holes in the horizontal layer, revealing the vertical layer below */
             -webkit-mask-image: conic-gradient(from 0deg, rgba(0,0,0,0) 90deg, rgba(0,0,0,1) 90deg 180deg, rgba(0,0,0,0) 180deg 270deg, rgba(0,0,0,1) 270deg);
             mask-image: conic-gradient(from 0deg, rgba(0,0,0,0) 90deg, rgba(0,0,0,1) 90deg 180deg, rgba(0,0,0,0) 180deg 270deg, rgba(0,0,0,1) 270deg);
             -webkit-mask-size: calc(var(--sz)*2) calc(var(--sz)*2);
             mask-size: calc(var(--sz)*2) calc(var(--sz)*2);
             
-            /* Drop shadow creates the 3D pop of the horizontal threads sitting ON TOP of the vertical ones */
-            filter: drop-shadow(0px 8px 6px rgba(0,0,0,0.9));
+            /* Slower, reversed hue shift so vertical/horizontal threads cross over beautifully */
+            animation: slowHue 35s linear infinite reverse;
+            will-change: filter;
+        }
+
+        /* GPU Accelerated Keyframes */
+        @keyframes fastHue {
+            0% { filter: hue-rotate(0deg); }
+            100% { filter: hue-rotate(360deg); }
+        }
+
+        @keyframes slowHue {
+            0% { filter: drop-shadow(0px 8px 6px rgba(0,0,0,0.9)) hue-rotate(0deg); }
+            100% { filter: drop-shadow(0px 8px 6px rgba(0,0,0,0.9)) hue-rotate(360deg); }
         }
 
         /* CHUNKY FABRIC WEAVE TEXTURE */
@@ -120,64 +114,60 @@ export const injectTapestryStyles = () => {
         /* FROSTED LIGHT GLASS UI */
         .glass-panel {
             background-color: rgba(255, 255, 255, 0.25);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
-            /* Removed standard borders to make the animated border the star */
+            /* PERFORMANCE OPTIMIZATION: Reduced from 24px to 12px for mobile rendering */
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255,255,255,0.3);
             position: relative;
-            /* Removed overflow: hidden so the glow and mote are perfectly round and not clipped */
-            --base-hue: 200deg;
-            --cycle-hue: 0deg;
-            animation: colorCycle 20s linear infinite;
-        }
-
-        @keyframes colorCycle {
-            0% { --cycle-hue: 0deg; }
-            100% { --cycle-hue: 360deg; }
+            /* --base-hue is now just a static starting point, parsed quickly */
+            --base-hue: 200deg; 
         }
         
         .glass-panel::before {
             content: "";
             position: absolute;
-            inset: 0; /* Align perfectly with panel edges */
+            inset: 0; 
             border: 2px solid transparent;
             border-radius: inherit;
             pointer-events: none;
-            z-index: 1; /* Bring above background */
-            /* Cross-browser mask for gradient borders */
+            z-index: 1; 
             -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
             -webkit-mask-composite: xor;
             mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
             mask-composite: exclude;
-            /* More vibrant colors for the border */
+            
+            /* Static gradient colors */
             background: linear-gradient(90deg, 
-                hsl(calc(var(--base-hue) + var(--cycle-hue)), 100%, 60%), 
-                hsl(calc(var(--base-hue) + var(--cycle-hue) + 60deg), 100%, 60%)
+                hsl(var(--base-hue), 100%, 60%), 
+                hsl(calc(var(--base-hue) + 60deg), 100%, 60%)
             ) border-box;
             background-size: 200% 100%;
-            animation: borderGlow 4s linear infinite;
-            /* A subtle drop shadow on the border itself for extra pop */
-            filter: drop-shadow(0 0 3px hsl(calc(var(--base-hue) + var(--cycle-hue)), 100%, 70%));
+            
+            /* GPU Accelerated spin and hue shift */
+            animation: borderSlideHue 6s linear infinite;
+            will-change: background-position, filter;
         }
 
-        @keyframes borderGlow {
-            0% { background-position: 0% 0%; }
-            100% { background-position: 200% 0%; }
+        @keyframes borderSlideHue {
+            0% { background-position: 0% 0%; filter: drop-shadow(0 0 3px rgba(255,255,255,0.3)) hue-rotate(0deg); }
+            100% { background-position: 200% 0%; filter: drop-shadow(0 0 3px rgba(255,255,255,0.3)) hue-rotate(360deg); }
         }
 
         .glass-panel::after {
             content: "";
             position: absolute;
-            width: 10px; /* Slightly larger mote */
+            width: 10px;
             height: 10px;
-            background: hsl(calc(var(--base-hue) + var(--cycle-hue)), 100%, 75%);
+            background: hsl(var(--base-hue), 100%, 75%);
             border-radius: 50%;
-            /* Enhanced mote glow */
-            box-shadow: 0 0 12px hsl(calc(var(--base-hue) + var(--cycle-hue)), 100%, 75%), 
-                        0 0 25px hsl(calc(var(--base-hue) + var(--cycle-hue)), 100%, 60%);
+            box-shadow: 0 0 12px hsl(var(--base-hue), 100%, 75%), 
+                        0 0 25px hsl(var(--base-hue), 100%, 60%);
             z-index: 10;
             offset-path: rect(0 100% 100% 0 round 4px);
-            animation: travelMote 8s linear infinite;
+            
+            /* Fast GPU hue-rotate over top of the static base hue */
+            animation: travelMote 8s linear infinite, fastHue 15s linear infinite;
+            will-change: offset-distance, filter;
         }
 
         @keyframes travelMote {
