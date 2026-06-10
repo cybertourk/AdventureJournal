@@ -84,33 +84,33 @@ export function getLibraryTabsHTML(activeTab) {
     const isDM = window.appData?.activeCampaign?._isDM || false;
 
     return `
-    <div class="flex bg-stone-200 p-1 sm:p-1.5 rounded-sm border border-stone-300 shadow-inner mb-6 w-full max-w-5xl mx-auto shrink-0 overflow-x-auto hide-scrollbar">
-        <button onclick="window.appActions.setView('codex')" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isCodex ? 'bg-white shadow-sm text-red-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
+    <div class="flex bg-stone-200 p-0.5 sm:p-1 rounded-sm border border-stone-300 shadow-inner mb-4 w-full max-w-5xl mx-auto shrink-0 overflow-x-auto hide-scrollbar">
+        <button onclick="window.appActions.setView('codex')" class="min-w-[64px] flex-1 py-1 sm:py-1.5 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isCodex ? 'bg-white shadow-sm text-red-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
             <i class="fa-solid fa-book-journal-whills text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Codex</span>
         </button>
-        <button onclick="window.appActions.openBazaar()" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isBazaar ? 'bg-white shadow-sm text-emerald-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
+        <button onclick="window.appActions.openBazaar()" class="min-w-[64px] flex-1 py-1 sm:py-1.5 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isBazaar ? 'bg-white shadow-sm text-emerald-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
             <i class="fa-solid fa-store text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Bazaar</span>
         </button>
         ${isDM ? `
-        <button onclick="window.appActions.setView('databases')" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isDatabases ? 'bg-white shadow-sm text-stone-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
+        <button onclick="window.appActions.setView('databases')" class="min-w-[64px] flex-1 py-1 sm:py-1.5 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isDatabases ? 'bg-white shadow-sm text-stone-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
             <i class="fa-solid fa-box-archive text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Databases</span>
         </button>
         ` : ''}
-        <button onclick="window.appActions.openRulesGlossary()" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isRules ? 'bg-white shadow-sm text-amber-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
+        <button onclick="window.appActions.openRulesGlossary()" class="min-w-[64px] flex-1 py-1 sm:py-1.5 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isRules ? 'bg-white shadow-sm text-amber-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
             <i class="fa-solid fa-scale-balanced text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Rules</span>
         </button>
         ${isDM ? `
-        <button onclick="window.appActions.setView('tables')" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isTables ? 'bg-white shadow-sm text-stone-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
+        <button onclick="window.appActions.setView('tables')" class="min-w-[64px] flex-1 py-1 sm:py-1.5 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isTables ? 'bg-white shadow-sm text-stone-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
             <i class="fa-solid fa-table-list text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Tables</span>
         </button>
         ` : ''}
-        <button onclick="window.appActions.setView('webs')" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isWebs ? 'bg-white shadow-sm text-purple-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
+        <button onclick="window.appActions.setView('webs')" class="min-w-[64px] flex-1 py-1 sm:py-1.5 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isWebs ? 'bg-white shadow-sm text-purple-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
             <i class="fa-solid fa-diagram-project text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Webs</span>
         </button>
-        <button onclick="window.appActions.openJournal('campaign')" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isTome ? 'bg-white shadow-sm text-stone-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
+        <button onclick="window.appActions.openJournal('campaign')" class="min-w-[64px] flex-1 py-1 sm:py-1.5 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition ${isTome ? 'bg-white shadow-sm text-stone-900 font-bold border border-stone-300' : 'text-stone-500 hover:text-stone-800 border border-transparent'} text-[9px] sm:text-[10px] uppercase tracking-wider">
             <i class="fa-solid fa-scroll text-sm sm:text-base mb-0.5 sm:mb-0"></i> <span>Tome</span>
         </button>
-        <button onclick="window.appActions.openChecklistMenu()" class="min-w-[64px] flex-1 py-1.5 sm:py-2 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition text-stone-500 hover:text-blue-800 border border-transparent text-[9px] sm:text-[10px] uppercase tracking-wider relative group">
+        <button onclick="window.appActions.openChecklistMenu()" class="min-w-[64px] flex-1 py-1 sm:py-1.5 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-sm transition text-stone-500 hover:text-blue-800 border border-transparent text-[9px] sm:text-[10px] uppercase tracking-wider relative group">
             <i class="fa-solid fa-list-check text-sm sm:text-base mb-0.5 sm:mb-0 group-hover:text-blue-600 transition-colors"></i> <span>Tasks</span>
             <span id="lib-tab-badge-tasks" class="hidden absolute top-1 right-2 sm:right-6 w-2 h-2 bg-red-500 rounded-full border border-stone-200 animate-pulse"></span>
         </button>
@@ -178,8 +178,11 @@ export function updateHeaderUI(state) {
             if (titleEl) titleEl.innerHTML = `<span class="glow-cyan font-mono tracking-widest text-cyan-400">THE PATTERN NEXUS</span>`;
             if (breadcrumbEl) breadcrumbEl.innerHTML = `<span class="font-mono tracking-tighter text-[9px] text-cyan-500/50">IDENTITY SYNC ACTIVE // DIMENSIONAL SHIFT</span>`;
             if (iconEl) {
-                iconEl.innerHTML = `<img src="${PATTERN_ASSET_BASE_URL}arcani.webp" alt="Arcani" class="w-6 h-6 object-contain animate-pulse drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]">`;
-                iconEl.className = "bg-stone-950 border border-cyan-500/30 w-10 h-10 rounded-full flex items-center justify-center shadow-[0_0_12px_rgba(6,182,212,0.4)] flex-shrink-0";
+                iconEl.innerHTML = `
+                    <div class="absolute inset-1.5 bg-white/70 rounded-full blur-[6px]"></div>
+                    <img src="${PATTERN_ASSET_BASE_URL}arcani.webp" alt="Arcani" class="relative w-7 h-7 object-contain animate-pulse filter brightness-110 drop-shadow-sm">
+                `;
+                iconEl.className = "relative bg-stone-950 border border-cyan-500/30 w-10 h-10 rounded-full flex items-center justify-center shadow-[0_0_12px_rgba(6,182,212,0.4)] flex-shrink-0";
             }
             showBack = true;
             break;
@@ -359,29 +362,30 @@ export function updatePlayerResourceBar(state) {
         const titleText = isCurrentlyInNexus ? "Return to Campaign Scroll" : "Shift to The Pattern Nexus";
 
         portalGlyphHtml = `
-            <button onclick="${glyphClickAction}" class="ml-3 w-8 h-8 rounded-full border bg-stone-950 flex items-center justify-center hover:scale-105 transition-all ${borderGlow}" title="${titleText}" onclick="event.stopPropagation();">
-                <img src="${PATTERN_ASSET_BASE_URL}arcani.webp" alt="Nexus Portal" class="w-5 h-5 object-contain ${animClass}">
+            <button onclick="${glyphClickAction}" class="ml-2 w-7 h-7 relative rounded-full border bg-stone-950 flex items-center justify-center hover:scale-105 transition-all ${borderGlow}" title="${titleText}" onclick="event.stopPropagation();">
+                <div class="absolute inset-0.5 rounded-full bg-white/70 blur-[4px] pointer-events-none"></div>
+                <img src="${PATTERN_ASSET_BASE_URL}arcani.webp" alt="Nexus Portal" class="relative w-5 h-5 object-contain ${animClass} filter brightness-110">
             </button>
         `;
     }
 
     bar.innerHTML = `
-        <div class="bg-[#292524] border-b-2 border-stone-800 p-3 px-5 flex flex-col sm:flex-row justify-between items-center gap-3 shadow-inner bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')]">
+        <div class="bg-[#292524] border-b-2 border-stone-800 py-1.5 px-4 flex flex-col sm:flex-row justify-between items-center gap-2 shadow-inner bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')]">
             <div class="font-serif font-bold text-amber-500 text-sm sm:text-base truncate flex items-center">
                 <i class="fa-solid fa-book-journal-whills text-amber-700 mr-2 sm:mr-3"></i> ${advName}
             </div>
-            <div class="flex items-center gap-4 text-[10px] sm:text-xs font-bold uppercase tracking-widest bg-stone-900 px-4 py-2 rounded-sm border border-stone-700 shadow-[0_4px_10px_rgba(0,0,0,0.5)]">
-                <div class="flex items-center gap-2" title="Inspiration Available">
-                    <i class="fa-solid fa-dice-d20 ${inspPulse} text-sm sm:text-lg transition-all duration-300"></i>
+            <div class="flex items-center gap-3 text-[10px] sm:text-xs font-bold uppercase tracking-widest bg-stone-900 px-3 py-1.5 rounded-sm border border-stone-700 shadow-[0_4px_10px_rgba(0,0,0,0.5)]">
+                <div class="flex items-center gap-1.5" title="Inspiration Available">
+                    <i class="fa-solid fa-dice-d20 ${inspPulse} text-sm transition-all duration-300"></i>
                     <span class="${currentInsp > 0 ? 'text-amber-500' : 'text-stone-600'}">Insp <span class="text-white">${currentInsp}</span><span class="text-stone-600">/${maxInsp}</span></span>
                 </div>
-                <div class="w-px h-5 bg-stone-900"></div>
-                <div class="flex items-center gap-2" title="Auto-Success Available">
-                    <i class="fa-solid fa-check-double ${autoPulse} text-sm sm:text-lg transition-all duration-300"></i>
+                <div class="w-px h-4 bg-stone-900"></div>
+                <div class="flex items-center gap-1.5" title="Auto-Success Available">
+                    <i class="fa-solid fa-check-double ${autoPulse} text-sm transition-all duration-300"></i>
                     <span class="${autoSuccess > 0 ? 'text-emerald-500' : 'text-stone-600'}">Auto <span class="text-white">${autoSuccess}</span></span>
                 </div>
                 ${portalGlyphHtml ? `
-                <div class="w-px h-5 bg-stone-900"></div>
+                <div class="w-px h-4 bg-stone-900"></div>
                 ${portalGlyphHtml}
                 ` : ''}
             </div>
@@ -439,9 +443,9 @@ export function updateChecklistUI(state) {
 
     const activeTab = state.activeChecklistTab || 'tasks';
     const tabNav = `
-    <div class="flex gap-2 mb-4">
-        <button onclick="window.switchChecklistTab('tasks')" class="flex-1 py-2 text-[10px] font-bold uppercase tracking-widest border-b-2 ${activeTab === 'tasks' ? 'border-amber-700 text-amber-900' : 'border-transparent text-stone-500 hover:text-stone-800'} transition">Tasks</button>
-        <button onclick="window.switchChecklistTab('quests')" class="flex-1 py-2 text-[10px] font-bold uppercase tracking-widest border-b-2 ${activeTab === 'quests' ? 'border-amber-700 text-amber-900' : 'border-transparent text-stone-500 hover:text-stone-800'} transition">Quest Log</button>
+    <div class="flex gap-2 mb-3">
+        <button onclick="window.switchChecklistTab('tasks')" class="flex-1 py-1.5 text-[10px] font-bold uppercase tracking-widest border-b-2 ${activeTab === 'tasks' ? 'border-amber-700 text-amber-900' : 'border-transparent text-stone-500 hover:text-stone-800'} transition">Tasks</button>
+        <button onclick="window.switchChecklistTab('quests')" class="flex-1 py-1.5 text-[10px] font-bold uppercase tracking-widest border-b-2 ${activeTab === 'quests' ? 'border-amber-700 text-amber-900' : 'border-transparent text-stone-500 hover:text-stone-800'} transition">Quest Log</button>
     </div>
     `;
 
@@ -979,11 +983,11 @@ export function updateSessionTabUI(tabId) {
         if (!btn || !content) return;
 
         if (t === tabId) {
-            btn.className = "whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-900 bg-[#f4ebd8] border-t-2 border-l border-r border-[#d4c5a9] border-t-red-900";
+            btn.className = "whitespace-nowrap px-3 sm:px-4 py-1.5 sm:py-2 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-900 bg-[#f4ebd8] border-t-2 border-l border-r border-[#d4c5a9] border-t-red-900";
             content.classList.remove('hidden');
             if (t === 'preview') content.classList.add('flex', 'flex-col'); 
         } else {
-            btn.className = "whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-600 border-transparent hover:text-stone-800";
+            btn.className = "whitespace-nowrap px-3 sm:px-4 py-1.5 sm:py-2 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-600 border-transparent hover:text-stone-800";
             content.classList.add('hidden');
             if (t === 'preview') content.classList.remove('flex', 'flex-col');
         }
