@@ -245,7 +245,7 @@ export function getPatternNexusHTML(state) {
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 border-b border-white/10 pb-5">
                     <div>
                         <div class="flex items-center gap-3">
-                            <img src="${PATTERN_ASSET_BASE_URL}arcani.webp" alt="Arcani Symbol" class="w-9 h-9 object-contain drop-shadow-[0_0_12px_rgba(251,191,36,0.7)]" style="filter: brightness(1.5) sepia(1) hue-rotate(330deg) saturate(3);">
+                            <img src="${PATTERN_ASSET_BASE_URL}arcani.webp" alt="Arcani Symbol" class="w-12 h-12 object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.8)] filter brightness-[1.2]">
                             <h2 class="text-3xl font-serif font-black tracking-wide text-white drop-shadow-lg">The Pattern Tapestry</h2>
                         </div>
                         <p class="text-[10px] text-amber-300 font-bold uppercase tracking-widest mt-2 drop-shadow-md">Weave the fundamental threads of reality.</p>
