@@ -152,27 +152,27 @@
     <div id="app-screen" class="hidden h-screen w-screen overflow-hidden text-stone-900 flex flex-col relative">
         
         <!-- 1. THEMATIC HEADER -->
-        <header id="main-header" class="bg-stone-950 px-5 py-4 pt-[max(env(safe-area-inset-top),16px)] flex justify-between items-center z-20 shrink-0 border-b-2 border-amber-700 shadow-[0_4px_15px_rgba(0,0,0,0.5)] thematic-bg transition-all duration-300">
-            <div class="flex items-center gap-3 w-full">
+        <header id="main-header" class="bg-stone-950 px-3 py-2 pt-[max(env(safe-area-inset-top),12px)] flex justify-between items-center z-20 shrink-0 border-b-2 border-amber-700 shadow-[0_4px_15px_rgba(0,0,0,0.5)] thematic-bg transition-all duration-300">
+            <div class="flex items-center gap-2 w-full">
                 <!-- Back Button (Only visible deep in views) -->
-                <button id="header-back-btn" onclick="window.appActions.navigateBack()" class="hidden w-10 h-10 rounded-sm bg-stone-800 text-stone-400 border border-stone-700 shadow-sm flex items-center justify-center hover:text-amber-400 transition flex-shrink-0">
-                    <i class="fa-solid fa-chevron-left"></i>
+                <button id="header-back-btn" onclick="window.appActions.navigateBack()" class="hidden w-8 h-8 rounded-sm bg-stone-800 text-stone-400 border border-stone-700 shadow-sm flex items-center justify-center hover:text-amber-400 transition flex-shrink-0">
+                    <i class="fa-solid fa-chevron-left text-sm"></i>
                 </button>
                 
                 <!-- App Icon -->
-                <div id="header-icon" class="bg-red-900 w-10 h-10 rounded-sm shadow-inner border border-red-950 flex items-center justify-center text-amber-50 transform -rotate-3 flex-shrink-0">
-                    <i class="fa-solid fa-scroll text-xl"></i>
+                <div id="header-icon" class="bg-red-900 w-8 h-8 rounded-sm shadow-inner border border-red-950 flex items-center justify-center text-amber-50 transform -rotate-3 flex-shrink-0">
+                    <i class="fa-solid fa-scroll text-base"></i>
                 </div>
                 
                 <!-- Title & Breadcrumb -->
                 <div class="min-w-0 flex-grow">
-                    <h1 id="header-title" class="text-lg sm:text-xl font-serif font-black text-amber-500 leading-none drop-shadow-md truncate">Adventure Journal</h1>
-                    <p id="header-breadcrumb" class="text-[10px] uppercase tracking-widest text-stone-400 mt-1 font-bold truncate">Library</p>
+                    <h1 id="header-title" class="text-base sm:text-lg font-serif font-black text-amber-500 leading-none drop-shadow-md truncate">Adventure Journal</h1>
+                    <p id="header-breadcrumb" class="text-[9px] uppercase tracking-widest text-stone-400 mt-0.5 font-bold truncate">Library</p>
                 </div>
                 
                 <!-- Settings Button -->
-                <button id="settings-btn" class="w-10 h-10 rounded-full bg-stone-800 text-stone-400 border border-stone-700 shadow-sm flex items-center justify-center hover:text-amber-400 transition flex-shrink-0">
-                    <i class="fa-solid fa-gear"></i>
+                <button id="settings-btn" class="w-8 h-8 rounded-full bg-stone-800 text-stone-400 border border-stone-700 shadow-sm flex items-center justify-center hover:text-amber-400 transition flex-shrink-0">
+                    <i class="fa-solid fa-gear text-sm"></i>
                 </button>
             </div>
         </header>
