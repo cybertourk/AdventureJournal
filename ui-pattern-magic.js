@@ -251,7 +251,7 @@ export function getPatternNexusHTML(state) {
                                 <!-- The icon, doubled in size to 96px (w-24 h-24) with a slight brightness bump -->
                                 <img src="${PATTERN_ASSET_BASE_URL}arcani.webp" alt="Arcani Symbol" class="relative w-24 h-24 object-contain" style="filter: brightness(1.1) drop-shadow(0 0 10px rgba(255,255,255,0.5));">
                             </div>
-                            <h2 class="text-4xl font-serif font-black tracking-wide text-white drop-shadow-lg">The Pattern Tapestry</h2>
+                            <h2 class="text-3xl font-serif font-black tracking-wide text-white drop-shadow-lg">The Pattern Tapestry</h2>
                         </div>
                         <p class="text-xs text-amber-300 font-bold uppercase tracking-widest mt-2 drop-shadow-md">Weave the fundamental threads of reality.</p>
                     </div>
