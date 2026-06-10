@@ -14,6 +14,7 @@ import { saveCampaign, notify } from './firebase-manager.js';
 
 // IMPORT PATTERN NEXUS VIEW
 import { getPatternNexusHTML } from './ui-pattern-magic.js';
+import { PATTERN_ASSET_BASE_URL } from './ui-pattern-utils.js';
 
 // --- CONSTANTS & HELPERS ---
 export const BUDGET_BY_LEVEL = { 
@@ -177,7 +178,7 @@ export function updateHeaderUI(state) {
             if (titleEl) titleEl.innerHTML = `<span class="glow-cyan font-mono tracking-widest text-cyan-400">THE PATTERN NEXUS</span>`;
             if (breadcrumbEl) breadcrumbEl.innerHTML = `<span class="font-mono tracking-tighter text-[9px] text-cyan-500/50">IDENTITY SYNC ACTIVE // DIMENSIONAL SHIFT</span>`;
             if (iconEl) {
-                iconEl.innerHTML = `<i class="fa-solid fa-compass-drafting text-xl text-cyan-400 animate-pulse"></i>`;
+                iconEl.innerHTML = `<img src="${PATTERN_ASSET_BASE_URL}arcani.webp" alt="Arcani" class="w-6 h-6 object-contain animate-pulse drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]">`;
                 iconEl.className = "bg-stone-950 border border-cyan-500/30 w-10 h-10 rounded-full flex items-center justify-center shadow-[0_0_12px_rgba(6,182,212,0.4)] flex-shrink-0";
             }
             showBack = true;
@@ -353,13 +354,13 @@ export function updatePlayerResourceBar(state) {
             ? `window.appActions.setView('adventure')` 
             : `window.appActions.setView('pattern-nexus')`;
         
-        const pulseClass = isCurrentlyInNexus ? 'text-amber-500 animate-spin' : 'text-cyan-400 animate-pulse';
+        const animClass = isCurrentlyInNexus ? 'animate-spin drop-shadow-[0_0_5px_rgba(245,158,11,0.8)]' : 'animate-pulse drop-shadow-[0_0_5px_rgba(6,182,212,0.8)]';
         const borderGlow = isCurrentlyInNexus ? 'border-amber-500 shadow-[0_0_8px_#f59e0b]' : 'border-cyan-500 shadow-[0_0_12px_#06b6d4]';
         const titleText = isCurrentlyInNexus ? "Return to Campaign Scroll" : "Shift to The Pattern Nexus";
 
         portalGlyphHtml = `
             <button onclick="${glyphClickAction}" class="ml-3 w-8 h-8 rounded-full border bg-stone-950 flex items-center justify-center hover:scale-105 transition-all ${borderGlow}" title="${titleText}" onclick="event.stopPropagation();">
-                <i class="fa-solid fa-compass-drafting text-xs ${pulseClass}"></i>
+                <img src="${PATTERN_ASSET_BASE_URL}arcani.webp" alt="Nexus Portal" class="w-5 h-5 object-contain ${animClass}">
             </button>
         `;
     }
