@@ -130,8 +130,8 @@ export function updateHeaderUI(state) {
 
     // Reset default icon state if modified by the Pattern Nexus shift
     if (iconEl) {
-        iconEl.innerHTML = `<i class="fa-solid fa-scroll text-xl"></i>`;
-        iconEl.className = "bg-red-900 w-10 h-10 rounded-sm shadow-inner border border-red-950 flex items-center justify-center text-amber-50 transform -rotate-3 flex-shrink-0";
+        iconEl.innerHTML = `<i class="fa-solid fa-scroll text-base"></i>`;
+        iconEl.className = "bg-red-900 w-8 h-8 rounded-sm shadow-inner border border-red-950 flex items-center justify-center text-amber-50 transform -rotate-3 flex-shrink-0";
     }
 
     if (state.currentView === 'home' || !state.activeCampaign) {
@@ -179,10 +179,10 @@ export function updateHeaderUI(state) {
             if (breadcrumbEl) breadcrumbEl.innerHTML = `<span class="font-mono tracking-tighter text-[9px] text-cyan-500/50">IDENTITY SYNC ACTIVE // DIMENSIONAL SHIFT</span>`;
             if (iconEl) {
                 iconEl.innerHTML = `
-                    <div class="absolute inset-1.5 bg-white/70 rounded-full blur-[6px]"></div>
-                    <img src="${PATTERN_ASSET_BASE_URL}arcani.webp" alt="Arcani" class="relative w-7 h-7 object-contain animate-pulse filter brightness-110 drop-shadow-sm">
+                    <div class="absolute inset-1 rounded-full bg-white/90 blur-[6px]"></div>
+                    <img src="${PATTERN_ASSET_BASE_URL}arcani.webp" alt="Arcani" class="relative w-5 h-5 object-contain animate-pulse filter brightness-[1.2]">
                 `;
-                iconEl.className = "relative bg-stone-950 border border-cyan-500/30 w-10 h-10 rounded-full flex items-center justify-center shadow-[0_0_12px_rgba(6,182,212,0.4)] flex-shrink-0";
+                iconEl.className = "relative bg-stone-950 border border-cyan-500/30 w-8 h-8 rounded-full flex items-center justify-center shadow-[0_0_12px_rgba(6,182,212,0.4)] flex-shrink-0";
             }
             showBack = true;
             break;
