@@ -244,11 +244,16 @@ export function getPatternNexusHTML(state) {
                 
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 border-b border-white/10 pb-5">
                     <div>
-                        <div class="flex items-center gap-3">
-                            <img src="${PATTERN_ASSET_BASE_URL}arcani.webp" alt="Arcani Symbol" class="w-12 h-12 object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.8)] filter brightness-[1.2]">
-                            <h2 class="text-3xl font-serif font-black tracking-wide text-white drop-shadow-lg">The Pattern Tapestry</h2>
+                        <div class="flex items-center gap-4">
+                            <div class="relative flex items-center justify-center">
+                                <!-- A dedicated white aura layer sitting physically behind the image -->
+                                <div class="absolute inset-1 rounded-full bg-white/70 blur-[25px]"></div>
+                                <!-- The icon, doubled in size to 96px (w-24 h-24) with a slight brightness bump -->
+                                <img src="${PATTERN_ASSET_BASE_URL}arcani.webp" alt="Arcani Symbol" class="relative w-24 h-24 object-contain" style="filter: brightness(1.1) drop-shadow(0 0 10px rgba(255,255,255,0.5));">
+                            </div>
+                            <h2 class="text-4xl font-serif font-black tracking-wide text-white drop-shadow-lg">The Pattern Tapestry</h2>
                         </div>
-                        <p class="text-[10px] text-amber-300 font-bold uppercase tracking-widest mt-2 drop-shadow-md">Weave the fundamental threads of reality.</p>
+                        <p class="text-xs text-amber-300 font-bold uppercase tracking-widest mt-2 drop-shadow-md">Weave the fundamental threads of reality.</p>
                     </div>
                     <div class="flex flex-wrap items-center gap-3">
                         ${pcSelectorHtml}
