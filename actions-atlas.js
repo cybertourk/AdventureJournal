@@ -393,19 +393,24 @@ const renderAtlasEntities = (camp) => {
                 let viewCodexBtn = '';
                 let drillDownBtn = '';
 
-                // If tied to the codex, pull true name and show the codex link
+                // NEW: Intelligent Codex Fallback Resolver!
+                let cEntry = null;
                 if (pin.codexId) {
-                    const cEntry = camp.codex?.find(c => c.id === pin.codexId);
-                    if (cEntry) {
-                        title = cEntry.name;
-                        descHtml = `<span class="text-[9px] uppercase tracking-wider font-bold text-stone-500 bg-stone-200 px-1.5 py-0.5 rounded-sm">${cEntry.type}</span>`;
-                        viewCodexBtn = `<button onclick="window.appActions.viewCodex('${cEntry.id}'); document.getElementById('global-popup-container').innerHTML = '';" class="w-full mt-3 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] shadow-sm"><i class="fa-solid fa-book-open mr-1"></i> Read Codex</button>`;
-                        
-                        // DRILL DOWN CHECK: Does a sub-map exist for this codex entry?
-                        const linkedMap = allMaps.find(m => m.linkedCodexId === pin.codexId);
-                        if (linkedMap) {
-                            drillDownBtn = `<button onclick="window.appActions.switchAtlasMap('${linkedMap.id}')" class="w-full mt-2 py-2 bg-blue-900/10 text-blue-800 border border-blue-900/30 hover:bg-blue-900 hover:text-white rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm"><i class="fa-solid fa-map-location-dot mr-1"></i> Enter Local Map</button>`;
-                        }
+                    cEntry = camp.codex?.find(c => c.id === pin.codexId);
+                } else if (pin.customLabel) {
+                    // Fallback for older pins that might have lost their codexId but kept the name
+                    cEntry = camp.codex?.find(c => c.name.toLowerCase() === pin.customLabel.toLowerCase());
+                }
+
+                if (cEntry) {
+                    title = cEntry.name;
+                    descHtml = `<span class="text-[9px] uppercase tracking-wider font-bold text-stone-500 bg-stone-200 px-1.5 py-0.5 rounded-sm">${cEntry.type}</span>`;
+                    viewCodexBtn = `<button onclick="window.appActions.viewCodex('${cEntry.id}'); document.getElementById('global-popup-container').innerHTML = '';" class="w-full mt-3 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] shadow-sm"><i class="fa-solid fa-book-open mr-1"></i> Read Codex</button>`;
+                    
+                    // DRILL DOWN CHECK: Does a sub-map exist for this codex entry?
+                    const linkedMap = allMaps.find(m => m.linkedCodexId === cEntry.id);
+                    if (linkedMap) {
+                        drillDownBtn = `<button onclick="window.appActions.switchAtlasMap('${linkedMap.id}')" class="w-full mt-2 py-2 bg-blue-900/10 text-blue-800 border border-blue-900/30 hover:bg-blue-900 hover:text-white rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm"><i class="fa-solid fa-map-location-dot mr-1"></i> Enter Local Map</button>`;
                     }
                 }
 
@@ -463,12 +468,17 @@ const renderAtlasEntities = (camp) => {
                 let title = route.name || 'Unknown Route';
                 let viewCodexBtn = '';
 
+                // Intelligent Route Fallback Resolver
+                let cEntry = null;
                 if (route.codexId) {
-                    const cEntry = camp.codex?.find(c => c.id === route.codexId);
-                    if (cEntry) {
-                        title = cEntry.name;
-                        viewCodexBtn = `<button onclick="window.appActions.viewCodex('${cEntry.id}'); document.getElementById('global-popup-container').innerHTML = '';" class="w-full mt-3 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] shadow-sm"><i class="fa-solid fa-book-open mr-1"></i> Read Codex</button>`;
-                    }
+                    cEntry = camp.codex?.find(c => c.id === route.codexId);
+                } else if (route.name) {
+                    cEntry = camp.codex?.find(c => c.name.toLowerCase() === route.name.toLowerCase());
+                }
+
+                if (cEntry) {
+                    title = cEntry.name;
+                    viewCodexBtn = `<button onclick="window.appActions.viewCodex('${cEntry.id}'); document.getElementById('global-popup-container').innerHTML = '';" class="w-full mt-3 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] shadow-sm"><i class="fa-solid fa-book-open mr-1"></i> Read Codex</button>`;
                 }
 
                 const deleteBtn = canDelete ? `<button onclick="window.appActions.deleteAtlasRoute('${route.id}'); document.getElementById('global-popup-container').innerHTML = '';" class="w-full mt-2 py-2 bg-red-900/10 text-red-800 border border-red-900/30 hover:bg-red-900 hover:text-white rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm"><i class="fa-solid fa-trash mr-1"></i> Delete Route</button>` : '';
@@ -1379,3 +1389,33 @@ export const switchAtlasMap = (mapId) => {
     reRender(true);
     setTimeout(() => window.appActions.initAtlas(), 50);
 };
+
+// --- BIND ACTIONS TO WINDOW ---
+if (typeof window !== 'undefined') {
+    window.appActions = window.appActions || {};
+    window.appActions.initAtlas = initAtlas;
+    window.appActions.setAtlasMode = setAtlasMode;
+    window.appActions.updateAtlasGridAndScale = updateAtlasGridAndScale;
+    window.appActions.updateAtlasDistanceCalc = updateAtlasDistanceCalc;
+    window.appActions.atlasUndoLastPoint = atlasUndoLastPoint;
+    window.appActions.atlasMarkLastPointAsStop = atlasMarkLastPointAsStop;
+    window.appActions.atlasFinishDrawing = atlasFinishDrawing;
+    window.appActions.addAtlasRouteStop = addAtlasRouteStop;
+    window.appActions.calculateAtlasRouteLive = calculateAtlasRouteLive;
+    window.appActions.confirmAtlasRoute = confirmAtlasRoute;
+    window.appActions.searchAtlasCodex = searchAtlasCodex;
+    window.appActions.selectAtlasCodexEntry = selectAtlasCodexEntry;
+    window.appActions.confirmAtlasPin = confirmAtlasPin;
+    window.appActions.viewOnMap = viewOnMap;
+    window.appActions.toggleAtlasFullScreen = toggleAtlasFullScreen;
+    window.appActions.toggleAtlasLayers = toggleAtlasLayers;
+    window.appActions.toggleAtlasRouteVis = toggleAtlasRouteVis;
+    window.appActions.deleteAtlasPin = deleteAtlasPin;
+    window.appActions.deleteAtlasRoute = deleteAtlasRoute;
+    window.appActions.toggleAtlasSettings = toggleAtlasSettings;
+    window.appActions.saveAtlasSettings = saveAtlasSettings;
+    window.appActions.createNewAtlasMap = createNewAtlasMap;
+    window.appActions.deleteAtlasMap = deleteAtlasMap;
+    window.appActions.switchAtlasMap = switchAtlasMap;
+    window.appActions.refreshAtlasEntities = refreshAtlasEntities;
+}
