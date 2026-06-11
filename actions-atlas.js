@@ -394,7 +394,9 @@ const renderAtlasEntities = (camp) => {
 
             if (currentMode === 'pan') {
                 let title = pin.customLabel || 'Unknown Location';
-                let descHtml = `<span class="text-[9px] uppercase tracking-wider font-bold text-stone-500 bg-stone-200 px-1.5 py-0.5 rounded-sm">Custom Map Pin</span>`;
+                let descHtml = '';
+                let imageHtml = '';
+                let tagsHtml = `<span class="text-[9px] uppercase tracking-wider font-bold text-stone-500 bg-stone-200 px-1.5 py-0.5 rounded-sm shadow-sm">Custom Map Pin</span>`;
                 let viewCodexBtn = '';
                 let drillDownBtn = '';
 
@@ -409,27 +411,45 @@ const renderAtlasEntities = (camp) => {
 
                 if (cEntry) {
                     title = cEntry.name;
-                    descHtml = `<span class="text-[9px] uppercase tracking-wider font-bold text-stone-500 bg-stone-200 px-1.5 py-0.5 rounded-sm">${cEntry.type}</span>`;
-                    viewCodexBtn = `<button onclick="window.appActions.viewCodex('${cEntry.id}'); document.getElementById('global-popup-container').innerHTML = '';" class="w-full mt-3 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] shadow-sm"><i class="fa-solid fa-book-open mr-1"></i> Read Codex</button>`;
+                    
+                    const allTags = [cEntry.type, ...(cEntry.tags || [])];
+                    tagsHtml = allTags.map(t => `<span class="text-[9px] uppercase tracking-wider font-bold text-stone-500 bg-stone-200 px-1.5 py-0.5 rounded-sm shadow-sm whitespace-nowrap">${t}</span>`).join('');
+                    tagsHtml = `<div class="flex flex-wrap gap-1 mt-1 mb-2">${tagsHtml}</div>`;
+
+                    if (cEntry.image) {
+                        imageHtml = `<div class="w-full h-32 sm:h-40 bg-stone-900 border border-[#d4c5a9] rounded-sm mb-3 overflow-hidden shadow-inner"><img src="${cEntry.image}" alt="${cEntry.name}" class="w-full h-full object-cover" onerror="this.style.display='none'"></div>`;
+                    }
+
+                    const descText = window.appActions.parseSmartText ? window.appActions.parseSmartText(cEntry.desc || 'No description recorded.') : (cEntry.desc || 'No description recorded.');
+                    descHtml = `<div class="text-xs text-stone-700 font-serif leading-relaxed max-h-32 overflow-y-auto custom-scrollbar pr-2 mb-3 bg-[#fdfbf7] p-2 rounded-sm border border-stone-200 shadow-inner">${descText}</div>`;
+
+                    viewCodexBtn = `<button onclick="window.appActions.viewCodex('${cEntry.id}'); document.getElementById('global-popup-container').innerHTML = '';" class="w-full mt-2 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] shadow-sm"><i class="fa-solid fa-book-open mr-1"></i> Open Full Codex</button>`;
                     
                     // DRILL DOWN CHECK: Does a sub-map exist for this codex entry?
                     const linkedMap = allMaps.find(m => m.linkedCodexId === cEntry.id);
                     if (linkedMap) {
                         drillDownBtn = `<button onclick="window.appActions.switchAtlasMap('${linkedMap.id}')" class="w-full mt-2 py-2 bg-blue-900/10 text-blue-800 border border-blue-900/30 hover:bg-blue-900 hover:text-white rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm"><i class="fa-solid fa-map-location-dot mr-1"></i> Enter Local Map</button>`;
                     }
+                } else {
+                    tagsHtml = `<div class="mt-1 mb-2"><span class="text-[9px] uppercase tracking-wider font-bold text-stone-500 bg-stone-200 px-1.5 py-0.5 rounded-sm shadow-sm">Custom Map Pin</span></div>`;
                 }
 
-                const deleteBtn = canDelete ? `<button onclick="window.appActions.deleteAtlasPin('${pin.id}'); document.getElementById('global-popup-container').innerHTML = '';" class="absolute top-3.5 right-12 text-stone-400 hover:text-red-700 transition" title="Delete Pin"><i class="fa-solid fa-trash text-lg p-1"></i></button>` : '';
+                const deleteBtn = canDelete ? `<button onclick="window.appActions.deleteAtlasPin('${pin.id}'); document.getElementById('global-popup-container').innerHTML = '';" class="absolute top-3 right-12 text-stone-400 hover:text-red-700 transition bg-[#f4ebd8] rounded-full w-8 h-8 flex items-center justify-center z-10 shadow-sm border border-[#d4c5a9]" title="Delete Pin"><i class="fa-solid fa-trash text-sm"></i></button>` : '';
 
                 const popup = document.getElementById('global-popup-container');
                 popup.innerHTML = `
-                    <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[17000] backdrop-blur-sm animate-in">
-                        <div class="bg-[#f4ebd8] p-5 rounded-sm w-full max-w-sm border border-[#d4c5a9] shadow-2xl relative animate-in border-t-4 border-t-amber-700">
+                    <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[17000] backdrop-blur-sm animate-in" onclick="if(event.target === this) this.innerHTML = '';">
+                        <div class="bg-[#f4ebd8] p-5 rounded-sm w-full max-w-sm border border-[#d4c5a9] shadow-2xl relative animate-in border-t-4 border-t-amber-700 flex flex-col max-h-[90vh]">
                             ${deleteBtn}
-                            <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="absolute top-3.5 right-3 text-stone-400 hover:text-red-900 transition"><i class="fa-solid fa-xmark text-xl p-1"></i></button>
-                            <h3 class="font-serif font-bold text-lg text-amber-900 mb-1 pr-16 leading-tight">${title}</h3>
+                            <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="absolute top-3 right-3 text-stone-400 hover:text-red-900 transition bg-[#f4ebd8] rounded-full w-8 h-8 flex items-center justify-center z-10 shadow-sm border border-[#d4c5a9]"><i class="fa-solid fa-xmark text-lg"></i></button>
+                            
+                            ${imageHtml}
+                            
+                            <h3 class="font-serif font-bold text-xl text-amber-900 mb-0 pr-16 leading-tight drop-shadow-sm">${title}</h3>
+                            ${tagsHtml}
                             ${descHtml}
-                            <div class="mt-2">
+                            
+                            <div class="mt-auto shrink-0 pt-2 border-t border-[#d4c5a9]">
                                 ${drillDownBtn}
                                 ${viewCodexBtn}
                             </div>
@@ -472,6 +492,9 @@ const renderAtlasEntities = (camp) => {
 
                 let title = route.name || 'Unknown Route';
                 let viewCodexBtn = '';
+                let imageHtml = '';
+                let tagsHtml = `<div class="mt-1 mb-2"><span class="text-[9px] uppercase tracking-wider font-bold text-stone-500 bg-stone-200 px-1.5 py-0.5 rounded-sm shadow-sm">Travel Route</span></div>`;
+                let descHtml = '';
 
                 // Intelligent Route Fallback Resolver
                 let cEntry = null;
@@ -483,22 +506,41 @@ const renderAtlasEntities = (camp) => {
 
                 if (cEntry) {
                     title = cEntry.name;
-                    viewCodexBtn = `<button onclick="window.appActions.viewCodex('${cEntry.id}'); document.getElementById('global-popup-container').innerHTML = '';" class="w-full mt-3 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] shadow-sm"><i class="fa-solid fa-book-open mr-1"></i> Read Codex</button>`;
+                    
+                    const allTags = [cEntry.type, ...(cEntry.tags || [])];
+                    tagsHtml = allTags.map(t => `<span class="text-[9px] uppercase tracking-wider font-bold text-stone-500 bg-stone-200 px-1.5 py-0.5 rounded-sm shadow-sm whitespace-nowrap">${t}</span>`).join('');
+                    tagsHtml = `<div class="flex flex-wrap gap-1 mt-1 mb-2">${tagsHtml}</div>`;
+
+                    if (cEntry.image) {
+                        imageHtml = `<div class="w-full h-32 sm:h-40 bg-stone-900 border border-[#d4c5a9] rounded-sm mb-3 overflow-hidden shadow-inner"><img src="${cEntry.image}" alt="${cEntry.name}" class="w-full h-full object-cover" onerror="this.style.display='none'"></div>`;
+                    }
+
+                    const descText = window.appActions.parseSmartText ? window.appActions.parseSmartText(cEntry.desc || 'No description recorded.') : (cEntry.desc || 'No description recorded.');
+                    descHtml = `<div class="text-xs text-stone-700 font-serif leading-relaxed max-h-32 overflow-y-auto custom-scrollbar pr-2 mb-3 bg-[#fdfbf7] p-2 rounded-sm border border-stone-200 shadow-inner">${descText}</div>`;
+
+                    viewCodexBtn = `<button onclick="window.appActions.viewCodex('${cEntry.id}'); document.getElementById('global-popup-container').innerHTML = '';" class="w-full mt-2 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] shadow-sm"><i class="fa-solid fa-book-open mr-1"></i> Open Full Codex</button>`;
                 }
 
                 const deleteBtn = canDelete ? `<button onclick="window.appActions.deleteAtlasRoute('${route.id}'); document.getElementById('global-popup-container').innerHTML = '';" class="w-full mt-2 py-2 bg-red-900/10 text-red-800 border border-red-900/30 hover:bg-red-900 hover:text-white rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm"><i class="fa-solid fa-trash mr-1"></i> Delete Route</button>` : '';
 
                 const popup = document.getElementById('global-popup-container');
                 popup.innerHTML = `
-                    <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[17000] backdrop-blur-sm animate-in">
-                        <div class="bg-[#f4ebd8] p-5 rounded-sm w-full max-w-sm border border-[#d4c5a9] shadow-2xl relative animate-in border-t-4 border-t-amber-700">
-                            <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="absolute top-3.5 right-3 text-stone-400 hover:text-red-900 transition"><i class="fa-solid fa-xmark text-xl p-1"></i></button>
-                            <h3 class="font-serif font-bold text-lg text-amber-900 mb-1 pr-8 leading-tight"><i class="fa-solid fa-route text-amber-600 mr-1.5"></i> ${title}</h3>
-                            <div class="bg-[#fdfbf7] p-3 rounded-sm border border-[#d4c5a9] mt-3 shadow-inner">
+                    <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[17000] backdrop-blur-sm animate-in" onclick="if(event.target === this) this.innerHTML = '';">
+                        <div class="bg-[#f4ebd8] p-5 rounded-sm w-full max-w-sm border border-[#d4c5a9] shadow-2xl relative animate-in border-t-4 border-t-amber-700 flex flex-col max-h-[90vh]">
+                            <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="absolute top-3 right-3 text-stone-400 hover:text-red-900 transition bg-[#f4ebd8] rounded-full w-8 h-8 flex items-center justify-center z-10 shadow-sm border border-[#d4c5a9]"><i class="fa-solid fa-xmark text-lg"></i></button>
+                            
+                            ${imageHtml}
+                            
+                            <h3 class="font-serif font-bold text-xl text-amber-900 mb-0 pr-8 leading-tight drop-shadow-sm"><i class="fa-solid fa-route text-amber-600 mr-1.5"></i> ${title}</h3>
+                            ${tagsHtml}
+                            ${descHtml}
+                            
+                            <div class="bg-[#fdfbf7] p-3 rounded-sm border border-[#d4c5a9] mt-1 mb-2 shadow-inner">
                                 <p class="text-[10px] uppercase font-bold text-stone-500 tracking-widest mb-0.5">Calculated Distance</p>
                                 <p class="text-base font-bold text-emerald-600">${route.distanceMiles} Miles</p>
                             </div>
-                            <div class="mt-2">
+                            
+                            <div class="mt-auto shrink-0 pt-2 border-t border-[#d4c5a9]">
                                 ${viewCodexBtn}
                                 ${deleteBtn}
                             </div>
