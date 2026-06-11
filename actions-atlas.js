@@ -63,6 +63,33 @@ const getDateFromDayOfYear = (cal, doy) => {
     return { monthIndex: Math.max(0, cal.months.length - 1), day: parseInt(cal.months[cal.months.length - 1]?.days || 1, 10) };
 };
 
+// --- MULTI-MAP HELPERS ---
+export const getAtlasMaps = (camp) => {
+    if (!camp) return [];
+    if (camp.atlasMaps && camp.atlasMaps.length > 0) return camp.atlasMaps;
+    
+    // Legacy conversion: Ensure old single-map campaigns get upgraded smoothly
+    const defaultConfig = camp.atlasConfig || {
+        url: 'https://files.catbox.moe/o3d82f.jpg',
+        pixelsPerSquare: 50,
+        milesPerSquare: 10,
+        showGrid: true
+    };
+    
+    return [{
+        id: 'default-world',
+        name: 'Overland Map',
+        linkedCodexId: '',
+        ...defaultConfig
+    }];
+};
+
+export const getActiveMapConfig = (camp) => {
+    const maps = getAtlasMaps(camp);
+    const currentId = window.appData.currentAtlasMapId || 'default-world';
+    return maps.find(m => m.id === currentId) || maps[0];
+};
+
 export const initAtlas = () => {
     const container = document.getElementById('map-container');
     if (!container) return; // Only run if the DOM is actively showing the Atlas
@@ -88,18 +115,16 @@ export const initAtlas = () => {
         drawingStopIndices = [];
     }
 
-    const config = camp.atlasConfig || {
-        url: 'https://files.catbox.moe/o3d82f.jpg',
-        pixelsPerSquare: 50,
-        milesPerSquare: 10,
-        showGrid: true
-    };
+    const config = getActiveMapConfig(camp);
+    
+    // Ensure state tracks the actual map ID
+    if (!window.appData.currentAtlasMapId) window.appData.currentAtlasMapId = config.id;
 
     // 1. Initialize Map with flat image coordinate system
     mapInstance = L.map('map-container', {
         crs: L.CRS.Simple,
         minZoom: -3,
-        maxZoom: 2,
+        maxZoom: 3,
         zoomControl: false,
         attributionControl: false,
         center: [0, 0],
@@ -135,11 +160,14 @@ export const initAtlas = () => {
             const focusId = window.appData.pendingAtlasFocus;
             window.appData.pendingAtlasFocus = null; 
 
-            const focusPin = (camp.atlasPins || []).find(p => p.codexId === focusId);
+            // IMPORTANT: The viewOnMap function pre-sets the correct mapId, so we know we are on the right map
+            const currentMapId = window.appData.currentAtlasMapId || 'default-world';
+
+            const focusPin = (camp.atlasPins || []).find(p => p.codexId === focusId && (p.mapId || 'default-world') === currentMapId);
             if (focusPin) {
                 mapInstance.setView([focusPin.lat, focusPin.lng], 1); 
             } else {
-                const focusRoute = (camp.atlasRoutes || []).find(r => r.codexId === focusId);
+                const focusRoute = (camp.atlasRoutes || []).find(r => r.codexId === focusId && (r.mapId || 'default-world') === currentMapId);
                 if (focusRoute && focusRoute.points && focusRoute.points.length > 0) {
                     const polyline = L.polyline(focusRoute.points);
                     mapInstance.fitBounds(polyline.getBounds(), { padding: [50, 50] });
@@ -165,8 +193,6 @@ export const initAtlas = () => {
     img.src = config.url;
 
     // --- 3. CUSTOM RIGHT-CLICK PANNING LOGIC ---
-    // Using property assignment (oncontextmenu/onmousedown) instead of addEventListener 
-    // prevents duplicate listeners from stacking if the container persists between renders.
     container.oncontextmenu = e => e.preventDefault();
     container.onmousedown = e => {
         if (e.button === 2) { // Right Click
@@ -248,21 +274,20 @@ const renderDrawingMarkers = () => {
         drawingMarkers.push(L.marker(drawingPoints[drawingPoints.length - 1], { icon: endIcon, interactive: false }).addTo(mapInstance));
     }
     
-    // Middle Nodes: Only draw the amber dot if you explicitly marked it as a stop!
+    // Middle Nodes
     drawingStopIndices.forEach(idx => {
-        // Prevent drawing an amber dot perfectly underneath the Red "End" dot if it's currently the last point.
-        // It will safely reveal itself when you draw the NEXT point.
         if (idx > 0 && idx < drawingPoints.length - 1) {
             drawingMarkers.push(L.marker(drawingPoints[idx], { icon: stopIcon, interactive: false }).addTo(mapInstance));
         }
     });
 };
 
-// Helper to dynamically re-render the layers panel checkboxes so the UI stays in sync without tearing down the DOM
+// Helper to dynamically re-render the layers panel checkboxes
 const renderAtlasLayerCheckboxes = (camp) => {
     const container = document.getElementById('atlas-route-checkboxes');
     if (!container) return;
     
+    const currentMapId = window.appData.currentAtlasMapId || 'default-world';
     const activeRoutes = window.appData.activeAtlasRoutes || [];
     const cal = camp.calendar;
 
@@ -272,7 +297,10 @@ const renderAtlasLayerCheckboxes = (camp) => {
         return (parseInt(dateObj.year, 10) * 10000) + (monthIndex * 100) + parseInt(dateObj.day, 10);
     };
 
-    const sortedRoutes = [...(camp.atlasRoutes || [])].sort((a, b) => {
+    // Filter routes so we ONLY show routes belonging to the currently viewed map!
+    const filteredRoutes = (camp.atlasRoutes || []).filter(r => (r.mapId || 'default-world') === currentMapId);
+
+    const sortedRoutes = [...filteredRoutes].sort((a, b) => {
         const aVal = getSortVal(a.startDate);
         const bVal = getSortVal(b.startDate);
         if (aVal !== bVal) return aVal - bVal; 
@@ -280,7 +308,7 @@ const renderAtlasLayerCheckboxes = (camp) => {
     });
 
     if (sortedRoutes.length === 0) {
-        container.innerHTML = '<p class="p-2 text-[8px] italic text-stone-400">No routes inscribed yet.</p>';
+        container.innerHTML = '<p class="p-2 text-[8px] italic text-stone-400">No routes inscribed on this map yet.</p>';
         return;
     }
 
@@ -334,8 +362,13 @@ export const refreshAtlasEntities = () => {
 const renderAtlasEntities = (camp) => {
     if (!entityLayer) return;
 
-    // Render Database Pins
-    (camp.atlasPins || []).forEach(pin => {
+    const currentMapId = window.appData.currentAtlasMapId || 'default-world';
+    const allMaps = getAtlasMaps(camp);
+
+    // Filter pins so we ONLY render pins belonging to the active map
+    const mapPins = (camp.atlasPins || []).filter(p => (p.mapId || 'default-world') === currentMapId);
+
+    mapPins.forEach(pin => {
         const customIcon = L.divIcon({
             className: 'custom-map-pin',
             html: '<i class="fa-solid fa-star"></i>',
@@ -355,16 +388,26 @@ const renderAtlasEntities = (camp) => {
             }
 
             if (currentMode === 'pan') {
+                let title = pin.customLabel || 'Unknown Location';
+                let descHtml = `<span class="text-[9px] uppercase tracking-wider font-bold text-stone-500 bg-stone-200 px-1.5 py-0.5 rounded-sm">Custom Map Pin</span>`;
+                let viewCodexBtn = '';
+                let drillDownBtn = '';
+
+                // If tied to the codex, pull true name and show the codex link
                 if (pin.codexId) {
                     const cEntry = camp.codex?.find(c => c.id === pin.codexId);
                     if (cEntry) {
-                        window.appActions.viewCodex(cEntry.id);
-                        return; 
+                        title = cEntry.name;
+                        descHtml = `<span class="text-[9px] uppercase tracking-wider font-bold text-stone-500 bg-stone-200 px-1.5 py-0.5 rounded-sm">${cEntry.type}</span>`;
+                        viewCodexBtn = `<button onclick="window.appActions.viewCodex('${cEntry.id}'); document.getElementById('global-popup-container').innerHTML = '';" class="w-full mt-3 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] shadow-sm"><i class="fa-solid fa-book-open mr-1"></i> Read Codex</button>`;
+                        
+                        // DRILL DOWN CHECK: Does a sub-map exist for this codex entry?
+                        const linkedMap = allMaps.find(m => m.linkedCodexId === pin.codexId);
+                        if (linkedMap) {
+                            drillDownBtn = `<button onclick="window.appActions.switchAtlasMap('${linkedMap.id}')" class="w-full mt-2 py-2 bg-blue-900/10 text-blue-800 border border-blue-900/30 hover:bg-blue-900 hover:text-white rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm"><i class="fa-solid fa-map-location-dot mr-1"></i> Enter Local Map</button>`;
+                        }
                     }
                 }
-
-                let title = pin.customLabel || 'Unknown Location';
-                let descHtml = `<span class="text-[9px] uppercase tracking-wider font-bold text-stone-500 bg-stone-200 px-1.5 py-0.5 rounded-sm">Custom Map Pin</span>`;
 
                 const deleteBtn = canDelete ? `<button onclick="window.appActions.deleteAtlasPin('${pin.id}'); document.getElementById('global-popup-container').innerHTML = '';" class="absolute top-3.5 right-12 text-stone-400 hover:text-red-700 transition" title="Delete Pin"><i class="fa-solid fa-trash text-lg p-1"></i></button>` : '';
 
@@ -374,8 +417,12 @@ const renderAtlasEntities = (camp) => {
                         <div class="bg-[#f4ebd8] p-5 rounded-sm w-full max-w-sm border border-[#d4c5a9] shadow-2xl relative animate-in border-t-4 border-t-amber-700">
                             ${deleteBtn}
                             <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="absolute top-3.5 right-3 text-stone-400 hover:text-red-900 transition"><i class="fa-solid fa-xmark text-xl p-1"></i></button>
-                            <h3 class="font-serif font-bold text-lg text-amber-900 mb-1 pr-16">${title}</h3>
+                            <h3 class="font-serif font-bold text-lg text-amber-900 mb-1 pr-16 leading-tight">${title}</h3>
                             ${descHtml}
+                            <div class="mt-2">
+                                ${drillDownBtn}
+                                ${viewCodexBtn}
+                            </div>
                         </div>
                     </div>
                 `;
@@ -383,24 +430,23 @@ const renderAtlasEntities = (camp) => {
         });
     });
 
-    // Render Database Routes & Visual Node Markers
+    // Render Database Routes (Filtered to active map)
     const activeRoutes = window.appData.activeAtlasRoutes || [];
+    const mapRoutes = (camp.atlasRoutes || []).filter(r => (r.mapId || 'default-world') === currentMapId);
     
     const startIcon = L.divIcon({ className: 'custom-route-node', html: '<div class="w-3 h-3 bg-emerald-500 rounded-full border-2 border-white shadow-sm"></div>', iconSize: [12, 12], iconAnchor: [6, 6] });
     const endIcon = L.divIcon({ className: 'custom-route-node', html: '<div class="w-3 h-3 bg-red-600 rounded-full border-2 border-white shadow-sm"></div>', iconSize: [12, 12], iconAnchor: [6, 6] });
     const stopIcon = L.divIcon({ className: 'custom-route-node', html: '<div class="w-2.5 h-2.5 bg-amber-500 rounded-full border-2 border-white shadow-sm"></div>', iconSize: [10, 10], iconAnchor: [5, 5] });
 
-    (camp.atlasRoutes || []).filter(r => activeRoutes.includes(r.id)).forEach(route => {
+    mapRoutes.filter(r => activeRoutes.includes(r.id)).forEach(route => {
         const polyline = L.polyline(route.points, { color: '#ef4444', weight: 4, dashArray: '5, 10' }).addTo(entityLayer);
         
-        // Add decorative markers for Start, End, and Intermediate Stops!
         if (route.points.length > 0) {
             L.marker(route.points[0], { icon: startIcon, interactive: false }).addTo(entityLayer);
             if (route.points.length > 1) {
                 L.marker(route.points[route.points.length - 1], { icon: endIcon, interactive: false }).addTo(entityLayer);
             }
             
-            // Read from the saved database indices to drop the specific Stops
             const stopIdxs = route.stopIndices || [];
             stopIdxs.forEach(idx => {
                 if (idx > 0 && idx < route.points.length - 1) {
@@ -414,28 +460,33 @@ const renderAtlasEntities = (camp) => {
                 const isDM = camp._isDM;
                 const canDelete = isDM || route.authorId === window.appData.currentUserUid;
 
+                let title = route.name || 'Unknown Route';
+                let viewCodexBtn = '';
+
                 if (route.codexId) {
                     const cEntry = camp.codex?.find(c => c.id === route.codexId);
                     if (cEntry) {
-                        window.appActions.viewCodex(cEntry.id);
-                        return; 
+                        title = cEntry.name;
+                        viewCodexBtn = `<button onclick="window.appActions.viewCodex('${cEntry.id}'); document.getElementById('global-popup-container').innerHTML = '';" class="w-full mt-3 py-2 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-[10px] shadow-sm"><i class="fa-solid fa-book-open mr-1"></i> Read Codex</button>`;
                     }
                 }
 
-                let title = route.name || 'Unknown Route';
-                const deleteBtn = canDelete ? `<button onclick="window.appActions.deleteAtlasRoute('${route.id}'); document.getElementById('global-popup-container').innerHTML = '';" class="w-full mt-4 py-2 bg-red-900/10 text-red-800 border border-red-900/30 hover:bg-red-900 hover:text-white rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm"><i class="fa-solid fa-trash mr-1"></i> Delete Route</button>` : '';
+                const deleteBtn = canDelete ? `<button onclick="window.appActions.deleteAtlasRoute('${route.id}'); document.getElementById('global-popup-container').innerHTML = '';" class="w-full mt-2 py-2 bg-red-900/10 text-red-800 border border-red-900/30 hover:bg-red-900 hover:text-white rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm"><i class="fa-solid fa-trash mr-1"></i> Delete Route</button>` : '';
 
                 const popup = document.getElementById('global-popup-container');
                 popup.innerHTML = `
                     <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[17000] backdrop-blur-sm animate-in">
                         <div class="bg-[#f4ebd8] p-5 rounded-sm w-full max-w-sm border border-[#d4c5a9] shadow-2xl relative animate-in border-t-4 border-t-amber-700">
                             <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="absolute top-3.5 right-3 text-stone-400 hover:text-red-900 transition"><i class="fa-solid fa-xmark text-xl p-1"></i></button>
-                            <h3 class="font-serif font-bold text-lg text-amber-900 mb-1 pr-8"><i class="fa-solid fa-route text-amber-600 mr-1.5"></i> ${title}</h3>
+                            <h3 class="font-serif font-bold text-lg text-amber-900 mb-1 pr-8 leading-tight"><i class="fa-solid fa-route text-amber-600 mr-1.5"></i> ${title}</h3>
                             <div class="bg-[#fdfbf7] p-3 rounded-sm border border-[#d4c5a9] mt-3 shadow-inner">
                                 <p class="text-[10px] uppercase font-bold text-stone-500 tracking-widest mb-0.5">Calculated Distance</p>
                                 <p class="text-base font-bold text-emerald-600">${route.distanceMiles} Miles</p>
                             </div>
-                            ${deleteBtn}
+                            <div class="mt-2">
+                                ${viewCodexBtn}
+                                ${deleteBtn}
+                            </div>
                         </div>
                     </div>
                 `;
@@ -499,8 +550,8 @@ export const updateAtlasGridAndScale = (imgW, imgH) => {
     const w = window.appData.atlasDimensions?.w || 2000;
     const h = window.appData.atlasDimensions?.h || 1500;
 
-    const pxSq = parseFloat(document.getElementById('cfg-px')?.value) || 50;
-    const miSq = parseFloat(document.getElementById('cfg-miles')?.value) || 10;
+    const pxSq = parseFloat(document.getElementById('cfg-px')?.value) || getActiveMapConfig(window.appData.activeCampaign).pixelsPerSquare || 50;
+    const miSq = parseFloat(document.getElementById('cfg-miles')?.value) || getActiveMapConfig(window.appData.activeCampaign).milesPerSquare || 10;
     
     const multiplier = Math.pow(2, mapInstance.getZoom());
     const visualWidthInPixels = pxSq * multiplier;
@@ -513,7 +564,7 @@ export const updateAtlasGridAndScale = (imgW, imgH) => {
     if (gridOverlayLayer) mapInstance.removeLayer(gridOverlayLayer);
     
     const showGridEl = document.getElementById('cfg-show-grid');
-    const showGrid = showGridEl ? showGridEl.checked : true;
+    const showGrid = showGridEl ? showGridEl.checked : getActiveMapConfig(window.appData.activeCampaign).showGrid;
     
     if (showGrid) {
         const svgString = `
@@ -545,7 +596,7 @@ export const updateAtlasDistanceCalc = () => {
 
     updateDerivedState();
     const camp = window.appData.activeCampaign;
-    const config = camp?.atlasConfig || { pixelsPerSquare: 50, milesPerSquare: 10 };
+    const config = getActiveMapConfig(camp);
 
     let totalPixels = 0;
     for (let i = 1; i < drawingPoints.length; i++) {
@@ -568,7 +619,6 @@ export const atlasUndoLastPoint = () => {
         const poppedIdx = drawingPoints.length - 1;
         drawingPoints.pop();
         
-        // Remove it from the stops index if it was flagged as one!
         drawingStopIndices = drawingStopIndices.filter(i => i !== poppedIdx);
         
         if (drawingPolyline) {
@@ -579,13 +629,10 @@ export const atlasUndoLastPoint = () => {
     }
 };
 
-// --- TRAVEL MATH INTEGRATION ENGINE ---
-
 export const addAtlasRouteStop = (defaultDesc = "") => {
     const container = document.getElementById('atlas-route-stops-container');
     if (!container) return;
 
-    // Use default text if explicitly passed (e.g. from the auto-generator)
     const valAttr = (typeof defaultDesc === 'string' && defaultDesc) ? `value="${defaultDesc}"` : '';
 
     const html = `
@@ -628,11 +675,9 @@ export const calculateAtlasRouteLive = () => {
     let travelHours = preset.hours;
     if (pace === 'forced') travelHours += 4;
 
-    // --- TRUE CHRONOLOGICAL ELAPSED TIME MATH ---
     let movingHours = distanceMiles / mph;
     let stopHours = 0;
     
-    // Tally up the dynamic stops!
     document.querySelectorAll('.stop-row .stop-hours').forEach(input => {
         stopHours += parseFloat(input.value) || 0;
     });
@@ -642,14 +687,11 @@ export const calculateAtlasRouteLive = () => {
         let fullBlocks = Math.floor(movingHours / travelHours);
         let remainder = movingHours % travelHours;
         
-        // Safety for floating point imprecision
         if (remainder < 0.01) remainder = 0;
 
         if (remainder === 0) {
-            // Journey ends exactly at the end of a travel block (No final long rest required)
             elapsedHours = ((fullBlocks - 1) * 24) + travelHours;
         } else {
-            // Journey ends mid-day
             elapsedHours = (fullBlocks * 24) + remainder;
         }
     }
@@ -671,7 +713,6 @@ export const calculateAtlasRouteLive = () => {
         timeDisplay = "Instant";
     }
 
-    // Update the live math UI readout
     const liveOut = document.getElementById('atlas-route-live-math');
     if (liveOut) {
         liveOut.innerHTML = `${timeDisplay} <span class="text-[9px] text-stone-400 normal-case tracking-normal ml-1 border-l border-stone-300 pl-2">(@ ${mph.toFixed(1)} mph)</span>`;
@@ -692,15 +733,12 @@ export const atlasFinishDrawing = () => {
         notify("You must draw a path with at least two points first.", "error");
         return;
     }
-    // Set the visible textContent to power the calculations safely
     const distStr = document.getElementById('dist-val').textContent;
     document.getElementById('atlas-route-dist').textContent = distStr;
     
-    // Clear out any lingering stops from previous saves
     const stopsContainer = document.getElementById('atlas-route-stops-container');
     if (stopsContainer) stopsContainer.innerHTML = '';
     
-    // Auto-inject UI rows ONLY for explicitly marked stops!
     drawingStopIndices.forEach((pointIdx, idx) => {
         window.appActions.addAtlasRouteStop(`Stop ${idx + 1}`);
     });
@@ -714,6 +752,8 @@ export const confirmAtlasRoute = async () => {
     const camp = window.appData.activeCampaign;
     const myUid = window.appData.currentUserUid;
     if (!camp) return;
+
+    const currentMapId = window.appData.currentAtlasMapId || 'default-world';
 
     const distStr = document.getElementById('atlas-route-dist').textContent;
     let codexId = document.getElementById('atlas-route-codex-id').value;
@@ -731,7 +771,6 @@ export const confirmAtlasRoute = async () => {
         return;
     }
 
-    // Gather Stops
     const stopsData = [];
     let stopHours = 0;
     document.querySelectorAll('.stop-row').forEach(row => {
@@ -741,7 +780,6 @@ export const confirmAtlasRoute = async () => {
         stopHours += hrs;
     });
 
-    // --- EXECUTE TRUE CHRONOLOGICAL MATH ---
     const preset = getPresetTravelData(mode);
     const stats = getCoreTravelMath(mode, preset.speed, isDifficult);
 
@@ -788,10 +826,8 @@ export const confirmAtlasRoute = async () => {
         timeDisplay = "Instant";
     }
 
-    // Determine how many slots it occupies on the Global Calendar Map
     let calendarDuration = Math.max(1, Math.ceil(elapsedHours / 24));
 
-    // --- EXTRACT DATE MATH FOR THE DESCRIPTION ---
     const igY = parseInt(document.getElementById('atlas-route-year')?.value, 10);
     const igM = parseInt(document.getElementById('atlas-route-month')?.value, 10);
     const igD = parseInt(document.getElementById('atlas-route-day')?.value, 10);
@@ -831,7 +867,6 @@ export const confirmAtlasRoute = async () => {
         }
     }
 
-    // Extract nicely formatted labels for the Codex entry description
     const modeSelect = document.getElementById('atlas-route-mode');
     const paceSelect = document.getElementById('atlas-route-pace');
     const modeLabel = modeSelect.options[modeSelect.selectedIndex].text.replace(/^[^\w\s]+/, '').trim(); 
@@ -842,7 +877,6 @@ export const confirmAtlasRoute = async () => {
     
     let descriptionText = `A journey logged on the Atlas.\n\n**Departure:** ${departureStr}\n**Arrival:** ${arrivalStr}\n**Total Distance:** ${distanceMiles.toFixed(1)} Miles\n**Travel Mode:** ${modeLabel}\n**Travel Pace:** ${paceLabel}\n**Calculated Travel Time:** ${timeDisplay}`;
 
-    // Append the Stops Breakdown!
     if (stopsData.length > 0) {
         descriptionText += `\n\n**Stops & Events:**\n`;
         stopsData.forEach(s => {
@@ -877,11 +911,12 @@ export const confirmAtlasRoute = async () => {
 
     const newRoute = {
         id: generateId(),
+        mapId: currentMapId, // Assign to current map
         codexId: codexId,
         name: entryName, 
         points: plainPoints,
         stops: stopsData, 
-        stopIndices: drawingStopIndices, // Save the visual indices so we can redraw the yellow dots perfectly
+        stopIndices: drawingStopIndices, 
         distanceMiles: distanceMiles,
         durationDays: calendarDuration, 
         startDate: departureDate,
@@ -897,7 +932,6 @@ export const confirmAtlasRoute = async () => {
     if (!window.appData.activeAtlasRoutes) window.appData.activeAtlasRoutes = [];
     window.appData.activeAtlasRoutes.push(newRoute.id);
 
-    // Apply the Activity Logger
     if (!camp._isDM) {
         updatedCamp = logPlayerActivity(updatedCamp, myUid, `inscribed a new travel route on the Atlas: <span class="font-bold text-stone-900">${entryName}</span>`, 'fa-route');
     }
@@ -905,15 +939,12 @@ export const confirmAtlasRoute = async () => {
     await saveCampaign(updatedCamp);
     document.getElementById('atlas-route-modal').classList.add('hidden');
     
-    // Automatically switches mode and clears un-saved drawings!
     window.appActions.setAtlasMode('pan');
     notify(`Route inscribed into the Atlas & Codex.`, "success");
     
     window.appActions.refreshAtlasEntities();
 };
 
-
-// --- CODEX SEARCH & LOCATION HELPERS ---
 export const searchAtlasCodex = (query, filterType = 'Location') => {
     const isRoute = filterType === 'Route';
     const prefix = isRoute ? 'atlas-route' : 'atlas-pin';
@@ -979,6 +1010,8 @@ export const confirmAtlasPin = async () => {
     const myUid = window.appData.currentUserUid;
     if (!camp) return;
 
+    const currentMapId = window.appData.currentAtlasMapId || 'default-world';
+
     const lat = parseFloat(document.getElementById('atlas-pin-lat').value);
     const lng = parseFloat(document.getElementById('atlas-pin-lng').value);
     let codexId = document.getElementById('atlas-pin-codex-id').value;
@@ -1011,6 +1044,7 @@ export const confirmAtlasPin = async () => {
 
     const newPin = {
         id: generateId(),
+        mapId: currentMapId, // Assign to current map
         lat,
         lng,
         codexId,
@@ -1024,7 +1058,6 @@ export const confirmAtlasPin = async () => {
         atlasPins: [...(camp.atlasPins || []), newPin]
     };
 
-    // Apply the Activity Logger
     if (!camp._isDM) {
         updatedCamp = logPlayerActivity(updatedCamp, myUid, `marked a new location on the Atlas: <span class="font-bold text-stone-900">${entryName}</span>`, 'fa-map-pin');
     }
@@ -1043,19 +1076,26 @@ export const viewOnMap = (codexId) => {
     
     updateDerivedState();
     const camp = window.appData.activeCampaign;
-    const targetRoute = camp?.atlasRoutes?.find(r => r.codexId === codexId);
-    if (targetRoute) {
-        if (!window.appData.activeAtlasRoutes) window.appData.activeAtlasRoutes = [];
-        if (!window.appData.activeAtlasRoutes.includes(targetRoute.id)) {
-            window.appData.activeAtlasRoutes.push(targetRoute.id);
+    if (!camp) return;
+
+    // We must find out WHICH map this entity lives on so we can load that map first!
+    const targetPin = camp.atlasPins?.find(p => p.codexId === codexId);
+    if (targetPin) {
+        window.appData.currentAtlasMapId = targetPin.mapId || 'default-world';
+    } else {
+        const targetRoute = camp.atlasRoutes?.find(r => r.codexId === codexId);
+        if (targetRoute) {
+            window.appData.currentAtlasMapId = targetRoute.mapId || 'default-world';
+            if (!window.appData.activeAtlasRoutes) window.appData.activeAtlasRoutes = [];
+            if (!window.appData.activeAtlasRoutes.includes(targetRoute.id)) {
+                window.appData.activeAtlasRoutes.push(targetRoute.id);
+            }
         }
     }
 
     window.appData.pendingAtlasFocus = codexId;
     window.appActions.setView('atlas');
 };
-
-// --- MAP LAYERS & DISPLAY UI ---
 
 export const toggleAtlasFullScreen = () => {
     window.appData.isAtlasFullScreen = !window.appData.isAtlasFullScreen;
@@ -1205,32 +1245,137 @@ export const toggleAtlasSettings = () => {
     if (panel) panel.classList.toggle('hidden');
 };
 
+// --- MAP MANAGEMENT SYSTEM ---
+
 export const saveAtlasSettings = async () => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
     if (!camp || !camp._isDM) return;
 
+    // Ensure we are saving data to the currently active map
+    const curId = window.appData.currentAtlasMapId || 'default-world';
+
+    const name = document.getElementById('cfg-name').value.trim() || 'Unnamed Map';
     const url = document.getElementById('cfg-url').value.trim();
     const pxSq = parseFloat(document.getElementById('cfg-px').value) || 50;
     const miSq = parseFloat(document.getElementById('cfg-miles').value) || 10;
     const showGrid = document.getElementById('cfg-show-grid').checked;
+    
+    const linkedCodexInput = document.getElementById('cfg-linked-codex');
+    const linkedCodexId = linkedCodexInput ? linkedCodexInput.value : '';
 
-    const updatedCamp = {
-        ...camp,
-        atlasConfig: {
-            url,
-            pixelsPerSquare: pxSq,
-            milesPerSquare: miSq,
-            showGrid
+    let maps = getAtlasMaps(camp);
+    
+    maps = maps.map(m => {
+        if (m.id === curId) {
+            return {
+                ...m,
+                name,
+                url,
+                pixelsPerSquare: pxSq,
+                milesPerSquare: miSq,
+                showGrid,
+                linkedCodexId
+            };
         }
-    };
+        return m;
+    });
 
+    const updatedCamp = { ...camp, atlasMaps: maps };
+
+    // Clear camera memory so the new scale/image centers properly
     savedMapCenter = null;
     savedMapZoom = null;
 
     await saveCampaign(updatedCamp);
     window.appActions.toggleAtlasSettings();
-    notify("Atlas configuration updated.", "success");
+    notify("Map configuration updated.", "success");
     
+    reRender(true);
+    setTimeout(() => window.appActions.initAtlas(), 50);
+};
+
+export const createNewAtlasMap = async () => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    if (!camp || !camp._isDM) return;
+
+    let maps = getAtlasMaps(camp);
+    
+    const newMap = {
+        id: 'map_' + generateId(),
+        name: 'New Unknown Region',
+        url: 'https://files.catbox.moe/o3d82f.jpg',
+        pixelsPerSquare: 50,
+        milesPerSquare: 10,
+        showGrid: true,
+        linkedCodexId: ''
+    };
+    
+    maps.push(newMap);
+    
+    // Switch state to the newly created map
+    window.appData.currentAtlasMapId = newMap.id;
+    savedMapCenter = null;
+    savedMapZoom = null;
+    
+    const updatedCamp = { ...camp, atlasMaps: maps };
+    await saveCampaign(updatedCamp);
+    
+    notify("New sub-map created.", "success");
+    
+    // Auto-open settings panel so they can edit it immediately
+    reRender(true);
+    setTimeout(() => {
+        window.appActions.initAtlas();
+        const settingsPanel = document.getElementById('atlas-settings-panel');
+        if (settingsPanel) settingsPanel.classList.remove('hidden');
+    }, 50);
+};
+
+export const deleteAtlasMap = async (mapId) => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    if (!camp || !camp._isDM) return;
+    
+    let maps = getAtlasMaps(camp);
+    
+    if (maps.length <= 1) {
+        notify("You cannot delete the last remaining map. Just edit its URL instead.", "error");
+        return;
+    }
+    
+    if (!confirm("Are you sure you want to completely destroy this map? Pins and routes tied exclusively to it will be orphaned.")) return;
+
+    maps = maps.filter(m => m.id !== mapId);
+    
+    // If we just deleted the map we were looking at, fallback to the first available map
+    if (window.appData.currentAtlasMapId === mapId) {
+        window.appData.currentAtlasMapId = maps[0].id;
+        savedMapCenter = null;
+        savedMapZoom = null;
+    }
+    
+    const updatedCamp = { ...camp, atlasMaps: maps };
+    await saveCampaign(updatedCamp);
+    
+    notify("Map shattered.", "success");
+    
+    reRender(true);
+    setTimeout(() => window.appActions.initAtlas(), 50);
+};
+
+export const switchAtlasMap = (mapId) => {
+    window.appData.currentAtlasMapId = mapId;
+    
+    // Reset camera trackers so the new map focuses correctly
+    savedMapCenter = null;
+    savedMapZoom = null;
+    
+    // Clear any open popups from the previous map
+    const popup = document.getElementById('global-popup-container');
+    if (popup) popup.innerHTML = '';
+    
+    reRender(true);
     setTimeout(() => window.appActions.initAtlas(), 50);
 };
