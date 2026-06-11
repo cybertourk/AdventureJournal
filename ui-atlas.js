@@ -2,12 +2,23 @@ export function getAtlasHTML(state) {
     const camp = state.activeCampaign;
     if (!camp) return '';
 
-    const config = camp.atlasConfig || {
+    // --- MULTI-MAP RESOLUTION ---
+    const legacyConfig = camp.atlasConfig || {
         url: 'https://files.catbox.moe/o3d82f.jpg',
         pixelsPerSquare: 50,
         milesPerSquare: 10,
         showGrid: true
     };
+
+    const maps = (camp.atlasMaps && camp.atlasMaps.length > 0) ? camp.atlasMaps : [{
+        id: 'default-world',
+        name: 'Overland Map',
+        linkedCodexId: '',
+        ...legacyConfig
+    }];
+
+    const currentMapId = state.currentAtlasMapId || maps[0].id;
+    const activeConfig = maps.find(m => m.id === currentMapId) || maps[0];
     
     const isDM = camp._isDM;
     const activeRoutes = state.activeAtlasRoutes || [];
@@ -37,14 +48,16 @@ export function getAtlasHTML(state) {
         return (parseInt(dateObj.year) * 10000) + (monthIndex * 100) + parseInt(dateObj.day);
     };
 
-    const sortedRoutes = [...(camp.atlasRoutes || [])].sort((a, b) => {
+    // Filter routes so we ONLY show routes belonging to the active map
+    const filteredRoutes = (camp.atlasRoutes || []).filter(r => (r.mapId || 'default-world') === currentMapId);
+
+    const sortedRoutes = [...filteredRoutes].sort((a, b) => {
         const aVal = getSortVal(a.startDate);
         const bVal = getSortVal(b.startDate);
         if (aVal !== bVal) return aVal - bVal; // Oldest dates first
         return (a.name || "").localeCompare(b.name || ""); // Alphabetical fallback
     });
 
-    // Slightly reduced heights for the boxed layout since the quick action bar shrunk
     const containerClasses = isFullScreen 
         ? "fixed inset-0 z-[60] w-full h-[100dvh] bg-[#1c1917] flex flex-col"
         : "animate-in fade-in duration-300 w-full max-w-6xl mx-auto flex flex-col h-[calc(100vh-100px)] sm:h-[calc(100vh-115px)] relative";
@@ -56,9 +69,11 @@ export function getAtlasHTML(state) {
         <div class="bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-[#292524] p-2 sm:p-3 flex justify-between items-center text-amber-500 shrink-0 border-b-2 sm:border-b-4 border-amber-700 shadow-md z-10 rounded-t-sm">
             <div class="flex items-center min-w-0">
                 <i class="fa-solid fa-map-location-dot mr-2 text-amber-600 flex-shrink-0 text-base sm:text-lg"></i> 
-                <div>
-                    <h2 class="text-xs sm:text-base font-serif font-bold truncate leading-tight">Atlas of ${camp.name.replace(/"/g, '&quot;')}</h2>
-                    <p class="text-[7px] sm:text-[8px] uppercase tracking-widest text-stone-400 font-bold mt-0.5">Left-Click: Action | Right-Click/Two-Finger: Pan</p>
+                <div class="flex flex-col">
+                    <select onchange="window.appActions.switchAtlasMap(this.value)" class="bg-transparent text-amber-500 font-serif font-bold text-xs sm:text-base outline-none cursor-pointer truncate max-w-[200px] sm:max-w-[300px]">
+                        ${maps.map(m => `<option value="${m.id}" ${m.id === currentMapId ? 'selected' : ''} class="bg-stone-900 text-amber-500">${m.name}</option>`).join('')}
+                    </select>
+                    <p class="text-[7px] sm:text-[8px] uppercase tracking-widest text-stone-400 font-bold mt-0.5">Left-Click: Action | Right-Click: Pan</p>
                 </div>
             </div>
             <div class="flex gap-2 shrink-0">
@@ -78,8 +93,8 @@ export function getAtlasHTML(state) {
 
             <!-- Dynamic Scale Indicator (Scaled Down) -->
             <div class="absolute ${isFullScreen ? 'bottom-20 sm:bottom-16' : 'bottom-24 sm:bottom-20'} left-4 z-30 bg-stone-900/90 text-amber-50 px-2 py-1.5 rounded-sm shadow-md border border-stone-600 flex flex-col gap-1 pointer-events-none transition-all duration-300" id="scale-indicator">
-                <div class="text-[8px] uppercase tracking-widest font-bold text-stone-400 text-center" id="scale-text">${config.milesPerSquare} Miles</div>
-                <div class="h-1 border-x border-b border-amber-500 transition-all duration-100 ease-linear" id="scale-bar" style="width: ${config.pixelsPerSquare}px;"></div>
+                <div class="text-[8px] uppercase tracking-widest font-bold text-stone-400 text-center" id="scale-text">${activeConfig.milesPerSquare} Miles</div>
+                <div class="h-1 border-x border-b border-amber-500 transition-all duration-100 ease-linear" id="scale-bar" style="width: ${activeConfig.pixelsPerSquare}px;"></div>
             </div>
 
             <!-- Active Drawing Display (Scaled Down) -->
@@ -171,7 +186,7 @@ export function getAtlasHTML(state) {
                 </div>
             </div>
 
-            <!-- Settings Floating Panel (Scaled Down) -->
+            <!-- Settings Floating Panel (Scaled Down & Updated for Multi-Map) -->
             ${isDM ? `
             <div id="atlas-settings-panel" class="hidden absolute top-3 right-3 z-50 animate-in pointer-events-auto shadow-2xl">
                 <div class="bg-[#f4ebd8] p-3 sm:p-4 rounded-sm w-60 sm:w-64 border border-[#d4c5a9] border-t-4 border-t-amber-700 relative">
@@ -180,27 +195,45 @@ export function getAtlasHTML(state) {
                     
                     <div class="space-y-3">
                         <div>
+                            <label class="block text-[8px] font-bold text-stone-500 uppercase tracking-widest mb-1">Active Map Name</label>
+                            <input type="text" id="cfg-name" value="${activeConfig.name?.replace(/"/g, '&quot;') || 'Overland Map'}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-[10px] font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white">
+                        </div>
+                        <div>
                             <label class="block text-[8px] font-bold text-stone-500 uppercase tracking-widest mb-1">Image URL (e.g., catbox.moe)</label>
-                            <input type="text" id="cfg-url" value="${config.url.replace(/"/g, '&quot;')}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-[10px] font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white">
+                            <input type="text" id="cfg-url" value="${activeConfig.url.replace(/"/g, '&quot;')}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-[10px] font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white">
                         </div>
                         
                         <div class="grid grid-cols-2 gap-2">
                             <div>
                                 <label class="block text-[8px] font-bold text-stone-500 uppercase tracking-widest mb-1">Pixels / Sq</label>
-                                <input type="number" id="cfg-px" value="${config.pixelsPerSquare}" oninput="window.appActions.updateAtlasGridAndScale()" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-[10px] font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white text-center">
+                                <input type="number" id="cfg-px" value="${activeConfig.pixelsPerSquare}" oninput="window.appActions.updateAtlasGridAndScale()" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-[10px] font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white text-center">
                             </div>
                             <div>
                                 <label class="block text-[8px] font-bold text-stone-500 uppercase tracking-widest mb-1">Miles / Sq</label>
-                                <input type="number" id="cfg-miles" value="${config.milesPerSquare}" oninput="window.appActions.updateAtlasGridAndScale(); window.appActions.updateAtlasDistanceCalc();" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-[10px] font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white text-center">
+                                <input type="number" id="cfg-miles" value="${activeConfig.milesPerSquare}" oninput="window.appActions.updateAtlasGridAndScale(); window.appActions.updateAtlasDistanceCalc();" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-[10px] font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white text-center">
                             </div>
                         </div>
 
+                        <div>
+                            <label class="block text-[8px] font-bold text-stone-500 uppercase tracking-widest mb-1 flex items-center justify-between">
+                                <span>Codex Link (Drill-Down ID)</span>
+                                <i class="fa-solid fa-circle-info text-stone-400" title="Paste the ID of a Codex Entry here. When players click a map pin tied to that Codex Entry, they will see a button to enter this local map!"></i>
+                            </label>
+                            <input type="text" id="cfg-linked-codex" value="${activeConfig.linkedCodexId || ''}" placeholder="Paste Codex ID here..." class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-[10px] font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white font-mono">
+                        </div>
+
                         <div class="flex items-center gap-1.5 pt-1 border-t border-[#d4c5a9]">
-                            <input type="checkbox" id="cfg-show-grid" ${config.showGrid ? 'checked' : ''} onchange="window.appActions.updateAtlasGridAndScale()" class="w-3 h-3 text-amber-600 rounded-sm cursor-pointer shadow-sm border-[#d4c5a9]">
+                            <input type="checkbox" id="cfg-show-grid" ${activeConfig.showGrid ? 'checked' : ''} onchange="window.appActions.updateAtlasGridAndScale()" class="w-3 h-3 text-amber-600 rounded-sm cursor-pointer shadow-sm border-[#d4c5a9]">
                             <label class="text-[8px] font-bold uppercase tracking-widest text-stone-700 cursor-pointer" for="cfg-show-grid">Display Alignment Grid</label>
                         </div>
                         
-                        <button onclick="window.appActions.saveAtlasSettings()" class="w-full py-1.5 bg-stone-900 text-amber-50 font-bold uppercase tracking-wider text-[8px] rounded-sm hover:bg-stone-800 transition shadow-md mt-1 flex justify-center items-center"><i class="fa-solid fa-floppy-disk mr-1.5"></i> Save & Reload Image</button>
+                        <div class="flex flex-col gap-2 pt-2 border-t border-[#d4c5a9]">
+                            <button onclick="window.appActions.saveAtlasSettings()" class="w-full py-1.5 bg-stone-900 text-amber-50 font-bold uppercase tracking-wider text-[8px] rounded-sm hover:bg-stone-800 transition shadow-md flex justify-center items-center"><i class="fa-solid fa-floppy-disk mr-1.5"></i> Save Active Map</button>
+                            <div class="grid grid-cols-2 gap-2 mt-1">
+                                <button onclick="window.appActions.createNewAtlasMap()" class="w-full py-1.5 bg-emerald-900/10 text-emerald-800 border border-emerald-900/30 font-bold uppercase tracking-wider text-[8px] rounded-sm hover:bg-emerald-900 hover:text-emerald-50 transition shadow-sm flex justify-center items-center"><i class="fa-solid fa-plus mr-1.5"></i> New Sub-Map</button>
+                                <button onclick="window.appActions.deleteAtlasMap('${currentMapId}')" class="w-full py-1.5 bg-red-900/10 text-red-800 border border-red-900/30 font-bold uppercase tracking-wider text-[8px] rounded-sm hover:bg-red-900 hover:text-red-50 transition shadow-sm flex justify-center items-center"><i class="fa-solid fa-trash mr-1.5"></i> Delete</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
