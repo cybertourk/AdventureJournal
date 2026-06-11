@@ -23,7 +23,9 @@ let rightDrag = false;
 let lastMousePos = null;
 
 // --- GLOBAL WINDOW LISTENERS (Bind only once!) ---
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && !window._atlasListenersBound) {
+    window._atlasListenersBound = true; // Guard against hot-reload double-binding
+    
     window.addEventListener('mousemove', e => {
         if (rightDrag && lastMousePos && mapInstance) {
             const dx = lastMousePos.x - e.clientX;
@@ -37,7 +39,10 @@ if (typeof window !== 'undefined') {
         if (e.button === 2) {
             rightDrag = false;
             const container = document.getElementById('map-container');
-            if (container) container.style.cursor = 'crosshair'; 
+            if (container) {
+                // Dynamically restore the correct cursor based on active mode!
+                container.style.cursor = currentMode === 'pan' ? 'grab' : 'crosshair'; 
+            }
         }
     });
 }
@@ -507,6 +512,16 @@ const renderAtlasEntities = (camp) => {
 
 export const setAtlasMode = (mode) => {
     currentMode = mode;
+    
+    // Dynamically set the cursor to ensure it never disappears!
+    const container = document.getElementById('map-container');
+    if (container) {
+        if (mode === 'pan') {
+            container.style.cursor = 'grab';
+        } else {
+            container.style.cursor = 'crosshair';
+        }
+    }
     
     document.querySelectorAll('.tool-btn').forEach(btn => {
         const baseClasses = "tool-btn flex items-center justify-center text-stone-400 transition-colors h-full rounded-full";
@@ -1080,7 +1095,6 @@ export const confirmAtlasPin = async () => {
     window.appActions.refreshAtlasEntities();
 };
 
-
 export const viewOnMap = (codexId) => {
     document.getElementById('global-popup-container').innerHTML = '';
     
@@ -1256,7 +1270,6 @@ export const toggleAtlasSettings = () => {
 };
 
 // --- MAP MANAGEMENT SYSTEM ---
-
 export const saveAtlasSettings = async () => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
