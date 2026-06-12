@@ -224,6 +224,43 @@ export const initAtlas = () => {
 export const switchAtlasMap = (mapId) => {
     window.appData.currentAtlasMapId = mapId;
     window.appData.forceAtlasResize = true;
+    
+    // UI Core optimization skips HTML redraw for the Atlas to protect Leaflet.
+    // We must manually update the settings DOM elements to match the new map!
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    if (camp) {
+        // We reuse the getAtlasMaps function declared earlier in the file
+        const maps = (camp.atlasMaps && camp.atlasMaps.length > 0) ? camp.atlasMaps : [{
+            id: 'default-world',
+            name: 'Overland Map',
+            linkedCodexId: '',
+            ...(camp.atlasConfig || { url: 'https://www.transparenttextures.com/patterns/aged-paper.png', pixelsPerSquare: 50, milesPerSquare: 10, showGrid: true })
+        }];
+        const activeConfig = maps.find(m => m.id === mapId) || maps[0];
+        
+        const nameEl = document.getElementById('cfg-name');
+        if (nameEl) nameEl.value = activeConfig.name || 'Unnamed Map';
+        
+        const urlEl = document.getElementById('cfg-url');
+        if (urlEl) urlEl.value = activeConfig.url || '';
+        
+        const pxEl = document.getElementById('cfg-px');
+        if (pxEl) pxEl.value = activeConfig.pixelsPerSquare || 50;
+        
+        const milesEl = document.getElementById('cfg-miles');
+        if (milesEl) milesEl.value = activeConfig.milesPerSquare || 10;
+        
+        const codexEl = document.getElementById('cfg-linked-codex');
+        if (codexEl) codexEl.value = activeConfig.linkedCodexId || '';
+        
+        const gridEl = document.getElementById('cfg-show-grid');
+        if (gridEl) gridEl.checked = activeConfig.showGrid !== false;
+        
+        const dd = document.querySelector('select[onchange="window.appActions.switchAtlasMap(this.value)"]');
+        if (dd) dd.value = mapId;
+    }
+
     window.appActions.initAtlas();
     window.appActions.setView('atlas'); // Forces UI refresh
 };
@@ -236,11 +273,18 @@ export const createNewAtlasMap = async () => {
     const name = prompt("Enter a name for the new sub-map:");
     if (!name) return;
 
-    const maps = getAtlasMaps(camp);
+    // Use inline fallback to guarantee maps exist
+    const maps = (camp.atlasMaps && camp.atlasMaps.length > 0) ? camp.atlasMaps : [{
+        id: 'default-world',
+        name: 'Overland Map',
+        linkedCodexId: '',
+        ...(camp.atlasConfig || { url: 'https://www.transparenttextures.com/patterns/aged-paper.png', pixelsPerSquare: 50, milesPerSquare: 10, showGrid: true })
+    }];
+    
     const newMap = {
         id: 'map_' + generateId(),
         name: name,
-        url: 'https://files.catbox.moe/o3d82f.jpg',
+        url: 'https://www.transparenttextures.com/patterns/aged-paper.png', // Reliable default parchment texture
         pixelsPerSquare: 50,
         milesPerSquare: 1,
         showGrid: true,
@@ -253,10 +297,17 @@ export const createNewAtlasMap = async () => {
     };
 
     await saveCampaign(updatedCamp);
-    window.appData.currentAtlasMapId = newMap.id;
-    window.appActions.toggleAtlasSettings(); 
-    notify("New map created!", "success");
-    window.appActions.setView('atlas');
+    
+    // Safely switch and update the DOM
+    window.appActions.switchAtlasMap(newMap.id);
+    
+    // Force settings panel open so the user can easily update the image URL
+    const panel = document.getElementById('atlas-settings-panel');
+    if (panel && panel.classList.contains('hidden')) {
+        window.appActions.toggleAtlasSettings(); 
+    }
+    
+    notify("New map created! Paste your image URL in the settings.", "success");
 };
 
 export const deleteAtlasMap = async (mapId) => {
@@ -264,7 +315,7 @@ export const deleteAtlasMap = async (mapId) => {
     const camp = window.appData.activeCampaign;
     if (!camp || !camp._isDM) return;
 
-    const maps = getAtlasMaps(camp);
+    const maps = (camp.atlasMaps && camp.atlasMaps.length > 0) ? camp.atlasMaps : [];
     if (maps.length <= 1) {
         notify("You cannot delete the last remaining map.", "error");
         return;
@@ -278,10 +329,11 @@ export const deleteAtlasMap = async (mapId) => {
     };
 
     await saveCampaign(updatedCamp);
-    window.appData.currentAtlasMapId = updatedCamp.atlasMaps[0].id;
+    
+    // Automatically switch back to the main map and update the DOM
+    window.appActions.switchAtlasMap(updatedCamp.atlasMaps[0].id);
     window.appActions.toggleAtlasSettings();
     notify("Map deleted.", "success");
-    window.appActions.setView('atlas');
 };
 
 export const saveAtlasSettings = async () => {
