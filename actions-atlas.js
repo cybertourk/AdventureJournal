@@ -17,6 +17,7 @@ let drawingStopIndices = [];
 // Memory trackers
 let savedMapCenter = null;
 let savedMapZoom = null;
+let isMapAnimating = false;
 
 // Variables for custom right-click panning
 let rightDrag = false;
@@ -127,9 +128,12 @@ export const initAtlas = () => {
         dragging: false 
     });
 
+    isMapAnimating = true;
+
     L.control.zoom({ position: 'topright' }).addTo(mapInstance);
 
     mapInstance.on('moveend', () => {
+        if (isMapAnimating) return;
         savedMapCenter = mapInstance.getCenter();
         savedMapZoom = mapInstance.getZoom();
     });
@@ -146,24 +150,24 @@ export const initAtlas = () => {
         entityLayer = L.layerGroup().addTo(mapInstance);
         renderAtlasEntities(camp);
 
-        const applyView = () => {
+        const applyView = (isFinal = false) => {
             if (!mapInstance) return;
             mapInstance.invalidateSize();
             
             if (window.appData.pendingAtlasFocus) {
                 const focusId = window.appData.pendingAtlasFocus;
-                window.appData.pendingAtlasFocus = null; 
+                if (isFinal) window.appData.pendingAtlasFocus = null; 
 
                 const focusPin = (camp.atlasPins || []).find(p => p.codexId === focusId);
                 if (focusPin) {
-                    mapInstance.setView([focusPin.lat, focusPin.lng], 1); 
+                    mapInstance.setView([focusPin.lat, focusPin.lng], 1, { animate: false }); 
                 } else {
                     const focusRoute = (camp.atlasRoutes || []).find(r => r.codexId === focusId);
                     if (focusRoute && focusRoute.points && focusRoute.points.length > 0) {
                         const polyline = L.polyline(focusRoute.points);
-                        mapInstance.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+                        mapInstance.fitBounds(polyline.getBounds(), { padding: [50, 50], animate: false });
                     } else {
-                        mapInstance.fitBounds(bounds); 
+                        mapInstance.fitBounds(bounds, { animate: false }); 
                     }
                 }
             } 
@@ -171,14 +175,21 @@ export const initAtlas = () => {
                 mapInstance.setView(savedMapCenter, savedMapZoom, { animate: false });
             } 
             else {
-                window.appData.forceAtlasResize = false;
-                mapInstance.fitBounds(bounds);
+                if (isFinal) window.appData.forceAtlasResize = false;
+                mapInstance.fitBounds(bounds, { animate: false });
+                
+                // Bulletproof override: forcefully set the mathematical center of the image
+                mapInstance.setView([h / 2, w / 2], mapInstance.getBoundsZoom(bounds), { animate: false });
+            }
+
+            if (isFinal) {
+                setTimeout(() => { isMapAnimating = false; }, 100);
             }
         };
 
         // Apply immediately, then re-calculate after the 300ms CSS transition finishes!
-        applyView();
-        setTimeout(applyView, 350);
+        applyView(false);
+        setTimeout(() => applyView(true), 350);
     };
     img.onerror = function() {
         notify("Failed to load map image. Check the URL in Map Settings.", "error");
