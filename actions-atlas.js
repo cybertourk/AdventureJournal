@@ -213,6 +213,10 @@ export const initAtlas = () => {
                 
                 document.getElementById('atlas-pin-codex-id').value = "";
                 document.getElementById('atlas-pin-search').value = "";
+                
+                const iconInput = document.getElementById('atlas-pin-icon');
+                if (iconInput) iconInput.value = "fa-solid fa-star";
+
                 document.getElementById('atlas-pin-search-results').classList.add('hidden');
                 document.getElementById('atlas-pin-modal').classList.remove('hidden');
                 
@@ -528,9 +532,17 @@ const renderAtlasEntities = (camp) => {
     const activePins = (camp.atlasPins || []).filter(p => (p.mapId || 'default-world') === currentMapId);
 
     activePins.forEach(pin => {
+        const iconVal = pin.icon || 'fa-solid fa-star';
+        let innerHtml = '';
+        if (iconVal.startsWith('http') || iconVal.startsWith('data:image')) {
+            innerHtml = `<img src="${iconVal}" class="w-full h-full object-contain drop-shadow-md" onerror="this.src='https://placehold.co/30x30?text=?'">`;
+        } else {
+            innerHtml = `<i class="${iconVal}"></i>`;
+        }
+
         const customIcon = L.divIcon({
             className: 'custom-map-pin',
-            html: '<i class="fa-solid fa-star"></i>',
+            html: innerHtml,
             iconSize: [30, 30],
             iconAnchor: [15, 30] 
         });
@@ -1191,6 +1203,7 @@ export const confirmAtlasPin = async () => {
     const lng = parseFloat(document.getElementById('atlas-pin-lng').value);
     let codexId = document.getElementById('atlas-pin-codex-id').value;
     const searchInput = document.getElementById('atlas-pin-search').value.trim();
+    const iconData = document.getElementById('atlas-pin-icon')?.value.trim() || 'fa-solid fa-star';
 
     if (!codexId && !searchInput) {
         notify("You must select or type a name for the location.", "error");
@@ -1223,6 +1236,7 @@ export const confirmAtlasPin = async () => {
         lng,
         codexId,
         customLabel: entryName,
+        icon: iconData,
         authorId: myUid,
         mapId: currentMapId
     };
