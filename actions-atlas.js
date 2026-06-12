@@ -230,13 +230,7 @@ export const switchAtlasMap = (mapId) => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
     if (camp) {
-        // We reuse the getAtlasMaps function declared earlier in the file
-        const maps = (camp.atlasMaps && camp.atlasMaps.length > 0) ? camp.atlasMaps : [{
-            id: 'default-world',
-            name: 'Overland Map',
-            linkedCodexId: '',
-            ...(camp.atlasConfig || { url: 'https://www.transparenttextures.com/patterns/aged-paper.png', pixelsPerSquare: 50, milesPerSquare: 10, showGrid: true })
-        }];
+        const maps = getAtlasMaps(camp);
         const activeConfig = maps.find(m => m.id === mapId) || maps[0];
         
         const nameEl = document.getElementById('cfg-name');
@@ -251,8 +245,15 @@ export const switchAtlasMap = (mapId) => {
         const milesEl = document.getElementById('cfg-miles');
         if (milesEl) milesEl.value = activeConfig.milesPerSquare || 10;
         
-        const codexEl = document.getElementById('cfg-linked-codex');
+        // Setup Codex Linking Elements
+        const codexEl = document.getElementById('cfg-linked-codex-id') || document.getElementById('cfg-linked-codex');
         if (codexEl) codexEl.value = activeConfig.linkedCodexId || '';
+        
+        const codexSearchEl = document.getElementById('cfg-linked-search');
+        if (codexSearchEl) {
+            const linkedEntry = (camp.codex || []).find(c => c.id === activeConfig.linkedCodexId);
+            codexSearchEl.value = linkedEntry ? linkedEntry.name : '';
+        }
         
         const gridEl = document.getElementById('cfg-show-grid');
         if (gridEl) gridEl.checked = activeConfig.showGrid !== false;
@@ -273,13 +274,7 @@ export const createNewAtlasMap = async () => {
     const name = prompt("Enter a name for the new sub-map:");
     if (!name) return;
 
-    // Use inline fallback to guarantee maps exist
-    const maps = (camp.atlasMaps && camp.atlasMaps.length > 0) ? camp.atlasMaps : [{
-        id: 'default-world',
-        name: 'Overland Map',
-        linkedCodexId: '',
-        ...(camp.atlasConfig || { url: 'https://www.transparenttextures.com/patterns/aged-paper.png', pixelsPerSquare: 50, milesPerSquare: 10, showGrid: true })
-    }];
+    const maps = getAtlasMaps(camp);
     
     const newMap = {
         id: 'map_' + generateId(),
@@ -315,7 +310,7 @@ export const deleteAtlasMap = async (mapId) => {
     const camp = window.appData.activeCampaign;
     if (!camp || !camp._isDM) return;
 
-    const maps = (camp.atlasMaps && camp.atlasMaps.length > 0) ? camp.atlasMaps : [];
+    const maps = getAtlasMaps(camp);
     if (maps.length <= 1) {
         notify("You cannot delete the last remaining map.", "error");
         return;
@@ -348,7 +343,7 @@ export const saveAtlasSettings = async () => {
     const pxSq = parseFloat(document.getElementById('cfg-px').value) || 50;
     const miSq = parseFloat(document.getElementById('cfg-miles').value) || 10;
     const showGrid = document.getElementById('cfg-show-grid').checked;
-    const linkedCodexId = document.getElementById('cfg-linked-codex')?.value.trim() || '';
+    const linkedCodexId = (document.getElementById('cfg-linked-codex-id') || document.getElementById('cfg-linked-codex'))?.value.trim() || '';
     const name = document.getElementById('cfg-name')?.value.trim() || 'Unnamed Map';
 
     const updatedMaps = maps.map(m => {
@@ -521,7 +516,6 @@ const renderAtlasEntities = (camp) => {
                 if (pin.codexId) {
                     const cEntry = camp.codex?.find(c => c.id === pin.codexId);
                     if (cEntry) {
-                        // Original Logic: Show full codex entry modal
                         window.appActions.viewCodex(cEntry.id);
                         
                         // Drill-Down Injection: Check if a local sub-map exists for this codex entry
@@ -1074,17 +1068,17 @@ export const confirmAtlasRoute = async () => {
     window.appActions.refreshAtlasEntities();
 };
 
-
-export const searchAtlasCodex = (query, filterType = 'Location') => {
+export const searchAtlasCodex = (query, filterType = 'Location', customPrefix = null) => {
     const isRoute = filterType === 'Route';
-    const prefix = isRoute ? 'atlas-route' : 'atlas-pin';
+    const prefix = customPrefix || (isRoute ? 'atlas-route' : 'atlas-pin');
     
     const resultsContainer = document.getElementById(`${prefix}-search-results`);
     if (!resultsContainer) return;
     
     if (!query || query.trim() === '') {
         resultsContainer.classList.add('hidden');
-        document.getElementById(`${prefix}-codex-id`).value = ""; 
+        const idInput = document.getElementById(`${prefix}-codex-id`);
+        if (idInput) idInput.value = ""; 
         return;
     }
 
@@ -1126,7 +1120,8 @@ export const searchAtlasCodex = (query, filterType = 'Location') => {
 
 export const selectAtlasCodexEntry = (id, name, prefix) => {
     const searchInput = document.getElementById(`${prefix}-search`);
-    const idInput = document.getElementById(`${prefix}-codex-id`);
+    // Fallback allows for both suffix variants since we updated the settings panel ID convention
+    const idInput = document.getElementById(`${prefix}-codex-id`) || document.getElementById(`${prefix}`);
     const resultsContainer = document.getElementById(`${prefix}-search-results`);
 
     if (searchInput) searchInput.value = name;
