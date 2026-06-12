@@ -21,6 +21,60 @@ export function getAtlasHTML(state) {
     const currentMapId = state.currentAtlasMapId || maps[0].id;
     const activeConfig = maps.find(m => m.id === currentMapId) || maps[0];
     
+    // --- MAP SORTING & GROUPING BY SCALE ---
+    const scaleOrder = [
+        'Global / Overland',
+        'Realm / Plane',
+        'Continent',
+        'Region / Province',
+        'Geographical Feature',
+        'City / Settlement',
+        'District / Neighborhood',
+        'Building / Establishment',
+        'Dungeon / Ruin',
+        'Unspecified Scale'
+    ];
+
+    const mapGroups = {};
+    scaleOrder.forEach(scale => mapGroups[scale] = []);
+
+    maps.forEach(m => {
+        if (m.id === 'default-world' && !m.linkedCodexId) {
+            mapGroups['Global / Overland'].push(m);
+            return;
+        }
+        
+        if (m.linkedCodexId) {
+            const codexEntry = (camp.codex || []).find(c => c.id === m.linkedCodexId);
+            if (codexEntry && codexEntry.locationType) {
+                if (mapGroups[codexEntry.locationType]) {
+                    mapGroups[codexEntry.locationType].push(m);
+                } else {
+                    mapGroups['Unspecified Scale'].push(m);
+                }
+            } else if (codexEntry) {
+                mapGroups['Unspecified Scale'].push(m);
+            } else {
+                mapGroups['Global / Overland'].push(m);
+            }
+        } else {
+            mapGroups['Global / Overland'].push(m);
+        }
+    });
+
+    let mapDropdownHtml = '';
+    scaleOrder.forEach(scale => {
+        if (mapGroups[scale].length > 0) {
+            // Sort alphabetically within the exact scale group
+            mapGroups[scale].sort((a,b) => a.name.localeCompare(b.name));
+            mapDropdownHtml += `<optgroup label="-- ${scale.toUpperCase()} --" class="bg-stone-900 text-stone-400 font-bold tracking-widest text-[9px] mt-1">`;
+            mapGroups[scale].forEach(m => {
+                mapDropdownHtml += `<option value="${m.id}" ${m.id === currentMapId ? 'selected' : ''} class="bg-stone-800 text-amber-500 font-serif text-sm normal-case tracking-normal">${m.name}</option>`;
+            });
+            mapDropdownHtml += `</optgroup>`;
+        }
+    });
+
     // Resolve the name of the currently linked codex entry for the search bar
     let linkedCodexName = '';
     if (activeConfig.linkedCodexId) {
@@ -80,7 +134,7 @@ export function getAtlasHTML(state) {
                 <i class="fa-solid fa-map-location-dot mr-2 text-amber-600 flex-shrink-0 text-base sm:text-lg"></i> 
                 <div class="flex flex-col">
                     <select onchange="window.appActions.switchAtlasMap(this.value)" class="bg-transparent text-amber-500 font-serif font-bold text-xs sm:text-base outline-none cursor-pointer truncate max-w-[200px] sm:max-w-[300px]">
-                        ${maps.map(m => `<option value="${m.id}" ${m.id === currentMapId ? 'selected' : ''} class="bg-stone-900 text-amber-500">${m.name}</option>`).join('')}
+                        ${mapDropdownHtml}
                     </select>
                     <p class="text-[7px] sm:text-[8px] uppercase tracking-widest text-stone-400 font-bold mt-0.5">Left-Click: Action | Right-Click: Pan</p>
                 </div>
