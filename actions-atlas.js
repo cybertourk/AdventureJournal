@@ -558,9 +558,11 @@ const renderAtlasEntities = (camp) => {
         let pinAnchor = [15 * scale, 30 * scale];
 
         if (iconVal.startsWith('http') || iconVal.startsWith('data:image')) {
-            innerHtml = `<img src="${iconVal}" class="w-full h-full object-contain drop-shadow-lg pointer-events-none" onerror="this.src='https://placehold.co/40x40?text=?'">`;
-            pinSize = [40 * scale, 40 * scale]; // Reduced size for custom images, adjusted by zoom scale
-            pinAnchor = [20 * scale, 40 * scale]; // Adjusted anchor so the bottom center points to the exact coordinate
+            // We use a div with a background image instead of an <img> tag to bypass the global image viewer
+            // without needing pointer-events-none, which causes touch-delay lag on mobile devices!
+            innerHtml = `<div class="w-full h-full drop-shadow-lg" style="background-image: url('${iconVal.replace(/'/g, "\\'")}'); background-size: contain; background-repeat: no-repeat; background-position: bottom center;"></div>`;
+            pinSize = [40 * scale, 40 * scale]; 
+            pinAnchor = [20 * scale, 40 * scale]; 
         } else {
             innerHtml = `<i class="${iconVal}" style="font-size: ${16 * scale}px; line-height: ${30 * scale}px; text-align: center; width: 100%; display: block; color: inherit;"></i>`;
             pinSize = [30 * scale, 30 * scale];
@@ -604,7 +606,7 @@ const renderAtlasEntities = (camp) => {
                                         header.insertAdjacentHTML('afterend', btnHtml);
                                     }
                                 }
-                            }, 50); // slight delay to allow UI to paint
+                            }, 320); // Delay injection until the 300ms CSS fade-in completes to prevent layout stutter!
                         }
                         return; 
                     }
