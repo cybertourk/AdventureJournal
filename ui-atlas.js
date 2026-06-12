@@ -20,6 +20,13 @@ export function getAtlasHTML(state) {
     const currentMapId = state.currentAtlasMapId || maps[0].id;
     const activeConfig = maps.find(m => m.id === currentMapId) || maps[0];
     
+    // Resolve the name of the currently linked codex entry for the search bar
+    let linkedCodexName = '';
+    if (activeConfig.linkedCodexId) {
+        const linkedEntry = (camp.codex || []).find(c => c.id === activeConfig.linkedCodexId);
+        if (linkedEntry) linkedCodexName = linkedEntry.name.replace(/"/g, '&quot;');
+    }
+    
     const isDM = camp._isDM;
     const activeRoutes = state.activeAtlasRoutes || [];
     const isFullScreen = state.isAtlasFullScreen;
@@ -214,12 +221,15 @@ export function getAtlasHTML(state) {
                             </div>
                         </div>
 
-                        <div>
+                        <div class="relative">
                             <label class="block text-[8px] font-bold text-stone-500 uppercase tracking-widest mb-1 flex items-center justify-between">
-                                <span>Codex Link (Drill-Down ID)</span>
-                                <i class="fa-solid fa-circle-info text-stone-400" title="Paste the ID of a Codex Entry here. When players click a map pin tied to that Codex Entry, they will see a button to enter this local map!"></i>
+                                <span>Linked Codex Entry</span>
+                                <i class="fa-solid fa-circle-info text-stone-400" title="Search for a Codex Entry. When players click a map pin tied to that Codex Entry, they will see a button to enter this local map!"></i>
                             </label>
-                            <input type="text" id="cfg-linked-codex" value="${activeConfig.linkedCodexId || ''}" placeholder="Paste Codex ID here..." class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-[10px] font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white font-mono">
+                            <input type="text" id="cfg-linked-search" oninput="window.appActions.searchAtlasCodex(this.value, 'Location', 'cfg-linked')" placeholder="Search codex or type name..." class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-[10px] font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white" autocomplete="off" value="${linkedCodexName}">
+                            <input type="hidden" id="cfg-linked-codex-id" value="${activeConfig.linkedCodexId || ''}">
+                            
+                            <div id="cfg-linked-search-results" class="absolute z-10 w-full bg-white border border-[#d4c5a9] rounded-b-sm shadow-xl max-h-40 overflow-y-auto hidden top-[46px] custom-scrollbar text-xs"></div>
                         </div>
 
                         <div class="flex items-center gap-1.5 pt-1 border-t border-[#d4c5a9]">
