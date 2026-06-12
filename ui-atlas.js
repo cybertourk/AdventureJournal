@@ -7,7 +7,8 @@ export function getAtlasHTML(state) {
         url: 'https://files.catbox.moe/o3d82f.jpg',
         pixelsPerSquare: 50,
         milesPerSquare: 10,
-        showGrid: true
+        showGrid: true,
+        unit: 'Miles' // New fallback unit
     };
 
     const maps = (camp.atlasMaps && camp.atlasMaps.length > 0) ? camp.atlasMaps : [{
@@ -27,6 +28,7 @@ export function getAtlasHTML(state) {
         if (linkedEntry) linkedCodexName = linkedEntry.name.replace(/"/g, '&quot;');
     }
     
+    const mapUnit = activeConfig.unit || 'Miles'; // Dynamic Unit
     const isDM = camp._isDM;
     const activeRoutes = state.activeAtlasRoutes || [];
     const isFullScreen = state.isAtlasFullScreen;
@@ -100,7 +102,7 @@ export function getAtlasHTML(state) {
 
             <!-- Dynamic Scale Indicator (Scaled Down) -->
             <div class="absolute ${isFullScreen ? 'bottom-20 sm:bottom-16' : 'bottom-24 sm:bottom-20'} left-4 z-30 bg-stone-900/90 text-amber-50 px-2 py-1.5 rounded-sm shadow-md border border-stone-600 flex flex-col gap-1 pointer-events-none transition-all duration-300" id="scale-indicator">
-                <div class="text-[8px] uppercase tracking-widest font-bold text-stone-400 text-center" id="scale-text">${activeConfig.milesPerSquare} Miles</div>
+                <div class="text-[8px] uppercase tracking-widest font-bold text-stone-400 text-center" id="scale-text">${activeConfig.milesPerSquare} ${mapUnit}</div>
                 <div class="h-1 border-x border-b border-amber-500 transition-all duration-100 ease-linear" id="scale-bar" style="width: ${activeConfig.pixelsPerSquare}px;"></div>
             </div>
 
@@ -110,7 +112,7 @@ export function getAtlasHTML(state) {
                     <i class="fa-solid fa-route text-amber-500 text-sm sm:text-base"></i>
                     <div class="flex flex-col">
                         <span class="text-[7px] sm:text-[8px] uppercase text-stone-400 tracking-widest">Route Distance</span>
-                        <span id="dist-val" class="text-xs sm:text-sm text-emerald-400">0 Miles</span>
+                        <span id="dist-val" class="text-xs sm:text-sm text-emerald-400">0 ${mapUnit}</span>
                     </div>
                 </div>
                 <div class="w-px h-6 bg-stone-700 hidden sm:block"></div>
@@ -210,14 +212,18 @@ export function getAtlasHTML(state) {
                             <input type="text" id="cfg-url" value="${activeConfig.url.replace(/"/g, '&quot;')}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-[10px] font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white">
                         </div>
                         
-                        <div class="grid grid-cols-2 gap-2">
+                        <div class="grid grid-cols-3 gap-2">
                             <div>
-                                <label class="block text-[8px] font-bold text-stone-500 uppercase tracking-widest mb-1">Pixels / Sq</label>
+                                <label class="block text-[8px] font-bold text-stone-500 uppercase tracking-widest mb-1">Px / Sq</label>
                                 <input type="number" id="cfg-px" value="${activeConfig.pixelsPerSquare}" oninput="window.appActions.updateAtlasGridAndScale()" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-[10px] font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white text-center">
                             </div>
                             <div>
-                                <label class="block text-[8px] font-bold text-stone-500 uppercase tracking-widest mb-1">Miles / Sq</label>
+                                <label class="block text-[8px] font-bold text-stone-500 uppercase tracking-widest mb-1">Units / Sq</label>
                                 <input type="number" id="cfg-miles" value="${activeConfig.milesPerSquare}" oninput="window.appActions.updateAtlasGridAndScale(); window.appActions.updateAtlasDistanceCalc();" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-[10px] font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white text-center">
+                            </div>
+                            <div>
+                                <label class="block text-[8px] font-bold text-stone-500 uppercase tracking-widest mb-1">Unit</label>
+                                <input type="text" id="cfg-unit" value="${mapUnit}" oninput="window.appActions.updateAtlasGridAndScale(); window.appActions.updateAtlasDistanceCalc();" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-[10px] font-bold text-stone-900 shadow-inner outline-none focus:border-amber-600 bg-white text-center" placeholder="e.g. Feet">
                             </div>
                         </div>
 
