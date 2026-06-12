@@ -99,8 +99,6 @@ export const initAtlas = () => {
     if (!camp) return;
 
     if (mapInstance) {
-        // FIX: Removed the buggy 'savedMapCenter = mapInstance.getCenter();' here.
-        // It was saving [0,0] when the HTML DOM was destroyed during tab switching!
         mapInstance.remove();
         mapInstance = null;
         imageOverlay = null;
@@ -223,9 +221,12 @@ export const initAtlas = () => {
                 setTimeout(() => document.getElementById('atlas-pin-search').focus(), 100);
             } 
             else if (currentMode === 'draw') {
+                const zoom = mapInstance.getZoom();
+                const scale = Math.max(0.3, 1 + (zoom * 0.25));
+
                 drawingPoints.push(e.latlng);
                 if (!drawingPolyline) {
-                    drawingPolyline = L.polyline(drawingPoints, { color: '#ef4444', weight: 4, dashArray: '5, 10' }).addTo(mapInstance);
+                    drawingPolyline = L.polyline(drawingPoints, { color: '#ef4444', weight: Math.max(2, 4 * scale), dashArray: '5, 10' }).addTo(mapInstance);
                 } else {
                     drawingPolyline.setLatLngs(drawingPoints);
                 }
@@ -245,6 +246,14 @@ export const initAtlas = () => {
             savedMapCenter = mapInstance.getCenter();
             savedMapZoom = mapInstance.getZoom();
         }
+
+        // Dynamically re-render pins so they scale seamlessly with zoom level
+        if (entityLayer) {
+            entityLayer.clearLayers();
+            const currentCamp = window.appData.activeCampaign;
+            if (currentCamp) renderAtlasEntities(currentCamp);
+        }
+        renderDrawingMarkers();
     });
 
     window.appActions.setAtlasMode('pan');
@@ -430,9 +439,12 @@ const renderDrawingMarkers = () => {
 
     if (!mapInstance || drawingPoints.length === 0) return;
 
-    const startIcon = L.divIcon({ className: 'custom-route-node', html: '<div class="w-3 h-3 bg-emerald-500 rounded-full border-2 border-white shadow-sm"></div>', iconSize: [12, 12], iconAnchor: [6, 6] });
-    const endIcon = L.divIcon({ className: 'custom-route-node', html: '<div class="w-3 h-3 bg-red-600 rounded-full border-2 border-white shadow-sm"></div>', iconSize: [12, 12], iconAnchor: [6, 6] });
-    const stopIcon = L.divIcon({ className: 'custom-route-node', html: '<div class="w-2.5 h-2.5 bg-amber-500 rounded-full border-2 border-white shadow-sm"></div>', iconSize: [10, 10], iconAnchor: [5, 5] });
+    const zoom = mapInstance.getZoom();
+    const scale = Math.max(0.3, 1 + (zoom * 0.25));
+
+    const startIcon = L.divIcon({ className: 'custom-route-node', html: `<div class="bg-emerald-500 rounded-full border-2 border-white shadow-sm" style="width: ${12*scale}px; height: ${12*scale}px;"></div>`, iconSize: [12*scale, 12*scale], iconAnchor: [6*scale, 6*scale] });
+    const endIcon = L.divIcon({ className: 'custom-route-node', html: `<div class="bg-red-600 rounded-full border-2 border-white shadow-sm" style="width: ${12*scale}px; height: ${12*scale}px;"></div>`, iconSize: [12*scale, 12*scale], iconAnchor: [6*scale, 6*scale] });
+    const stopIcon = L.divIcon({ className: 'custom-route-node', html: `<div class="bg-amber-500 rounded-full border-2 border-white shadow-sm" style="width: ${10*scale}px; height: ${10*scale}px;"></div>`, iconSize: [10*scale, 10*scale], iconAnchor: [5*scale, 5*scale] });
 
     drawingMarkers.push(L.marker(drawingPoints[0], { icon: startIcon, interactive: false }).addTo(mapInstance));
     
@@ -445,6 +457,10 @@ const renderDrawingMarkers = () => {
             drawingMarkers.push(L.marker(drawingPoints[idx], { icon: stopIcon, interactive: false }).addTo(mapInstance));
         }
     });
+
+    if (drawingPolyline) {
+        drawingPolyline.setStyle({ weight: Math.max(2, 4 * scale) });
+    }
 };
 
 const renderAtlasLayerCheckboxes = (camp) => {
@@ -528,23 +544,27 @@ const renderAtlasEntities = (camp) => {
     const maps = getAtlasMaps(camp);
     const currentMapId = window.appData.currentAtlasMapId || maps[0].id;
 
+    // Dynamic Scale Calculation based on Map Zoom
+    const zoom = mapInstance ? mapInstance.getZoom() : 0;
+    const scale = Math.max(0.3, 1 + (zoom * 0.25));
+
     // Filter Pins for Current Map
     const activePins = (camp.atlasPins || []).filter(p => (p.mapId || 'default-world') === currentMapId);
 
     activePins.forEach(pin => {
         const iconVal = pin.icon || 'fa-solid fa-star';
         let innerHtml = '';
-        let pinSize = [30, 30];
-        let pinAnchor = [15, 30];
+        let pinSize = [30 * scale, 30 * scale];
+        let pinAnchor = [15 * scale, 30 * scale];
 
         if (iconVal.startsWith('http') || iconVal.startsWith('data:image')) {
             innerHtml = `<img src="${iconVal}" class="w-full h-full object-contain drop-shadow-lg" onerror="this.src='https://placehold.co/60x60?text=?'">`;
-            pinSize = [60, 60]; // Doubled size for custom images
-            pinAnchor = [30, 60]; // Adjusted anchor so the bottom center points to the exact coordinate
+            pinSize = [60 * scale, 60 * scale]; // Doubled size for custom images, adjusted by zoom scale
+            pinAnchor = [30 * scale, 60 * scale]; // Adjusted anchor so the bottom center points to the exact coordinate
         } else {
-            innerHtml = `<i class="${iconVal}"></i>`;
-            pinSize = [30, 30];
-            pinAnchor = [15, 30];
+            innerHtml = `<i class="${iconVal}" style="font-size: ${16 * scale}px; line-height: ${30 * scale}px; text-align: center; width: 100%; display: block; color: inherit;"></i>`;
+            pinSize = [30 * scale, 30 * scale];
+            pinAnchor = [15 * scale, 30 * scale];
         }
 
         const customIcon = L.divIcon({
@@ -613,12 +633,12 @@ const renderAtlasEntities = (camp) => {
     const activeRoutesData = (camp.atlasRoutes || []).filter(r => (r.mapId || 'default-world') === currentMapId);
     const activeRoutes = window.appData.activeAtlasRoutes || [];
     
-    const startIcon = L.divIcon({ className: 'custom-route-node', html: '<div class="w-3 h-3 bg-emerald-500 rounded-full border-2 border-white shadow-sm"></div>', iconSize: [12, 12], iconAnchor: [6, 6] });
-    const endIcon = L.divIcon({ className: 'custom-route-node', html: '<div class="w-3 h-3 bg-red-600 rounded-full border-2 border-white shadow-sm"></div>', iconSize: [12, 12], iconAnchor: [6, 6] });
-    const stopIcon = L.divIcon({ className: 'custom-route-node', html: '<div class="w-2.5 h-2.5 bg-amber-500 rounded-full border-2 border-white shadow-sm"></div>', iconSize: [10, 10], iconAnchor: [5, 5] });
+    const startIcon = L.divIcon({ className: 'custom-route-node', html: `<div class="bg-emerald-500 rounded-full border-2 border-white shadow-sm" style="width: ${12*scale}px; height: ${12*scale}px;"></div>`, iconSize: [12*scale, 12*scale], iconAnchor: [6*scale, 6*scale] });
+    const endIcon = L.divIcon({ className: 'custom-route-node', html: `<div class="bg-red-600 rounded-full border-2 border-white shadow-sm" style="width: ${12*scale}px; height: ${12*scale}px;"></div>`, iconSize: [12*scale, 12*scale], iconAnchor: [6*scale, 6*scale] });
+    const stopIcon = L.divIcon({ className: 'custom-route-node', html: `<div class="bg-amber-500 rounded-full border-2 border-white shadow-sm" style="width: ${10*scale}px; height: ${10*scale}px;"></div>`, iconSize: [10*scale, 10*scale], iconAnchor: [5*scale, 5*scale] });
 
     activeRoutesData.filter(r => activeRoutes.includes(r.id)).forEach(route => {
-        const polyline = L.polyline(route.points, { color: '#ef4444', weight: 4, dashArray: '5, 10' }).addTo(entityLayer);
+        const polyline = L.polyline(route.points, { color: '#ef4444', weight: Math.max(2, 4 * scale), dashArray: '5, 10' }).addTo(entityLayer);
         
         if (route.points.length > 0) {
             L.marker(route.points[0], { icon: startIcon, interactive: false }).addTo(entityLayer);
