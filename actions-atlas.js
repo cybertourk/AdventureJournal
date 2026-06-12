@@ -534,17 +534,24 @@ const renderAtlasEntities = (camp) => {
     activePins.forEach(pin => {
         const iconVal = pin.icon || 'fa-solid fa-star';
         let innerHtml = '';
+        let pinSize = [30, 30];
+        let pinAnchor = [15, 30];
+
         if (iconVal.startsWith('http') || iconVal.startsWith('data:image')) {
-            innerHtml = `<img src="${iconVal}" class="w-full h-full object-contain drop-shadow-md" onerror="this.src='https://placehold.co/30x30?text=?'">`;
+            innerHtml = `<img src="${iconVal}" class="w-full h-full object-contain drop-shadow-lg" onerror="this.src='https://placehold.co/60x60?text=?'">`;
+            pinSize = [60, 60]; // Doubled size for custom images
+            pinAnchor = [30, 60]; // Adjusted anchor so the bottom center points to the exact coordinate
         } else {
             innerHtml = `<i class="${iconVal}"></i>`;
+            pinSize = [30, 30];
+            pinAnchor = [15, 30];
         }
 
         const customIcon = L.divIcon({
             className: 'custom-map-pin',
             html: innerHtml,
-            iconSize: [30, 30],
-            iconAnchor: [15, 30] 
+            iconSize: pinSize,
+            iconAnchor: pinAnchor 
         });
 
         const marker = L.marker([pin.lat, pin.lng], { icon: customIcon }).addTo(entityLayer);
