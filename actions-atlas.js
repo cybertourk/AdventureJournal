@@ -573,6 +573,7 @@ const renderAtlasEntities = (camp) => {
         let innerHtml = '';
         let pinSize = [30 * scale, 30 * scale];
         let pinAnchor = [15 * scale, 30 * scale];
+        let pinClass = 'custom-map-pin';
 
         if (iconVal.startsWith('http') || iconVal.startsWith('data:image')) {
             // We use a div with a background image instead of an <img> tag to bypass the global image viewer
@@ -580,6 +581,7 @@ const renderAtlasEntities = (camp) => {
             innerHtml = `<div class="w-full h-full drop-shadow-lg" style="background-image: url('${iconVal.replace(/'/g, "\\'")}'); background-size: contain; background-repeat: no-repeat; background-position: bottom center;"></div>`;
             pinSize = [40 * scale, 40 * scale]; 
             pinAnchor = [20 * scale, 40 * scale]; 
+            pinClass = ''; // Strips all background framing and border CSS, leaving only the image!
         } else {
             innerHtml = `<i class="${iconVal}" style="font-size: ${16 * scale}px; line-height: ${30 * scale}px; text-align: center; width: 100%; display: block; color: inherit;"></i>`;
             pinSize = [30 * scale, 30 * scale];
@@ -587,7 +589,7 @@ const renderAtlasEntities = (camp) => {
         }
 
         const customIcon = L.divIcon({
-            className: 'custom-map-pin',
+            className: pinClass,
             html: innerHtml,
             iconSize: pinSize,
             iconAnchor: pinAnchor 
