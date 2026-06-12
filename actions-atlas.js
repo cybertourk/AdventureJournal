@@ -18,6 +18,7 @@ let drawingStopIndices = [];
 let savedMapCenter = null;
 let savedMapZoom = null;
 let isMapAnimating = false;
+let atlasInitToken = 0; // Tracks the current active map generation cycle to prevent async ghost layers
 
 // Variables for custom right-click panning
 let rightDrag = false;
@@ -94,12 +95,21 @@ export const initAtlas = () => {
     const container = document.getElementById('map-container');
     if (!container) return; 
 
+    // Generate a fresh token. If an older initialization is still downloading its image, 
+    // it will see this token changed and instantly abort to prevent ghost layers!
+    atlasInitToken++;
+    const currentToken = atlasInitToken;
+
     updateDerivedState();
     const camp = window.appData.activeCampaign;
     if (!camp) return;
 
     if (mapInstance) {
-        mapInstance.remove();
+        try {
+            mapInstance.remove();
+        } catch (e) {
+            console.warn("Leaflet container was already destroyed, skipping manual removal.");
+        }
         mapInstance = null;
         imageOverlay = null;
         gridOverlayLayer = null;
@@ -129,6 +139,10 @@ export const initAtlas = () => {
 
     L.control.zoom({ position: 'topright' }).addTo(mapInstance);
 
+    // CRITICAL FIX: The entity layer must be created synchronously right now. 
+    // Creating it inside the async image loader caused duplicate orphaned layers!
+    entityLayer = L.layerGroup().addTo(mapInstance);
+
     mapInstance.on('moveend', () => {
         // Only save memory when the map is safely done rendering/animating
         if (isMapAnimating) return;
@@ -138,6 +152,9 @@ export const initAtlas = () => {
 
     const img = new Image();
     img.onload = function() {
+        // CRITICAL FIX: If another initialization started while we were waiting for this image, abort!
+        if (currentToken !== atlasInitToken) return;
+
         const w = this.width;
         const h = this.height;
         
@@ -145,7 +162,6 @@ export const initAtlas = () => {
         imageOverlay = L.imageOverlay(config.url, bounds).addTo(mapInstance);
         
         window.appActions.updateAtlasGridAndScale(w, h);
-        entityLayer = L.layerGroup().addTo(mapInstance);
         renderAtlasEntities(camp);
 
         const applyView = (isFinal = false) => {
@@ -190,6 +206,7 @@ export const initAtlas = () => {
         setTimeout(() => applyView(true), 400); // Extended slightly to clear the 300ms CSS fade-in
     };
     img.onerror = function() {
+        if (currentToken !== atlasInitToken) return;
         notify("Failed to load map image. Check the URL in Map Settings.", "error");
     };
     img.src = config.url;
