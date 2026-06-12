@@ -558,9 +558,9 @@ const renderAtlasEntities = (camp) => {
         let pinAnchor = [15 * scale, 30 * scale];
 
         if (iconVal.startsWith('http') || iconVal.startsWith('data:image')) {
-            innerHtml = `<img src="${iconVal}" class="w-full h-full object-contain drop-shadow-lg" onerror="this.src='https://placehold.co/60x60?text=?'">`;
-            pinSize = [60 * scale, 60 * scale]; // Doubled size for custom images, adjusted by zoom scale
-            pinAnchor = [30 * scale, 60 * scale]; // Adjusted anchor so the bottom center points to the exact coordinate
+            innerHtml = `<img src="${iconVal}" class="w-full h-full object-contain drop-shadow-lg" onerror="this.src='https://placehold.co/40x40?text=?'">`;
+            pinSize = [40 * scale, 40 * scale]; // Reduced size for custom images, adjusted by zoom scale
+            pinAnchor = [20 * scale, 40 * scale]; // Adjusted anchor so the bottom center points to the exact coordinate
         } else {
             innerHtml = `<i class="${iconVal}" style="font-size: ${16 * scale}px; line-height: ${30 * scale}px; text-align: center; width: 100%; display: block; color: inherit;"></i>`;
             pinSize = [30 * scale, 30 * scale];
