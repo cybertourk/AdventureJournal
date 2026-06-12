@@ -146,30 +146,39 @@ export const initAtlas = () => {
         entityLayer = L.layerGroup().addTo(mapInstance);
         renderAtlasEntities(camp);
 
-        if (window.appData.pendingAtlasFocus) {
-            const focusId = window.appData.pendingAtlasFocus;
-            window.appData.pendingAtlasFocus = null; 
+        const applyView = () => {
+            if (!mapInstance) return;
+            mapInstance.invalidateSize();
+            
+            if (window.appData.pendingAtlasFocus) {
+                const focusId = window.appData.pendingAtlasFocus;
+                window.appData.pendingAtlasFocus = null; 
 
-            const focusPin = (camp.atlasPins || []).find(p => p.codexId === focusId);
-            if (focusPin) {
-                mapInstance.setView([focusPin.lat, focusPin.lng], 1); 
-            } else {
-                const focusRoute = (camp.atlasRoutes || []).find(r => r.codexId === focusId);
-                if (focusRoute && focusRoute.points && focusRoute.points.length > 0) {
-                    const polyline = L.polyline(focusRoute.points);
-                    mapInstance.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+                const focusPin = (camp.atlasPins || []).find(p => p.codexId === focusId);
+                if (focusPin) {
+                    mapInstance.setView([focusPin.lat, focusPin.lng], 1); 
                 } else {
-                    mapInstance.fitBounds(bounds); 
+                    const focusRoute = (camp.atlasRoutes || []).find(r => r.codexId === focusId);
+                    if (focusRoute && focusRoute.points && focusRoute.points.length > 0) {
+                        const polyline = L.polyline(focusRoute.points);
+                        mapInstance.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+                    } else {
+                        mapInstance.fitBounds(bounds); 
+                    }
                 }
+            } 
+            else if (savedMapCenter !== null && savedMapZoom !== null && !window.appData.forceAtlasResize) {
+                mapInstance.setView(savedMapCenter, savedMapZoom, { animate: false });
+            } 
+            else {
+                window.appData.forceAtlasResize = false;
+                mapInstance.fitBounds(bounds);
             }
-        } 
-        else if (savedMapCenter !== null && savedMapZoom !== null && !window.appData.forceAtlasResize) {
-            mapInstance.setView(savedMapCenter, savedMapZoom, { animate: false });
-        } 
-        else {
-            window.appData.forceAtlasResize = false;
-            mapInstance.fitBounds(bounds);
-        }
+        };
+
+        // Apply immediately, then re-calculate after the 300ms CSS transition finishes!
+        applyView();
+        setTimeout(applyView, 350);
     };
     img.onerror = function() {
         notify("Failed to load map image. Check the URL in Map Settings.", "error");
