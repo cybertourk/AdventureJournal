@@ -34,6 +34,7 @@ const getAtlasMaps = (camp) => {
         id: 'default-world',
         name: 'Overland Map',
         linkedCodexId: '',
+        unit: 'Miles',
         ...legacyConfig
     }];
 };
@@ -245,6 +246,9 @@ export const switchAtlasMap = (mapId) => {
         const milesEl = document.getElementById('cfg-miles');
         if (milesEl) milesEl.value = activeConfig.milesPerSquare || 10;
         
+        const unitEl = document.getElementById('cfg-unit');
+        if (unitEl) unitEl.value = activeConfig.unit || 'Miles';
+        
         // Setup Codex Linking Elements
         const codexEl = document.getElementById('cfg-linked-codex-id') || document.getElementById('cfg-linked-codex');
         if (codexEl) codexEl.value = activeConfig.linkedCodexId || '';
@@ -282,6 +286,7 @@ export const createNewAtlasMap = async () => {
         url: 'https://www.transparenttextures.com/patterns/aged-paper.png', // Reliable default parchment texture
         pixelsPerSquare: 50,
         milesPerSquare: 1,
+        unit: 'Miles',
         showGrid: true,
         linkedCodexId: ''
     };
@@ -342,13 +347,14 @@ export const saveAtlasSettings = async () => {
     const url = document.getElementById('cfg-url').value.trim();
     const pxSq = parseFloat(document.getElementById('cfg-px').value) || 50;
     const miSq = parseFloat(document.getElementById('cfg-miles').value) || 10;
+    const unit = document.getElementById('cfg-unit')?.value.trim() || 'Miles';
     const showGrid = document.getElementById('cfg-show-grid').checked;
     const linkedCodexId = (document.getElementById('cfg-linked-codex-id') || document.getElementById('cfg-linked-codex'))?.value.trim() || '';
     const name = document.getElementById('cfg-name')?.value.trim() || 'Unnamed Map';
 
     const updatedMaps = maps.map(m => {
         if (m.id === currentMapId) {
-            return { ...m, url, pixelsPerSquare: pxSq, milesPerSquare: miSq, showGrid, linkedCodexId, name };
+            return { ...m, url, pixelsPerSquare: pxSq, milesPerSquare: miSq, unit, showGrid, linkedCodexId, name };
         }
         return m;
     });
@@ -595,6 +601,7 @@ const renderAtlasEntities = (camp) => {
                 }
 
                 let title = route.name || 'Unknown Route';
+                let unit = route.unit || 'Miles';
                 const deleteBtn = canDelete ? `<button onclick="window.appActions.deleteAtlasRoute('${route.id}'); document.getElementById('global-popup-container').innerHTML = '';" class="w-full mt-4 py-2 bg-red-900/10 text-red-800 border border-red-900/30 hover:bg-red-900 hover:text-white rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm"><i class="fa-solid fa-trash mr-1"></i> Delete Route</button>` : '';
 
                 const popup = document.getElementById('global-popup-container');
@@ -605,7 +612,7 @@ const renderAtlasEntities = (camp) => {
                             <h3 class="font-serif font-bold text-lg text-amber-900 mb-1 pr-8"><i class="fa-solid fa-route text-amber-600 mr-1.5"></i> ${title}</h3>
                             <div class="bg-[#fdfbf7] p-3 rounded-sm border border-[#d4c5a9] mt-3 shadow-inner">
                                 <p class="text-[10px] uppercase font-bold text-stone-500 tracking-widest mb-0.5">Calculated Distance</p>
-                                <p class="text-base font-bold text-emerald-600">${route.distanceMiles} Miles</p>
+                                <p class="text-base font-bold text-emerald-600">${route.distanceMiles} ${unit}</p>
                             </div>
                             ${deleteBtn}
                         </div>
@@ -650,8 +657,14 @@ export const setAtlasMode = (mode) => {
         const stats = document.getElementById('drawing-stats');
         if (stats) stats.classList.remove('hidden');
         
+        updateDerivedState();
+        const camp = window.appData.activeCampaign;
+        const maps = getAtlasMaps(camp);
+        const config = maps.find(m => m.id === window.appData.currentAtlasMapId) || maps[0];
+        const unit = config.unit || 'Miles';
+        
         const val = document.getElementById('dist-val');
-        if (val) val.innerText = "0 Miles";
+        if (val) val.innerText = `0 ${unit}`;
         
         drawingPoints = [];
         if (drawingPolyline && mapInstance) mapInstance.removeLayer(drawingPolyline);
@@ -671,8 +684,13 @@ export const updateAtlasGridAndScale = (imgW, imgH) => {
     const w = window.appData.atlasDimensions?.w || 2000;
     const h = window.appData.atlasDimensions?.h || 1500;
 
+    const camp = window.appData.activeCampaign;
+    const maps = getAtlasMaps(camp);
+    const config = maps.find(m => m.id === window.appData.currentAtlasMapId) || maps[0];
+
     const pxSq = parseFloat(document.getElementById('cfg-px')?.value) || 50;
     const miSq = parseFloat(document.getElementById('cfg-miles')?.value) || 10;
+    const unit = document.getElementById('cfg-unit')?.value || config.unit || 'Miles';
     
     const multiplier = Math.pow(2, mapInstance.getZoom());
     const visualWidthInPixels = pxSq * multiplier;
@@ -680,7 +698,7 @@ export const updateAtlasGridAndScale = (imgW, imgH) => {
     const scaleBar = document.getElementById('scale-bar');
     const scaleText = document.getElementById('scale-text');
     if (scaleBar) scaleBar.style.width = `${visualWidthInPixels}px`;
-    if (scaleText) scaleText.innerText = `${miSq} Miles`;
+    if (scaleText) scaleText.innerText = `${miSq} ${unit}`;
 
     if (gridOverlayLayer) mapInstance.removeLayer(gridOverlayLayer);
     
@@ -729,11 +747,12 @@ export const updateAtlasDistanceCalc = () => {
 
     const pxSq = parseFloat(document.getElementById('cfg-px')?.value) || config.pixelsPerSquare;
     const miSq = parseFloat(document.getElementById('cfg-miles')?.value) || config.milesPerSquare;
+    const unit = config.unit || 'Miles';
 
     const totalSquares = totalPixels / pxSq;
     const totalMiles = totalSquares * miSq;
     
-    if (el) el.textContent = `${Math.round(totalMiles * 10) / 10} Miles`;
+    if (el) el.textContent = `${Math.round(totalMiles * 10) / 10} ${unit}`;
 };
 
 export const atlasUndoLastPoint = () => {
@@ -883,6 +902,7 @@ export const confirmAtlasRoute = async () => {
     const searchInput = document.getElementById('atlas-route-search').value.trim();
     
     const distanceMiles = parseFloat(distStr) || 0;
+    const mapUnit = (maps.find(m => m.id === currentMapId) || maps[0]).unit || 'Miles';
     const mode = document.getElementById('atlas-route-mode').value;
     const pace = document.getElementById('atlas-route-pace').value;
     
@@ -998,7 +1018,7 @@ export const confirmAtlasRoute = async () => {
     let updatedCodex = camp.codex || [];
     let entryName = searchInput;
     
-    let descriptionText = `A journey logged on the Atlas.\n\n**Departure:** ${departureStr}\n**Arrival:** ${arrivalStr}\n**Total Distance:** ${distanceMiles.toFixed(1)} Miles\n**Travel Mode:** ${modeLabel}\n**Travel Pace:** ${paceLabel}\n**Calculated Travel Time:** ${timeDisplay}`;
+    let descriptionText = `A journey logged on the Atlas.\n\n**Departure:** ${departureStr}\n**Arrival:** ${arrivalStr}\n**Total Distance:** ${distanceMiles.toFixed(1)} ${mapUnit}\n**Travel Mode:** ${modeLabel}\n**Travel Pace:** ${paceLabel}\n**Calculated Travel Time:** ${timeDisplay}`;
 
     if (stopsData.length > 0) {
         descriptionText += `\n\n**Stops & Events:**\n`;
@@ -1040,6 +1060,7 @@ export const confirmAtlasRoute = async () => {
         stops: stopsData, 
         stopIndices: drawingStopIndices, 
         distanceMiles: distanceMiles,
+        unit: mapUnit,
         durationDays: calendarDuration, 
         startDate: departureDate,
         authorId: myUid,
