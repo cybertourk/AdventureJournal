@@ -99,9 +99,8 @@ export const initAtlas = () => {
     if (!camp) return;
 
     if (mapInstance) {
-        savedMapCenter = mapInstance.getCenter();
-        savedMapZoom = mapInstance.getZoom();
-        
+        // FIX: Removed the buggy 'savedMapCenter = mapInstance.getCenter();' here.
+        // It was saving [0,0] when the HTML DOM was destroyed during tab switching!
         mapInstance.remove();
         mapInstance = null;
         imageOverlay = null;
@@ -133,6 +132,7 @@ export const initAtlas = () => {
     L.control.zoom({ position: 'topright' }).addTo(mapInstance);
 
     mapInstance.on('moveend', () => {
+        // Only save memory when the map is safely done rendering/animating
         if (isMapAnimating) return;
         savedMapCenter = mapInstance.getCenter();
         savedMapZoom = mapInstance.getZoom();
@@ -176,10 +176,10 @@ export const initAtlas = () => {
             } 
             else {
                 if (isFinal) window.appData.forceAtlasResize = false;
-                mapInstance.fitBounds(bounds, { animate: false });
                 
-                // Bulletproof override: forcefully set the mathematical center of the image
-                mapInstance.setView([h / 2, w / 2], mapInstance.getBoundsZoom(bounds), { animate: false });
+                // Bulletproof override: forcefully calculate center and apply it in one clean action
+                const targetZoom = mapInstance.getBoundsZoom(bounds);
+                mapInstance.setView([h / 2, w / 2], targetZoom, { animate: false });
             }
 
             if (isFinal) {
@@ -187,9 +187,9 @@ export const initAtlas = () => {
             }
         };
 
-        // Apply immediately, then re-calculate after the 300ms CSS transition finishes!
-        applyView(false);
-        setTimeout(() => applyView(true), 350);
+        // Apply cleanly after allowing the DOM to breathe, then again after CSS animations
+        setTimeout(() => applyView(false), 20);
+        setTimeout(() => applyView(true), 400); // Extended slightly to clear the 300ms CSS fade-in
     };
     img.onerror = function() {
         notify("Failed to load map image. Check the URL in Map Settings.", "error");
@@ -237,6 +237,10 @@ export const initAtlas = () => {
             const bounds = imageOverlay.getBounds();
             window.appActions.updateAtlasGridAndScale(bounds.getEast(), bounds.getNorth());
         }
+        if (!isMapAnimating && mapInstance) {
+            savedMapCenter = mapInstance.getCenter();
+            savedMapZoom = mapInstance.getZoom();
+        }
     });
 
     window.appActions.setAtlasMode('pan');
@@ -245,6 +249,10 @@ export const initAtlas = () => {
 export const switchAtlasMap = (mapId) => {
     window.appData.currentAtlasMapId = mapId;
     window.appData.forceAtlasResize = true;
+    
+    // Explicitly wipe the memory so the new map centers perfectly on load
+    savedMapCenter = null;
+    savedMapZoom = null;
     
     // UI Core optimization skips HTML redraw for the Atlas to protect Leaflet.
     // We must manually update the settings DOM elements to match the new map!
@@ -1331,7 +1339,9 @@ export const toggleAtlasFullScreen = () => {
 
     setTimeout(() => {
         if (mapInstance) {
+            isMapAnimating = true;
             mapInstance.invalidateSize();
+            setTimeout(() => { isMapAnimating = false; }, 150);
         }
     }, 100);
 };
