@@ -11,6 +11,16 @@ export function getRarityColor(rarity) {
     return 'text-stone-500 bg-stone-100 border-stone-200';
 }
 
+// Converts a decimal GP value from the database into a clean string based on denomination
+export function formatPrice(gpValue) {
+    if (!gpValue) return '0 gp';
+    const val = parseFloat(gpValue);
+    if (val === 0) return '0 gp';
+    if (val < 0.1) return Math.round(val * 100) + ' cp';
+    if (val < 1) return Math.round(val * 10) + ' sp';
+    return val.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2}) + ' gp';
+}
+
 let LOCAL_CACHE = [];
 let DATABASE_SEARCH_QUERY = "";
 let DATABASE_FILTER_CATEGORY = "all";
@@ -119,7 +129,7 @@ export const openDatabaseItemDetails = async (itemName) => {
                         </h3>
                         <div class="flex flex-wrap gap-2 mt-2 text-[9px] font-bold uppercase tracking-wider">
                             <span class="px-2 py-0.5 rounded border ${rColor}">${item.rarity || 'common'}</span>
-                            <span class="bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded shadow-sm"><i class="fa-solid fa-coins mr-1 text-amber-500"></i>${(item.price || 0).toLocaleString()} gp</span>
+                            <span class="bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded shadow-sm"><i class="fa-solid fa-coins mr-1 text-amber-500"></i>${formatPrice(item.price)}</span>
                             <span class="bg-blue-50 text-blue-800 border border-blue-200 px-2 py-0.5 rounded shadow-sm">${item.type || 'equipment'}</span>
                         </div>
                     </div>
@@ -161,6 +171,18 @@ export const openItemForgeModal = async (itemId = "", prefilledName = "") => {
     const container = document.getElementById('global-popup-container');
     if (!container) return;
 
+    // Calculate smart display for fractions of gold pieces
+    let displayPrice = item.price || 0;
+    let displayDenom = 'gp';
+    
+    if (displayPrice > 0 && displayPrice < 0.1) {
+        displayPrice = parseFloat((displayPrice * 100).toFixed(2));
+        displayDenom = 'cp';
+    } else if (displayPrice > 0 && displayPrice < 1) {
+        displayPrice = parseFloat((displayPrice * 10).toFixed(2));
+        displayDenom = 'sp';
+    }
+
     container.innerHTML = `
     <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[19000] backdrop-blur-sm animate-in">
         <div class="bg-[#f4ebd8] rounded-sm w-full max-w-lg border border-[#d4c5a9] shadow-2xl relative overflow-hidden flex flex-col max-h-[95vh] border-t-4 border-t-amber-700">
@@ -178,8 +200,17 @@ export const openItemForgeModal = async (itemId = "", prefilledName = "") => {
                         <input type="text" id="forge-item-name" value="${item.name.replace(/"/g, '&quot;')}" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 shadow-inner outline-none bg-stone-50 focus:border-amber-600">
                     </div>
                     <div>
-                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Price (gp)</label>
-                        <input type="number" id="forge-item-price" value="${item.price || 0}" min="0" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 shadow-inner outline-none bg-stone-50 focus:border-amber-600 text-center">
+                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Base Price</label>
+                        <div class="flex gap-1">
+                            <input type="number" id="forge-item-price-val" value="${displayPrice}" min="0" step="any" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 shadow-inner outline-none bg-stone-50 focus:border-amber-600 text-center">
+                            <select id="forge-item-price-denom" class="w-16 p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 shadow-inner outline-none bg-stone-50 focus:border-amber-600 cursor-pointer">
+                                <option value="cp" ${displayDenom === 'cp' ? 'selected' : ''}>cp</option>
+                                <option value="sp" ${displayDenom === 'sp' ? 'selected' : ''}>sp</option>
+                                <option value="ep" ${displayDenom === 'ep' ? 'selected' : ''}>ep</option>
+                                <option value="gp" ${displayDenom === 'gp' ? 'selected' : ''}>gp</option>
+                                <option value="pp" ${displayDenom === 'pp' ? 'selected' : ''}>pp</option>
+                            </select>
+                        </div>
                     </div>
                     <div>
                         <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Rarity</label>
@@ -303,7 +334,20 @@ export const saveForgedItem = async () => {
 
     const id = document.getElementById('forge-item-id').value || 'item_' + generateId();
     const type = document.getElementById('forge-item-type').value;
-    const price = parseInt(document.getElementById('forge-item-price').value) || 0;
+    
+    // Resolve the split denomination pricing inputs into a single standard decimal value
+    const rawPrice = parseFloat(document.getElementById('forge-item-price-val').value) || 0;
+    const denom = document.getElementById('forge-item-price-denom').value;
+    
+    let finalPriceGp = rawPrice;
+    if (denom === 'cp') finalPriceGp = rawPrice / 100;
+    else if (denom === 'sp') finalPriceGp = rawPrice / 10;
+    else if (denom === 'ep') finalPriceGp = rawPrice / 2;
+    else if (denom === 'pp') finalPriceGp = rawPrice * 10;
+    
+    // Prevent standard Javascript floating point math errors by restricting the raw backend save value to 4 decimal places
+    const price = parseFloat(finalPriceGp.toFixed(4));
+    
     const rarity = document.getElementById('forge-item-rarity').value;
     const weight = parseFloat(document.getElementById('forge-item-weight').value) || 0;
     const image = document.getElementById('forge-item-image').value.trim();
@@ -496,7 +540,7 @@ export const executeItemJsonImport = async () => {
                 id: 'item_' + generateId(),
                 name: rawItem.name,
                 type: itemType,
-                price: parseInt(sys.price?.value) || 0,
+                price: parseFloat(sys.price?.value) || 0,
                 rarity: rarity,
                 isMagic: isMagic,
                 image: rawItem.img || "icons/svg/item-bag.svg",
@@ -582,7 +626,7 @@ export const renderDatabaseResults = () => {
                         <span class="font-bold text-xs text-stone-900 block truncate" title="${item.name}">${item.name}</span>
                         <div class="flex items-center gap-2 mt-0.5">
                             <span class="text-[9px] uppercase font-bold tracking-widest ${rColor}">${item.rarity || 'Item'}</span>
-                            <span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded shadow-sm border border-amber-200"><i class="fa-solid fa-coins mr-1 text-amber-500"></i>${(item.price || 0).toLocaleString()} gp</span>
+                            <span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded shadow-sm border border-amber-200"><i class="fa-solid fa-coins mr-1 text-amber-500"></i>${formatPrice(item.price)}</span>
                             ${customBadge}
                         </div>
                     </div>
