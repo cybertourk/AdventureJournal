@@ -564,6 +564,10 @@ const renderAtlasEntities = (camp) => {
     // Dynamic Scale Calculation based on Map Zoom
     const zoom = mapInstance ? mapInstance.getZoom() : 0;
     const scale = Math.max(0.3, 1 + (zoom * 0.25));
+    
+    // Zoom thresholds: max is 2, so level 1 and 2 are fully zoomed in. 
+    // We lock tooltips to be permanent so all labels are constantly visible at scale.
+    const isZoomedIn = zoom >= 1; 
 
     // Filter Pins for Current Map
     const activePins = (camp.atlasPins || []).filter(p => (p.mapId || 'default-world') === currentMapId);
@@ -609,6 +613,21 @@ const renderAtlasEntities = (camp) => {
 
         // Tag it so we can easily find it later to toggle its draggability during tool changes
         marker.isAtlasPin = true;
+
+        // --- MAP PIN TOOLTIPS ---
+        let hoverTitle = pin.customLabel || 'Unknown Location';
+        if (pin.codexId) {
+            const cEntry = camp.codex?.find(c => c.id === pin.codexId);
+            if (cEntry) hoverTitle = cEntry.name;
+        }
+
+        marker.bindTooltip(hoverTitle, {
+            permanent: isZoomedIn,
+            direction: 'top',
+            offset: [0, -(pinAnchor[1] - (5 * scale))], 
+            className: 'bg-stone-900 text-amber-50 border border-stone-600 rounded-sm font-serif font-bold text-[10px] px-2 py-0.5 shadow-md whitespace-nowrap',
+            opacity: isZoomedIn ? 0.8 : 0.95
+        });
 
         marker.on('dragend', async (e) => {
             const newPos = e.target.getLatLng();
@@ -689,6 +708,19 @@ const renderAtlasEntities = (camp) => {
     activeRoutesData.filter(r => activeRoutes.includes(r.id)).forEach(route => {
         const polyline = L.polyline(route.points, { color: '#ef4444', weight: Math.max(2, 4 * scale), dashArray: '5, 10' }).addTo(entityLayer);
         
+        // --- ROUTE TOOLTIPS ---
+        let routeTitle = route.name || 'Unknown Route';
+        if (route.codexId) {
+            const cEntry = camp.codex?.find(c => c.id === route.codexId);
+            if (cEntry) routeTitle = cEntry.name;
+        }
+
+        polyline.bindTooltip(routeTitle, {
+            sticky: true, // This allows the tooltip to beautifully follow the cursor along the traced line!
+            className: 'bg-stone-900 text-amber-50 border border-stone-600 rounded-sm font-serif font-bold text-[10px] px-2 py-0.5 shadow-md whitespace-nowrap',
+            opacity: 0.95
+        });
+
         if (route.points.length > 0) {
             L.marker(route.points[0], { icon: startIcon, interactive: false }).addTo(entityLayer);
             if (route.points.length > 1) {
