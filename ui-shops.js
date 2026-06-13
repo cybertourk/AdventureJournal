@@ -100,9 +100,10 @@ export function getBazaarHTML(state) {
             const safeOwner = escapeHTML(shop.ownerName || 'Unknown');
             const safeType = escapeHTML(shop.shopType || 'Merchant');
             
-            // Check if this shop is linked to the Atlas
-            const linkedPin = camp.atlasPins?.find(p => p.codexId === shop.id || p.shopId === shop.id);
-            const mapIconHtml = linkedPin ? `<button onclick="event.stopPropagation(); window.appActions.viewOnMap('${shop.id}')" class="ml-2 text-amber-600 hover:text-amber-500 transition" title="View on Atlas"><i class="fa-solid fa-map-location-dot"></i></button>` : '';
+            // Link the Atlas Map icon properly whether it's an auto-generated entry or a manual link!
+            const targetMapId = shop.linkedCodexId || shop.id;
+            const linkedPin = camp.atlasPins?.find(p => p.codexId === shop.id || p.codexId === shop.linkedCodexId);
+            const mapIconHtml = linkedPin ? `<button onclick="event.stopPropagation(); window.appActions.viewOnMap('${targetMapId}')" class="ml-2 text-amber-600 hover:text-amber-500 transition" title="View on Atlas"><i class="fa-solid fa-map-location-dot"></i></button>` : '';
 
             const portraitHtml = shop.image ? `
                 <div class="w-full h-32 bg-stone-900 overflow-hidden relative border-b border-[#d4c5a9]">
@@ -233,9 +234,11 @@ export function getStorefrontHTML(state) {
     const inventory = shop.inventory || [];
     const pendingSales = shop.pendingSales || [];
 
-    const linkedPin = camp.atlasPins?.find(p => p.codexId === shop.id || p.shopId === shop.id);
+    // Ensure the manual linkage flows perfectly into the Storefront view button!
+    const targetMapId = shop.linkedCodexId || shop.id;
+    const linkedPin = camp.atlasPins?.find(p => p.codexId === shop.id || p.codexId === shop.linkedCodexId);
     const mapBtnHtml = linkedPin ? `
-        <button onclick="window.appActions.viewOnMap('${shop.id}')" class="px-4 py-2 bg-amber-700 hover:bg-amber-600 text-amber-50 border border-amber-800 rounded-sm text-xs font-bold uppercase tracking-wider transition shadow-md whitespace-nowrap">
+        <button onclick="window.appActions.viewOnMap('${targetMapId}')" class="px-4 py-2 bg-amber-700 hover:bg-amber-600 text-amber-50 border border-amber-800 rounded-sm text-xs font-bold uppercase tracking-wider transition shadow-md whitespace-nowrap">
             <i class="fa-solid fa-map-location-dot mr-1.5"></i> Map
         </button>
     ` : '';
@@ -401,9 +404,11 @@ export function getShopBackroomHTML(state) {
     const ledger = shop.ledger || [];
     const pendingSales = shop.pendingSales || [];
 
-    const linkedPin = camp.atlasPins?.find(p => p.codexId === shop.id || p.shopId === shop.id);
+    // Link the Atlas Map icon properly whether it's an auto-generated entry or a manual link!
+    const targetMapId = shop.linkedCodexId || shop.id;
+    const linkedPin = camp.atlasPins?.find(p => p.codexId === shop.id || p.codexId === shop.linkedCodexId);
     const mapBtnHtml = linkedPin ? `
-        <button onclick="window.appActions.viewOnMap('${shop.id}')" class="px-4 py-2 bg-amber-700 hover:bg-amber-600 text-amber-50 border border-amber-800 rounded-sm text-xs font-bold uppercase tracking-wider transition shadow-md whitespace-nowrap">
+        <button onclick="window.appActions.viewOnMap('${targetMapId}')" class="px-4 py-2 bg-amber-700 hover:bg-amber-600 text-amber-50 border border-amber-800 rounded-sm text-xs font-bold uppercase tracking-wider transition shadow-md whitespace-nowrap">
             <i class="fa-solid fa-map-location-dot mr-1.5"></i> Map
         </button>
     ` : '';
