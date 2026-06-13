@@ -655,6 +655,14 @@ const renderAtlasEntities = (camp) => {
 
             if (currentMode === 'pan') {
                 if (pin.codexId) {
+                    // Check if this codex entry is actually a Shop
+                    const linkedShop = camp.shops?.find(s => s.id === pin.codexId);
+                    if (linkedShop) {
+                        document.getElementById('global-popup-container').innerHTML = '';
+                        window.appActions.viewStorefront(linkedShop.id);
+                        return;
+                    }
+
                     const cEntry = camp.codex?.find(c => c.id === pin.codexId);
                     if (cEntry) {
                         window.appActions.viewCodex(cEntry.id);
@@ -741,6 +749,14 @@ const renderAtlasEntities = (camp) => {
                 const canDelete = isDM || route.authorId === window.appData.currentUserUid;
 
                 if (route.codexId) {
+                    // Check if this route is linked to a Shop
+                    const linkedShop = camp.shops?.find(s => s.id === route.codexId);
+                    if (linkedShop) {
+                        document.getElementById('global-popup-container').innerHTML = '';
+                        window.appActions.viewStorefront(linkedShop.id);
+                        return;
+                    }
+
                     const cEntry = camp.codex?.find(c => c.id === route.codexId);
                     if (cEntry) {
                         window.appActions.viewCodex(cEntry.id);
