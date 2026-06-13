@@ -1,4 +1,5 @@
 import { getLibraryTabsHTML } from './ui-core.js';
+import { formatPrice } from './ui-databases.js';
 
 // --- SEARCH FILTERING HELPER ---
 // This global script is bound to the window context so inline inputs can trigger client-side filtering instantly.
@@ -261,7 +262,7 @@ export function getStorefrontHTML(state) {
             const rColor = getRarityColor(item.rarity);
             const safeItemName = escapeHTML(item.name);
             const qtyStr = (item.quantity && item.quantity > 1) ? `<span class="text-amber-600 ml-1.5 font-black text-[10px]">x${item.quantity}</span>` : '';
-            const priceStr = item.price > 0 ? `${item.price.toLocaleString()} gp` : `Free`;
+            const priceStr = item.price > 0 ? formatPrice(item.price) : `Free`;
             
             // Premium layout integrating small thumbnails with a fallback icon
             const itemImageHtml = item.image 
@@ -302,7 +303,7 @@ export function getStorefrontHTML(state) {
                 <div class="bg-stone-50 p-2.5 border border-[#d4c5a9] rounded-sm text-xs flex justify-between items-center shadow-sm">
                     <div class="min-w-0">
                         <span class="font-bold text-stone-900 block truncate">${escapeHTML(prop.itemName)}${qtyStr}</span>
-                        <span class="text-[9px] text-amber-700 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 mt-1 inline-block"><i class="fa-solid fa-coins mr-1"></i>Asking: ${prop.askingPrice.toLocaleString()} gp</span>
+                        <span class="text-[9px] text-amber-700 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 mt-1 inline-block"><i class="fa-solid fa-coins mr-1"></i>Asking: ${formatPrice(prop.askingPrice)}</span>
                     </div>
                     <button onclick="window.appActions.cancelSaleProposal('${shop.id}', '${prop.id}')" class="text-stone-500 hover:text-red-700 text-[10px] font-bold uppercase tracking-wider transition p-1.5"><i class="fa-solid fa-trash mr-1"></i> Cancel</button>
                 </div>
@@ -440,7 +441,7 @@ export function getShopBackroomHTML(state) {
                     <div class="flex items-center gap-2 shrink-0 self-end sm:self-auto mt-2 sm:mt-0">
                         <div class="flex items-center bg-stone-100 border border-stone-300 rounded shadow-inner overflow-hidden">
                             <span class="px-2 text-[10px] font-bold text-stone-500 uppercase tracking-widest border-r border-stone-300">Price</span>
-                            <span class="px-3 py-1.5 text-xs font-bold text-amber-700 bg-white min-w-[60px] text-center">${item.price.toLocaleString()} gp</span>
+                            <span class="px-3 py-1.5 text-xs font-bold text-amber-700 bg-white min-w-[60px] text-center">${formatPrice(item.price)}</span>
                             <button onclick="window.appActions.updateItemPrice('${shop.id}', '${item.id}')" class="px-2 py-1.5 bg-stone-200 hover:bg-stone-300 text-stone-600 border-l border-stone-300 transition"><i class="fa-solid fa-pen text-[10px]"></i></button>
                         </div>
                         <button onclick="window.appActions.deleteShopItem('${shop.id}', '${item.id}')" class="w-8 h-8 flex items-center justify-center bg-white border border-stone-300 hover:border-red-400 hover:text-red-700 hover:bg-red-50 text-stone-400 rounded transition shadow-sm shrink-0"><i class="fa-solid fa-trash text-xs"></i></button>
@@ -481,7 +482,7 @@ export function getShopBackroomHTML(state) {
                 <div class="min-w-0">
                     <span class="font-serif text-[10px] text-stone-500 uppercase tracking-widest block font-bold mb-1">Offer from: ${escapeHTML(prop.playerName)}</span>
                     <span class="font-bold text-stone-900 text-sm block truncate" title="${escapeHTML(prop.itemName)}">${escapeHTML(prop.itemName)}${qtyStr}</span>
-                    <span class="text-[10px] text-amber-700 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 mt-1.5 inline-block"><i class="fa-solid fa-coins mr-1 text-amber-500"></i>Asking: ${prop.askingPrice.toLocaleString()} gp</span>
+                    <span class="text-[10px] text-amber-700 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 mt-1.5 inline-block"><i class="fa-solid fa-coins mr-1 text-amber-500"></i>Asking: ${formatPrice(prop.askingPrice)}</span>
                 </div>
                 <div class="flex gap-2 shrink-0 self-end sm:self-auto">
                     <button onclick="window.appActions.cancelSaleProposal('${shop.id}', '${prop.id}', true)" class="px-3 py-1.5 bg-stone-200 hover:bg-red-50 text-stone-700 hover:text-red-700 hover:border-red-300 border border-stone-300 rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm">Decline</button>
