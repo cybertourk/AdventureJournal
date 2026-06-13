@@ -1,4 +1,3 @@
-/* STREAMING_CHUNK: Defining search filtering helper... */
 import { getLibraryTabsHTML } from './ui-core.js';
 
 // --- SEARCH FILTERING HELPER ---
@@ -39,7 +38,6 @@ const escapeHTML = (str) => {
         .replace(/'/g, '&#39;');
 };
 
-/* STREAMING_CHUNK: Building the Bazaars Location layout folders... */
 export function getBazaarHTML(state) {
     const camp = state.activeCampaign;
     if (!camp) return '';
@@ -101,6 +99,10 @@ export function getBazaarHTML(state) {
             const safeOwner = escapeHTML(shop.ownerName || 'Unknown');
             const safeType = escapeHTML(shop.shopType || 'Merchant');
             
+            // Check if this shop is linked to the Atlas
+            const linkedPin = camp.atlasPins?.find(p => p.codexId === shop.id || p.shopId === shop.id);
+            const mapIconHtml = linkedPin ? `<button onclick="event.stopPropagation(); window.appActions.viewOnMap('${shop.id}')" class="ml-2 text-amber-600 hover:text-amber-500 transition" title="View on Atlas"><i class="fa-solid fa-map-location-dot"></i></button>` : '';
+
             const portraitHtml = shop.image ? `
                 <div class="w-full h-32 bg-stone-900 overflow-hidden relative border-b border-[#d4c5a9]">
                     <img src="${escapeHTML(shop.image)}" class="w-full h-full object-cover object-top" alt="${safeShopName}" onerror="this.style.display='none'">
@@ -113,7 +115,7 @@ export function getBazaarHTML(state) {
                     ${portraitHtml}
                     <div class="p-4 sm:p-5">
                         <div class="flex justify-between items-start mb-2 gap-2">
-                            <h3 class="font-serif font-bold text-lg text-stone-900 leading-tight truncate flex-grow" title="${safeShopName}">${safeShopName}</h3>
+                            <h3 class="font-serif font-bold text-lg text-stone-900 leading-tight truncate flex-grow flex items-center" title="${safeShopName}">${safeShopName}${mapIconHtml}</h3>
                             <span class="text-[9px] uppercase font-bold tracking-widest px-2 py-0.5 rounded border shrink-0 ${statusColor}">${statusLabel}</span>
                         </div>
                         <div class="flex flex-wrap gap-2 text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-3">
@@ -214,7 +216,6 @@ export function getBazaarHTML(state) {
     return html;
 }
 
-/* STREAMING_CHUNK: Rendering the storefront view and item thumbnail images... */
 export function getStorefrontHTML(state) {
     const camp = state.activeCampaign;
     const shopId = state.activeShopId;
@@ -230,6 +231,13 @@ export function getStorefrontHTML(state) {
     const safeLoc = escapeHTML(shop.location || 'Traveling');
     const inventory = shop.inventory || [];
     const pendingSales = shop.pendingSales || [];
+
+    const linkedPin = camp.atlasPins?.find(p => p.codexId === shop.id || p.shopId === shop.id);
+    const mapBtnHtml = linkedPin ? `
+        <button onclick="window.appActions.viewOnMap('${shop.id}')" class="px-4 py-2 bg-amber-700 hover:bg-amber-600 text-amber-50 border border-amber-800 rounded-sm text-xs font-bold uppercase tracking-wider transition shadow-md whitespace-nowrap">
+            <i class="fa-solid fa-map-location-dot mr-1.5"></i> Map
+        </button>
+    ` : '';
 
     const myUid = state.currentUserUid;
     const adv = state.activeAdventure || window.appData?.activeAdventure;
@@ -339,9 +347,12 @@ export function getStorefrontHTML(state) {
                         <span><i class="fa-solid fa-map-location-dot mr-1"></i>${safeLoc}</span>
                     </div>
                 </div>
-                <button onclick="window.appActions.setView('bazaar')" class="px-4 py-2 bg-stone-800 hover:bg-stone-700 text-amber-50 border border-stone-600 rounded-sm text-xs font-bold uppercase tracking-wider transition shadow-md">
-                    <i class="fa-solid fa-arrow-left mr-2"></i> Return to Bazaar
-                </button>
+                <div class="flex gap-2 shrink-0 flex-wrap justify-end">
+                    ${mapBtnHtml}
+                    <button onclick="window.appActions.setView('bazaar')" class="px-4 py-2 bg-stone-800 hover:bg-stone-700 text-amber-50 border border-stone-600 rounded-sm text-xs font-bold uppercase tracking-wider transition shadow-md whitespace-nowrap">
+                        <i class="fa-solid fa-arrow-left mr-1.5"></i> Bazaar
+                    </button>
+                </div>
             </div>
 
             <!-- Portrait & Content -->
@@ -371,7 +382,6 @@ export function getStorefrontHTML(state) {
     return html;
 }
 
-/* STREAMING_CHUNK: Rendering the DM's backroom panel and listing item records... */
 export function getShopBackroomHTML(state) {
     const camp = state.activeCampaign;
     const shopId = state.activeShopId;
@@ -389,6 +399,13 @@ export function getShopBackroomHTML(state) {
     const inventory = shop.inventory || [];
     const ledger = shop.ledger || [];
     const pendingSales = shop.pendingSales || [];
+
+    const linkedPin = camp.atlasPins?.find(p => p.codexId === shop.id || p.shopId === shop.id);
+    const mapBtnHtml = linkedPin ? `
+        <button onclick="window.appActions.viewOnMap('${shop.id}')" class="px-4 py-2 bg-amber-700 hover:bg-amber-600 text-amber-50 border border-amber-800 rounded-sm text-xs font-bold uppercase tracking-wider transition shadow-md whitespace-nowrap">
+            <i class="fa-solid fa-map-location-dot mr-1.5"></i> Map
+        </button>
+    ` : '';
 
     let invHtml = '';
     if (inventory.length === 0) {
@@ -492,11 +509,12 @@ export function getShopBackroomHTML(state) {
                         <span><i class="fa-solid fa-map-location-dot mr-1"></i>${safeLoc}</span>
                     </div>
                 </div>
-                <div class="flex gap-2">
-                    <button onclick="window.appActions.viewStorefront('${shop.id}')" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-amber-50 border border-emerald-800 rounded-sm text-xs font-bold uppercase tracking-wider transition shadow-md">
+                <div class="flex gap-2 flex-wrap shrink-0 justify-end">
+                    ${mapBtnHtml}
+                    <button onclick="window.appActions.viewStorefront('${shop.id}')" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-amber-50 border border-emerald-800 rounded-sm text-xs font-bold uppercase tracking-wider transition shadow-md whitespace-nowrap">
                         Storefront
                     </button>
-                    <button onclick="window.appActions.setView('bazaar')" class="px-4 py-2 bg-stone-800 hover:bg-stone-700 text-amber-50 border border-stone-600 rounded-sm text-xs font-bold uppercase tracking-wider transition shadow-md">
+                    <button onclick="window.appActions.setView('bazaar')" class="px-4 py-2 bg-stone-800 hover:bg-stone-700 text-amber-50 border border-stone-600 rounded-sm text-xs font-bold uppercase tracking-wider transition shadow-md whitespace-nowrap">
                         Bazaar
                     </button>
                 </div>
