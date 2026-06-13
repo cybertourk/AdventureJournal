@@ -577,7 +577,7 @@ const renderAtlasEntities = (camp) => {
         let innerHtml = '';
         let pinSize = [30 * scale, 30 * scale];
         let pinAnchor = [15 * scale, 30 * scale];
-        let pinClass = 'custom-map-pin';
+        let pinClass = ''; // By default, no background frames for ANY pins!
 
         if (iconVal.startsWith('http') || iconVal.startsWith('data:image')) {
             // We use a div with a background image instead of an <img> tag to bypass the global image viewer
@@ -585,11 +585,11 @@ const renderAtlasEntities = (camp) => {
             innerHtml = `<div class="w-full h-full drop-shadow-lg" style="background-image: url('${iconVal.replace(/'/g, "\\'")}'); background-size: contain; background-repeat: no-repeat; background-position: bottom center;"></div>`;
             pinSize = [40 * scale, 40 * scale]; 
             pinAnchor = [20 * scale, 40 * scale]; 
-            pinClass = ''; // Strips all background framing and border CSS, leaving only the image!
         } else {
-            innerHtml = `<i class="${iconVal}" style="font-size: ${16 * scale}px; line-height: ${30 * scale}px; text-align: center; width: 100%; display: block; color: inherit;"></i>`;
+            // Standard FontAwesome Icons are now rendered as bare icons with high-contrast outlines and drop shadows
+            innerHtml = `<div class="w-full h-full flex items-end justify-center drop-shadow-md"><i class="${iconVal}" style="font-size: ${24 * scale}px; color: #ef4444; -webkit-text-stroke: 1px #450a0a;"></i></div>`;
             pinSize = [30 * scale, 30 * scale];
-            pinAnchor = [15 * scale, 30 * scale];
+            pinAnchor = [15 * scale, 28 * scale];
         }
 
         const customIcon = L.divIcon({
