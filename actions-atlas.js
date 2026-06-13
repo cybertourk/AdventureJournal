@@ -595,10 +595,38 @@ const renderAtlasEntities = (camp) => {
             iconAnchor: pinAnchor 
         });
 
-        const marker = L.marker([pin.lat, pin.lng], { icon: customIcon }).addTo(entityLayer);
+        const isDM = camp._isDM;
+        
+        const marker = L.marker([pin.lat, pin.lng], { 
+            icon: customIcon,
+            draggable: isDM // Initialize draggability capability only if the user is the DM
+        }).addTo(entityLayer);
+        
+        // Ensure dragging is disabled immediately if we aren't currently holding the Pin tool
+        if (!isDM || currentMode !== 'pin') {
+            if (marker.dragging) marker.dragging.disable();
+        }
+
+        // Tag it so we can easily find it later to toggle its draggability during tool changes
+        marker.isAtlasPin = true;
+
+        marker.on('dragend', async (e) => {
+            const newPos = e.target.getLatLng();
+            updateDerivedState();
+            const currentCamp = window.appData.activeCampaign;
+            if (!currentCamp || !currentCamp._isDM) return;
+
+            const pinIdx = (currentCamp.atlasPins || []).findIndex(p => p.id === pin.id);
+            if (pinIdx > -1) {
+                currentCamp.atlasPins[pinIdx].lat = newPos.lat;
+                currentCamp.atlasPins[pinIdx].lng = newPos.lng;
+                
+                // Save it seamlessly into the database without triggering any popups
+                await saveCampaign(currentCamp);
+            }
+        });
         
         marker.on('click', () => {
-            const isDM = camp._isDM;
             const canDelete = isDM || pin.authorId === window.appData.currentUserUid;
 
             if (currentMode === 'pin' && canDelete) {
@@ -723,6 +751,23 @@ export const setAtlasMode = (mode) => {
     const activeBtn = document.getElementById(`mode-${mode}`);
     if (activeBtn) activeBtn.classList.remove('text-stone-400');
     
+    // Dynamically toggle marker draggability based on the active tool
+    if (entityLayer) {
+        updateDerivedState();
+        const camp = window.appData.activeCampaign;
+        const isDM = camp ? camp._isDM : false;
+        
+        entityLayer.eachLayer(layer => {
+            if (layer.isAtlasPin && isDM) {
+                if (mode === 'pin') {
+                    if (layer.dragging) layer.dragging.enable();
+                } else {
+                    if (layer.dragging) layer.dragging.disable();
+                }
+            }
+        });
+    }
+
     if (mode !== 'draw') {
         const stats = document.getElementById('drawing-stats');
         if (stats) stats.classList.add('hidden');
