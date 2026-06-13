@@ -1,4 +1,3 @@
-/* STREAMING_CHUNK: Importing core dependencies... */
 import { generateId, updateDerivedState, reRender, getUnifiedCatalog } from './state.js';
 import { saveCampaign, notify } from './firebase-manager.js';
 import { logPlayerActivity } from './actions-campaign.js';
@@ -417,7 +416,7 @@ export const openManualItemModal = async (shopId) => {
                             </div>
                             <div>
                                 <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Price (gp)</label>
-                                <input type="number" id="custom-item-price" min="0" value="0" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-stone-50 shadow-inner">
+                                <input type="number" id="custom-item-price" min="0" value="0" step="any" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-stone-50 shadow-inner">
                             </div>
                             <div>
                                 <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Rarity</label>
@@ -490,7 +489,6 @@ export const searchBazaarDatabase = async (shopId, query) => {
     }
 };
 
-/* STREAMING_CHUNK: Capturing and preserving item images... */
 export const addBazaarItemToShop = async (shopId, name, price, rarity, isMagic, image = "") => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
@@ -539,7 +537,8 @@ export const submitCustomItem = async (shopId) => {
         return;
     }
     
-    const price = parseInt(document.getElementById('custom-item-price').value) || 0;
+    // Updated to use parseFloat to allow decimal values for custom items
+    const price = parseFloat(document.getElementById('custom-item-price').value) || 0;
     const rarity = document.getElementById('custom-item-rarity').value;
     const isMagic = document.getElementById('custom-item-magic').checked;
 
@@ -587,7 +586,8 @@ export const updateItemPrice = async (shopId, itemId) => {
     const priceStr = prompt("Enter new price in gold pieces:", currentPrice);
     if (priceStr === null) return; 
 
-    const price = parseInt(priceStr) || 0;
+    // Updated to parseFloat so DMs can set fractional prices (e.g. 0.5 for 5 silver)
+    const price = parseFloat(priceStr) || 0;
     camp.shops[shopIndex].inventory[itemIndex].price = price;
 
     await saveCampaign(camp);
@@ -718,7 +718,6 @@ export const rollShopInventory = async (shopId) => {
     `;
 };
 
-/* STREAMING_CHUNK: Compiling automatic table rolling algorithms... */
 export const executeRollWares = async () => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
@@ -905,7 +904,7 @@ export const openProposeSaleModal = (shopId) => {
                     <div class="grid grid-cols-2 gap-3 mb-2">
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Asking Price (gp)</label>
-                            <input type="number" id="sale-item-price" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner" placeholder="e.g. 25" min="0">
+                            <input type="number" id="sale-item-price" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-bold text-stone-900 outline-none focus:border-emerald-600 bg-white shadow-inner" placeholder="e.g. 25" min="0" step="any">
                         </div>
                         <div>
                             <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Quantity</label>
@@ -926,7 +925,9 @@ export const openProposeSaleModal = (shopId) => {
 export const submitSaleProposal = async () => {
     const shopId = document.getElementById('sale-shop-id').value;
     const itemName = document.getElementById('sale-item-name').value.trim();
-    const askingPrice = parseInt(document.getElementById('sale-item-price').value) || 0;
+    
+    // Updated to use parseFloat to allow fractional values (e.g. 0.5 gp) for sales
+    const askingPrice = parseFloat(document.getElementById('sale-item-price').value) || 0;
     const qty = parseInt(document.getElementById('sale-item-qty').value) || 1;
 
     if (!itemName) {
@@ -1020,8 +1021,9 @@ export const approveSaleProposal = async (shopId, proposalId) => {
     const existingIndex = currentInventory.findIndex(item => item.name === proposal.itemName);
     const inQty = proposal.quantity || 1;
     
+    // Convert math to reliably support decimal values without arbitrarily rounding them up to 1
     const perItemBuyPrice = proposal.askingPrice / inQty;
-    const shelfPrice = Math.ceil(perItemBuyPrice * 2);
+    const shelfPrice = parseFloat((perItemBuyPrice * 2).toFixed(2)); 
 
     if (existingIndex > -1) {
         currentInventory[existingIndex] = {
