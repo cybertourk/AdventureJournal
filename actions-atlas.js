@@ -91,12 +91,59 @@ const getDateFromDayOfYear = (cal, doy) => {
     return { monthIndex: Math.max(0, cal.months.length - 1), day: parseInt(cal.months[cal.months.length - 1]?.days || 1, 10) };
 };
 
+// --- CSS VARIABLE SCALING ENGINE (Zero-Lag GPU Accelerated) ---
+const updateScales = () => {
+    if (!mapInstance) return;
+    
+    const zoom = mapInstance.getZoom();
+    const pinScale = Math.max(0.3, 1 + (zoom * 0.25));
+    const stickerScale = Math.pow(2, zoom);
+    const isZoomedIn = zoom >= 1;
+
+    // Apply the math directly to CSS variables so the browser's GPU resizes elements instantly
+    const container = document.getElementById('map-container');
+    if (container) {
+        container.style.setProperty('--pin-scale', pinScale);
+        container.style.setProperty('--sticker-scale', stickerScale);
+    }
+
+    if (entityLayer) {
+        entityLayer.eachLayer(layer => {
+            // Update Polyline pixel weights manually (SVGs don't accept CSS variable scales easily)
+            if (layer.isAtlasRouteLine) {
+                layer.setStyle({ weight: Math.max(2, 4 * pinScale) });
+            }
+            
+            // Adjust Tooltip Offsets so they perfectly track the top of scaled pins
+            if (layer.isAtlasPin) {
+                const tt = layer.getTooltip();
+                if (tt) {
+                    const newOffset = [0, -(layer.baseH * pinScale) + (5 * pinScale)];
+                    tt.options.offset = L.point(newOffset[0], newOffset[1]);
+                    
+                    if (isZoomedIn && !tt.options.permanent) {
+                        layer.unbindTooltip();
+                        layer.bindTooltip(layer.hoverTitle, { ...layer.tooltipConfig, offset: newOffset, permanent: true });
+                    } else if (!isZoomedIn && tt.options.permanent) {
+                        layer.unbindTooltip();
+                        layer.bindTooltip(layer.hoverTitle, { ...layer.tooltipConfig, offset: newOffset, permanent: false });
+                    } else {
+                        tt.update();
+                    }
+                }
+            }
+        });
+    }
+
+    if (drawingPolyline) {
+        drawingPolyline.setStyle({ weight: Math.max(2, 4 * pinScale) });
+    }
+};
+
 export const initAtlas = () => {
     const container = document.getElementById('map-container');
     if (!container) return; 
 
-    // Generate a fresh token. If an older initialization is still downloading its image, 
-    // it will see this token changed and instantly abort to prevent ghost layers!
     atlasInitToken++;
     const currentToken = atlasInitToken;
 
@@ -136,15 +183,12 @@ export const initAtlas = () => {
     });
 
     isMapAnimating = true;
+    updateScales(); // Seed the CSS variables on initial load
 
     L.control.zoom({ position: 'topright' }).addTo(mapInstance);
-
-    // CRITICAL FIX: The entity layer must be created synchronously right now. 
-    // Creating it inside the async image loader caused duplicate orphaned layers!
     entityLayer = L.layerGroup().addTo(mapInstance);
 
     mapInstance.on('moveend', () => {
-        // Only save memory when the map is safely done rendering/animating
         if (isMapAnimating) return;
         savedMapCenter = mapInstance.getCenter();
         savedMapZoom = mapInstance.getZoom();
@@ -152,7 +196,6 @@ export const initAtlas = () => {
 
     const img = new Image();
     img.onload = function() {
-        // CRITICAL FIX: If another initialization started while we were waiting for this image, abort!
         if (currentToken !== atlasInitToken) return;
 
         const w = this.width;
@@ -190,8 +233,6 @@ export const initAtlas = () => {
             } 
             else {
                 if (isFinal) window.appData.forceAtlasResize = false;
-                
-                // Bulletproof override: forcefully calculate center and apply it in one clean action
                 const targetZoom = mapInstance.getBoundsZoom(bounds);
                 mapInstance.setView([h / 2, w / 2], targetZoom, { animate: false });
             }
@@ -201,9 +242,8 @@ export const initAtlas = () => {
             }
         };
 
-        // Apply cleanly after allowing the DOM to breathe, then again after CSS animations
         setTimeout(() => applyView(false), 20);
-        setTimeout(() => applyView(true), 400); // Extended slightly to clear the 300ms CSS fade-in
+        setTimeout(() => applyView(true), 400); 
     };
     img.onerror = function() {
         if (currentToken !== atlasInitToken) return;
@@ -225,7 +265,6 @@ export const initAtlas = () => {
             if (currentMode === 'pin') {
                 document.getElementById('atlas-pin-lat').value = e.latlng.lat;
                 document.getElementById('atlas-pin-lng').value = e.latlng.lng;
-                
                 document.getElementById('atlas-pin-codex-id').value = "";
                 document.getElementById('atlas-pin-search').value = "";
                 
@@ -234,11 +273,9 @@ export const initAtlas = () => {
 
                 document.getElementById('atlas-pin-search-results').classList.add('hidden');
                 document.getElementById('atlas-pin-modal').classList.remove('hidden');
-                
                 setTimeout(() => document.getElementById('atlas-pin-search').focus(), 100);
             } 
             else if (currentMode === 'sticker') {
-                // STICKER SYSTEM: Click map to place new image sticker
                 const url = prompt("Enter Sticker Image URL (e.g. from Discord, Imgur, etc.):");
                 if (!url) return;
                 
@@ -249,7 +286,6 @@ export const initAtlas = () => {
                     const currentCamp = window.appData.activeCampaign;
                     if (!currentCamp) return;
                     
-                    // Default scale down if the image is massive
                     let w = this.width;
                     let h = this.height;
                     if (w > 200) {
@@ -311,93 +347,16 @@ export const initAtlas = () => {
             savedMapZoom = mapInstance.getZoom();
         }
 
-        // INSTANT DOM SCALING: Bypasses the CPU lag of destroying and recreating markers!
-        updateEntityScales();
-        renderDrawingMarkers();
+        // Apply seamless GPU accelerated scaling updates instantly
+        updateScales();
     });
 
     window.appActions.setAtlasMode('pan');
 };
 
-// --- INSTANT DOM MANIPULATION FOR ZOOMING ---
-const updateEntityScales = () => {
-    if (!mapInstance || !entityLayer) return;
-    const zoom = mapInstance.getZoom();
-    const scale = Math.max(0.3, 1 + (zoom * 0.25));
-    const geoScale = Math.pow(2, zoom);
-    const isZoomedIn = zoom >= 1;
-
-    entityLayer.eachLayer(layer => {
-        // --- STICKERS SCALING ---
-        if (layer.isAtlasSticker && layer._icon) {
-            const w = layer.baseW * geoScale;
-            const h = layer.baseH * geoScale;
-            layer._icon.style.width = `${w}px`;
-            layer._icon.style.height = `${h}px`;
-            layer._icon.style.marginLeft = `${-(w / 2)}px`;
-            layer._icon.style.marginTop = `${-(h / 2)}px`;
-            
-            const img = layer._icon.querySelector('img');
-            if (img) {
-                img.style.width = `${w}px`;
-                img.style.height = `${h}px`;
-            }
-        }
-        // --- PINS SCALING & TOOLTIPS ---
-        else if (layer.isAtlasPin && layer._icon) {
-            const pinSize = layer.isImagePin ? [40 * scale, 40 * scale] : [30 * scale, 30 * scale];
-            const pinAnchor = layer.isImagePin ? [20 * scale, 40 * scale] : [15 * scale, 30 * scale];
-
-            layer._icon.style.width = `${pinSize[0]}px`;
-            layer._icon.style.height = `${pinSize[1]}px`;
-            layer._icon.style.marginLeft = `${-pinAnchor[0]}px`;
-            layer._icon.style.marginTop = `${-pinAnchor[1]}px`;
-
-            if (!layer.isImagePin) {
-                const iconEl = layer._icon.querySelector('i');
-                if (iconEl) {
-                    iconEl.style.fontSize = `${24 * scale}px`;
-                    iconEl.style.lineHeight = `${30 * scale}px`;
-                }
-            }
-            
-            // Seamlessly toggle permanent tooltips
-            const tt = layer.getTooltip();
-            if (tt) {
-                const newOffset = [0, -(pinAnchor[1] - (5 * scale))];
-                if (isZoomedIn && !tt.options.permanent) {
-                    layer.unbindTooltip();
-                    layer.bindTooltip(layer.hoverTitle, { ...layer.tooltipConfig, offset: newOffset, permanent: true });
-                } else if (!isZoomedIn && tt.options.permanent) {
-                    layer.unbindTooltip();
-                    layer.bindTooltip(layer.hoverTitle, { ...layer.tooltipConfig, offset: newOffset, permanent: false });
-                }
-            }
-        }
-        // --- ROUTE SCALING ---
-        else if (layer.isAtlasRouteLine) {
-            layer.setStyle({ weight: Math.max(2, 4 * scale) });
-        }
-        else if (layer.isAtlasRouteNode && layer._icon) {
-            const size = layer.baseNodeSize * scale;
-            layer._icon.style.width = `${size}px`;
-            layer._icon.style.height = `${size}px`;
-            layer._icon.style.marginLeft = `${-(size / 2)}px`;
-            layer._icon.style.marginTop = `${-(size / 2)}px`;
-            
-            const innerDiv = layer._icon.querySelector('div');
-            if (innerDiv) {
-                innerDiv.style.width = `${size}px`;
-                innerDiv.style.height = `${size}px`;
-            }
-        }
-    });
-};
-
 export const switchAtlasMap = (mapId) => {
     window.appData.currentAtlasMapId = mapId;
     window.appData.forceAtlasResize = true;
-    
     savedMapCenter = null;
     savedMapZoom = null;
     
@@ -463,13 +422,9 @@ export const createNewAtlasMap = async () => {
         linkedCodexId: ''
     };
 
-    const updatedCamp = {
-        ...camp,
-        atlasMaps: [...maps, newMap]
-    };
+    const updatedCamp = { ...camp, atlasMaps: [...maps, newMap] };
 
     await saveCampaign(updatedCamp);
-    
     window.appActions.switchAtlasMap(newMap.id);
     
     const panel = document.getElementById('atlas-settings-panel');
@@ -493,13 +448,9 @@ export const deleteAtlasMap = async (mapId) => {
 
     if (!confirm("Are you sure you want to delete this map? Its pins and routes will be orphaned.")) return;
 
-    const updatedCamp = {
-        ...camp,
-        atlasMaps: maps.filter(m => m.id !== mapId)
-    };
+    const updatedCamp = { ...camp, atlasMaps: maps.filter(m => m.id !== mapId) };
 
     await saveCampaign(updatedCamp);
-    
     window.appActions.switchAtlasMap(updatedCamp.atlasMaps[0].id);
     window.appActions.toggleAtlasSettings();
     notify("Map deleted.", "success");
@@ -528,10 +479,7 @@ export const saveAtlasSettings = async () => {
         return m;
     });
 
-    const updatedCamp = {
-        ...camp,
-        atlasMaps: updatedMaps
-    };
+    const updatedCamp = { ...camp, atlasMaps: updatedMaps };
 
     savedMapCenter = null;
     savedMapZoom = null;
@@ -567,12 +515,10 @@ const renderDrawingMarkers = () => {
 
     if (!mapInstance || drawingPoints.length === 0) return;
 
-    const zoom = mapInstance.getZoom();
-    const scale = Math.max(0.3, 1 + (zoom * 0.25));
-
-    const startIcon = L.divIcon({ className: 'custom-route-node', html: `<div class="bg-emerald-500 rounded-full border-2 border-white shadow-sm" style="width: ${12*scale}px; height: ${12*scale}px;"></div>`, iconSize: [12*scale, 12*scale], iconAnchor: [6*scale, 6*scale] });
-    const endIcon = L.divIcon({ className: 'custom-route-node', html: `<div class="bg-red-600 rounded-full border-2 border-white shadow-sm" style="width: ${12*scale}px; height: ${12*scale}px;"></div>`, iconSize: [12*scale, 12*scale], iconAnchor: [6*scale, 6*scale] });
-    const stopIcon = L.divIcon({ className: 'custom-route-node', html: `<div class="bg-amber-500 rounded-full border-2 border-white shadow-sm" style="width: ${10*scale}px; height: ${10*scale}px;"></div>`, iconSize: [10*scale, 10*scale], iconAnchor: [5*scale, 5*scale] });
+    // Utilize the CSS variable engine via inline scales on a 0x0 Leaflet wrapper
+    const startIcon = L.divIcon({ className: 'custom-route-node', html: `<div style="position: absolute; top: 0; left: 0; width: 12px; height: 12px; transform: translate(-50%, -50%) scale(var(--pin-scale, 1)); transform-origin: center center; pointer-events: none;"><div class="bg-emerald-500 rounded-full border-2 border-white shadow-sm w-full h-full"></div></div>`, iconSize: [0, 0], iconAnchor: [0, 0] });
+    const endIcon = L.divIcon({ className: 'custom-route-node', html: `<div style="position: absolute; top: 0; left: 0; width: 12px; height: 12px; transform: translate(-50%, -50%) scale(var(--pin-scale, 1)); transform-origin: center center; pointer-events: none;"><div class="bg-red-600 rounded-full border-2 border-white shadow-sm w-full h-full"></div></div>`, iconSize: [0, 0], iconAnchor: [0, 0] });
+    const stopIcon = L.divIcon({ className: 'custom-route-node', html: `<div style="position: absolute; top: 0; left: 0; width: 10px; height: 10px; transform: translate(-50%, -50%) scale(var(--pin-scale, 1)); transform-origin: center center; pointer-events: none;"><div class="bg-amber-500 rounded-full border-2 border-white shadow-sm w-full h-full"></div></div>`, iconSize: [0, 0], iconAnchor: [0, 0] });
 
     drawingMarkers.push(L.marker(drawingPoints[0], { icon: startIcon, interactive: false }).addTo(mapInstance));
     
@@ -587,6 +533,8 @@ const renderDrawingMarkers = () => {
     });
 
     if (drawingPolyline) {
+        const zoom = mapInstance.getZoom();
+        const scale = Math.max(0.3, 1 + (zoom * 0.25));
         drawingPolyline.setStyle({ weight: Math.max(2, 4 * scale) });
     }
 };
@@ -671,26 +619,27 @@ const renderAtlasEntities = (camp) => {
 
     const maps = getAtlasMaps(camp);
     const currentMapId = window.appData.currentAtlasMapId || maps[0].id;
-
-    // Dynamic Scale Calculation based on Map Zoom
-    const zoom = mapInstance ? mapInstance.getZoom() : 0;
-    const scale = Math.max(0.3, 1 + (zoom * 0.25));
-    const isZoomedIn = zoom >= 1; 
     const isDM = camp._isDM;
+    
+    // Zoom logic only needed for initial tooltip state
+    const zoom = mapInstance ? mapInstance.getZoom() : 0;
+    const isZoomedIn = zoom >= 1; 
 
-    // --- RENDER STICKERS (Underneath Pins) ---
+    // --- RENDER STICKERS (CSS GPU Scaled) ---
     const activeStickers = (camp.atlasStickers || []).filter(s => (s.mapId || 'default-world') === currentMapId);
     
     activeStickers.forEach(sticker => {
-        const zoomMultiplier = Math.pow(2, zoom);
-        const currentW = sticker.width * zoomMultiplier;
-        const currentH = sticker.height * zoomMultiplier;
+        const html = `
+            <div style="position: absolute; top: 0; left: 0; width: ${sticker.width}px; height: ${sticker.height}px; transform: translate(-50%, -50%) scale(var(--sticker-scale, 1)); transform-origin: center center; pointer-events: auto;">
+                <img src="${sticker.url}" style="width: 100%; height: 100%; object-fit: contain; pointer-events: none; opacity: ${sticker.opacity || 1};" onerror="this.style.display='none'">
+            </div>
+        `;
         
         const stickerIcon = L.divIcon({
             className: '', 
-            html: `<img src="${sticker.url}" style="width: ${currentW}px; height: ${currentH}px; object-fit: contain; pointer-events: none; opacity: ${sticker.opacity || 1};" onerror="this.style.display='none'">`,
-            iconSize: [currentW, currentH],
-            iconAnchor: [currentW / 2, currentH / 2] 
+            html: html,
+            iconSize: [0, 0],
+            iconAnchor: [0, 0] 
         });
         
         const canEditSticker = isDM || sticker.authorId === window.appData.currentUserUid;
@@ -702,8 +651,6 @@ const renderAtlasEntities = (camp) => {
         }).addTo(entityLayer);
         
         marker.isAtlasSticker = true;
-        marker.baseW = sticker.width;
-        marker.baseH = sticker.height;
         
         marker.on('dragend', async (e) => {
             const newPos = e.target.getLatLng();
@@ -757,31 +704,30 @@ const renderAtlasEntities = (camp) => {
     });
 
 
-    // --- RENDER PINS (On top) ---
+    // --- RENDER PINS (CSS GPU Scaled) ---
     const activePins = (camp.atlasPins || []).filter(p => (p.mapId || 'default-world') === currentMapId);
 
     activePins.forEach(pin => {
         const iconVal = pin.icon || 'fa-solid fa-star';
         let innerHtml = '';
-        let pinSize = [30 * scale, 30 * scale];
-        let pinAnchor = [15 * scale, 30 * scale];
-        let pinClass = ''; 
+        let baseW = 30;
+        let baseH = 30;
 
         if (iconVal.startsWith('http') || iconVal.startsWith('data:image')) {
+            baseW = 40; baseH = 40;
             innerHtml = `<div class="w-full h-full drop-shadow-lg" style="background-image: url('${iconVal.replace(/'/g, "\\'")}'); background-size: contain; background-repeat: no-repeat; background-position: bottom center;"></div>`;
-            pinSize = [40 * scale, 40 * scale]; 
-            pinAnchor = [20 * scale, 40 * scale]; 
         } else {
-            innerHtml = `<i class="${iconVal} drop-shadow-md" style="font-size: ${24 * scale}px; line-height: ${30 * scale}px; text-align: center; width: 100%; display: block; color: #fbbf24; -webkit-text-stroke: 1px #7f1d1d;"></i>`;
-            pinSize = [30 * scale, 30 * scale];
-            pinAnchor = [15 * scale, 30 * scale];
+            baseW = 30; baseH = 30;
+            innerHtml = `<i class="${iconVal}" style="font-size: 24px; line-height: 30px; text-align: center; width: 100%; display: block; color: #fbbf24; -webkit-text-stroke: 1.5px #7f1d1d; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.6));"></i>`;
         }
 
+        const html = `<div style="position: absolute; top: 0; left: 0; width: ${baseW}px; height: ${baseH}px; transform: translate(-50%, -100%) scale(var(--pin-scale, 1)); transform-origin: bottom center; pointer-events: auto;">${innerHtml}</div>`;
+
         const customIcon = L.divIcon({
-            className: pinClass,
-            html: innerHtml,
-            iconSize: pinSize,
-            iconAnchor: pinAnchor 
+            className: 'custom-map-pin',
+            html: html,
+            iconSize: [0, 0],
+            iconAnchor: [0, 0] 
         });
         
         const marker = L.marker([pin.lat, pin.lng], { 
@@ -793,9 +739,8 @@ const renderAtlasEntities = (camp) => {
             if (marker.dragging) marker.dragging.disable();
         }
 
-        // Attach data for fast zoom scaling
         marker.isAtlasPin = true;
-        marker.isImagePin = iconVal.startsWith('http') || iconVal.startsWith('data:image');
+        marker.baseH = baseH; // Store for tooltip math
 
         // --- MAP PIN TOOLTIPS ---
         let hoverTitle = pin.customLabel || 'Unknown Location';
@@ -805,9 +750,11 @@ const renderAtlasEntities = (camp) => {
         }
 
         marker.hoverTitle = hoverTitle;
+        const initScale = Math.max(0.3, 1 + (zoom * 0.25));
+        
         marker.tooltipConfig = {
             direction: 'top',
-            offset: [0, -(pinAnchor[1] - (5 * scale))], 
+            offset: [0, -(baseH * initScale) + (5 * initScale)], 
             className: 'bg-stone-900 text-amber-50 border border-stone-600 rounded-sm font-serif font-bold text-[10px] px-2 py-0.5 shadow-md whitespace-nowrap',
             opacity: 0.95
         };
@@ -824,7 +771,6 @@ const renderAtlasEntities = (camp) => {
             if (pinIdx > -1) {
                 currentCamp.atlasPins[pinIdx].lat = newPos.lat;
                 currentCamp.atlasPins[pinIdx].lng = newPos.lng;
-                
                 await saveCampaign(currentCamp);
             }
         });
@@ -895,15 +841,16 @@ const renderAtlasEntities = (camp) => {
     const activeRoutesData = (camp.atlasRoutes || []).filter(r => (r.mapId || 'default-world') === currentMapId);
     const activeRoutes = window.appData.activeAtlasRoutes || [];
     
-    const startIcon = L.divIcon({ className: 'custom-route-node', html: `<div class="bg-emerald-500 rounded-full border-2 border-white shadow-sm" style="width: ${12*scale}px; height: ${12*scale}px;"></div>`, iconSize: [12*scale, 12*scale], iconAnchor: [6*scale, 6*scale] });
-    const endIcon = L.divIcon({ className: 'custom-route-node', html: `<div class="bg-red-600 rounded-full border-2 border-white shadow-sm" style="width: ${12*scale}px; height: ${12*scale}px;"></div>`, iconSize: [12*scale, 12*scale], iconAnchor: [6*scale, 6*scale] });
-    const stopIcon = L.divIcon({ className: 'custom-route-node', html: `<div class="bg-amber-500 rounded-full border-2 border-white shadow-sm" style="width: ${10*scale}px; height: ${10*scale}px;"></div>`, iconSize: [10*scale, 10*scale], iconAnchor: [5*scale, 5*scale] });
+    // Create zero-lag CSS scaled wrappers for route nodes
+    const startIcon = L.divIcon({ className: 'custom-route-node', html: `<div style="position: absolute; top: 0; left: 0; width: 12px; height: 12px; transform: translate(-50%, -50%) scale(var(--pin-scale, 1)); transform-origin: center center; pointer-events: none;"><div class="bg-emerald-500 rounded-full border-2 border-white shadow-sm w-full h-full"></div></div>`, iconSize: [0, 0], iconAnchor: [0, 0] });
+    const endIcon = L.divIcon({ className: 'custom-route-node', html: `<div style="position: absolute; top: 0; left: 0; width: 12px; height: 12px; transform: translate(-50%, -50%) scale(var(--pin-scale, 1)); transform-origin: center center; pointer-events: none;"><div class="bg-red-600 rounded-full border-2 border-white shadow-sm w-full h-full"></div></div>`, iconSize: [0, 0], iconAnchor: [0, 0] });
+    const stopIcon = L.divIcon({ className: 'custom-route-node', html: `<div style="position: absolute; top: 0; left: 0; width: 10px; height: 10px; transform: translate(-50%, -50%) scale(var(--pin-scale, 1)); transform-origin: center center; pointer-events: none;"><div class="bg-amber-500 rounded-full border-2 border-white shadow-sm w-full h-full"></div></div>`, iconSize: [0, 0], iconAnchor: [0, 0] });
 
     activeRoutesData.filter(r => activeRoutes.includes(r.id)).forEach(route => {
-        const polyline = L.polyline(route.points, { color: '#ef4444', weight: Math.max(2, 4 * scale), dashArray: '5, 10' }).addTo(entityLayer);
+        const initScale = Math.max(0.3, 1 + (zoom * 0.25));
+        const polyline = L.polyline(route.points, { color: '#ef4444', weight: Math.max(2, 4 * initScale), dashArray: '5, 10' }).addTo(entityLayer);
         polyline.isAtlasRouteLine = true;
         
-        // --- ROUTE TOOLTIPS ---
         let routeTitle = route.name || 'Unknown Route';
         if (route.codexId) {
             const cEntry = camp.codex?.find(c => c.id === route.codexId);
@@ -917,19 +864,16 @@ const renderAtlasEntities = (camp) => {
         });
 
         if (route.points.length > 0) {
-            const m1 = L.marker(route.points[0], { icon: startIcon, interactive: false }).addTo(entityLayer);
-            m1.isAtlasRouteNode = true; m1.baseNodeSize = 12;
+            L.marker(route.points[0], { icon: startIcon, interactive: false }).addTo(entityLayer);
             
             if (route.points.length > 1) {
-                const m2 = L.marker(route.points[route.points.length - 1], { icon: endIcon, interactive: false }).addTo(entityLayer);
-                m2.isAtlasRouteNode = true; m2.baseNodeSize = 12;
+                L.marker(route.points[route.points.length - 1], { icon: endIcon, interactive: false }).addTo(entityLayer);
             }
             
             const stopIdxs = route.stopIndices || [];
             stopIdxs.forEach(idx => {
                 if (idx > 0 && idx < route.points.length - 1) {
-                    const mS = L.marker(route.points[idx], { icon: stopIcon, interactive: false }).addTo(entityLayer);
-                    mS.isAtlasRouteNode = true; mS.baseNodeSize = 10;
+                    L.marker(route.points[idx], { icon: stopIcon, interactive: false }).addTo(entityLayer);
                 }
             });
         }
@@ -996,7 +940,6 @@ export const setAtlasMode = (mode) => {
     const activeBtn = document.getElementById(`mode-${mode}`);
     if (activeBtn) activeBtn.classList.remove('text-stone-400');
     
-    // Dynamically toggle marker draggability based on the active tool
     if (entityLayer) {
         updateDerivedState();
         const camp = window.appData.activeCampaign;
@@ -1567,7 +1510,6 @@ export const searchAtlasCodex = (query, filterType = 'Location', customPrefix = 
 
 export const selectAtlasCodexEntry = (id, name, prefix) => {
     const searchInput = document.getElementById(`${prefix}-search`);
-    // Fallback allows for both suffix variants since we updated the settings panel ID convention
     const idInput = document.getElementById(`${prefix}-codex-id`) || document.getElementById(`${prefix}`);
     const resultsContainer = document.getElementById(`${prefix}-search-results`);
 
@@ -1651,7 +1593,23 @@ export const viewOnMap = (codexId) => {
     
     updateDerivedState();
     const camp = window.appData.activeCampaign;
-    const targetRoute = camp?.atlasRoutes?.find(r => r.codexId === codexId);
+    
+    const targetMap = (camp.atlasMaps || []).find(m => m.linkedCodexId === codexId);
+    if (targetMap) {
+        window.appActions.switchAtlasMap(targetMap.id);
+        return;
+    }
+
+    const targetPin = (camp.atlasPins || []).find(p => p.codexId === codexId);
+    const targetRoute = (camp.atlasRoutes || []).find(r => r.codexId === codexId);
+    
+    const entity = targetPin || targetRoute;
+    if (entity && entity.mapId) {
+        if (window.appData.currentAtlasMapId !== entity.mapId) {
+            window.appActions.switchAtlasMap(entity.mapId);
+        }
+    }
+
     if (targetRoute) {
         if (!window.appData.activeAtlasRoutes) window.appData.activeAtlasRoutes = [];
         if (!window.appData.activeAtlasRoutes.includes(targetRoute.id)) {
@@ -1833,20 +1791,11 @@ if (typeof window !== 'undefined') {
     window.appActions.deleteAtlasRoute = deleteAtlasRoute;
     window.appActions.toggleAtlasSettings = toggleAtlasSettings;
     window.appActions.saveAtlasSettings = saveAtlasSettings;
-    
-    // New Multi-Map Bindings
     window.appActions.switchAtlasMap = switchAtlasMap;
     window.appActions.createNewAtlasMap = createNewAtlasMap;
     window.appActions.deleteAtlasMap = deleteAtlasMap;
-    
-    // Sticker Tooling
     window.appActions.saveStickerResize = saveStickerResize;
     window.appActions.saveStickerOpacity = saveStickerOpacity;
     window.appActions.deleteSticker = deleteSticker;
-    window.appActions.previewStickerResize = (id, newWidth, oldWidth, oldHeight) => {
-        // Find the marker that belongs to this sticker id 
-        // Note: For instant UI preview we would normally track the DOM element. 
-        // For simplicity with Leaflet rendering, we'll let the user see the slider move, 
-        // and the physical image resize triggers immediately when they let go (onchange).
-    };
+    window.appActions.previewStickerResize = () => {};
 }
