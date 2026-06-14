@@ -179,24 +179,30 @@ export function getAtlasHTML(state) {
 
             <!-- Map Tools Dock (Scaled Down) -->
             <div class="absolute ${isFullScreen ? 'bottom-4 sm:bottom-6' : 'top-3'} left-0 right-0 flex justify-center z-40 px-4 pointer-events-none transition-all duration-300">
-                <nav class="bg-stone-900 border border-stone-700 shadow-[0_10px_20px_rgba(0,0,0,0.8)] rounded-full w-full max-w-[260px] h-10 sm:h-11 flex items-center justify-between px-1.5 pointer-events-auto bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')]">
-                    <button onclick="window.appActions.setAtlasMode('pan')" id="mode-pan" class="tool-btn flex items-center justify-center w-1/3 text-amber-500 bg-stone-800 transition-colors h-full rounded-full">
+                <nav class="bg-stone-900 border border-stone-700 shadow-[0_10px_20px_rgba(0,0,0,0.8)] rounded-full w-full max-w-[320px] h-10 sm:h-11 flex items-center justify-between px-1.5 pointer-events-auto bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')]">
+                    <button onclick="window.appActions.setAtlasMode('pan')" id="mode-pan" class="tool-btn flex items-center justify-center ${isDM ? 'w-1/4' : 'w-1/2'} text-amber-500 bg-stone-800 transition-colors h-full rounded-full">
                         <i class="fa-solid fa-hand text-sm sm:text-base"></i>
                         <span class="text-[7px] sm:text-[8px] font-bold uppercase tracking-wider ml-1.5 hidden sm:inline">Pan</span>
                     </button>
                     
                     ${isDM ? `<div class="w-px h-5 sm:h-6 bg-stone-700 mx-0.5"></div>
-                    <button onclick="window.appActions.setAtlasMode('pin')" id="mode-pin" class="tool-btn flex items-center justify-center w-1/3 text-stone-400 hover:text-red-400 transition-colors h-full rounded-full">
+                    <button onclick="window.appActions.setAtlasMode('pin')" id="mode-pin" class="tool-btn flex items-center justify-center w-1/4 text-stone-400 hover:text-red-400 transition-colors h-full rounded-full">
                         <i class="fa-solid fa-location-dot text-sm sm:text-base"></i>
                         <span class="text-[7px] sm:text-[8px] font-bold uppercase tracking-wider ml-1.5 hidden sm:inline">Pin</span>
                     </button>` : ''}
                     
                     <div class="w-px h-5 sm:h-6 bg-stone-700 mx-0.5"></div>
                     
-                    <button onclick="window.appActions.setAtlasMode('draw')" id="mode-draw" class="tool-btn flex items-center justify-center ${isDM ? 'w-1/3' : 'w-1/2'} text-stone-400 hover:text-blue-400 transition-colors h-full rounded-full">
+                    <button onclick="window.appActions.setAtlasMode('draw')" id="mode-draw" class="tool-btn flex items-center justify-center ${isDM ? 'w-1/4' : 'w-1/2'} text-stone-400 hover:text-blue-400 transition-colors h-full rounded-full">
                         <i class="fa-solid fa-pen-nib text-sm sm:text-base"></i>
                         <span class="text-[7px] sm:text-[8px] font-bold uppercase tracking-wider ml-1.5 hidden sm:inline">Path</span>
                     </button>
+
+                    ${isDM ? `<div class="w-px h-5 sm:h-6 bg-stone-700 mx-0.5"></div>
+                    <button onclick="window.appActions.setAtlasMode('sticker')" id="mode-sticker" class="tool-btn flex items-center justify-center w-1/4 text-stone-400 hover:text-purple-400 transition-colors h-full rounded-full">
+                        <i class="fa-solid fa-stamp text-sm sm:text-base"></i>
+                        <span class="text-[7px] sm:text-[8px] font-bold uppercase tracking-wider ml-1.5 hidden sm:inline">Stamp</span>
+                    </button>` : ''}
                 </nav>
             </div>
             
