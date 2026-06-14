@@ -237,6 +237,53 @@ export const initAtlas = () => {
                 
                 setTimeout(() => document.getElementById('atlas-pin-search').focus(), 100);
             } 
+            else if (currentMode === 'sticker') {
+                // STICKER SYSTEM: Click map to place new image sticker
+                const url = prompt("Enter Sticker Image URL (e.g. from Discord, Imgur, etc.):");
+                if (!url) return;
+                
+                notify("Loading sticker image...", "info");
+                const imgNode = new Image();
+                imgNode.onload = async function() {
+                    updateDerivedState();
+                    const currentCamp = window.appData.activeCampaign;
+                    if (!currentCamp) return;
+                    
+                    // Default scale down if the image is massive
+                    let w = this.width;
+                    let h = this.height;
+                    if (w > 200) {
+                        const ratio = 200 / w;
+                        w = 200;
+                        h = h * ratio;
+                    }
+                    
+                    const newSticker = {
+                        id: 'sticker_' + generateId(),
+                        mapId: currentMapId,
+                        url: url,
+                        lat: e.latlng.lat,
+                        lng: e.latlng.lng,
+                        width: Math.round(w),
+                        height: Math.round(h),
+                        opacity: 1,
+                        authorId: window.appData.currentUserUid
+                    };
+                    
+                    const updatedCamp = {
+                        ...currentCamp,
+                        atlasStickers: [...(currentCamp.atlasStickers || []), newSticker]
+                    };
+                    
+                    await saveCampaign(updatedCamp);
+                    notify("Sticker applied to the Atlas!", "success");
+                    window.appActions.refreshAtlasEntities();
+                };
+                imgNode.onerror = function() {
+                    notify("Failed to load image. Check the URL.", "error");
+                };
+                imgNode.src = url;
+            }
             else if (currentMode === 'draw') {
                 const zoom = mapInstance.getZoom();
                 const scale = Math.max(0.3, 1 + (zoom * 0.25));
@@ -568,8 +615,88 @@ const renderAtlasEntities = (camp) => {
     // Zoom thresholds: max is 2, so level 1 and 2 are fully zoomed in. 
     // We lock tooltips to be permanent so all labels are constantly visible at scale.
     const isZoomedIn = zoom >= 1; 
+    const isDM = camp._isDM;
 
-    // Filter Pins for Current Map
+    // --- RENDER STICKERS (Underneath Pins) ---
+    const activeStickers = (camp.atlasStickers || []).filter(s => (s.mapId || 'default-world') === currentMapId);
+    
+    activeStickers.forEach(sticker => {
+        // Stickers scale GEOGRAPHICALLY with the map (unlike pins which maintain readable sizes).
+        // Using Leaflet CRS.Simple scaling math (Math.pow(2, zoom)) ensures the image stays pinned to the terrain.
+        const zoomMultiplier = Math.pow(2, zoom);
+        const currentW = sticker.width * zoomMultiplier;
+        const currentH = sticker.height * zoomMultiplier;
+        
+        const stickerIcon = L.divIcon({
+            className: '', // No styling frame, pure image injection
+            html: `<img src="${sticker.url}" style="width: ${currentW}px; height: ${currentH}px; object-fit: contain; pointer-events: none; opacity: ${sticker.opacity || 1};" onerror="this.style.display='none'">`,
+            iconSize: [currentW, currentH],
+            iconAnchor: [currentW / 2, currentH / 2] // True Center Anchor
+        });
+        
+        const canEditSticker = isDM || sticker.authorId === window.appData.currentUserUid;
+        
+        const marker = L.marker([sticker.lat, sticker.lng], {
+            icon: stickerIcon,
+            draggable: canEditSticker && currentMode === 'sticker', // Only draggable in sticker mode
+            zIndexOffset: -1000 // Push far down below pins and routes!
+        }).addTo(entityLayer);
+        
+        marker.isAtlasSticker = true;
+        
+        marker.on('dragend', async (e) => {
+            const newPos = e.target.getLatLng();
+            updateDerivedState();
+            const currentCamp = window.appData.activeCampaign;
+            if (!currentCamp) return;
+
+            const stIdx = (currentCamp.atlasStickers || []).findIndex(s => s.id === sticker.id);
+            if (stIdx > -1) {
+                currentCamp.atlasStickers[stIdx].lat = newPos.lat;
+                currentCamp.atlasStickers[stIdx].lng = newPos.lng;
+                await saveCampaign(currentCamp);
+            }
+        });
+        
+        marker.on('click', () => {
+            if (currentMode === 'sticker' && canEditSticker) {
+                const popup = document.getElementById('global-popup-container');
+                popup.innerHTML = `
+                    <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[17000] backdrop-blur-sm animate-in">
+                        <div class="bg-[#f4ebd8] p-5 rounded-sm w-full max-w-sm border border-[#d4c5a9] shadow-2xl relative animate-in border-t-4 border-t-purple-700">
+                            <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="absolute top-3.5 right-3 text-stone-400 hover:text-red-900 transition"><i class="fa-solid fa-xmark text-xl p-1"></i></button>
+                            <h3 class="font-serif font-bold text-lg text-purple-900 mb-5 border-b border-[#d4c5a9] pb-2"><i class="fa-solid fa-stamp text-purple-600 mr-2"></i> Sticker Settings</h3>
+                            
+                            <div class="space-y-6">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5 flex justify-between items-center">
+                                        <span>Size / Scale</span>
+                                        <span id="sticker-size-val" class="text-purple-700 bg-purple-100 border border-purple-200 px-1.5 py-0.5 rounded shadow-sm">${sticker.width}px</span>
+                                    </label>
+                                    <input type="range" min="10" max="2500" value="${sticker.width}" class="w-full accent-purple-600" oninput="document.getElementById('sticker-size-val').innerText = this.value + 'px'; " onchange="window.appActions.saveStickerResize('${sticker.id}', this.value, ${sticker.width}, ${sticker.height})">
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1.5 flex justify-between items-center">
+                                        <span>Opacity / Alpha</span>
+                                        <span id="sticker-opacity-val" class="text-purple-700 bg-purple-100 border border-purple-200 px-1.5 py-0.5 rounded shadow-sm">${Math.round((sticker.opacity || 1) * 100)}%</span>
+                                    </label>
+                                    <input type="range" min="0.1" max="1" step="0.05" value="${sticker.opacity || 1}" class="w-full accent-purple-600" oninput="document.getElementById('sticker-opacity-val').innerText = Math.round(this.value * 100) + '%';" onchange="window.appActions.saveStickerOpacity('${sticker.id}', this.value)">
+                                </div>
+                            </div>
+                            
+                            <div class="mt-8 pt-4 border-t border-[#d4c5a9] flex justify-end">
+                                <button onclick="window.appActions.deleteSticker('${sticker.id}'); document.getElementById('global-popup-container').innerHTML = '';" class="w-full py-2.5 bg-red-900/10 text-red-800 border border-red-900/30 hover:bg-red-900 hover:text-white rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm"><i class="fa-solid fa-trash mr-1.5"></i> Peel Sticker</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        });
+    });
+
+
+    // --- RENDER PINS (On top) ---
     const activePins = (camp.atlasPins || []).filter(p => (p.mapId || 'default-world') === currentMapId);
 
     activePins.forEach(pin => {
@@ -597,8 +724,6 @@ const renderAtlasEntities = (camp) => {
             iconSize: pinSize,
             iconAnchor: pinAnchor 
         });
-
-        const isDM = camp._isDM;
         
         const marker = L.marker([pin.lat, pin.lng], { 
             icon: customIcon,
@@ -748,7 +873,6 @@ const renderAtlasEntities = (camp) => {
         
         polyline.on('click', () => {
             if (currentMode === 'pan') {
-                const isDM = camp._isDM;
                 const canDelete = isDM || route.authorId === window.appData.currentUserUid;
 
                 // SHOP INTERCEPTION: If the route targets a shop, instantly route to Storefront
@@ -797,9 +921,13 @@ const renderAtlasEntities = (camp) => {
 export const setAtlasMode = (mode) => {
     currentMode = mode;
     
+    const totalBtns = document.querySelectorAll('.tool-btn').length;
+    let widthClass = 'w-1/3';
+    if (totalBtns === 4) widthClass = 'w-1/4';
+    if (totalBtns === 2) widthClass = 'w-1/2';
+
     document.querySelectorAll('.tool-btn').forEach(btn => {
         const baseClasses = "tool-btn flex items-center justify-center text-stone-400 transition-colors h-full rounded-full";
-        const widthClass = document.querySelectorAll('.tool-btn').length === 2 && btn.id === 'mode-draw' ? 'w-1/2' : 'w-1/3';
         btn.className = `${baseClasses} ${widthClass}`;
     });
 
@@ -815,6 +943,13 @@ export const setAtlasMode = (mode) => {
         entityLayer.eachLayer(layer => {
             if (layer.isAtlasPin && isDM) {
                 if (mode === 'pin') {
+                    if (layer.dragging) layer.dragging.enable();
+                } else {
+                    if (layer.dragging) layer.dragging.disable();
+                }
+            }
+            if (layer.isAtlasSticker && isDM) {
+                if (mode === 'sticker') {
                     if (layer.dragging) layer.dragging.enable();
                 } else {
                     if (layer.dragging) layer.dragging.disable();
@@ -860,9 +995,50 @@ export const setAtlasMode = (mode) => {
         drawingMarkers.forEach(m => { if (mapInstance) mapInstance.removeLayer(m); });
         drawingMarkers = [];
         drawingStopIndices = [];
+    } else if (mode === 'sticker') {
+        if (activeBtn) activeBtn.classList.add('text-purple-500', 'bg-purple-900/20');
     }
     
     updateCursor();
+};
+
+export const saveStickerResize = async (id, newWidth, oldWidth, oldHeight) => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    if (!camp) return;
+    
+    const idx = (camp.atlasStickers || []).findIndex(s => s.id === id);
+    if(idx > -1) {
+        const ratio = oldHeight / oldWidth;
+        camp.atlasStickers[idx].width = parseInt(newWidth);
+        camp.atlasStickers[idx].height = parseInt(newWidth * ratio);
+        await saveCampaign(camp);
+        window.appActions.refreshAtlasEntities();
+    }
+};
+
+export const saveStickerOpacity = async (id, opacity) => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    if (!camp) return;
+    
+    const idx = (camp.atlasStickers || []).findIndex(s => s.id === id);
+    if(idx > -1) {
+        camp.atlasStickers[idx].opacity = parseFloat(opacity);
+        await saveCampaign(camp);
+        window.appActions.refreshAtlasEntities();
+    }
+};
+
+export const deleteSticker = async (id) => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    if (!camp) return;
+    
+    camp.atlasStickers = (camp.atlasStickers || []).filter(s => s.id !== id);
+    await saveCampaign(camp);
+    notify("Sticker removed.", "success");
+    window.appActions.refreshAtlasEntities();
 };
 
 export const updateAtlasGridAndScale = (imgW, imgH) => {
@@ -1413,32 +1589,12 @@ export const viewOnMap = (codexId) => {
     
     updateDerivedState();
     const camp = window.appData.activeCampaign;
-    
-    let targetMapId = null;
-
-    // Check pins first
-    const targetPin = camp?.atlasPins?.find(p => p.codexId === codexId);
-    if (targetPin) {
-        targetMapId = targetPin.mapId || 'default-world';
-    }
-
-    // Check routes if no pin
     const targetRoute = camp?.atlasRoutes?.find(r => r.codexId === codexId);
     if (targetRoute) {
-        targetMapId = targetRoute.mapId || 'default-world';
         if (!window.appData.activeAtlasRoutes) window.appData.activeAtlasRoutes = [];
         if (!window.appData.activeAtlasRoutes.includes(targetRoute.id)) {
             window.appData.activeAtlasRoutes.push(targetRoute.id);
         }
-    }
-
-    // Switch to the correct map if we found it and it's not the current one
-    if (targetMapId && window.appData.currentAtlasMapId !== targetMapId) {
-        window.appData.currentAtlasMapId = targetMapId;
-        window.appData.forceAtlasResize = true;
-        // Clear saved zoom/center memory to prevent weird camera jumps
-        savedMapCenter = null;
-        savedMapZoom = null;
     }
 
     window.appData.pendingAtlasFocus = codexId;
@@ -1620,4 +1776,15 @@ if (typeof window !== 'undefined') {
     window.appActions.switchAtlasMap = switchAtlasMap;
     window.appActions.createNewAtlasMap = createNewAtlasMap;
     window.appActions.deleteAtlasMap = deleteAtlasMap;
+    
+    // Sticker Tooling
+    window.appActions.saveStickerResize = saveStickerResize;
+    window.appActions.saveStickerOpacity = saveStickerOpacity;
+    window.appActions.deleteSticker = deleteSticker;
+    window.appActions.previewStickerResize = (id, newWidth, oldWidth, oldHeight) => {
+        // Find the marker that belongs to this sticker id 
+        // Note: For instant UI preview we would normally track the DOM element. 
+        // For simplicity with Leaflet rendering, we'll let the user see the slider move, 
+        // and the physical image resize triggers immediately when they let go (onchange).
+    };
 }
