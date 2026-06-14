@@ -577,7 +577,7 @@ const renderAtlasEntities = (camp) => {
         let innerHtml = '';
         let pinSize = [30 * scale, 30 * scale];
         let pinAnchor = [15 * scale, 30 * scale];
-        let pinClass = 'custom-map-pin';
+        let pinClass = ''; // Globally stripped to remove all map-pin background circles and frames
 
         if (iconVal.startsWith('http') || iconVal.startsWith('data:image')) {
             // We use a div with a background image instead of an <img> tag to bypass the global image viewer
@@ -585,9 +585,8 @@ const renderAtlasEntities = (camp) => {
             innerHtml = `<div class="w-full h-full drop-shadow-lg" style="background-image: url('${iconVal.replace(/'/g, "\\'")}'); background-size: contain; background-repeat: no-repeat; background-position: bottom center;"></div>`;
             pinSize = [40 * scale, 40 * scale]; 
             pinAnchor = [20 * scale, 40 * scale]; 
-            pinClass = ''; // Strips all background framing and border CSS, leaving only the image!
         } else {
-            innerHtml = `<i class="${iconVal}" style="font-size: ${16 * scale}px; line-height: ${30 * scale}px; text-align: center; width: 100%; display: block; color: inherit;"></i>`;
+            innerHtml = `<i class="${iconVal} drop-shadow-md" style="font-size: ${24 * scale}px; line-height: ${30 * scale}px; text-align: center; width: 100%; display: block; color: #fbbf24; -webkit-text-stroke: 1px #7f1d1d;"></i>`;
             pinSize = [30 * scale, 30 * scale];
             pinAnchor = [15 * scale, 30 * scale];
         }
@@ -654,6 +653,18 @@ const renderAtlasEntities = (camp) => {
             }
 
             if (currentMode === 'pan') {
+                // SHOP INTERCEPTION: If the pin targets a shop, instantly route to Storefront
+                const targetShop = (camp.shops || []).find(s => s.id === pin.codexId || (s.linkedCodexId && s.linkedCodexId === pin.codexId));
+                if (targetShop) {
+                    document.getElementById('global-popup-container').innerHTML = '';
+                    if (window.appData.isAtlasFullScreen) {
+                        window.appActions.toggleAtlasFullScreen();
+                    }
+                    window.appData.activeShopId = targetShop.id;
+                    window.appActions.setView('storefront');
+                    return;
+                }
+
                 if (pin.codexId) {
                     const cEntry = camp.codex?.find(c => c.id === pin.codexId);
                     if (cEntry) {
@@ -739,6 +750,18 @@ const renderAtlasEntities = (camp) => {
             if (currentMode === 'pan') {
                 const isDM = camp._isDM;
                 const canDelete = isDM || route.authorId === window.appData.currentUserUid;
+
+                // SHOP INTERCEPTION: If the route targets a shop, instantly route to Storefront
+                const targetShop = (camp.shops || []).find(s => s.id === route.codexId || (s.linkedCodexId && s.linkedCodexId === route.codexId));
+                if (targetShop) {
+                    document.getElementById('global-popup-container').innerHTML = '';
+                    if (window.appData.isAtlasFullScreen) {
+                        window.appActions.toggleAtlasFullScreen();
+                    }
+                    window.appData.activeShopId = targetShop.id;
+                    window.appActions.setView('storefront');
+                    return;
+                }
 
                 if (route.codexId) {
                     const cEntry = camp.codex?.find(c => c.id === route.codexId);
