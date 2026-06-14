@@ -577,7 +577,7 @@ const renderAtlasEntities = (camp) => {
         let innerHtml = '';
         let pinSize = [30 * scale, 30 * scale];
         let pinAnchor = [15 * scale, 30 * scale];
-        let pinClass = ''; // By default, no background frames for ANY pins!
+        let pinClass = 'custom-map-pin';
 
         if (iconVal.startsWith('http') || iconVal.startsWith('data:image')) {
             // We use a div with a background image instead of an <img> tag to bypass the global image viewer
@@ -585,11 +585,11 @@ const renderAtlasEntities = (camp) => {
             innerHtml = `<div class="w-full h-full drop-shadow-lg" style="background-image: url('${iconVal.replace(/'/g, "\\'")}'); background-size: contain; background-repeat: no-repeat; background-position: bottom center;"></div>`;
             pinSize = [40 * scale, 40 * scale]; 
             pinAnchor = [20 * scale, 40 * scale]; 
+            pinClass = ''; // Strips all background framing and border CSS, leaving only the image!
         } else {
-            // Standard FontAwesome Icons are now rendered as bare icons with high-contrast outlines and drop shadows
-            innerHtml = `<div class="w-full h-full flex items-end justify-center drop-shadow-md"><i class="${iconVal}" style="font-size: ${24 * scale}px; color: #ef4444; -webkit-text-stroke: 1px #450a0a;"></i></div>`;
+            innerHtml = `<i class="${iconVal}" style="font-size: ${16 * scale}px; line-height: ${30 * scale}px; text-align: center; width: 100%; display: block; color: inherit;"></i>`;
             pinSize = [30 * scale, 30 * scale];
-            pinAnchor = [15 * scale, 28 * scale];
+            pinAnchor = [15 * scale, 30 * scale];
         }
 
         const customIcon = L.divIcon({
@@ -655,14 +655,6 @@ const renderAtlasEntities = (camp) => {
 
             if (currentMode === 'pan') {
                 if (pin.codexId) {
-                    // Check if this codex entry is actually a Shop
-                    const linkedShop = camp.shops?.find(s => s.id === pin.codexId);
-                    if (linkedShop) {
-                        document.getElementById('global-popup-container').innerHTML = '';
-                        window.appActions.viewStorefront(linkedShop.id);
-                        return;
-                    }
-
                     const cEntry = camp.codex?.find(c => c.id === pin.codexId);
                     if (cEntry) {
                         window.appActions.viewCodex(cEntry.id);
@@ -749,14 +741,6 @@ const renderAtlasEntities = (camp) => {
                 const canDelete = isDM || route.authorId === window.appData.currentUserUid;
 
                 if (route.codexId) {
-                    // Check if this route is linked to a Shop
-                    const linkedShop = camp.shops?.find(s => s.id === route.codexId);
-                    if (linkedShop) {
-                        document.getElementById('global-popup-container').innerHTML = '';
-                        window.appActions.viewStorefront(linkedShop.id);
-                        return;
-                    }
-
                     const cEntry = camp.codex?.find(c => c.id === route.codexId);
                     if (cEntry) {
                         window.appActions.viewCodex(cEntry.id);
@@ -1406,12 +1390,32 @@ export const viewOnMap = (codexId) => {
     
     updateDerivedState();
     const camp = window.appData.activeCampaign;
+    
+    let targetMapId = null;
+
+    // Check pins first
+    const targetPin = camp?.atlasPins?.find(p => p.codexId === codexId);
+    if (targetPin) {
+        targetMapId = targetPin.mapId || 'default-world';
+    }
+
+    // Check routes if no pin
     const targetRoute = camp?.atlasRoutes?.find(r => r.codexId === codexId);
     if (targetRoute) {
+        targetMapId = targetRoute.mapId || 'default-world';
         if (!window.appData.activeAtlasRoutes) window.appData.activeAtlasRoutes = [];
         if (!window.appData.activeAtlasRoutes.includes(targetRoute.id)) {
             window.appData.activeAtlasRoutes.push(targetRoute.id);
         }
+    }
+
+    // Switch to the correct map if we found it and it's not the current one
+    if (targetMapId && window.appData.currentAtlasMapId !== targetMapId) {
+        window.appData.currentAtlasMapId = targetMapId;
+        window.appData.forceAtlasResize = true;
+        // Clear saved zoom/center memory to prevent weird camera jumps
+        savedMapCenter = null;
+        savedMapZoom = null;
     }
 
     window.appData.pendingAtlasFocus = codexId;
