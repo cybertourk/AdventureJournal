@@ -311,28 +311,96 @@ export const initAtlas = () => {
             savedMapZoom = mapInstance.getZoom();
         }
 
-        // Dynamically re-render pins so they scale seamlessly with zoom level
-        if (entityLayer) {
-            entityLayer.clearLayers();
-            const currentCamp = window.appData.activeCampaign;
-            if (currentCamp) renderAtlasEntities(currentCamp);
-        }
+        // INSTANT DOM SCALING: Bypasses the CPU lag of destroying and recreating markers!
+        updateEntityScales();
         renderDrawingMarkers();
     });
 
     window.appActions.setAtlasMode('pan');
 };
 
+// --- INSTANT DOM MANIPULATION FOR ZOOMING ---
+const updateEntityScales = () => {
+    if (!mapInstance || !entityLayer) return;
+    const zoom = mapInstance.getZoom();
+    const scale = Math.max(0.3, 1 + (zoom * 0.25));
+    const geoScale = Math.pow(2, zoom);
+    const isZoomedIn = zoom >= 1;
+
+    entityLayer.eachLayer(layer => {
+        // --- STICKERS SCALING ---
+        if (layer.isAtlasSticker && layer._icon) {
+            const w = layer.baseW * geoScale;
+            const h = layer.baseH * geoScale;
+            layer._icon.style.width = `${w}px`;
+            layer._icon.style.height = `${h}px`;
+            layer._icon.style.marginLeft = `${-(w / 2)}px`;
+            layer._icon.style.marginTop = `${-(h / 2)}px`;
+            
+            const img = layer._icon.querySelector('img');
+            if (img) {
+                img.style.width = `${w}px`;
+                img.style.height = `${h}px`;
+            }
+        }
+        // --- PINS SCALING & TOOLTIPS ---
+        else if (layer.isAtlasPin && layer._icon) {
+            const pinSize = layer.isImagePin ? [40 * scale, 40 * scale] : [30 * scale, 30 * scale];
+            const pinAnchor = layer.isImagePin ? [20 * scale, 40 * scale] : [15 * scale, 30 * scale];
+
+            layer._icon.style.width = `${pinSize[0]}px`;
+            layer._icon.style.height = `${pinSize[1]}px`;
+            layer._icon.style.marginLeft = `${-pinAnchor[0]}px`;
+            layer._icon.style.marginTop = `${-pinAnchor[1]}px`;
+
+            if (!layer.isImagePin) {
+                const iconEl = layer._icon.querySelector('i');
+                if (iconEl) {
+                    iconEl.style.fontSize = `${24 * scale}px`;
+                    iconEl.style.lineHeight = `${30 * scale}px`;
+                }
+            }
+            
+            // Seamlessly toggle permanent tooltips
+            const tt = layer.getTooltip();
+            if (tt) {
+                const newOffset = [0, -(pinAnchor[1] - (5 * scale))];
+                if (isZoomedIn && !tt.options.permanent) {
+                    layer.unbindTooltip();
+                    layer.bindTooltip(layer.hoverTitle, { ...layer.tooltipConfig, offset: newOffset, permanent: true });
+                } else if (!isZoomedIn && tt.options.permanent) {
+                    layer.unbindTooltip();
+                    layer.bindTooltip(layer.hoverTitle, { ...layer.tooltipConfig, offset: newOffset, permanent: false });
+                }
+            }
+        }
+        // --- ROUTE SCALING ---
+        else if (layer.isAtlasRouteLine) {
+            layer.setStyle({ weight: Math.max(2, 4 * scale) });
+        }
+        else if (layer.isAtlasRouteNode && layer._icon) {
+            const size = layer.baseNodeSize * scale;
+            layer._icon.style.width = `${size}px`;
+            layer._icon.style.height = `${size}px`;
+            layer._icon.style.marginLeft = `${-(size / 2)}px`;
+            layer._icon.style.marginTop = `${-(size / 2)}px`;
+            
+            const innerDiv = layer._icon.querySelector('div');
+            if (innerDiv) {
+                innerDiv.style.width = `${size}px`;
+                innerDiv.style.height = `${size}px`;
+            }
+        }
+    });
+};
+
 export const switchAtlasMap = (mapId) => {
     window.appData.currentAtlasMapId = mapId;
     window.appData.forceAtlasResize = true;
     
-    // Explicitly wipe the memory so the new map centers perfectly on load
     savedMapCenter = null;
     savedMapZoom = null;
     
-    // UI Core optimization skips HTML redraw for the Atlas to protect Leaflet.
-    // We must manually update the settings DOM elements to match the new map!
     updateDerivedState();
     const camp = window.appData.activeCampaign;
     if (camp) {
@@ -354,7 +422,6 @@ export const switchAtlasMap = (mapId) => {
         const unitEl = document.getElementById('cfg-unit');
         if (unitEl) unitEl.value = activeConfig.unit || 'Miles';
         
-        // Setup Codex Linking Elements
         const codexEl = document.getElementById('cfg-linked-codex-id') || document.getElementById('cfg-linked-codex');
         if (codexEl) codexEl.value = activeConfig.linkedCodexId || '';
         
@@ -372,7 +439,7 @@ export const switchAtlasMap = (mapId) => {
     }
 
     window.appActions.initAtlas();
-    window.appActions.setView('atlas'); // Forces UI refresh
+    window.appActions.setView('atlas'); 
 };
 
 export const createNewAtlasMap = async () => {
@@ -388,7 +455,7 @@ export const createNewAtlasMap = async () => {
     const newMap = {
         id: 'map_' + generateId(),
         name: name,
-        url: 'https://www.transparenttextures.com/patterns/aged-paper.png', // Reliable default parchment texture
+        url: 'https://www.transparenttextures.com/patterns/aged-paper.png', 
         pixelsPerSquare: 50,
         milesPerSquare: 1,
         unit: 'Miles',
@@ -403,10 +470,8 @@ export const createNewAtlasMap = async () => {
 
     await saveCampaign(updatedCamp);
     
-    // Safely switch and update the DOM
     window.appActions.switchAtlasMap(newMap.id);
     
-    // Force settings panel open so the user can easily update the image URL
     const panel = document.getElementById('atlas-settings-panel');
     if (panel && panel.classList.contains('hidden')) {
         window.appActions.toggleAtlasSettings(); 
@@ -435,7 +500,6 @@ export const deleteAtlasMap = async (mapId) => {
 
     await saveCampaign(updatedCamp);
     
-    // Automatically switch back to the main map and update the DOM
     window.appActions.switchAtlasMap(updatedCamp.atlasMaps[0].id);
     window.appActions.toggleAtlasSettings();
     notify("Map deleted.", "success");
@@ -611,9 +675,6 @@ const renderAtlasEntities = (camp) => {
     // Dynamic Scale Calculation based on Map Zoom
     const zoom = mapInstance ? mapInstance.getZoom() : 0;
     const scale = Math.max(0.3, 1 + (zoom * 0.25));
-    
-    // Zoom thresholds: max is 2, so level 1 and 2 are fully zoomed in. 
-    // We lock tooltips to be permanent so all labels are constantly visible at scale.
     const isZoomedIn = zoom >= 1; 
     const isDM = camp._isDM;
 
@@ -621,28 +682,28 @@ const renderAtlasEntities = (camp) => {
     const activeStickers = (camp.atlasStickers || []).filter(s => (s.mapId || 'default-world') === currentMapId);
     
     activeStickers.forEach(sticker => {
-        // Stickers scale GEOGRAPHICALLY with the map (unlike pins which maintain readable sizes).
-        // Using Leaflet CRS.Simple scaling math (Math.pow(2, zoom)) ensures the image stays pinned to the terrain.
         const zoomMultiplier = Math.pow(2, zoom);
         const currentW = sticker.width * zoomMultiplier;
         const currentH = sticker.height * zoomMultiplier;
         
         const stickerIcon = L.divIcon({
-            className: '', // No styling frame, pure image injection
+            className: '', 
             html: `<img src="${sticker.url}" style="width: ${currentW}px; height: ${currentH}px; object-fit: contain; pointer-events: none; opacity: ${sticker.opacity || 1};" onerror="this.style.display='none'">`,
             iconSize: [currentW, currentH],
-            iconAnchor: [currentW / 2, currentH / 2] // True Center Anchor
+            iconAnchor: [currentW / 2, currentH / 2] 
         });
         
         const canEditSticker = isDM || sticker.authorId === window.appData.currentUserUid;
         
         const marker = L.marker([sticker.lat, sticker.lng], {
             icon: stickerIcon,
-            draggable: canEditSticker && currentMode === 'sticker', // Only draggable in sticker mode
-            zIndexOffset: -1000 // Push far down below pins and routes!
+            draggable: canEditSticker && currentMode === 'sticker', 
+            zIndexOffset: -1000 
         }).addTo(entityLayer);
         
         marker.isAtlasSticker = true;
+        marker.baseW = sticker.width;
+        marker.baseH = sticker.height;
         
         marker.on('dragend', async (e) => {
             const newPos = e.target.getLatLng();
@@ -704,11 +765,9 @@ const renderAtlasEntities = (camp) => {
         let innerHtml = '';
         let pinSize = [30 * scale, 30 * scale];
         let pinAnchor = [15 * scale, 30 * scale];
-        let pinClass = ''; // Globally stripped to remove all map-pin background circles and frames
+        let pinClass = ''; 
 
         if (iconVal.startsWith('http') || iconVal.startsWith('data:image')) {
-            // We use a div with a background image instead of an <img> tag to bypass the global image viewer
-            // without needing pointer-events-none, which causes touch-delay lag on mobile devices!
             innerHtml = `<div class="w-full h-full drop-shadow-lg" style="background-image: url('${iconVal.replace(/'/g, "\\'")}'); background-size: contain; background-repeat: no-repeat; background-position: bottom center;"></div>`;
             pinSize = [40 * scale, 40 * scale]; 
             pinAnchor = [20 * scale, 40 * scale]; 
@@ -727,16 +786,16 @@ const renderAtlasEntities = (camp) => {
         
         const marker = L.marker([pin.lat, pin.lng], { 
             icon: customIcon,
-            draggable: isDM // Initialize draggability capability only if the user is the DM
+            draggable: isDM 
         }).addTo(entityLayer);
         
-        // Ensure dragging is disabled immediately if we aren't currently holding the Pin tool
         if (!isDM || currentMode !== 'pin') {
             if (marker.dragging) marker.dragging.disable();
         }
 
-        // Tag it so we can easily find it later to toggle its draggability during tool changes
+        // Attach data for fast zoom scaling
         marker.isAtlasPin = true;
+        marker.isImagePin = iconVal.startsWith('http') || iconVal.startsWith('data:image');
 
         // --- MAP PIN TOOLTIPS ---
         let hoverTitle = pin.customLabel || 'Unknown Location';
@@ -745,13 +804,15 @@ const renderAtlasEntities = (camp) => {
             if (cEntry) hoverTitle = cEntry.name;
         }
 
-        marker.bindTooltip(hoverTitle, {
-            permanent: isZoomedIn,
+        marker.hoverTitle = hoverTitle;
+        marker.tooltipConfig = {
             direction: 'top',
             offset: [0, -(pinAnchor[1] - (5 * scale))], 
             className: 'bg-stone-900 text-amber-50 border border-stone-600 rounded-sm font-serif font-bold text-[10px] px-2 py-0.5 shadow-md whitespace-nowrap',
-            opacity: isZoomedIn ? 0.8 : 0.95
-        });
+            opacity: 0.95
+        };
+
+        marker.bindTooltip(hoverTitle, { ...marker.tooltipConfig, permanent: isZoomedIn });
 
         marker.on('dragend', async (e) => {
             const newPos = e.target.getLatLng();
@@ -764,7 +825,6 @@ const renderAtlasEntities = (camp) => {
                 currentCamp.atlasPins[pinIdx].lat = newPos.lat;
                 currentCamp.atlasPins[pinIdx].lng = newPos.lng;
                 
-                // Save it seamlessly into the database without triggering any popups
                 await saveCampaign(currentCamp);
             }
         });
@@ -778,7 +838,6 @@ const renderAtlasEntities = (camp) => {
             }
 
             if (currentMode === 'pan') {
-                // SHOP INTERCEPTION: If the pin targets a shop, instantly route to Storefront
                 const targetShop = (camp.shops || []).find(s => s.id === pin.codexId || (s.linkedCodexId && s.linkedCodexId === pin.codexId));
                 if (targetShop) {
                     document.getElementById('global-popup-container').innerHTML = '';
@@ -795,7 +854,6 @@ const renderAtlasEntities = (camp) => {
                     if (cEntry) {
                         window.appActions.viewCodex(cEntry.id);
                         
-                        // Drill-Down Injection: Check if a local sub-map exists for this codex entry
                         const linkedMap = (camp.atlasMaps || []).find(m => m.linkedCodexId === cEntry.id);
                         if (linkedMap) {
                             setTimeout(() => {
@@ -808,7 +866,7 @@ const renderAtlasEntities = (camp) => {
                                         header.insertAdjacentHTML('afterend', btnHtml);
                                     }
                                 }
-                            }, 320); // Delay injection until the 300ms CSS fade-in completes to prevent layout stutter!
+                            }, 320); 
                         }
                         return; 
                     }
@@ -843,6 +901,7 @@ const renderAtlasEntities = (camp) => {
 
     activeRoutesData.filter(r => activeRoutes.includes(r.id)).forEach(route => {
         const polyline = L.polyline(route.points, { color: '#ef4444', weight: Math.max(2, 4 * scale), dashArray: '5, 10' }).addTo(entityLayer);
+        polyline.isAtlasRouteLine = true;
         
         // --- ROUTE TOOLTIPS ---
         let routeTitle = route.name || 'Unknown Route';
@@ -852,21 +911,25 @@ const renderAtlasEntities = (camp) => {
         }
 
         polyline.bindTooltip(routeTitle, {
-            sticky: true, // This allows the tooltip to beautifully follow the cursor along the traced line!
+            sticky: true, 
             className: 'bg-stone-900 text-amber-50 border border-stone-600 rounded-sm font-serif font-bold text-[10px] px-2 py-0.5 shadow-md whitespace-nowrap',
             opacity: 0.95
         });
 
         if (route.points.length > 0) {
-            L.marker(route.points[0], { icon: startIcon, interactive: false }).addTo(entityLayer);
+            const m1 = L.marker(route.points[0], { icon: startIcon, interactive: false }).addTo(entityLayer);
+            m1.isAtlasRouteNode = true; m1.baseNodeSize = 12;
+            
             if (route.points.length > 1) {
-                L.marker(route.points[route.points.length - 1], { icon: endIcon, interactive: false }).addTo(entityLayer);
+                const m2 = L.marker(route.points[route.points.length - 1], { icon: endIcon, interactive: false }).addTo(entityLayer);
+                m2.isAtlasRouteNode = true; m2.baseNodeSize = 12;
             }
             
             const stopIdxs = route.stopIndices || [];
             stopIdxs.forEach(idx => {
                 if (idx > 0 && idx < route.points.length - 1) {
-                    L.marker(route.points[idx], { icon: stopIcon, interactive: false }).addTo(entityLayer);
+                    const mS = L.marker(route.points[idx], { icon: stopIcon, interactive: false }).addTo(entityLayer);
+                    mS.isAtlasRouteNode = true; mS.baseNodeSize = 10;
                 }
             });
         }
@@ -875,7 +938,6 @@ const renderAtlasEntities = (camp) => {
             if (currentMode === 'pan') {
                 const canDelete = isDM || route.authorId === window.appData.currentUserUid;
 
-                // SHOP INTERCEPTION: If the route targets a shop, instantly route to Storefront
                 const targetShop = (camp.shops || []).find(s => s.id === route.codexId || (s.linkedCodexId && s.linkedCodexId === route.codexId));
                 if (targetShop) {
                     document.getElementById('global-popup-container').innerHTML = '';
