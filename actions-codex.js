@@ -430,10 +430,12 @@ export const _openCodexModal = (entry) => {
     // --- DYNAMIC HERO, NPC & LOCATION INJECTION (Unifies Public & Private Knowledge) ---
     let charDataHTML = '';
     let locationDataHTML = '';
+    let factionDataHTML = '';
     let privateDataHTML = '';
 
     const isCharacter = type === 'PC' || type === 'NPC';
     const isLocation = type === 'Location';
+    const isFaction = type === 'Faction';
     
     // Universally bind dataSrc so ALL entries (Lore, Factions, Items, etc.) can display DM Notes
     const dataSrc = linkedPC ? linkedPC : entry;
@@ -494,6 +496,37 @@ export const _openCodexModal = (entry) => {
         }
     }
 
+    if (isFaction && dataSrc) {
+        const parsedGoals = dataSrc.goals ? window.appActions.parseSmartText(dataSrc.goals, id) : '';
+        
+        let factionDetails = '';
+        if (dataSrc.factionScope) factionDetails += `<div><span class="font-bold text-stone-900 block">Scope / Scale</span> ${dataSrc.factionScope}</div>`;
+        if (dataSrc.headquarters) factionDetails += `<div><span class="font-bold text-stone-900 block">Headquarters</span> ${dataSrc.headquarters}</div>`;
+        if (dataSrc.membership) factionDetails += `<div><span class="font-bold text-stone-900 block">Membership</span> ${dataSrc.membership}</div>`;
+        if (dataSrc.leadership) factionDetails += `<div><span class="font-bold text-stone-900 block">Leadership / Ruler</span> ${dataSrc.leadership}</div>`;
+        if (dataSrc.influence) factionDetails += `<div><span class="font-bold text-stone-900 block">Influence / Operations</span> ${dataSrc.influence}</div>`;
+        if (dataSrc.motto) factionDetails += `<div><span class="font-bold text-stone-900 block">Motto / Beliefs</span> ${dataSrc.motto}</div>`;
+        if (dataSrc.allies) factionDetails += `<div><span class="font-bold text-stone-900 block">Allies</span> ${dataSrc.allies}</div>`;
+        if (dataSrc.enemies) factionDetails += `<div><span class="font-bold text-stone-900 block">Enemies</span> ${dataSrc.enemies}</div>`;
+
+        if (factionDetails) {
+            factionDetails = `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-stone-700 mb-4">${factionDetails}</div>`;
+        }
+
+        if (factionDetails || parsedGoals) {
+            factionDataHTML = `
+            <div class="mb-6 bg-white border border-[#d4c5a9] p-4 rounded-sm shadow-inner text-sm">
+                <h4 class="font-bold text-purple-900 border-b border-[#d4c5a9] pb-1 mb-3"><i class="fa-solid fa-flag mr-1"></i> Faction Details</h4>
+                ${factionDetails}
+                ${parsedGoals ? `
+                <h4 class="font-bold text-purple-900 border-b border-[#d4c5a9] pb-1 mb-2"><i class="fa-solid fa-bullseye mr-1"></i> Goals & Operations</h4>
+                <div class="text-stone-800 text-sm leading-relaxed font-serif">${parsedGoals}</div>
+                ` : ''}
+            </div>
+            `;
+        }
+    }
+
     // Render Private Info for Authorized Users
     if (dataSrc) {
         const canViewPrivate = isDM || isHeroOwner || (!linkedPC && isAuthor);
@@ -544,6 +577,9 @@ export const _openCodexModal = (entry) => {
     } else if (isLocation) {
         descLabel = "Location Description (Public)";
         descPlaceholder = "Scribe the visual description, atmosphere, and public knowledge about this location...";
+    } else if (isFaction) {
+        descLabel = "Faction Overview (Public)";
+        descPlaceholder = "Scribe the history, reputation, and general knowledge about this faction...";
     }
 
     // --- ATLAS MAP INTEGRATION ---
@@ -671,6 +707,45 @@ export const _openCodexModal = (entry) => {
             <textarea id="cx-loc-secrets" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-stone-200 border-l-4 border-l-red-900 text-stone-900 h-24 custom-scrollbar placeholder:italic" placeholder="Underground cults, hidden treasure, traps, or DM only details...">${(entry.secrets || '').replace(/"/g, '&quot;')}</textarea>
         </div>
     </div>
+    
+    <div id="faction-edit-fields" class="${type === 'Faction' ? '' : 'hidden'} mt-6 pt-6 border-t-2 border-stone-300">
+        <div class="bg-purple-900/10 border-l-4 border-purple-600 p-3 rounded-sm text-xs text-stone-800 italic mb-6">
+            <i class="fa-solid fa-circle-info text-purple-600 mr-1"></i> <strong>Faction Details:</strong> Scope, headquarters, leadership, and goals are Public. Secrets remain Private (visible to the author and DM).
+        </div>
+        
+        <h4 class="text-[10px] font-bold text-purple-900 uppercase tracking-widest mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-flag mr-1"></i> Details (Public)</h4>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Scope / Scale</label><input type="text" id="cx-fac-scope" value="${entry.factionScope || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-purple-900 shadow-sm" placeholder="e.g. Regional, Global, Local Cell"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Headquarters</label><input type="text" id="cx-fac-hq" value="${entry.headquarters || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-purple-900 shadow-sm" placeholder="e.g. Waterdeep"></div>
+            
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Membership</label><input type="text" id="cx-fac-membership" value="${entry.membership || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-purple-900 shadow-sm" placeholder="e.g. ~500 (Diverse)"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Leadership / Ruler</label><input type="text" id="cx-fac-leadership" value="${entry.leadership || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-purple-900 shadow-sm" placeholder="e.g. Council of Guildmasters"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Influence / Operations</label><input type="text" id="cx-fac-influence" value="${entry.influence || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-purple-900 shadow-sm" placeholder="e.g. Black Market, Mercenaries"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Motto / Beliefs</label><input type="text" id="cx-fac-motto" value="${entry.motto || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-purple-900 shadow-sm" placeholder="e.g. Knowledge is Power"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Allies</label><input type="text" id="cx-fac-allies" value="${entry.allies || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-purple-900 shadow-sm" placeholder="e.g. Lord's Alliance"></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Enemies</label><input type="text" id="cx-fac-enemies" value="${entry.enemies || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-purple-900 shadow-sm" placeholder="e.g. Cult of the Dragon"></div>
+        </div>
+
+        <div class="mb-6">
+            <div class="flex justify-between items-end mb-1">
+                <label class="block text-[9px] uppercase text-stone-500 font-bold">Goals & Operations (Public)</label>
+                <div class="flex gap-1 bg-stone-200 p-0.5 rounded-sm border border-[#d4c5a9]">
+                    <button type="button" onclick="window.appActions.formatText('cx-fac-goals', 'bold')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm" title="Bold"><i class="fa-solid fa-bold"></i></button>
+                    <button type="button" onclick="window.appActions.formatText('cx-fac-goals', 'italic')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm" title="Italic"><i class="fa-solid fa-italic"></i></button>
+                    <button type="button" onclick="window.appActions.formatText('cx-fac-goals', 'list')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm" title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
+                    <button type="button" onclick="window.appActions.insertImagePlaceholder('cx-fac-goals')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm" title="Insert Image"><i class="fa-solid fa-image"></i></button>
+                </div>
+            </div>
+            <textarea id="cx-fac-goals" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white text-stone-900 h-24 font-serif outline-none focus:border-purple-900 shadow-inner custom-scrollbar placeholder:italic" placeholder="Current objectives, public agenda...">${(entry.goals || '').replace(/"/g, '&quot;')}</textarea>
+        </div>
+
+        <h4 class="text-[10px] font-bold text-stone-700 uppercase tracking-widest mb-3 mt-8 border-b border-stone-300 pb-1"><i class="fa-solid fa-lock mr-1"></i> Private Information</h4>
+        
+        <div class="mb-2">
+            <label class="block text-[9px] uppercase text-stone-500 font-bold mb-1"><i class="fa-solid fa-user-secret mr-1"></i> Hidden Secrets & DM Notes</label>
+            <textarea id="cx-fac-secrets" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-stone-200 border-l-4 border-l-red-900 text-stone-900 h-24 custom-scrollbar placeholder:italic" placeholder="True motives, traitors, hidden bases, or DM only details...">${(entry.secrets || '').replace(/"/g, '&quot;')}</textarea>
+        </div>
+    </div>
     `;
 
     container.innerHTML = `
@@ -703,6 +778,7 @@ export const _openCodexModal = (entry) => {
                     
                     ${charDataHTML}
                     ${locationDataHTML}
+                    ${factionDataHTML}
                     
                     <h4 class="font-bold text-red-900 border-b border-[#d4c5a9] pb-1 mb-2">${descLabel}</h4>
                     <div class="text-stone-800 text-sm font-serif leading-relaxed">${parsedDesc}</div>
@@ -724,7 +800,7 @@ export const _openCodexModal = (entry) => {
 
                     <div class="mb-4">
                         <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Type</label>
-                        <select id="cx-modal-type" ${linkedPC ? 'disabled' : ''} onchange="document.getElementById('npc-edit-fields').classList.toggle('hidden', this.value !== 'NPC'); document.getElementById('location-edit-fields').classList.toggle('hidden', this.value !== 'Location');" class="w-full ${linkedPC ? 'bg-stone-200 text-stone-500' : 'bg-white text-stone-900'} border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner font-bold">
+                        <select id="cx-modal-type" ${linkedPC ? 'disabled' : ''} onchange="document.getElementById('npc-edit-fields').classList.toggle('hidden', this.value !== 'NPC'); document.getElementById('location-edit-fields').classList.toggle('hidden', this.value !== 'Location'); document.getElementById('faction-edit-fields').classList.toggle('hidden', this.value !== 'Faction');" class="w-full ${linkedPC ? 'bg-stone-200 text-stone-500' : 'bg-white text-stone-900'} border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner font-bold">
                             <option value="PC" ${type==='PC'?'selected':''}>PC</option>
                             <option value="NPC" ${type==='NPC'?'selected':''}>NPC</option>
                             <option value="Location" ${type==='Location'?'selected':''}>Location</option>
@@ -895,6 +971,22 @@ export const saveCodexEntry = async () => {
         if (hideDef) { locData.defenses = ''; }
     }
 
+    let facData = {};
+    if (typeVal === 'Faction') {
+        facData = {
+            factionScope: document.getElementById('cx-fac-scope')?.value.trim() || '',
+            headquarters: document.getElementById('cx-fac-hq')?.value.trim() || '',
+            membership: document.getElementById('cx-fac-membership')?.value.trim() || '',
+            leadership: document.getElementById('cx-fac-leadership')?.value.trim() || '',
+            influence: document.getElementById('cx-fac-influence')?.value.trim() || '',
+            motto: document.getElementById('cx-fac-motto')?.value.trim() || '',
+            allies: document.getElementById('cx-fac-allies')?.value.trim() || '',
+            enemies: document.getElementById('cx-fac-enemies')?.value.trim() || '',
+            goals: document.getElementById('cx-fac-goals')?.value || '',
+            secrets: document.getElementById('cx-fac-secrets')?.value || ''
+        };
+    }
+
     const dmNotesEl = document.getElementById('cx-modal-dmnotes');
     const dmNotesVal = dmNotesEl ? dmNotesEl.value : (existingEntry?.dmNotes || '');
 
@@ -909,7 +1001,8 @@ export const saveCodexEntry = async () => {
         visibility: existingEntry?.visibility || { mode: 'public' },
         dmNotes: dmNotesVal,
         ...npcData,
-        ...locData
+        ...locData,
+        ...facData
     };
 
     const newCodexArray = exists ? camp.codex.map(c => c.id === id ? newEntry : c) : [...(camp.codex || []), newEntry];
