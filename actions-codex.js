@@ -308,7 +308,6 @@ export const preventLinkFromSelection = async (textareaId) => {
     textarea.setSelectionRange(start, end + 1); 
 };
 
-// --- NEW FEATURE: DYNAMICALLY EMBED Markdown Image Placeholders ---
 export const insertImagePlaceholder = (textareaId) => {
     const textarea = document.getElementById(textareaId);
     if (!textarea) return;
@@ -335,7 +334,6 @@ export const insertImagePlaceholder = (textareaId) => {
     textarea.setSelectionRange(start + 2, start + 2 + selectedText.length);
 };
 
-// --- DYNAMIC LOCATION FIELDS TOGGLE ---
 export const updateLocEditFields = () => {
     const scale = document.getElementById('cx-loc-scale')?.value;
     if (!scale) return;
@@ -440,6 +438,10 @@ export const _openCodexModal = (entry) => {
     // Universally bind dataSrc so ALL entries (Lore, Factions, Items, etc.) can display DM Notes
     const dataSrc = linkedPC ? linkedPC : entry;
 
+    // --- UNIVERSAL SMART TEXT HELPER ---
+    // This allows clicking connected codex links generated inside small metadata fields!
+    const smart = (txt, fallback = '') => txt ? window.appActions.parseSmartText(String(txt), id) : fallback;
+
     if (isCharacter && dataSrc) {
         const parsedApp = dataSrc.appearance ? window.appActions.parseSmartText(dataSrc.appearance, id) : '<span class="text-stone-400 italic font-sans">No appearance recorded...</span>';
         
@@ -447,19 +449,19 @@ export const _openCodexModal = (entry) => {
             <div class="mb-6 bg-white border border-[#d4c5a9] p-4 rounded-sm shadow-inner text-sm">
                 <h4 class="font-bold text-red-900 border-b border-[#d4c5a9] pb-1 mb-3"><i class="fa-solid fa-clipboard-user mr-1"></i> Characteristics</h4>
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-stone-700 mb-4">
-                    <div><span class="font-bold text-stone-900 block">Race / Lineage</span> ${dataSrc.race || '--'}</div>
-                    <div><span class="font-bold text-stone-900 block">Class / Level</span> ${dataSrc.classLevel || '--'}</div>
-                    <div><span class="font-bold text-stone-900 block">Background</span> ${dataSrc.background || '--'}</div>
-                    <div><span class="font-bold text-stone-900 block">Alignment</span> ${dataSrc.alignment || '--'}</div>
-                    <div><span class="font-bold text-stone-900 block">Faith</span> ${dataSrc.faith || '--'}</div>
-                    <div><span class="font-bold text-stone-900 block">Gender</span> ${dataSrc.gender || '--'}</div>
-                    <div><span class="font-bold text-stone-900 block">Age</span> ${dataSrc.age || '--'}</div>
-                    <div><span class="font-bold text-stone-900 block">Size</span> ${dataSrc.size || '--'}</div>
-                    <div><span class="font-bold text-stone-900 block">Height</span> ${dataSrc.height || '--'}</div>
-                    <div><span class="font-bold text-stone-900 block">Weight</span> ${dataSrc.weight || '--'}</div>
-                    <div><span class="font-bold text-stone-900 block">Eyes</span> ${dataSrc.eyes || '--'}</div>
-                    <div><span class="font-bold text-stone-900 block">Hair</span> ${dataSrc.hair || '--'}</div>
-                    <div><span class="font-bold text-stone-900 block">Skin</span> ${dataSrc.skin || '--'}</div>
+                    <div><span class="font-bold text-stone-900 block">Race / Lineage</span> ${smart(dataSrc.race, '--')}</div>
+                    <div><span class="font-bold text-stone-900 block">Class / Level</span> ${smart(dataSrc.classLevel, '--')}</div>
+                    <div><span class="font-bold text-stone-900 block">Background</span> ${smart(dataSrc.background, '--')}</div>
+                    <div><span class="font-bold text-stone-900 block">Alignment</span> ${smart(dataSrc.alignment, '--')}</div>
+                    <div><span class="font-bold text-stone-900 block">Faith</span> ${smart(dataSrc.faith, '--')}</div>
+                    <div><span class="font-bold text-stone-900 block">Gender</span> ${smart(dataSrc.gender, '--')}</div>
+                    <div><span class="font-bold text-stone-900 block">Age</span> ${smart(dataSrc.age, '--')}</div>
+                    <div><span class="font-bold text-stone-900 block">Size</span> ${smart(dataSrc.size, '--')}</div>
+                    <div><span class="font-bold text-stone-900 block">Height</span> ${smart(dataSrc.height, '--')}</div>
+                    <div><span class="font-bold text-stone-900 block">Weight</span> ${smart(dataSrc.weight, '--')}</div>
+                    <div><span class="font-bold text-stone-900 block">Eyes</span> ${smart(dataSrc.eyes, '--')}</div>
+                    <div><span class="font-bold text-stone-900 block">Hair</span> ${smart(dataSrc.hair, '--')}</div>
+                    <div><span class="font-bold text-stone-900 block">Skin</span> ${smart(dataSrc.skin, '--')}</div>
                 </div>
                 <h4 class="font-bold text-red-900 border-b border-[#d4c5a9] pb-1 mb-2"><i class="fa-solid fa-eye mr-1"></i> Appearance</h4>
                 <div class="text-stone-800 text-sm leading-relaxed font-serif">${parsedApp}</div>
@@ -471,12 +473,12 @@ export const _openCodexModal = (entry) => {
         const parsedPOI = dataSrc.pointsOfInterest ? window.appActions.parseSmartText(dataSrc.pointsOfInterest, id) : '';
         
         let locDetails = '';
-        if (dataSrc.locationType) locDetails += `<div><span class="font-bold text-stone-900 block">Scale / Type</span> ${dataSrc.locationType}</div>`;
-        if (dataSrc.region) locDetails += `<div><span class="font-bold text-stone-900 block">Region / Territory</span> ${dataSrc.region}</div>`;
-        if (dataSrc.population) locDetails += `<div><span class="font-bold text-stone-900 block">Population</span> ${dataSrc.population}</div>`;
-        if (dataSrc.government) locDetails += `<div><span class="font-bold text-stone-900 block">Government / Ruler</span> ${dataSrc.government}</div>`;
-        if (dataSrc.economy) locDetails += `<div><span class="font-bold text-stone-900 block">Economy / Trade</span> ${dataSrc.economy}</div>`;
-        if (dataSrc.defenses) locDetails += `<div class="col-span-1 sm:col-span-2"><span class="font-bold text-stone-900 block">Defenses / Hazards</span> ${dataSrc.defenses}</div>`;
+        if (dataSrc.locationType) locDetails += `<div><span class="font-bold text-stone-900 block">Scale / Type</span> ${smart(dataSrc.locationType)}</div>`;
+        if (dataSrc.region) locDetails += `<div><span class="font-bold text-stone-900 block">Region / Territory</span> ${smart(dataSrc.region)}</div>`;
+        if (dataSrc.population) locDetails += `<div><span class="font-bold text-stone-900 block">Population</span> ${smart(dataSrc.population)}</div>`;
+        if (dataSrc.government) locDetails += `<div><span class="font-bold text-stone-900 block">Government / Ruler</span> ${smart(dataSrc.government)}</div>`;
+        if (dataSrc.economy) locDetails += `<div><span class="font-bold text-stone-900 block">Economy / Trade</span> ${smart(dataSrc.economy)}</div>`;
+        if (dataSrc.defenses) locDetails += `<div class="col-span-1 sm:col-span-2"><span class="font-bold text-stone-900 block">Defenses / Hazards</span> ${smart(dataSrc.defenses)}</div>`;
 
         if (locDetails) {
             locDetails = `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-stone-700 mb-4">${locDetails}</div>`;
@@ -500,14 +502,14 @@ export const _openCodexModal = (entry) => {
         const parsedGoals = dataSrc.goals ? window.appActions.parseSmartText(dataSrc.goals, id) : '';
         
         let factionDetails = '';
-        if (dataSrc.factionScope) factionDetails += `<div><span class="font-bold text-stone-900 block">Scope / Scale</span> ${dataSrc.factionScope}</div>`;
-        if (dataSrc.headquarters) factionDetails += `<div><span class="font-bold text-stone-900 block">Headquarters</span> ${dataSrc.headquarters}</div>`;
-        if (dataSrc.membership) factionDetails += `<div><span class="font-bold text-stone-900 block">Membership</span> ${dataSrc.membership}</div>`;
-        if (dataSrc.leadership) factionDetails += `<div><span class="font-bold text-stone-900 block">Leadership / Ruler</span> ${dataSrc.leadership}</div>`;
-        if (dataSrc.influence) factionDetails += `<div><span class="font-bold text-stone-900 block">Influence / Operations</span> ${dataSrc.influence}</div>`;
-        if (dataSrc.motto) factionDetails += `<div><span class="font-bold text-stone-900 block">Motto / Beliefs</span> ${dataSrc.motto}</div>`;
-        if (dataSrc.allies) factionDetails += `<div><span class="font-bold text-stone-900 block">Allies</span> ${dataSrc.allies}</div>`;
-        if (dataSrc.enemies) factionDetails += `<div><span class="font-bold text-stone-900 block">Enemies</span> ${dataSrc.enemies}</div>`;
+        if (dataSrc.factionScope) factionDetails += `<div><span class="font-bold text-stone-900 block">Scope / Scale</span> ${smart(dataSrc.factionScope)}</div>`;
+        if (dataSrc.headquarters) factionDetails += `<div><span class="font-bold text-stone-900 block">Headquarters</span> ${smart(dataSrc.headquarters)}</div>`;
+        if (dataSrc.membership) factionDetails += `<div><span class="font-bold text-stone-900 block">Membership</span> ${smart(dataSrc.membership)}</div>`;
+        if (dataSrc.leadership) factionDetails += `<div><span class="font-bold text-stone-900 block">Leadership / Ruler</span> ${smart(dataSrc.leadership)}</div>`;
+        if (dataSrc.influence) factionDetails += `<div><span class="font-bold text-stone-900 block">Influence / Operations</span> ${smart(dataSrc.influence)}</div>`;
+        if (dataSrc.motto) factionDetails += `<div><span class="font-bold text-stone-900 block">Motto / Beliefs</span> ${smart(dataSrc.motto)}</div>`;
+        if (dataSrc.allies) factionDetails += `<div><span class="font-bold text-stone-900 block">Allies</span> ${smart(dataSrc.allies)}</div>`;
+        if (dataSrc.enemies) factionDetails += `<div><span class="font-bold text-stone-900 block">Enemies</span> ${smart(dataSrc.enemies)}</div>`;
 
         if (factionDetails) {
             factionDetails = `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-stone-700 mb-4">${factionDetails}</div>`;
@@ -646,7 +648,7 @@ export const _openCodexModal = (entry) => {
         
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Personality Traits</label><textarea id="cx-npc-traits" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-white h-20 custom-scrollbar placeholder:italic" placeholder="Quirks, mannerisms...">${(entry.traits || '').replace(/"/g, '&quot;')}</textarea></div>
-            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Ideals</label><textarea id="cx-npc-traits" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-white h-20 custom-scrollbar placeholder:italic" placeholder="What drives them...">${(entry.ideals || '').replace(/"/g, '&quot;')}</textarea></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Ideals</label><textarea id="cx-npc-ideals" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-white h-20 custom-scrollbar placeholder:italic" placeholder="What drives them...">${(entry.ideals || '').replace(/"/g, '&quot;')}</textarea></div>
             <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Bonds</label><textarea id="cx-npc-bonds" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-white h-20 custom-scrollbar placeholder:italic" placeholder="Ties to others...">${(entry.bonds || '').replace(/"/g, '&quot;')}</textarea></div>
             <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Flaws</label><textarea id="cx-npc-flaws" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-white h-20 custom-scrollbar placeholder:italic" placeholder="Weaknesses, secrets...">${(entry.flaws || '').replace(/"/g, '&quot;')}</textarea></div>
         </div>
@@ -667,17 +669,7 @@ export const _openCodexModal = (entry) => {
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
             <div>
                 <label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Scale / Type</label>
-                <select id="cx-loc-scale" onchange="if(window.appActions.updateLocEditFields) window.appActions.updateLocEditFields();" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm font-bold">
-                    <option value="" ${!entry.locationType ? 'selected' : ''}>-- Select Scale --</option>
-                    <option value="Realm / Plane" ${entry.locationType === 'Realm / Plane' ? 'selected' : ''}>Realm / Plane</option>
-                    <option value="Continent" ${entry.locationType === 'Continent' ? 'selected' : ''}>Continent</option>
-                    <option value="Region / Province" ${entry.locationType === 'Region / Province' ? 'selected' : ''}>Region / Province</option>
-                    <option value="City / Settlement" ${entry.locationType === 'City / Settlement' ? 'selected' : ''}>City / Settlement</option>
-                    <option value="District / Neighborhood" ${entry.locationType === 'District / Neighborhood' ? 'selected' : ''}>District / Neighborhood</option>
-                    <option value="Building / Establishment" ${entry.locationType === 'Building / Establishment' ? 'selected' : ''}>Building / Establishment</option>
-                    <option value="Dungeon / Ruin" ${entry.locationType === 'Dungeon / Ruin' ? 'selected' : ''}>Dungeon / Ruin</option>
-                    <option value="Geographical Feature" ${entry.locationType === 'Geographical Feature' ? 'selected' : ''}>Geographical Feature</option>
-                </select>
+                <input type="text" id="cx-loc-scale" oninput="if(window.appActions.updateLocEditFields) window.appActions.updateLocEditFields();" value="${entry.locationType || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm font-bold" placeholder="e.g. City / Settlement, Continent...">
             </div>
             <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Region / Territory</label><input type="text" id="cx-loc-region" value="${entry.region || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm" placeholder="e.g. Sword Coast"></div>
             
