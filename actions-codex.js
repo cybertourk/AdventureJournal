@@ -430,10 +430,12 @@ export const _openCodexModal = (entry) => {
     let locationDataHTML = '';
     let factionDataHTML = '';
     let privateDataHTML = '';
+    let loreDataHTML = '';
 
     const isCharacter = type === 'PC' || type === 'NPC';
     const isLocation = type === 'Location';
     const isFaction = type === 'Faction';
+    const isLore = type === 'Lore';
     
     // Universally bind dataSrc so ALL entries (Lore, Factions, Items, etc.) can display DM Notes
     const dataSrc = linkedPC ? linkedPC : entry;
@@ -529,6 +531,30 @@ export const _openCodexModal = (entry) => {
         }
     }
 
+    if (isLore && dataSrc && dataSrc.loreSubtype && dataSrc.loreSubtype !== 'General') {
+        let loreDetails = '';
+        if (dataSrc.loreSubtype === 'Deity') {
+            if (dataSrc.alignment) loreDetails += `<div><span class="font-bold text-stone-900 block">Alignment</span> ${smart(dataSrc.alignment)}</div>`;
+            if (dataSrc.pantheon) loreDetails += `<div><span class="font-bold text-stone-900 block">Pantheon</span> ${smart(dataSrc.pantheon)}</div>`;
+            if (dataSrc.domains) loreDetails += `<div><span class="font-bold text-stone-900 block">Domains</span> ${smart(dataSrc.domains)}</div>`;
+            if (dataSrc.symbol) loreDetails += `<div><span class="font-bold text-stone-900 block">Holy Symbol</span> ${smart(dataSrc.symbol)}</div>`;
+        } else if (dataSrc.loreSubtype === 'Race') {
+            if (dataSrc.lifespan) loreDetails += `<div><span class="font-bold text-stone-900 block">Lifespan / Age</span> ${smart(dataSrc.lifespan)}</div>`;
+            if (dataSrc.sizeDesc) loreDetails += `<div><span class="font-bold text-stone-900 block">Typical Size</span> ${smart(dataSrc.sizeDesc)}</div>`;
+            if (dataSrc.speed) loreDetails += `<div><span class="font-bold text-stone-900 block">Speed</span> ${smart(dataSrc.speed)}</div>`;
+            if (dataSrc.subraces) loreDetails += `<div class="col-span-1 sm:col-span-3"><span class="font-bold text-stone-900 block">Subraces / Lineages</span> ${smart(dataSrc.subraces)}</div>`;
+        }
+
+        if (loreDetails) {
+            loreDataHTML = `
+            <div class="mb-6 bg-white border border-[#d4c5a9] p-4 rounded-sm shadow-inner text-sm">
+                <h4 class="font-bold text-blue-900 border-b border-[#d4c5a9] pb-1 mb-3"><i class="fa-solid ${dataSrc.loreSubtype === 'Deity' ? 'fa-hands-praying' : 'fa-dna'} mr-2"></i> ${dataSrc.loreSubtype} Details</h4>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-stone-700 mb-2">${loreDetails}</div>
+            </div>
+            `;
+        }
+    }
+
     // Render Private Info for Authorized Users
     if (dataSrc) {
         const canViewPrivate = isDM || isHeroOwner || (!linkedPC && isAuthor);
@@ -582,6 +608,9 @@ export const _openCodexModal = (entry) => {
     } else if (isFaction) {
         descLabel = "Faction Overview (Public)";
         descPlaceholder = "Scribe the history, reputation, and general knowledge about this faction...";
+    } else if (isLore) {
+        descLabel = "Lore & History (Public)";
+        descPlaceholder = "Scribe the history, legends, subraces, or dogma of this entry...";
     }
 
     // --- ATLAS MAP INTEGRATION ---
@@ -771,6 +800,7 @@ export const _openCodexModal = (entry) => {
                     ${charDataHTML}
                     ${locationDataHTML}
                     ${factionDataHTML}
+                    ${loreDataHTML}
                     
                     <h4 class="font-bold text-red-900 border-b border-[#d4c5a9] pb-1 mb-2">${descLabel}</h4>
                     <div class="text-stone-800 text-sm font-serif leading-relaxed">${parsedDesc}</div>
@@ -792,7 +822,7 @@ export const _openCodexModal = (entry) => {
 
                     <div class="mb-4">
                         <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Type</label>
-                        <select id="cx-modal-type" ${linkedPC ? 'disabled' : ''} onchange="document.getElementById('npc-edit-fields').classList.toggle('hidden', this.value !== 'NPC'); document.getElementById('location-edit-fields').classList.toggle('hidden', this.value !== 'Location'); document.getElementById('faction-edit-fields').classList.toggle('hidden', this.value !== 'Faction');" class="w-full ${linkedPC ? 'bg-stone-200 text-stone-500' : 'bg-white text-stone-900'} border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner font-bold">
+                        <select id="cx-modal-type" ${linkedPC ? 'disabled' : ''} onchange="document.getElementById('npc-edit-fields').classList.toggle('hidden', this.value !== 'NPC'); document.getElementById('location-edit-fields').classList.toggle('hidden', this.value !== 'Location'); document.getElementById('faction-edit-fields').classList.toggle('hidden', this.value !== 'Faction'); document.getElementById('lore-edit-fields').classList.toggle('hidden', this.value !== 'Lore');" class="w-full ${linkedPC ? 'bg-stone-200 text-stone-500' : 'bg-white text-stone-900'} border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner font-bold">
                             <option value="PC" ${type==='PC'?'selected':''}>PC</option>
                             <option value="NPC" ${type==='NPC'?'selected':''}>NPC</option>
                             <option value="Location" ${type==='Location'?'selected':''}>Location</option>
@@ -825,53 +855,54 @@ export const _openCodexModal = (entry) => {
                                 <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'underline')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Underline"><i class="fa-solid fa-underline"></i></button>
                                 <div class="w-px bg-[#d4c5a9] mx-1 shrink-0"></div>
                                 <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'h1')" class="w-6 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Heading 1">H1</button>
-                                <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'h2')" class="w-6 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Heading 2">H2</button>
-                                <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'list')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
-                                <button type="button" onclick="window.appActions.insertImagePlaceholder('cx-modal-desc')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Insert Image"><i class="fa-solid fa-image"></i></button>
-                                <div class="w-px bg-[#d4c5a9] mx-1 shrink-0"></div>
-                                <button type="button" onclick="window.appActions.defineEntryFromSelection('cx-modal-desc')" class="px-2 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-amber-700 hover:text-amber-900 hover:bg-[#d4c5a9] rounded-sm transition uppercase tracking-wider" title="Define Highlighted Text"><i class="fa-solid fa-book-medical mr-1"></i> Define</button>
-                                <button type="button" onclick="window.appActions.preventLinkFromSelection('cx-modal-desc')" class="px-2 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-500 hover:text-red-900 hover:bg-[#d4c5a9] rounded-sm transition uppercase tracking-wider" title="Prevent Auto-Linking"><i class="fa-solid fa-link-slash mr-1"></i> Unlink</button>
-                            </div>
-                        </div>
-                        <textarea id="cx-modal-desc" class="w-full h-40 bg-white border border-[#d4c5a9] text-stone-900 p-3 text-sm focus:border-red-900 outline-none resize-none rounded-sm shadow-inner custom-scrollbar" placeholder="${descPlaceholder}">${desc}</textarea>
-                    </div>
-                    
-                    ${isDM ? `
-                    <div class="mb-4 mt-4">
-                        <div class="flex justify-between items-end mb-1">
-                            <label class="block text-[10px] uppercase text-red-800 font-bold tracking-widest"><i class="fa-solid fa-eye mr-1"></i> Secret Notes (DM Only)</label>
-                            <div class="flex gap-1 bg-stone-200 p-1 rounded-sm border border-[#d4c5a9] overflow-x-auto hide-scrollbar">
-                                <button type="button" onclick="window.appActions.formatText('cx-modal-dmnotes', 'bold')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bold"><i class="fa-solid fa-bold"></i></button>
-                                <button type="button" onclick="window.appActions.formatText('cx-modal-dmnotes', 'italic')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Italic"><i class="fa-solid fa-italic"></i></button>
-                                <button type="button" onclick="window.appActions.formatText('cx-modal-dmnotes', 'underline')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Underline"><i class="fa-solid fa-underline"></i></button>
-                                <div class="w-px bg-[#d4c5a9] mx-1 shrink-0"></div>
-                                <button type="button" onclick="window.appActions.formatText('cx-modal-dmnotes', 'h1')" class="w-6 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Heading 1">H1</button>
-                                <button type="button" onclick="window.appActions.formatText('cx-modal-dmnotes', 'h2')" class="w-6 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Heading 2">H2</button>
-                                <button type="button" onclick="window.appActions.formatText('cx-modal-dmnotes', 'list')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
-                                <button type="button" onclick="window.appActions.insertImagePlaceholder('cx-modal-dmnotes')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Insert Image"><i class="fa-solid fa-image"></i></button>
-                                <div class="w-px bg-[#d4c5a9] mx-1 shrink-0"></div>
-                                <button type="button" onclick="window.appActions.defineEntryFromSelection('cx-modal-dmnotes')" class="px-2 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-amber-700 hover:text-amber-900 hover:bg-[#d4c5a9] rounded-sm transition uppercase tracking-wider" title="Define Highlighted Text"><i class="fa-solid fa-book-medical mr-1"></i> Define</button>
-                                <button type="button" onclick="window.appActions.preventLinkFromSelection('cx-modal-dmnotes')" class="px-2 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-500 hover:text-red-900 hover:bg-[#d4c5a9] rounded-sm transition uppercase tracking-wider" title="Prevent Auto-Linking"><i class="fa-solid fa-link-slash mr-1"></i> Unlink</button>
-                            </div>
-                        </div>
-                        <textarea id="cx-modal-dmnotes" class="w-full h-32 bg-stone-200 border border-[#d4c5a9] border-l-4 border-l-red-900 text-stone-900 p-3 text-sm focus:border-red-900 outline-none resize-none rounded-sm shadow-inner custom-scrollbar" placeholder="True motives, hidden stats, traps, or DM-only details... Codex names link automatically.">${(entry.dmNotes || '').replace(/"/g, '&quot;')}</textarea>
-                    </div>
-                    ` : ''}
+        <h4 class="text-[10px] font-bold text-stone-700 uppercase tracking-widest mb-3 mt-8 border-b border-stone-300 pb-1"><i class="fa-solid fa-lock mr-1"></i> Private Information</h4>
+        
+        <div class="mb-2">
+            <label class="block text-[9px] uppercase text-stone-500 font-bold mb-1"><i class="fa-solid fa-user-secret mr-1"></i> Hidden Secrets & DM Notes</label>
+            <textarea id="cx-fac-secrets" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-stone-200 border-l-4 border-l-red-900 text-stone-900 h-24 custom-scrollbar placeholder:italic" placeholder="True motives, traitors, hidden bases, or DM only details...">${(entry.secrets || '').replace(/"/g, '&quot;')}</textarea>
+        </div>
+    </div>
+    
+    <div id="lore-edit-fields" class="${type === 'Lore' ? '' : 'hidden'} mt-6 pt-6 border-t-2 border-stone-300">
+        <div class="bg-blue-900/10 border-l-4 border-blue-600 p-3 rounded-sm text-xs text-stone-800 italic mb-6">
+            <i class="fa-solid fa-circle-info text-blue-600 mr-1"></i> <strong>Lore Details:</strong> Specify if this entry is a Deity or a Race to unlock specialized tracking fields.
+        </div>
+        
+        <div class="mb-5">
+            <label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Lore Sub-Category</label>
+            <select id="cx-lore-subtype" onchange="document.getElementById('lore-deity-fields').classList.toggle('hidden', this.value !== 'Deity'); document.getElementById('lore-race-fields').classList.toggle('hidden', this.value !== 'Race');" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-blue-900 shadow-sm font-bold">
+                <option value="General" ${(!entry.loreSubtype || entry.loreSubtype === 'General') ? 'selected' : ''}>General Lore / History</option>
+                <option value="Deity" ${entry.loreSubtype === 'Deity' ? 'selected' : ''}>Deity / Religion</option>
+                <option value="Race" ${entry.loreSubtype === 'Race' ? 'selected' : ''}>Race / Species</option>
+            </select>
+        </div>
 
-                    ${extendedEditHtml}
-
-                </div>
-
-                <!-- Actions -->
-                <div id="cx-edit-actions" class="p-4 bg-stone-200 border-t border-[#d4c5a9] flex flex-wrap-reverse sm:flex-nowrap justify-between gap-3 shrink-0 ${editHidden}">
-                    ${(!isNew && canDelete) ? `<button onclick="window.appActions.deleteCodexEntry('${id}')" class="w-full sm:w-auto px-4 py-2 bg-red-900 text-white rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-red-800 transition"><i class="fa-solid fa-trash mr-1"></i> Delete</button>` : `<div class="hidden sm:block">${linkedPC ? '<span class="text-[10px] uppercase text-stone-500 font-bold"><i class="fa-solid fa-lock mr-1"></i> Core Hero Profile</span>' : ''}</div>`}
-                    <div class="flex gap-2 w-full sm:w-auto">
-                        <button onclick="${isNew ? `document.getElementById('global-popup-container').innerHTML = '';` : `document.getElementById('cx-view-mode').classList.remove('hidden'); document.getElementById('cx-edit-mode').classList.add('hidden'); document.getElementById('cx-edit-actions').classList.add('hidden');`}" class="flex-1 sm:flex-none px-4 py-2 border border-stone-400 text-stone-600 rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-stone-300 transition">Cancel</button>
-                        <button onclick="window.appActions.saveCodexEntry()" class="flex-1 sm:flex-none px-5 py-2 bg-stone-800 text-amber-50 rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-stone-700 transition">Save</button>
-                    </div>
-                </div>
+        <div id="lore-deity-fields" class="${entry.loreSubtype === 'Deity' ? '' : 'hidden'} space-y-4">
+            <h4 class="text-[10px] font-bold text-blue-900 uppercase tracking-widest mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-hands-praying mr-1"></i> Deity Information (Public)</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Alignment</label><input type="text" id="cx-deity-alignment" value="${(entry.alignment || '').replace(/"/g, '&quot;')}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-blue-900 shadow-sm" placeholder="e.g. Lawful Good"></div>
+                <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Pantheon</label><input type="text" id="cx-deity-pantheon" value="${(entry.pantheon || '').replace(/"/g, '&quot;')}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-blue-900 shadow-sm" placeholder="e.g. Faerûnian"></div>
+                <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Domains</label><input type="text" id="cx-deity-domains" value="${(entry.domains || '').replace(/"/g, '&quot;')}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-blue-900 shadow-sm" placeholder="e.g. Life, Light, Nature"></div>
+                <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Holy Symbol</label><input type="text" id="cx-deity-symbol" value="${(entry.symbol || '').replace(/"/g, '&quot;')}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-blue-900 shadow-sm" placeholder="e.g. A rising sun"></div>
             </div>
         </div>
+
+        <div id="lore-race-fields" class="${entry.loreSubtype === 'Race' ? '' : 'hidden'} space-y-4">
+            <h4 class="text-[10px] font-bold text-blue-900 uppercase tracking-widest mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-dna mr-1"></i> Race Information (Public)</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Lifespan / Age</label><input type="text" id="cx-race-lifespan" value="${(entry.lifespan || '').replace(/"/g, '&quot;')}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-blue-900 shadow-sm" placeholder="e.g. Up to 750 years"></div>
+                <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Typical Size</label><input type="text" id="cx-race-size" value="${(entry.sizeDesc || '').replace(/"/g, '&quot;')}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-blue-900 shadow-sm" placeholder="e.g. Medium (5 to 6 feet)"></div>
+                <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Speed</label><input type="text" id="cx-race-speed" value="${(entry.speed || '').replace(/"/g, '&quot;')}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-blue-900 shadow-sm" placeholder="e.g. 30 ft."></div>
+                <div class="col-span-1 sm:col-span-3"><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Subraces / Lineages</label><input type="text" id="cx-race-subraces" value="${(entry.subraces || '').replace(/"/g, '&quot;')}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-blue-900 shadow-sm" placeholder="e.g. High Elf, Wood Elf, Drow"></div>
+            </div>
+        </div>
+        
+        <h4 class="text-[10px] font-bold text-stone-700 uppercase tracking-widest mb-3 mt-8 border-b border-stone-300 pb-1"><i class="fa-solid fa-lock mr-1"></i> Private Information</h4>
+        <div class="mb-2">
+            <label class="block text-[9px] uppercase text-stone-500 font-bold mb-1"><i class="fa-solid fa-user-secret mr-1"></i> Hidden Secrets & DM Notes</label>
+            <textarea id="cx-lore-secrets" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-stone-200 border-l-4 border-l-red-900 text-stone-900 h-24 custom-scrollbar placeholder:italic" placeholder="Forgotten truths, true origin stories, or DM only details...">${(entry.secrets || '').replace(/"/g, '&quot;')}</textarea>
+        </div>
+    </div>
     `;
 
     if (!isNew && canEdit) {
@@ -979,6 +1010,23 @@ export const saveCodexEntry = async () => {
         };
     }
 
+    let loreData = {};
+    if (typeVal === 'Lore') {
+        const lSubType = document.getElementById('cx-lore-subtype')?.value || 'General';
+        loreData = { loreSubtype: lSubType, secrets: document.getElementById('cx-lore-secrets')?.value || '' };
+        if (lSubType === 'Deity') {
+            loreData.alignment = document.getElementById('cx-deity-alignment')?.value.trim() || '';
+            loreData.pantheon = document.getElementById('cx-deity-pantheon')?.value.trim() || '';
+            loreData.domains = document.getElementById('cx-deity-domains')?.value.trim() || '';
+            loreData.symbol = document.getElementById('cx-deity-symbol')?.value.trim() || '';
+        } else if (lSubType === 'Race') {
+            loreData.lifespan = document.getElementById('cx-race-lifespan')?.value.trim() || '';
+            loreData.sizeDesc = document.getElementById('cx-race-size')?.value.trim() || '';
+            loreData.speed = document.getElementById('cx-race-speed')?.value.trim() || '';
+            loreData.subraces = document.getElementById('cx-race-subraces')?.value.trim() || '';
+        }
+    }
+
     const dmNotesEl = document.getElementById('cx-modal-dmnotes');
     const dmNotesVal = dmNotesEl ? dmNotesEl.value : (existingEntry?.dmNotes || '');
 
@@ -991,10 +1039,11 @@ export const saveCodexEntry = async () => {
         image: document.getElementById('cx-modal-image').value.trim(),
         authorId: exists ? (existingEntry?.authorId || myUid) : myUid,
         visibility: existingEntry?.visibility || { mode: 'public' },
-        dmNotes: dmNotesVal,
+        dmNotes: dmNotesEl ? dmNotesEl.value : (existingEntry?.dmNotes || ''),
         ...npcData,
         ...locData,
-        ...facData
+        ...facData,
+        ...loreData
     };
 
     const newCodexArray = exists ? camp.codex.map(c => c.id === id ? newEntry : c) : [...(camp.codex || []), newEntry];
