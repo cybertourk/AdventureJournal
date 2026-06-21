@@ -3,7 +3,6 @@ import { saveCampaign, notify } from './firebase-manager.js';
 import { generateSessionMarkdown, generateAdventureMarkdown, generateCampaignMarkdown } from './markdown.js';
 import { logPlayerActivity } from './actions-campaign.js';
 
-// --- Smart Text & Codex Interactions ---
 
 // Core security helper to ensure players only link/see what they are allowed to see
 export const _canViewCodex = (id) => {
@@ -46,7 +45,6 @@ export const parseSmartText = (text, contextId = null) => {
     // --- 0. PARSE EMBEDDED IMAGES ---
     // Matches Markdown image syntax: ![Alt Text](URL)
     // Wrapped in a beautifully styled parchment container with a custom error fallback image.
-    // Direct, explicit trigger added to onclick bypassing parent propagation blocks!
     safeText = safeText.replace(/!\[(.*?)\]\((.*?)\)/gi, (match, alt, url) => {
         return `<div class="my-4 flex flex-col items-center justify-center bg-stone-100 p-2.5 border border-[#d4c5a9] rounded-sm shadow-sm max-w-full relative z-10" onclick="event.stopPropagation();">
             <img src="${url}" alt="${alt}" class="max-h-[350px] max-w-full object-contain rounded-sm shadow-md cursor-zoom-in hover:opacity-95 transition" onclick="if(window.appActions && window.appActions.openFullscreenImage){ window.appActions.openFullscreenImage(this.src); } event.stopPropagation();" onerror="this.onerror=null; this.src='https://placehold.co/600x400?text=Image+Not+Found';">
@@ -72,52 +70,34 @@ export const parseSmartText = (text, contextId = null) => {
     safeText = safeText.replace(/\b_(.*?)_\b/g, '<em class="italic text-stone-800">$1</em>');
 
     // --- 1.5. PARSE CURRENCY HIGHLIGHTING ---
-    // Finds values like "50 gp", "1,500 gold pieces", "5.5 pp", "100 silver", "50 gp x 10" etc.
+    // Finds values like "50 gp", "1,500 gold pieces", "5.5 pp", "100 silver"
     const currencyRegex = /\b((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)\s*(cp|sp|ep|gp|pp|copper|silver|electrum|gold|platinum)(?:\s+(?:pieces?|coins?))?\b(?:\s*[*x]\s*(?:\d{1,3}(?:,\d{3})+|\d+))?\b/gi;
     safeText = safeText.replace(currencyRegex, '<span class="inline-flex items-center font-bold text-amber-800 bg-amber-100/60 border border-amber-300 px-1.5 py-0.5 rounded-sm shadow-sm whitespace-nowrap mx-0.5 text-xs"><i class="fa-solid fa-coins text-amber-500 mr-1.5 drop-shadow-sm"></i>$&</span>');
 
-    // --- 2. PARSE CODEX LINKS (SAFARI COMPATIBLE, ALIAS SUPPORT & FOG OF WAR PROTECTED) ---
-    // We sort by length descending. This guarantees we match "Corval Shaedmokker" before matching just "Corval"
-    // to prevent nesting links incorrectly!
+    // --- 2. PARSE CODEX LINKS (SAFARI COMPATIBLE, ALIAS SUPPORT) ---
     const sortedCache = [...window.appData.codexCache].sort((a,b) => b.text.length - a.text.length);
 
     if (sortedCache.length > 0) {
-        // Build one massive regex pattern that matches ANY of our known aliases or full names
         const escapedNames = sortedCache.map(e => e.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
         const massiveRegex = new RegExp(`\\b(${escapedNames.join('|')})\\b`, 'gi');
-
-        // Track which IDs have already been linked in this block of text to prevent over-linking
         const linkedIds = new Set();
 
-        // Split the text by HTML tags to safely ONLY run our Regex replacement on plain text nodes
         let parts = safeText.split(/(<[^>]+>)/g);
         for (let i = 0; i < parts.length; i++) {
             if (parts[i].startsWith('<') && parts[i].endsWith('>')) continue;
             parts[i] = parts[i].replace(massiveRegex, (match, p1, offset, string) => {
                 const entry = sortedCache.find(e => e.text.toLowerCase() === match.toLowerCase());
-                
                 if (entry) {
-                    // PREVENT AUTO-LINKING CHECK
-                    // If the word is prefixed with a backslash '\', skip linking it entirely!
-                    // This prevents it from entering the 'linkedIds' set, forcing the auto-linker 
-                    // to find the NEXT instance of the word in the text block to link instead.
-                    if (offset > 0 && string.charAt(offset - 1) === '\\') {
-                        return match; 
-                    }
-
-                    // PREVENT SELF-LINKING: Don't link an entry to itself if we are currently viewing it
+                    if (offset > 0 && string.charAt(offset - 1) === '\\') return match; 
                     if (entry.id === contextId) return match;
-                    
-                    // PREVENT OVER-LINKING: Only link an entity once per text block
                     if (linkedIds.has(entry.id)) return match;
                     
-                    // SECURITY CHECK: Only generate a link if the current user has permission to see the entry!
                     if (_canViewCodex(entry.id)) {
                         linkedIds.add(entry.id);
                         return `<span class="codex-link" onclick="window.appActions.viewCodex('${entry.id}')">${match}</span>`;
                     }
                 }
-                return match; // If hidden or skipped, return plain unclickable text
+                return match; 
             });
         }
         safeText = parts.join('');
@@ -134,18 +114,17 @@ export const parseSmartText = (text, contextId = null) => {
     safeText = safeText.replace(/<\/li><br>/g, '</li>');
     safeText = safeText.replace(/(<hr[^>]*>)<br>/g, '$1');
 
-    // CLEANUP: Strip the escape backslash '\' used to prevent linking so it renders cleanly
     safeText = safeText.replace(/\\(?=[a-zA-Z0-9])/g, '');
 
     return safeText;
 };
+
 
 export const handleSmartInput = (textarea) => {
     window.appData.activeSmartTextarea = textarea;
     const text = textarea.value;
     const cursorPos = textarea.selectionStart;
 
-    // Extract the last 40 characters before cursor to process auto-complete
     const textBefore = text.substring(Math.max(0, cursorPos - 40), cursorPos);
     
     let bestMatches = [];
@@ -154,15 +133,12 @@ export const handleSmartInput = (textarea) => {
     const sortedCache = [...window.appData.codexCache].sort((a,b) => b.text.length - a.text.length);
 
     for (let entry of sortedCache) {
-        // SECURITY CHECK: Do not suggest hidden codex entries in the autocomplete box
         if (!_canViewCodex(entry.id)) continue;
 
         const lowerName = entry.text.toLowerCase();
-        // Check substrings from 3 chars up to the full length of the codex name
         for (let i = 3; i <= entry.text.length; i++) {
             const prefix = lowerName.substring(0, i);
             if (textBefore.toLowerCase().endsWith(prefix)) {
-                // Ensure we are matching from the start of a word to prevent spam
                 const charBeforeMatch = textBefore.charAt(textBefore.length - i - 1);
                 if (textBefore.length === i || /[ \n\t]/.test(charBeforeMatch)) {
                     if (i > matchLength) {
@@ -180,7 +156,6 @@ export const handleSmartInput = (textarea) => {
         const typedWord = textBefore.substring(textBefore.length - matchLength).toLowerCase();
         const isExactAliasMatch = window.appData.codexCache.some(c => c.text.toLowerCase() === typedWord);
         
-        // If what they typed perfectly matches an existing alias/short name (e.g. "Corval"), hide the annoying box!
         if (isExactAliasMatch) {
             document.getElementById('autocomplete-suggestions').style.display = 'none';
             return;
@@ -219,12 +194,11 @@ export const _showSuggestions = (matches, inputEl, cursor, triggerLen) => {
     });
 };
 
-// --- CREATE ENTRY FROM HIGHLIGHTED TEXT ---
+
 export const defineEntryFromSelection = async (textareaId) => {
     const textarea = document.getElementById(textareaId);
     if (!textarea) return;
 
-    // 1. Grab the text the user has highlighted BEFORE we potentially save and destroy the DOM element
     const selectedText = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd).trim();
     
     if (!selectedText) {
@@ -232,7 +206,6 @@ export const defineEntryFromSelection = async (textareaId) => {
         return;
     }
 
-    // 2. Auto-save mechanisms for Modals that share the global-popup-container to prevent data loss
     if (textareaId === 'cx-modal-desc' || textareaId === 'cx-modal-dmnotes') {
         const nameInput = document.getElementById('cx-modal-name');
         if (!nameInput || !nameInput.value.trim()) {
@@ -258,15 +231,12 @@ export const defineEntryFromSelection = async (textareaId) => {
         await window.appActions.saveCalendarNote();
     }
     else if (textareaId === 'ue-textarea') {
-        // Synchronously dump the Universal Editor contents back to the underlying form
         window.appActions.saveUniversalEditor();
     }
 
-    // 3. Open a fresh Codex Modal, prefilling the name! 
     window.appActions._openCodexModal({ isNew: true, name: selectedText });
 };
 
-// --- PREVENT AUTO-LINKING FROM SELECTION ---
 export const preventLinkFromSelection = async (textareaId) => {
     const textarea = document.getElementById(textareaId);
     if (!textarea) return;
@@ -284,10 +254,8 @@ export const preventLinkFromSelection = async (textareaId) => {
     const before = text.substring(0, start);
     const after = text.substring(end);
 
-    // Inject a backslash immediately before the highlighted word
     textarea.value = before + '\\' + text.substring(start, end) + after;
 
-    // Auto-save mechanisms to ensure data isn't lost if they exit
     if (textareaId === 'cx-modal-desc' || textareaId === 'cx-modal-dmnotes') {
         await window.appActions.saveCodexEntry();
     } 
@@ -303,7 +271,6 @@ export const preventLinkFromSelection = async (textareaId) => {
         textarea.dispatchEvent(new Event('input'));
     }
 
-    // Restore selection focus
     textarea.focus();
     textarea.setSelectionRange(start, end + 1); 
 };
@@ -318,7 +285,7 @@ export const insertImagePlaceholder = (textareaId) => {
     const selectedText = text.substring(start, end).trim() || "Image Description";
 
     const imageUrl = prompt("Enter the direct image URL:", "https://");
-    if (imageUrl === null) return; // Cancelled
+    if (imageUrl === null) return; 
     
     const markdownImage = `![${selectedText}](${imageUrl || 'https://example.com/image.jpg'})`;
 
@@ -326,13 +293,12 @@ export const insertImagePlaceholder = (textareaId) => {
     const after = text.substring(end);
 
     textarea.value = before + markdownImage + after;
-
-    // Trigger input event to let autosave or state tracking fire
     textarea.dispatchEvent(new Event('input'));
     
     textarea.focus();
     textarea.setSelectionRange(start + 2, start + 2 + selectedText.length);
 };
+
 
 export const updateLocEditFields = () => {
     const scale = document.getElementById('cx-loc-scale')?.value;
@@ -353,8 +319,20 @@ export const updateLocEditFields = () => {
     if (def) def.style.display = hideDef ? 'none' : 'block';
 };
 
+// NEW: Helper for toggling Lore sub-categories (Deities & Races)
+export const updateLoreEditFields = () => {
+    const subtype = document.getElementById('cx-lore-subtype')?.value;
+    if (!subtype) return;
+
+    const deityFields = document.getElementById('lore-deity-fields');
+    const raceFields = document.getElementById('lore-race-fields');
+
+    if (deityFields) deityFields.classList.toggle('hidden', subtype !== 'deity');
+    if (raceFields) raceFields.classList.toggle('hidden', subtype !== 'race');
+};
+
+
 export const viewCodex = (id) => {
-    // SECURITY CHECK: Final hard block if someone explicitly triggers viewCodex on a hidden ID
     if (!_canViewCodex(id)) {
         notify("The contents of this entry are sealed.", "error");
         return;
@@ -364,7 +342,6 @@ export const viewCodex = (id) => {
     const camp = window.appData.activeCampaign;
     let entry = (camp?.codex || []).find(c => c.id === id);
 
-    // Fallback for Legacy PCs that don't have a generated codex entry yet
     if (!entry && camp?.playerCharacters?.some(p => p.id === id)) {
         const pc = camp.playerCharacters.find(p => p.id === id);
         
@@ -405,14 +382,13 @@ export const _openCodexModal = (entry) => {
     const tags = entry.tags ? entry.tags.join(', ') : "";
     const image = entry.image || "";
 
-    // Check editing permissions
     const isDM = camp._isDM;
     const myUid = window.appData.currentUserUid;
     const linkedPC = camp.playerCharacters?.find(p => p.id === id);
     const isHeroOwner = linkedPC && linkedPC.playerId === myUid;
     const isAuthor = entry.authorId === myUid;
     const canEdit = isDM || isHeroOwner || isAuthor || isNew;
-    const canDelete = (isDM || isAuthor) && !linkedPC; // Core Hero profiles can only be deleted via the PC manager
+    const canDelete = (isDM || isAuthor) && !linkedPC; 
 
     const viewHidden = isNew ? "hidden" : "";
     const editHidden = isNew ? "" : "hidden";
@@ -425,23 +401,21 @@ export const _openCodexModal = (entry) => {
     const resolvedImage = image || (linkedPC ? linkedPC.image : "");
     const imgHTML = resolvedImage ? `<div class="mb-5 w-full h-48 sm:h-64 bg-stone-900 border border-[#d4c5a9] rounded-sm overflow-hidden shadow-inner"><img src="${resolvedImage}" class="w-full h-full object-contain object-top" alt="${name}" onerror="this.style.display='none'"></div>` : '';
 
-    // --- DYNAMIC HERO, NPC & LOCATION INJECTION (Unifies Public & Private Knowledge) ---
+    // --- DYNAMIC DATA INJECTION ---
     let charDataHTML = '';
     let locationDataHTML = '';
     let factionDataHTML = '';
-    let privateDataHTML = '';
     let loreDataHTML = '';
+    let privateDataHTML = '';
 
     const isCharacter = type === 'PC' || type === 'NPC';
     const isLocation = type === 'Location';
     const isFaction = type === 'Faction';
     const isLore = type === 'Lore';
     
-    // Universally bind dataSrc so ALL entries (Lore, Factions, Items, etc.) can display DM Notes
     const dataSrc = linkedPC ? linkedPC : entry;
 
-    // --- UNIVERSAL SMART TEXT HELPER ---
-    // This allows clicking connected codex links generated inside small metadata fields!
+    // UNIVERSAL SMART TEXT HELPER: Parses every field so internal references auto-link perfectly!
     const smart = (txt, fallback = '') => txt ? window.appActions.parseSmartText(String(txt), id) : fallback;
 
     if (isCharacter && dataSrc) {
@@ -531,31 +505,34 @@ export const _openCodexModal = (entry) => {
         }
     }
 
-    if (isLore && dataSrc && dataSrc.loreSubtype && dataSrc.loreSubtype !== 'General') {
+    // NEW: Lore Sub-Category Rendering (Deity & Race)
+    if (isLore && dataSrc) {
         let loreDetails = '';
-        if (dataSrc.loreSubtype === 'Deity') {
+        
+        if (dataSrc.loreSubtype === 'deity') {
             if (dataSrc.alignment) loreDetails += `<div><span class="font-bold text-stone-900 block">Alignment</span> ${smart(dataSrc.alignment)}</div>`;
             if (dataSrc.pantheon) loreDetails += `<div><span class="font-bold text-stone-900 block">Pantheon</span> ${smart(dataSrc.pantheon)}</div>`;
             if (dataSrc.domains) loreDetails += `<div><span class="font-bold text-stone-900 block">Domains</span> ${smart(dataSrc.domains)}</div>`;
-            if (dataSrc.symbol) loreDetails += `<div><span class="font-bold text-stone-900 block">Holy Symbol</span> ${smart(dataSrc.symbol)}</div>`;
-        } else if (dataSrc.loreSubtype === 'Race') {
+            if (dataSrc.holySymbol) loreDetails += `<div><span class="font-bold text-stone-900 block">Holy Symbol</span> ${smart(dataSrc.holySymbol)}</div>`;
+        } else if (dataSrc.loreSubtype === 'race') {
             if (dataSrc.lifespan) loreDetails += `<div><span class="font-bold text-stone-900 block">Lifespan / Age</span> ${smart(dataSrc.lifespan)}</div>`;
-            if (dataSrc.sizeDesc) loreDetails += `<div><span class="font-bold text-stone-900 block">Typical Size</span> ${smart(dataSrc.sizeDesc)}</div>`;
+            if (dataSrc.typicalSize) loreDetails += `<div><span class="font-bold text-stone-900 block">Typical Size</span> ${smart(dataSrc.typicalSize)}</div>`;
             if (dataSrc.speed) loreDetails += `<div><span class="font-bold text-stone-900 block">Speed</span> ${smart(dataSrc.speed)}</div>`;
-            if (dataSrc.subraces) loreDetails += `<div class="col-span-1 sm:col-span-3"><span class="font-bold text-stone-900 block">Subraces / Lineages</span> ${smart(dataSrc.subraces)}</div>`;
+            if (dataSrc.subraces) loreDetails += `<div class="col-span-1 sm:col-span-2"><span class="font-bold text-stone-900 block">Subraces / Lineages</span> ${smart(dataSrc.subraces)}</div>`;
         }
 
         if (loreDetails) {
+            const iconName = dataSrc.loreSubtype === 'deity' ? 'fa-hands-praying' : 'fa-dna';
+            const blockTitle = dataSrc.loreSubtype === 'deity' ? 'Divine Details' : 'Racial Traits';
             loreDataHTML = `
             <div class="mb-6 bg-white border border-[#d4c5a9] p-4 rounded-sm shadow-inner text-sm">
-                <h4 class="font-bold text-blue-900 border-b border-[#d4c5a9] pb-1 mb-3"><i class="fa-solid ${dataSrc.loreSubtype === 'Deity' ? 'fa-hands-praying' : 'fa-dna'} mr-2"></i> ${dataSrc.loreSubtype} Details</h4>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-stone-700 mb-2">${loreDetails}</div>
+                <h4 class="font-bold text-blue-900 border-b border-[#d4c5a9] pb-1 mb-3"><i class="fa-solid ${iconName} mr-1"></i> ${blockTitle}</h4>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-stone-700">${loreDetails}</div>
             </div>
             `;
         }
     }
 
-    // Render Private Info for Authorized Users
     if (dataSrc) {
         const canViewPrivate = isDM || isHeroOwner || (!linkedPC && isAuthor);
         
@@ -566,7 +543,6 @@ export const _openCodexModal = (entry) => {
                     <div class="text-sm text-stone-700 font-serif leading-relaxed">${window.appActions.parseSmartText(content, id)}</div>
                 </div>` : '';
             
-            // Check if there is ANY private data to show
             const hasPrivateData = dataSrc.backstory || dataSrc.traits || dataSrc.ideals || dataSrc.bonds || dataSrc.flaws || dataSrc.organizations || dataSrc.allies || dataSrc.enemies || dataSrc.dmNotes || dataSrc.secrets;
 
             if (hasPrivateData) {
@@ -610,10 +586,9 @@ export const _openCodexModal = (entry) => {
         descPlaceholder = "Scribe the history, reputation, and general knowledge about this faction...";
     } else if (isLore) {
         descLabel = "Lore & History (Public)";
-        descPlaceholder = "Scribe the history, legends, subraces, or dogma of this entry...";
+        descPlaceholder = "Scribe the history, myths, and known lore...";
     }
 
-    // --- ATLAS MAP INTEGRATION ---
     let mapBtnHtml = '';
     const linkedPin = camp.atlasPins?.find(p => p.codexId === id);
     const linkedRoute = camp.atlasRoutes?.find(r => r.codexId === id);
@@ -625,8 +600,9 @@ export const _openCodexModal = (entry) => {
         `;
     }
 
-    // --- SUPPLEMENTARY EDIT FIELDS INJECTION ---
+
     const extendedEditHtml = `
+    <!-- NPC FIELDS -->
     <div id="npc-edit-fields" class="${type === 'NPC' && !linkedPC ? '' : 'hidden'} mt-6 pt-6 border-t-2 border-stone-300">
         <div class="bg-blue-900/10 border-l-4 border-blue-600 p-3 rounded-sm text-xs text-stone-800 italic mb-6">
             <i class="fa-solid fa-circle-info text-blue-600 mr-1"></i> <strong>NPC Details:</strong> Characteristics and Appearance are Public. Backstory and Traits remain Private (visible to the author and DM).
@@ -689,6 +665,7 @@ export const _openCodexModal = (entry) => {
         </div>
     </div>
     
+    <!-- LOCATION FIELDS -->
     <div id="location-edit-fields" class="${type === 'Location' ? '' : 'hidden'} mt-6 pt-6 border-t-2 border-stone-300">
         <div class="bg-emerald-900/10 border-l-4 border-emerald-600 p-3 rounded-sm text-xs text-stone-800 italic mb-6">
             <i class="fa-solid fa-circle-info text-emerald-600 mr-1"></i> <strong>Location Details:</strong> Region, demographics, and points of interest are Public. Secrets remain Private (visible to the author and DM).
@@ -729,6 +706,7 @@ export const _openCodexModal = (entry) => {
         </div>
     </div>
     
+    <!-- FACTION FIELDS -->
     <div id="faction-edit-fields" class="${type === 'Faction' ? '' : 'hidden'} mt-6 pt-6 border-t-2 border-stone-300">
         <div class="bg-purple-900/10 border-l-4 border-purple-600 p-3 rounded-sm text-xs text-stone-800 italic mb-6">
             <i class="fa-solid fa-circle-info text-purple-600 mr-1"></i> <strong>Faction Details:</strong> Scope, headquarters, leadership, and goals are Public. Secrets remain Private (visible to the author and DM).
@@ -767,14 +745,60 @@ export const _openCodexModal = (entry) => {
             <textarea id="cx-fac-secrets" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-stone-200 border-l-4 border-l-red-900 text-stone-900 h-24 custom-scrollbar placeholder:italic" placeholder="True motives, traitors, hidden bases, or DM only details...">${(entry.secrets || '').replace(/"/g, '&quot;')}</textarea>
         </div>
     </div>
+    
+    <!-- LORE FIELDS (NEW) -->
+    <div id="lore-edit-fields" class="${type === 'Lore' ? '' : 'hidden'} mt-6 pt-6 border-t-2 border-stone-300">
+        <div class="bg-blue-900/10 border-l-4 border-blue-600 p-3 rounded-sm text-xs text-stone-800 italic mb-6">
+            <i class="fa-solid fa-circle-info text-blue-600 mr-1"></i> <strong>Lore Details:</strong> Specify if this entry is a Deity or a Race to unlock specialized tracking fields.
+        </div>
+
+        <div class="mb-5">
+            <label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Lore Sub-Category</label>
+            <select id="cx-lore-subtype" onchange="if(window.appActions.updateLoreEditFields) window.appActions.updateLoreEditFields();" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs font-bold text-stone-900 outline-none focus:border-blue-900 shadow-inner bg-white">
+                <option value="general" ${entry.loreSubtype === 'general' || !entry.loreSubtype ? 'selected' : ''}>General Lore / History</option>
+                <option value="deity" ${entry.loreSubtype === 'deity' ? 'selected' : ''}>Deity / Religion</option>
+                <option value="race" ${entry.loreSubtype === 'race' ? 'selected' : ''}>Race / Lineage</option>
+            </select>
+        </div>
+
+        <!-- Deity Specific Edit Fields -->
+        <div id="lore-deity-fields" class="${entry.loreSubtype === 'deity' ? '' : 'hidden'}">
+            <h4 class="text-[10px] font-bold text-blue-900 uppercase tracking-widest mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-hands-praying mr-1"></i> Divine Details (Public)</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+                <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Alignment</label><input type="text" id="cx-deity-alignment" value="${entry.alignment || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-blue-900 shadow-sm" placeholder="e.g. Lawful Good"></div>
+                <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Pantheon</label><input type="text" id="cx-deity-pantheon" value="${entry.pantheon || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-blue-900 shadow-sm" placeholder="e.g. Faerûnian"></div>
+                <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Domains</label><input type="text" id="cx-deity-domains" value="${entry.domains || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-blue-900 shadow-sm" placeholder="e.g. Life, Light"></div>
+                <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Holy Symbol</label><input type="text" id="cx-deity-symbol" value="${entry.holySymbol || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-blue-900 shadow-sm" placeholder="e.g. A rising sun"></div>
+            </div>
+        </div>
+
+        <!-- Race Specific Edit Fields -->
+        <div id="lore-race-fields" class="${entry.loreSubtype === 'race' ? '' : 'hidden'}">
+            <h4 class="text-[10px] font-bold text-blue-900 uppercase tracking-widest mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-dna mr-1"></i> Racial Traits (Public)</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+                <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Lifespan / Age</label><input type="text" id="cx-race-lifespan" value="${entry.lifespan || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-blue-900 shadow-sm" placeholder="e.g. Up to 750 years"></div>
+                <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Typical Size</label><input type="text" id="cx-race-size" value="${entry.typicalSize || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-blue-900 shadow-sm" placeholder="e.g. Medium (5 to 6 feet)"></div>
+                <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Speed</label><input type="text" id="cx-race-speed" value="${entry.speed || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-blue-900 shadow-sm" placeholder="e.g. 30 ft."></div>
+                <div class="col-span-1 sm:col-span-2"><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Subraces / Lineages</label><input type="text" id="cx-race-subraces" value="${entry.subraces || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-blue-900 shadow-sm" placeholder="e.g. High Elf, Wood Elf"></div>
+            </div>
+        </div>
+        
+        <h4 class="text-[10px] font-bold text-stone-700 uppercase tracking-widest mb-3 mt-8 border-b border-stone-300 pb-1"><i class="fa-solid fa-lock mr-1"></i> Private Information</h4>
+        
+        <div class="mb-2">
+            <label class="block text-[9px] uppercase text-stone-500 font-bold mb-1"><i class="fa-solid fa-user-secret mr-1"></i> Hidden Secrets & DM Notes</label>
+            <textarea id="cx-lore-secrets" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-stone-200 border-l-4 border-l-red-900 text-stone-900 h-24 custom-scrollbar placeholder:italic" placeholder="Forgotten truths, true origin stories, or DM only details...">${(entry.secrets || '').replace(/"/g, '&quot;')}</textarea>
+        </div>
+    </div>
     `;
+
 
     container.innerHTML = `
         <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[17000] backdrop-blur-sm animate-in">
             <div class="bg-[#f4ebd8] rounded-sm shadow-2xl w-full max-w-2xl border border-[#d4c5a9] overflow-hidden flex flex-col max-h-[90vh]">
                 
                 <!-- Header -->
-                <div class="bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-[#292524] p-4 flex justify-between items-center border-b-2 border-red-900 shadow-md">
+                <div class="bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] bg-[#292524] p-4 flex justify-between items-center border-b-2 border-red-900 shadow-md shrink-0">
                     <div class="flex items-center gap-3">
                         <i class="fa-solid fa-book-journal-whills text-amber-500 text-xl"></i>
                         <div>
@@ -822,7 +846,12 @@ export const _openCodexModal = (entry) => {
 
                     <div class="mb-4">
                         <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Type</label>
-                        <select id="cx-modal-type" ${linkedPC ? 'disabled' : ''} onchange="document.getElementById('npc-edit-fields').classList.toggle('hidden', this.value !== 'NPC'); document.getElementById('location-edit-fields').classList.toggle('hidden', this.value !== 'Location'); document.getElementById('faction-edit-fields').classList.toggle('hidden', this.value !== 'Faction'); document.getElementById('lore-edit-fields').classList.toggle('hidden', this.value !== 'Lore');" class="w-full ${linkedPC ? 'bg-stone-200 text-stone-500' : 'bg-white text-stone-900'} border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner font-bold">
+                        <select id="cx-modal-type" ${linkedPC ? 'disabled' : ''} onchange="
+                            document.getElementById('npc-edit-fields').classList.toggle('hidden', this.value !== 'NPC'); 
+                            document.getElementById('location-edit-fields').classList.toggle('hidden', this.value !== 'Location'); 
+                            document.getElementById('faction-edit-fields').classList.toggle('hidden', this.value !== 'Faction');
+                            document.getElementById('lore-edit-fields').classList.toggle('hidden', this.value !== 'Lore');
+                            " class="w-full ${linkedPC ? 'bg-stone-200 text-stone-500' : 'bg-white text-stone-900'} border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner font-bold">
                             <option value="PC" ${type==='PC'?'selected':''}>PC</option>
                             <option value="NPC" ${type==='NPC'?'selected':''}>NPC</option>
                             <option value="Location" ${type==='Location'?'selected':''}>Location</option>
@@ -846,6 +875,7 @@ export const _openCodexModal = (entry) => {
                         <input type="text" id="cx-modal-image" value="${image}" ${linkedPC ? 'readonly disabled title="Edit this hero\'s image in the PC Manager"' : ''} class="w-full ${linkedPC ? 'bg-stone-200 text-stone-500' : 'bg-white text-stone-900 focus:border-red-900'} border border-[#d4c5a9] p-2 text-xs outline-none rounded-sm shadow-inner font-bold" placeholder="https://example.com/portrait.jpg">
                     </div>
 
+                    <!-- REPAIRED UI BUG: Main Description Toolbar & Textarea -->
                     <div class="mb-4">
                         <div class="flex justify-between items-end mb-1">
                             <label class="block text-[10px] uppercase text-stone-500 font-bold tracking-widest">${descLabel}</label>
@@ -855,54 +885,54 @@ export const _openCodexModal = (entry) => {
                                 <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'underline')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Underline"><i class="fa-solid fa-underline"></i></button>
                                 <div class="w-px bg-[#d4c5a9] mx-1 shrink-0"></div>
                                 <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'h1')" class="w-6 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Heading 1">H1</button>
-        <h4 class="text-[10px] font-bold text-stone-700 uppercase tracking-widest mb-3 mt-8 border-b border-stone-300 pb-1"><i class="fa-solid fa-lock mr-1"></i> Private Information</h4>
-        
-        <div class="mb-2">
-            <label class="block text-[9px] uppercase text-stone-500 font-bold mb-1"><i class="fa-solid fa-user-secret mr-1"></i> Hidden Secrets & DM Notes</label>
-            <textarea id="cx-fac-secrets" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-stone-200 border-l-4 border-l-red-900 text-stone-900 h-24 custom-scrollbar placeholder:italic" placeholder="True motives, traitors, hidden bases, or DM only details...">${(entry.secrets || '').replace(/"/g, '&quot;')}</textarea>
-        </div>
-    </div>
-    
-    <div id="lore-edit-fields" class="${type === 'Lore' ? '' : 'hidden'} mt-6 pt-6 border-t-2 border-stone-300">
-        <div class="bg-blue-900/10 border-l-4 border-blue-600 p-3 rounded-sm text-xs text-stone-800 italic mb-6">
-            <i class="fa-solid fa-circle-info text-blue-600 mr-1"></i> <strong>Lore Details:</strong> Specify if this entry is a Deity or a Race to unlock specialized tracking fields.
-        </div>
-        
-        <div class="mb-5">
-            <label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Lore Sub-Category</label>
-            <select id="cx-lore-subtype" onchange="document.getElementById('lore-deity-fields').classList.toggle('hidden', this.value !== 'Deity'); document.getElementById('lore-race-fields').classList.toggle('hidden', this.value !== 'Race');" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-blue-900 shadow-sm font-bold">
-                <option value="General" ${(!entry.loreSubtype || entry.loreSubtype === 'General') ? 'selected' : ''}>General Lore / History</option>
-                <option value="Deity" ${entry.loreSubtype === 'Deity' ? 'selected' : ''}>Deity / Religion</option>
-                <option value="Race" ${entry.loreSubtype === 'Race' ? 'selected' : ''}>Race / Species</option>
-            </select>
-        </div>
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'h2')" class="w-6 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Heading 2">H2</button>
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-desc', 'list')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
+                                <button type="button" onclick="window.appActions.insertImagePlaceholder('cx-modal-desc')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Insert Image"><i class="fa-solid fa-image"></i></button>
+                                <div class="w-px bg-[#d4c5a9] mx-1 shrink-0"></div>
+                                <button type="button" onclick="window.appActions.defineEntryFromSelection('cx-modal-desc')" class="px-2 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-amber-700 hover:text-amber-900 hover:bg-[#d4c5a9] rounded-sm transition uppercase tracking-wider" title="Define Highlighted Text"><i class="fa-solid fa-book-medical mr-1"></i> Define</button>
+                                <button type="button" onclick="window.appActions.preventLinkFromSelection('cx-modal-desc')" class="px-2 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-500 hover:text-red-900 hover:bg-[#d4c5a9] rounded-sm transition uppercase tracking-wider" title="Prevent Auto-Linking"><i class="fa-solid fa-link-slash mr-1"></i> Unlink</button>
+                            </div>
+                        </div>
+                        <textarea id="cx-modal-desc" class="w-full h-40 bg-white border border-[#d4c5a9] text-stone-900 p-3 text-sm focus:border-red-900 outline-none resize-none rounded-sm shadow-inner custom-scrollbar" placeholder="${descPlaceholder}">${desc}</textarea>
+                    </div>
+                    
+                    <!-- DM Notes Section (Restored properly) -->
+                    ${isDM ? `
+                    <div class="mb-4 mt-4">
+                        <div class="flex justify-between items-end mb-1">
+                            <label class="block text-[10px] uppercase text-red-800 font-bold tracking-widest"><i class="fa-solid fa-eye mr-1"></i> Secret Notes (DM Only)</label>
+                            <div class="flex gap-1 bg-stone-200 p-1 rounded-sm border border-[#d4c5a9] overflow-x-auto hide-scrollbar">
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-dmnotes', 'bold')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bold"><i class="fa-solid fa-bold"></i></button>
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-dmnotes', 'italic')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Italic"><i class="fa-solid fa-italic"></i></button>
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-dmnotes', 'underline')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Underline"><i class="fa-solid fa-underline"></i></button>
+                                <div class="w-px bg-[#d4c5a9] mx-1 shrink-0"></div>
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-dmnotes', 'h1')" class="w-6 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Heading 1">H1</button>
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-dmnotes', 'h2')" class="w-6 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Heading 2">H2</button>
+                                <button type="button" onclick="window.appActions.formatText('cx-modal-dmnotes', 'list')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
+                                <button type="button" onclick="window.appActions.insertImagePlaceholder('cx-modal-dmnotes')" class="w-6 h-6 flex shrink-0 items-center justify-center text-xs text-stone-600 hover:text-stone-900 hover:bg-[#d4c5a9] rounded-sm transition" title="Insert Image"><i class="fa-solid fa-image"></i></button>
+                                <div class="w-px bg-[#d4c5a9] mx-1 shrink-0"></div>
+                                <button type="button" onclick="window.appActions.defineEntryFromSelection('cx-modal-dmnotes')" class="px-2 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-amber-700 hover:text-amber-900 hover:bg-[#d4c5a9] rounded-sm transition uppercase tracking-wider" title="Define Highlighted Text"><i class="fa-solid fa-book-medical mr-1"></i> Define</button>
+                                <button type="button" onclick="window.appActions.preventLinkFromSelection('cx-modal-dmnotes')" class="px-2 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-500 hover:text-red-900 hover:bg-[#d4c5a9] rounded-sm transition uppercase tracking-wider" title="Prevent Auto-Linking"><i class="fa-solid fa-link-slash mr-1"></i> Unlink</button>
+                            </div>
+                        </div>
+                        <textarea id="cx-modal-dmnotes" class="w-full h-32 bg-stone-200 border border-[#d4c5a9] border-l-4 border-l-red-900 text-stone-900 p-3 text-sm focus:border-red-900 outline-none resize-none rounded-sm shadow-inner custom-scrollbar" placeholder="True motives, hidden stats, traps, or DM-only details... Codex names link automatically.">${(entry.dmNotes || '').replace(/"/g, '&quot;')}</textarea>
+                    </div>
+                    ` : ''}
 
-        <div id="lore-deity-fields" class="${entry.loreSubtype === 'Deity' ? '' : 'hidden'} space-y-4">
-            <h4 class="text-[10px] font-bold text-blue-900 uppercase tracking-widest mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-hands-praying mr-1"></i> Deity Information (Public)</h4>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Alignment</label><input type="text" id="cx-deity-alignment" value="${(entry.alignment || '').replace(/"/g, '&quot;')}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-blue-900 shadow-sm" placeholder="e.g. Lawful Good"></div>
-                <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Pantheon</label><input type="text" id="cx-deity-pantheon" value="${(entry.pantheon || '').replace(/"/g, '&quot;')}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-blue-900 shadow-sm" placeholder="e.g. Faerûnian"></div>
-                <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Domains</label><input type="text" id="cx-deity-domains" value="${(entry.domains || '').replace(/"/g, '&quot;')}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-blue-900 shadow-sm" placeholder="e.g. Life, Light, Nature"></div>
-                <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Holy Symbol</label><input type="text" id="cx-deity-symbol" value="${(entry.symbol || '').replace(/"/g, '&quot;')}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-blue-900 shadow-sm" placeholder="e.g. A rising sun"></div>
+                    ${extendedEditHtml}
+
+                </div>
+
+                <!-- Actions -->
+                <div id="cx-edit-actions" class="p-4 bg-stone-200 border-t border-[#d4c5a9] flex flex-wrap-reverse sm:flex-nowrap justify-between gap-3 shrink-0 ${editHidden}">
+                    ${(!isNew && canDelete) ? `<button onclick="window.appActions.deleteCodexEntry('${id}')" class="w-full sm:w-auto px-4 py-2 bg-red-900 text-white rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-red-800 transition"><i class="fa-solid fa-trash mr-1"></i> Delete</button>` : `<div class="hidden sm:block">${linkedPC ? '<span class="text-[10px] uppercase text-stone-500 font-bold"><i class="fa-solid fa-lock mr-1"></i> Core Hero Profile</span>' : ''}</div>`}
+                    <div class="flex gap-2 w-full sm:w-auto">
+                        <button onclick="${isNew ? `document.getElementById('global-popup-container').innerHTML = '';` : `document.getElementById('cx-view-mode').classList.remove('hidden'); document.getElementById('cx-edit-mode').classList.add('hidden'); document.getElementById('cx-edit-actions').classList.add('hidden');`}" class="flex-1 sm:flex-none px-4 py-2 border border-stone-400 text-stone-600 rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-stone-300 transition">Cancel</button>
+                        <button onclick="window.appActions.saveCodexEntry()" class="flex-1 sm:flex-none px-5 py-2 bg-stone-800 text-amber-50 rounded-sm text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-stone-700 transition">Save</button>
+                    </div>
+                </div>
             </div>
         </div>
-
-        <div id="lore-race-fields" class="${entry.loreSubtype === 'Race' ? '' : 'hidden'} space-y-4">
-            <h4 class="text-[10px] font-bold text-blue-900 uppercase tracking-widest mb-3 border-b border-[#d4c5a9] pb-1"><i class="fa-solid fa-dna mr-1"></i> Race Information (Public)</h4>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Lifespan / Age</label><input type="text" id="cx-race-lifespan" value="${(entry.lifespan || '').replace(/"/g, '&quot;')}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-blue-900 shadow-sm" placeholder="e.g. Up to 750 years"></div>
-                <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Typical Size</label><input type="text" id="cx-race-size" value="${(entry.sizeDesc || '').replace(/"/g, '&quot;')}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-blue-900 shadow-sm" placeholder="e.g. Medium (5 to 6 feet)"></div>
-                <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Speed</label><input type="text" id="cx-race-speed" value="${(entry.speed || '').replace(/"/g, '&quot;')}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-blue-900 shadow-sm" placeholder="e.g. 30 ft."></div>
-                <div class="col-span-1 sm:col-span-3"><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Subraces / Lineages</label><input type="text" id="cx-race-subraces" value="${(entry.subraces || '').replace(/"/g, '&quot;')}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-blue-900 shadow-sm" placeholder="e.g. High Elf, Wood Elf, Drow"></div>
-            </div>
-        </div>
-        
-        <h4 class="text-[10px] font-bold text-stone-700 uppercase tracking-widest mb-3 mt-8 border-b border-stone-300 pb-1"><i class="fa-solid fa-lock mr-1"></i> Private Information</h4>
-        <div class="mb-2">
-            <label class="block text-[9px] uppercase text-stone-500 font-bold mb-1"><i class="fa-solid fa-user-secret mr-1"></i> Hidden Secrets & DM Notes</label>
-            <textarea id="cx-lore-secrets" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-stone-200 border-l-4 border-l-red-900 text-stone-900 h-24 custom-scrollbar placeholder:italic" placeholder="Forgotten truths, true origin stories, or DM only details...">${(entry.secrets || '').replace(/"/g, '&quot;')}</textarea>
-        </div>
-    </div>
     `;
 
     if (!isNew && canEdit) {
@@ -912,17 +942,19 @@ export const _openCodexModal = (entry) => {
                 document.getElementById('cx-view-mode').classList.add('hidden');
                 document.getElementById('cx-edit-mode').classList.remove('hidden');
                 document.getElementById('cx-edit-actions').classList.remove('hidden');
-                // Ensure dynamic fields are synced when entering edit mode
+                
                 if (window.appActions.updateLocEditFields) window.appActions.updateLocEditFields();
+                if (window.appActions.updateLoreEditFields) window.appActions.updateLoreEditFields();
             };
         }
     }
 
-    // Force an initial update of the location fields
     setTimeout(() => {
         if (window.appActions.updateLocEditFields) window.appActions.updateLocEditFields();
+        if (window.appActions.updateLoreEditFields) window.appActions.updateLoreEditFields();
     }, 50);
 };
+
 
 export const saveCodexEntry = async () => {
     updateDerivedState();
@@ -940,7 +972,7 @@ export const saveCodexEntry = async () => {
 
     const myUid = window.appData.currentUserUid;
     const existingEntry = camp.codex?.find(c => c.id === id);
-    const exists = !!existingEntry; // Evaluates if the entry is instantiated in the database
+    const exists = !!existingEntry;
 
     let npcData = {};
     if (typeVal === 'NPC') {
@@ -984,7 +1016,6 @@ export const saveCodexEntry = async () => {
             secrets: document.getElementById('cx-loc-secrets')?.value || ''
         };
 
-        // Enforce cleanup on save so hidden fields don't retain ghost data in the database
         const hidePopGov = ['Building / Establishment', 'Dungeon / Ruin', 'Geographical Feature'].includes(scale);
         const hideEco = ['Dungeon / Ruin', 'Geographical Feature'].includes(scale);
         const hideDef = ['Geographical Feature'].includes(scale);
@@ -1009,19 +1040,23 @@ export const saveCodexEntry = async () => {
             secrets: document.getElementById('cx-fac-secrets')?.value || ''
         };
     }
-
+    
     let loreData = {};
     if (typeVal === 'Lore') {
-        const lSubType = document.getElementById('cx-lore-subtype')?.value || 'General';
-        loreData = { loreSubtype: lSubType, secrets: document.getElementById('cx-lore-secrets')?.value || '' };
-        if (lSubType === 'Deity') {
+        const loreSubtype = document.getElementById('cx-lore-subtype')?.value || 'general';
+        loreData = {
+            loreSubtype: loreSubtype,
+            secrets: document.getElementById('cx-lore-secrets')?.value || ''
+        };
+        
+        if (loreSubtype === 'deity') {
             loreData.alignment = document.getElementById('cx-deity-alignment')?.value.trim() || '';
             loreData.pantheon = document.getElementById('cx-deity-pantheon')?.value.trim() || '';
             loreData.domains = document.getElementById('cx-deity-domains')?.value.trim() || '';
-            loreData.symbol = document.getElementById('cx-deity-symbol')?.value.trim() || '';
-        } else if (lSubType === 'Race') {
+            loreData.holySymbol = document.getElementById('cx-deity-symbol')?.value.trim() || '';
+        } else if (loreSubtype === 'race') {
             loreData.lifespan = document.getElementById('cx-race-lifespan')?.value.trim() || '';
-            loreData.sizeDesc = document.getElementById('cx-race-size')?.value.trim() || '';
+            loreData.typicalSize = document.getElementById('cx-race-size')?.value.trim() || '';
             loreData.speed = document.getElementById('cx-race-speed')?.value.trim() || '';
             loreData.subraces = document.getElementById('cx-race-subraces')?.value.trim() || '';
         }
@@ -1039,7 +1074,7 @@ export const saveCodexEntry = async () => {
         image: document.getElementById('cx-modal-image').value.trim(),
         authorId: exists ? (existingEntry?.authorId || myUid) : myUid,
         visibility: existingEntry?.visibility || { mode: 'public' },
-        dmNotes: dmNotesEl ? dmNotesEl.value : (existingEntry?.dmNotes || ''),
+        dmNotes: dmNotesVal,
         ...npcData,
         ...locData,
         ...facData,
@@ -1050,7 +1085,6 @@ export const saveCodexEntry = async () => {
     
     let updatedCamp = { ...camp, codex: newCodexArray };
 
-    // Track Player Edits!
     if (!camp._isDM) {
         if (!exists) {
             updatedCamp = logPlayerActivity(updatedCamp, myUid, `added a new Codex entry for <span class="font-bold text-amber-700">${name}</span>.`, 'fa-book-medical');
@@ -1079,7 +1113,6 @@ export const deleteCodexEntry = async (id) => {
         codex: (camp.codex || []).filter(c => c.id !== id)
     };
 
-    // Track Player Edits!
     if (!camp._isDM) {
         const myUid = window.appData.currentUserUid;
         updatedCamp = logPlayerActivity(updatedCamp, myUid, `erased the Codex entry for <span class="font-bold text-amber-700">${name}</span>.`, 'fa-eraser');
@@ -1090,7 +1123,6 @@ export const deleteCodexEntry = async (id) => {
     notify("Entry destroyed.", "success");
 };
 
-// --- Journal Viewing ---
 export const openJournal = (scope, sessionId = null) => {
     updateDerivedState();
     const camp = window.appData.activeCampaign;
@@ -1167,6 +1199,7 @@ export const copyJournal = () => {
 if (typeof window !== 'undefined') {
     window.appActions = window.appActions || {};
     window.appActions.updateLocEditFields = updateLocEditFields;
+    window.appActions.updateLoreEditFields = updateLoreEditFields;
     window.appActions.preventLinkFromSelection = preventLinkFromSelection;
     window.appActions.insertImagePlaceholder = insertImagePlaceholder;
     window.appActions.defineEntryFromSelection = defineEntryFromSelection;
