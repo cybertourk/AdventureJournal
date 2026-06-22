@@ -207,6 +207,7 @@ export const _showSuggestions = (matches, inputEl, cursor, triggerLen) => {
     const rect = inputEl.getBoundingClientRect();
     suggestions.style.left = (rect.left + window.scrollX + 20) + 'px';
     suggestions.style.top = (rect.top + window.scrollY + 30) + 'px';
+    suggestions.style.zIndex = '99999';
     suggestions.classList.remove('hidden');
 
     matches.forEach(m => {
@@ -625,7 +626,7 @@ export const _openCodexModal = (entry) => {
     const linkedPin = camp.atlasPins?.find(p => p.codexId === id);
     const linkedRoute = camp.atlasRoutes?.find(r => r.codexId === id);
     if ((linkedPin || linkedRoute) && !isNew) {
-        mapBtnHtml = `
+    const mapBtnHtml = `
             <button onclick="document.getElementById('global-popup-container').innerHTML = ''; window.appActions.viewOnMap('${id}')" class="mt-4 w-full py-2 border border-amber-400 bg-amber-50 text-amber-950 hover:bg-amber-100 rounded-sm text-[10px] font-bold uppercase tracking-wider transition shadow-sm flex items-center justify-center">
                 <i class="fa-solid fa-map-location-dot mr-2"></i> View on Atlas
             </button>
@@ -666,7 +667,7 @@ export const _openCodexModal = (entry) => {
                     <button type="button" onclick="window.appActions.insertImagePlaceholder('cx-npc-appearance')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm" title="Insert Image"><i class="fa-solid fa-image"></i></button>
                 </div>
             </div>
-            <textarea id="cx-npc-appearance" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white text-stone-900 h-24 font-serif outline-none focus:border-red-900 shadow-inner custom-scrollbar placeholder:italic" placeholder="Detailed physical description, scars, clothing...">${(entry.appearance || '').replace(/"/g, '&quot;')}</textarea>
+            <textarea id="cx-npc-appearance" oninput="window.appActions.handleSmartInput(this)" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white text-stone-900 h-24 font-serif outline-none focus:border-red-900 shadow-inner custom-scrollbar placeholder:italic" placeholder="Detailed physical description, scars, clothing...">${(entry.appearance || '').replace(/"/g, '&quot;')}</textarea>
         </div>
 
         <h4 class="text-[10px] font-bold text-stone-700 uppercase tracking-widest mb-3 mt-8 border-b border-stone-300 pb-1"><i class="fa-solid fa-lock mr-1"></i> Private Information</h4>
@@ -680,14 +681,14 @@ export const _openCodexModal = (entry) => {
                     <button type="button" onclick="window.appActions.insertImagePlaceholder('cx-npc-backstory')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm" title="Insert Image"><i class="fa-solid fa-image"></i></button>
                 </div>
             </div>
-            <textarea id="cx-npc-backstory" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white text-stone-900 h-24 font-serif outline-none focus:border-red-900 shadow-inner custom-scrollbar placeholder:italic" placeholder="Origins, secrets, and history...">${(entry.backstory || '').replace(/"/g, '&quot;')}</textarea>
+            <textarea id="cx-npc-backstory" oninput="window.appActions.handleSmartInput(this)" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white text-stone-900 h-24 font-serif outline-none focus:border-red-900 shadow-inner custom-scrollbar placeholder:italic" placeholder="Origins, secrets, and history...">${(entry.backstory || '').replace(/"/g, '&quot;')}</textarea>
         </div>
         
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Personality Traits</label><textarea id="cx-npc-traits" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-white h-20 custom-scrollbar placeholder:italic" placeholder="Quirks, mannerisms...">${(entry.traits || '').replace(/"/g, '&quot;')}</textarea></div>
-            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Ideals</label><textarea id="cx-npc-ideals" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-white h-20 custom-scrollbar placeholder:italic" placeholder="What drives them...">${(entry.ideals || '').replace(/"/g, '&quot;')}</textarea></div>
-            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Bonds</label><textarea id="cx-npc-bonds" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-white h-20 custom-scrollbar placeholder:italic" placeholder="Ties to others...">${(entry.bonds || '').replace(/"/g, '&quot;')}</textarea></div>
-            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Flaws</label><textarea id="cx-npc-flaws" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-white h-20 custom-scrollbar placeholder:italic" placeholder="Weaknesses, secrets...">${(entry.flaws || '').replace(/"/g, '&quot;')}</textarea></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Personality Traits</label><textarea id="cx-npc-traits" oninput="window.appActions.handleSmartInput(this)" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-white h-20 custom-scrollbar placeholder:italic" placeholder="Quirks, mannerisms...">${(entry.traits || '').replace(/"/g, '&quot;')}</textarea></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Ideals</label><textarea id="cx-npc-ideals" oninput="window.appActions.handleSmartInput(this)" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-white h-20 custom-scrollbar placeholder:italic" placeholder="What drives them...">${(entry.ideals || '').replace(/"/g, '&quot;')}</textarea></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Bonds</label><textarea id="cx-npc-bonds" oninput="window.appActions.handleSmartInput(this)" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-white h-20 custom-scrollbar placeholder:italic" placeholder="Ties to others...">${(entry.bonds || '').replace(/"/g, '&quot;')}</textarea></div>
+            <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Flaws</label><textarea id="cx-npc-flaws" oninput="window.appActions.handleSmartInput(this)" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-white h-20 custom-scrollbar placeholder:italic" placeholder="Weaknesses, secrets...">${(entry.flaws || '').replace(/"/g, '&quot;')}</textarea></div>
         </div>
         
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
@@ -727,14 +728,14 @@ export const _openCodexModal = (entry) => {
                     <button type="button" onclick="window.appActions.insertImagePlaceholder('cx-loc-poi')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm" title="Insert Image"><i class="fa-solid fa-image"></i></button>
                 </div>
             </div>
-            <textarea id="cx-loc-poi" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white text-stone-900 h-24 font-serif outline-none focus:border-emerald-900 shadow-inner custom-scrollbar placeholder:italic" placeholder="Taverns, shops, notable structures...">${(entry.pointsOfInterest || '').replace(/"/g, '&quot;')}</textarea>
+            <textarea id="cx-loc-poi" oninput="window.appActions.handleSmartInput(this)" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white text-stone-900 h-24 font-serif outline-none focus:border-emerald-900 shadow-inner custom-scrollbar placeholder:italic" placeholder="Taverns, shops, notable structures...">${(entry.pointsOfInterest || '').replace(/"/g, '&quot;')}</textarea>
         </div>
 
         <h4 class="text-[10px] font-bold text-stone-700 uppercase tracking-widest mb-3 mt-8 border-b border-stone-300 pb-1"><i class="fa-solid fa-lock mr-1"></i> Private Information</h4>
         
         <div class="mb-2">
             <label class="block text-[9px] uppercase text-stone-500 font-bold mb-1"><i class="fa-solid fa-user-secret mr-1"></i> Hidden Secrets & DM Notes</label>
-            <textarea id="cx-loc-secrets" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-stone-200 border-l-4 border-l-red-900 text-stone-900 h-24 custom-scrollbar placeholder:italic" placeholder="Underground cults, hidden treasure, traps, or DM only details...">${(entry.secrets || '').replace(/"/g, '&quot;')}</textarea>
+            <textarea id="cx-loc-secrets" oninput="window.appActions.handleSmartInput(this)" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-stone-200 border-l-4 border-l-red-900 text-stone-900 h-24 custom-scrollbar placeholder:italic" placeholder="Underground cults, hidden treasure, traps, or DM only details...">${(entry.secrets || '').replace(/"/g, '&quot;')}</textarea>
         </div>
     </div>
     
@@ -767,14 +768,14 @@ export const _openCodexModal = (entry) => {
                     <button type="button" onclick="window.appActions.insertImagePlaceholder('cx-fac-goals')" class="w-5 h-5 flex items-center justify-center text-[10px] text-stone-600 hover:bg-[#d4c5a9] rounded-sm" title="Insert Image"><i class="fa-solid fa-image"></i></button>
                 </div>
             </div>
-            <textarea id="cx-fac-goals" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white text-stone-900 h-24 font-serif outline-none focus:border-purple-900 shadow-inner custom-scrollbar placeholder:italic" placeholder="Current objectives, public agenda...">${(entry.goals || '').replace(/"/g, '&quot;')}</textarea>
+            <textarea id="cx-fac-goals" oninput="window.appActions.handleSmartInput(this)" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm bg-white text-stone-900 h-24 font-serif outline-none focus:border-purple-900 shadow-inner custom-scrollbar placeholder:italic" placeholder="Current objectives, public agenda...">${(entry.goals || '').replace(/"/g, '&quot;')}</textarea>
         </div>
 
         <h4 class="text-[10px] font-bold text-stone-700 uppercase tracking-widest mb-3 mt-8 border-b border-stone-300 pb-1"><i class="fa-solid fa-lock mr-1"></i> Private Information</h4>
         
         <div class="mb-2">
             <label class="block text-[9px] uppercase text-stone-500 font-bold mb-1"><i class="fa-solid fa-user-secret mr-1"></i> Hidden Secrets & DM Notes</label>
-            <textarea id="cx-fac-secrets" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-stone-200 border-l-4 border-l-red-900 text-stone-900 h-24 custom-scrollbar placeholder:italic" placeholder="True motives, traitors, hidden bases, or DM only details...">${(entry.secrets || '').replace(/"/g, '&quot;')}</textarea>
+            <textarea id="cx-fac-secrets" oninput="window.appActions.handleSmartInput(this)" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-stone-200 border-l-4 border-l-red-900 text-stone-900 h-24 custom-scrollbar placeholder:italic" placeholder="True motives, traitors, hidden bases, or DM only details...">${(entry.secrets || '').replace(/"/g, '&quot;')}</textarea>
         </div>
     </div>
     
@@ -819,7 +820,7 @@ export const _openCodexModal = (entry) => {
         
         <div class="mb-2">
             <label class="block text-[9px] uppercase text-stone-500 font-bold mb-1"><i class="fa-solid fa-user-secret mr-1"></i> Hidden Secrets & DM Notes</label>
-            <textarea id="cx-lore-secrets" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-stone-200 border-l-4 border-l-red-900 text-stone-900 h-24 custom-scrollbar placeholder:italic" placeholder="Forgotten truths, true origin stories, or DM only details...">${(entry.secrets || '').replace(/"/g, '&quot;')}</textarea>
+            <textarea id="cx-lore-secrets" oninput="window.appActions.handleSmartInput(this)" class="w-full p-2 border border-[#d4c5a9] rounded-sm text-sm font-serif outline-none focus:border-red-900 shadow-inner bg-stone-200 border-l-4 border-l-red-900 text-stone-900 h-24 custom-scrollbar placeholder:italic" placeholder="Forgotten truths, true origin stories, or DM only details...">${(entry.secrets || '').replace(/"/g, '&quot;')}</textarea>
         </div>
     </div>
     `;
@@ -931,7 +932,7 @@ export const _openCodexModal = (entry) => {
                                 <button type="button" onclick="window.appActions.preventLinkFromSelection('cx-modal-desc')" class="px-2 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-500 hover:text-red-900 hover:bg-[#d4c5a9] rounded-sm transition uppercase tracking-wider" title="Prevent Auto-Linking"><i class="fa-solid fa-link-slash mr-1"></i> Unlink</button>
                             </div>
                         </div>
-                        <textarea id="cx-modal-desc" class="w-full h-40 bg-white border border-[#d4c5a9] text-stone-900 p-3 text-sm focus:border-red-900 outline-none resize-none rounded-sm shadow-inner custom-scrollbar" placeholder="${descPlaceholder}">${desc}</textarea>
+                        <textarea id="cx-modal-desc" oninput="window.appActions.handleSmartInput(this)" class="w-full h-40 bg-white border border-[#d4c5a9] text-stone-900 p-3 text-sm focus:border-red-900 outline-none resize-none rounded-sm shadow-inner custom-scrollbar" placeholder="${descPlaceholder}">${desc}</textarea>
                     </div>
                     
                     <!-- DM Notes Section (Restored properly) -->
@@ -953,7 +954,7 @@ export const _openCodexModal = (entry) => {
                                 <button type="button" onclick="window.appActions.preventLinkFromSelection('cx-modal-dmnotes')" class="px-2 h-6 flex shrink-0 items-center justify-center text-[10px] font-bold text-stone-500 hover:text-red-900 hover:bg-[#d4c5a9] rounded-sm transition uppercase tracking-wider" title="Prevent Auto-Linking"><i class="fa-solid fa-link-slash mr-1"></i> Unlink</button>
                             </div>
                         </div>
-                        <textarea id="cx-modal-dmnotes" class="w-full h-32 bg-stone-200 border border-[#d4c5a9] border-l-4 border-l-red-900 text-stone-900 p-3 text-sm focus:border-red-900 outline-none resize-none rounded-sm shadow-inner custom-scrollbar" placeholder="True motives, hidden stats, traps, or DM-only details... Codex names link automatically.">${(entry.dmNotes || '').replace(/"/g, '&quot;')}</textarea>
+                        <textarea id="cx-modal-dmnotes" oninput="window.appActions.handleSmartInput(this)" class="w-full h-32 bg-stone-200 border border-[#d4c5a9] border-l-4 border-l-red-900 text-stone-900 p-3 text-sm focus:border-red-900 outline-none resize-none rounded-sm shadow-inner custom-scrollbar" placeholder="True motives, hidden stats, traps, or DM-only details... Codex names link automatically.">${(entry.dmNotes || '').replace(/"/g, '&quot;')}</textarea>
                     </div>
                     ` : ''}
 
