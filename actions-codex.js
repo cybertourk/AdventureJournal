@@ -708,7 +708,18 @@ export const _openCodexModal = (entry) => {
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
             <div>
                 <label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Scale / Type</label>
-                <input type="text" id="cx-loc-scale" oninput="if(window.appActions.updateLocEditFields) window.appActions.updateLocEditFields();" value="${entry.locationType || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm font-bold" placeholder="e.g. City / Settlement, Continent...">
+                <select id="cx-loc-scale" onchange="if(window.appActions.updateLocEditFields) window.appActions.updateLocEditFields();" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm font-bold cursor-pointer">
+                    <option value="" ${!entry.locationType ? 'selected' : ''}>Unspecified Scale</option>
+                    <option value="Global / Overland" ${entry.locationType === 'Global / Overland' ? 'selected' : ''}>Global / Overland</option>
+                    <option value="Realm / Plane" ${entry.locationType === 'Realm / Plane' ? 'selected' : ''}>Realm / Plane</option>
+                    <option value="Continent" ${entry.locationType === 'Continent' ? 'selected' : ''}>Continent</option>
+                    <option value="Region / Province" ${entry.locationType === 'Region / Province' ? 'selected' : ''}>Region / Province</option>
+                    <option value="Geographical Feature" ${entry.locationType === 'Geographical Feature' ? 'selected' : ''}>Geographical Feature</option>
+                    <option value="City / Settlement" ${entry.locationType === 'City / Settlement' ? 'selected' : ''}>City / Settlement</option>
+                    <option value="District / Neighborhood" ${entry.locationType === 'District / Neighborhood' ? 'selected' : ''}>District / Neighborhood</option>
+                    <option value="Building / Establishment" ${entry.locationType === 'Building / Establishment' ? 'selected' : ''}>Building / Establishment</option>
+                    <option value="Dungeon / Ruin" ${entry.locationType === 'Dungeon / Ruin' ? 'selected' : ''}>Dungeon / Ruin</option>
+                </select>
             </div>
             <div><label class="block text-[9px] uppercase text-stone-500 font-bold mb-1">Region / Territory</label><input type="text" id="cx-loc-region" value="${entry.region || ''}" class="w-full p-1.5 border border-[#d4c5a9] rounded-sm text-xs bg-white text-stone-900 outline-none focus:border-emerald-900 shadow-sm" placeholder="e.g. Sword Coast"></div>
             
