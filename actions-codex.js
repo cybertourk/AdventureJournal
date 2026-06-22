@@ -34,6 +34,37 @@ export const _canViewCodex = (id) => {
     return false; // Otherwise, locked down!
 };
 
+// NEW: Dynamically merges the base cache with our custom Codex Aliases
+export const getFullCodexCache = () => {
+    const camp = window.appData.activeCampaign;
+    if (!camp) return [];
+    
+    const cacheMap = new Map();
+    
+    // 1. Load the base cache
+    if (window.appData.codexCache) {
+        window.appData.codexCache.forEach(c => {
+            cacheMap.set(c.text.toLowerCase(), c);
+        });
+    }
+    
+    // 2. Supplement with custom Aliases
+    if (camp.codex) {
+        camp.codex.forEach(entry => {
+            if (entry.aliases && Array.isArray(entry.aliases)) {
+                entry.aliases.forEach(alias => {
+                    const trimmed = alias.trim();
+                    if (trimmed && !cacheMap.has(trimmed.toLowerCase())) {
+                        cacheMap.set(trimmed.toLowerCase(), { id: entry.id, text: trimmed });
+                    }
+                });
+            }
+        });
+    }
+    
+    return Array.from(cacheMap.values()).sort((a, b) => b.text.length - a.text.length);
+};
+
 export const parseSmartText = (text, contextId = null) => {
     if (!text) return "";
     
@@ -75,7 +106,7 @@ export const parseSmartText = (text, contextId = null) => {
     safeText = safeText.replace(currencyRegex, '<span class="inline-flex items-center font-bold text-amber-800 bg-amber-100/60 border border-amber-300 px-1.5 py-0.5 rounded-sm shadow-sm whitespace-nowrap mx-0.5 text-xs"><i class="fa-solid fa-coins text-amber-500 mr-1.5 drop-shadow-sm"></i>$&</span>');
 
     // --- 2. PARSE CODEX LINKS (SAFARI COMPATIBLE, ALIAS SUPPORT) ---
-    const sortedCache = [...window.appData.codexCache].sort((a,b) => b.text.length - a.text.length);
+    const sortedCache = getFullCodexCache();
 
     if (sortedCache.length > 0) {
         const escapedNames = sortedCache.map(e => e.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
@@ -130,7 +161,7 @@ export const handleSmartInput = (textarea) => {
     let bestMatches = [];
     let matchLength = 0;
 
-    const sortedCache = [...window.appData.codexCache].sort((a,b) => b.text.length - a.text.length);
+    const sortedCache = getFullCodexCache();
 
     for (let entry of sortedCache) {
         if (!_canViewCodex(entry.id)) continue;
@@ -154,10 +185,10 @@ export const handleSmartInput = (textarea) => {
 
     if (bestMatches.length > 0 && bestMatches.length <= 5) {
         const typedWord = textBefore.substring(textBefore.length - matchLength).toLowerCase();
-        const isExactAliasMatch = window.appData.codexCache.some(c => c.text.toLowerCase() === typedWord);
+        const isExactAliasMatch = sortedCache.some(c => c.text.toLowerCase() === typedWord);
         
         if (isExactAliasMatch) {
-            document.getElementById('autocomplete-suggestions').style.display = 'none';
+            document.getElementById('autocomplete-suggestions').classList.add('hidden');
             return;
         }
 
@@ -165,7 +196,7 @@ export const handleSmartInput = (textarea) => {
         return;
     }
 
-    document.getElementById('autocomplete-suggestions').style.display = 'none';
+    document.getElementById('autocomplete-suggestions').classList.add('hidden');
 };
 
 export const _showSuggestions = (matches, inputEl, cursor, triggerLen) => {
@@ -176,11 +207,11 @@ export const _showSuggestions = (matches, inputEl, cursor, triggerLen) => {
     const rect = inputEl.getBoundingClientRect();
     suggestions.style.left = (rect.left + window.scrollX + 20) + 'px';
     suggestions.style.top = (rect.top + window.scrollY + 30) + 'px';
-    suggestions.style.display = 'block';
+    suggestions.classList.remove('hidden');
 
     matches.forEach(m => {
         const div = document.createElement('div');
-        div.className = "autocomplete-item";
+        div.className = "px-3 py-2 cursor-pointer hover:bg-amber-600 hover:text-white transition-colors border-b border-stone-700 last:border-0";
         div.innerText = m;
         div.onmousedown = (e) => {
             e.preventDefault();
@@ -188,7 +219,8 @@ export const _showSuggestions = (matches, inputEl, cursor, triggerLen) => {
             const before = text.substring(0, cursor - triggerLen);
             const after = text.substring(cursor);
             inputEl.value = before + m + after;
-            suggestions.style.display = 'none';
+            suggestions.classList.add('hidden');
+            inputEl.dispatchEvent(new Event('input'));
         };
         suggestions.appendChild(div);
     });
@@ -845,6 +877,12 @@ export const _openCodexModal = (entry) => {
                     </div>
 
                     <div class="mb-4">
+                        <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Aliases (Comma Separated)</label>
+                        <input type="text" id="cx-modal-aliases" value="${(entry.aliases || []).join(', ').replace(/"/g, '&quot;')}" class="w-full bg-white text-stone-900 focus:border-red-900 border border-[#d4c5a9] p-2 text-xs font-bold outline-none rounded-sm shadow-inner" placeholder="e.g. Dwarven, Dwarves">
+                        <p class="text-[9px] text-stone-400 mt-1 italic leading-tight">These words will also automatically link back to this entry anywhere in your journal.</p>
+                    </div>
+
+                    <div class="mb-4">
                         <label class="block text-[10px] uppercase text-stone-500 font-bold mb-1 tracking-widest">Type</label>
                         <select id="cx-modal-type" ${linkedPC ? 'disabled' : ''} onchange="
                             document.getElementById('npc-edit-fields').classList.toggle('hidden', this.value !== 'NPC'); 
@@ -1065,9 +1103,13 @@ export const saveCodexEntry = async () => {
     const dmNotesEl = document.getElementById('cx-modal-dmnotes');
     const dmNotesVal = dmNotesEl ? dmNotesEl.value : (existingEntry?.dmNotes || '');
 
+    const aliasesRaw = document.getElementById('cx-modal-aliases')?.value || '';
+    const aliases = aliasesRaw.split(',').map(a => a.trim()).filter(a => a);
+
     const newEntry = {
         id: id || generateId(),
         name: name,
+        aliases: aliases,
         type: typeVal,
         tags: document.getElementById('cx-modal-tags').value.split(',').map(t=>t.trim()).filter(t=>t),
         desc: document.getElementById('cx-modal-desc').value,
