@@ -369,7 +369,13 @@ if (typeof window !== 'undefined') {
     // The core seamless updater function!
     window.appActions.refreshTapestryUI = (forcedPmState = null) => {
         const camp = window.appData.activeCampaign;
-        const activePcId = window.appData.activePatternPcId || (camp.playerCharacters && camp.playerCharacters.find(p => p.playerId === window.appData.currentUserUid)?.id) || '';
+        let activePcId = window.appData.activePatternPcId || (camp.playerCharacters && camp.playerCharacters.find(p => p.playerId === window.appData.currentUserUid)?.id) || '';
+        
+        if (!activePcId && camp._isDM && camp.playerCharacters && camp.playerCharacters.length > 0) {
+            const firstValid = camp.playerCharacters.find(p => p.patternMagicUnlocked);
+            activePcId = firstValid ? firstValid.id : camp.playerCharacters[0].id;
+        }
+
         const activePc = camp.playerCharacters && camp.playerCharacters.find(p => p.id === activePcId);
         if (!activePc) return;
         
