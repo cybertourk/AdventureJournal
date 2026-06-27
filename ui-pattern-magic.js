@@ -28,7 +28,15 @@ export function getPatternNexusHTML(state) {
     const myUid = state.currentUserUid;
     const isDM = camp._isDM;
 
-    const activePcId = state.activePatternPcId || (camp.playerCharacters && camp.playerCharacters.find(p => p.playerId === myUid)?.id) || '';
+    let activePcId = state.activePatternPcId || (camp.playerCharacters && camp.playerCharacters.find(p => p.playerId === myUid)?.id) || '';
+    
+    // ADDED: DM Fallback Logic
+    // If no active PC is found and the user is the DM, default to the first valid character in the campaign.
+    if (!activePcId && isDM && camp.playerCharacters && camp.playerCharacters.length > 0) {
+        const firstValid = camp.playerCharacters.find(p => p.patternMagicUnlocked);
+        activePcId = firstValid ? firstValid.id : camp.playerCharacters[0].id;
+    }
+
     const activePc = camp.playerCharacters && camp.playerCharacters.find(p => p.id === activePcId);
     
     if (!activePc) {
