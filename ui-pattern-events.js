@@ -213,7 +213,11 @@ if (typeof window !== 'undefined') {
         const dmgTypes = PATTERN_CONFIG.DamageTypesByPattern[patternKey] || [];
         
         const camp = window.appData.activeCampaign;
-        let activePcId = window.appData.activePatternPcId || (camp.playerCharacters && camp.playerCharacters.find(p => p.playerId === window.appData.currentUserUid)?.id) || '';
+        
+        // ZEB: Fix for multiple character handling. We now check a broad array of potential global active ID properties
+        // before falling back to .find() which just grabs the first character created.
+        let activePcId = window.appData.activePatternPcId || window.appData.activePcId || window.appData.currentPcId || window.appData.activeCharacterId || (camp.playerCharacters && camp.playerCharacters.find(p => p.playerId === window.appData.currentUserUid)?.id) || '';
+        
         if (!activePcId && camp._isDM && camp.playerCharacters && camp.playerCharacters.length > 0) {
             const firstValid = camp.playerCharacters.find(p => p.patternMagicUnlocked);
             activePcId = firstValid ? firstValid.id : camp.playerCharacters[0].id;
@@ -369,7 +373,10 @@ if (typeof window !== 'undefined') {
     // The core seamless updater function!
     window.appActions.refreshTapestryUI = (forcedPmState = null) => {
         const camp = window.appData.activeCampaign;
-        let activePcId = window.appData.activePatternPcId || (camp.playerCharacters && camp.playerCharacters.find(p => p.playerId === window.appData.currentUserUid)?.id) || '';
+        
+        // ZEB: Fix applied here as well. This makes sure the UI updates instantly point to 
+        // the globally focused character, not just the first one owned by the user.
+        let activePcId = window.appData.activePatternPcId || window.appData.activePcId || window.appData.currentPcId || window.appData.activeCharacterId || (camp.playerCharacters && camp.playerCharacters.find(p => p.playerId === window.appData.currentUserUid)?.id) || '';
         
         if (!activePcId && camp._isDM && camp.playerCharacters && camp.playerCharacters.length > 0) {
             const firstValid = camp.playerCharacters.find(p => p.patternMagicUnlocked);
