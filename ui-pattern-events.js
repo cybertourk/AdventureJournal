@@ -214,8 +214,6 @@ if (typeof window !== 'undefined') {
         
         const camp = window.appData.activeCampaign;
         
-        // ZEB: Fix for multiple character handling. We now check a broad array of potential global active ID properties
-        // before falling back to .find() which just grabs the first character created.
         let activePcId = window.appData.activePatternPcId || window.appData.activePcId || window.appData.currentPcId || window.appData.activeCharacterId || (camp.playerCharacters && camp.playerCharacters.find(p => p.playerId === window.appData.currentUserUid)?.id) || '';
         
         if (!activePcId && camp._isDM && camp.playerCharacters && camp.playerCharacters.length > 0) {
@@ -374,8 +372,6 @@ if (typeof window !== 'undefined') {
     window.appActions.refreshTapestryUI = (forcedPmState = null) => {
         const camp = window.appData.activeCampaign;
         
-        // ZEB: Fix applied here as well. This makes sure the UI updates instantly point to 
-        // the globally focused character, not just the first one owned by the user.
         let activePcId = window.appData.activePatternPcId || window.appData.activePcId || window.appData.currentPcId || window.appData.activeCharacterId || (camp.playerCharacters && camp.playerCharacters.find(p => p.playerId === window.appData.currentUserUid)?.id) || '';
         
         if (!activePcId && camp._isDM && camp.playerCharacters && camp.playerCharacters.length > 0) {
@@ -479,7 +475,9 @@ if (typeof window !== 'undefined') {
             let isValid = primary !== null;
             if (isValid) {
                 for (const [cat, data] of Object.entries(PATTERN_CONFIG.Effects)) {
-                    if (data.mandatory && (draft.effectTiers[cat] || 0) === 0) {
+                    // FIX: Index 0 is a valid tier (Tier 1 baseline) for mandatory effects!
+                    // We only invalidate if the property is strictly undefined.
+                    if (data.mandatory && draft.effectTiers[cat] === undefined) {
                         isValid = false;
                         break;
                     }
@@ -596,7 +594,6 @@ if (typeof window !== 'undefined') {
         }
 
         // Check mandatory tiers before allowing Rote to save
-        // NOTE: Because Tier 1 is index 0, we treat 0 as valid here! We only error if it's strictly undefined or somehow negative.
         for (const [cat, data] of Object.entries(PATTERN_CONFIG.Effects)) {
             if (data.mandatory && draft.effectTiers[cat] === undefined) {
                 showNotification(`The Mandatory spell parameter '${data.name}' must be defined before scribing.`, "error");
