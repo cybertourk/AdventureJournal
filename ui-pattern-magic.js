@@ -28,7 +28,8 @@ export function getPatternNexusHTML(state) {
     const myUid = state.currentUserUid;
     const isDM = camp._isDM;
 
-    let activePcId = state.activePatternPcId || (camp.playerCharacters && camp.playerCharacters.find(p => p.playerId === myUid)?.id) || '';
+    // ZEB: Updated logic to check global active IDs before falling back to the first character owned by the user.
+    let activePcId = state.activePatternPcId || state.activePcId || state.currentPcId || state.activeCharacterId || (camp.playerCharacters && camp.playerCharacters.find(p => p.playerId === myUid)?.id) || '';
     
     // ADDED: DM Fallback Logic
     // If no active PC is found and the user is the DM, default to the first valid character in the campaign.
