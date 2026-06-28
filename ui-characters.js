@@ -1227,21 +1227,32 @@ const parseDDBCharacter = (charData) => {
 
 const fetchWithProxyCascade = async (targetUrl) => {
     const proxies = [
-        `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
-        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
-        `https://thingproxy.freeboard.io/fetch/${targetUrl}`
+        // 1. JSON Wrapper (most robust for bypassing payload size filters and strict MIME checking)
+        { url: `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`, type: 'json-wrap' },
+        // 2. Direct Raw Fetchers
+        { url: `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`, type: 'raw' },
+        { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`, type: 'raw' },
+        { url: `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`, type: 'raw' },
+        { url: `https://thingproxy.freeboard.io/fetch/${targetUrl}`, type: 'raw' }
     ];
 
     let lastError = null;
     for (const proxy of proxies) {
         try {
-            console.log(`Attempting D&D Beyond fetch via: ${proxy.split('/')[2]}`);
-            const response = await fetch(proxy, { headers: { 'Cache-Control': 'no-cache' } });
+            console.log(`Attempting D&D Beyond fetch via: ${proxy.url.split('/')[2]} (${proxy.type})`);
+            const response = await fetch(proxy.url, { headers: { 'Cache-Control': 'no-cache' } });
             
-            // NEW: Detect 403 or 404 explicitly to catch D&D Beyond private sheets!
+            // Handle payload limits gracefully
+            if (response.status === 413) {
+                console.warn(`Proxy ${proxy.url.split('/')[2]} rejected the request because the character sheet is too large (413). Trying next proxy...`);
+                throw new Error(`Payload Too Large (413) - Character sheet is too big for ${proxy.url.split('/')[2]}`);
+            }
+
+            // Detect 403 or 404 explicitly to catch D&D Beyond private sheets!
             if (response.status === 403 || response.status === 404) {
-                throw new Error("D&D Beyond denied access. Please go to D&D Beyond and ensure this character's privacy setting is set to 'Public' on the Home tab.");
+                if (proxy.type !== 'json-wrap') {
+                     throw new Error("D&D Beyond denied access. Please go to D&D Beyond and ensure this character's privacy setting is set to 'Public' on the Home tab.");
+                }
             }
 
             if (!response.ok) {
@@ -1249,10 +1260,22 @@ const fetchWithProxyCascade = async (targetUrl) => {
             }
             
             const data = await response.json();
+            
+            // Handle JSON wrapped response perfectly
+            if (proxy.type === 'json-wrap') {
+                if (data.status && (data.status.http_code === 403 || data.status.http_code === 404)) {
+                     throw new Error("D&D Beyond denied access. Please go to D&D Beyond and ensure this character's privacy setting is set to 'Public' on the Home tab.");
+                }
+                if (data.contents) {
+                    return JSON.parse(data.contents);
+                }
+                throw new Error("JSON wrapper did not contain valid contents.");
+            }
+            
             return data;
             
         } catch (err) {
-            console.warn(`Proxy failed: ${proxy.split('/')[2]}`, err);
+            console.warn(`Proxy failed: ${proxy.url.split('/')[2]}`, err.message);
             lastError = err;
             
             // If we hit our specific privacy error, bubble it up immediately and stop trying proxies!
@@ -1262,7 +1285,7 @@ const fetchWithProxyCascade = async (targetUrl) => {
         }
     }
     
-    throw new Error("All CORS proxies failed. D&D Beyond might be down, or you are being rate-limited. Please try again later.");
+    throw new Error("All CORS proxies failed. Your character sheet is likely too large (Error 413) for free proxies to handle. Try removing excessive items or homebrew from your inventory on D&D Beyond, and try again.");
 };
 
 
