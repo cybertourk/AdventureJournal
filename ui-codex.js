@@ -200,7 +200,7 @@ export function getCodexHTML(state) {
                     <div class="codex-card bg-white p-0 rounded-sm border border-[#d4c5a9] shadow-sm flex group relative overflow-hidden hover:shadow-md hover:-translate-y-[1px] transition duration-200 cursor-pointer h-20 sm:h-24" onclick="window.appActions.viewCodex('${c.id}')" data-search="${safeSearch}" data-tags="${safeTagsJSON}">
                         <div class="absolute top-0 left-0 w-1 h-full bg-stone-400 group-hover:bg-amber-500 transition-colors z-20"></div>
                         
-                        ${c.image ? `<div class="w-20 sm:w-24 h-full shrink-0 border-r border-[#d4c5a9] bg-stone-900 overflow-hidden relative z-10"><img src="${escapeHTML(c.image)}" alt="${escapeHTML(c.name)}" class="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105" onerror="this.style.display='none'"></div>` : ''}
+                        ${c.image ? `<div class="w-20 sm:w-24 h-full shrink-0 border-r border-[#d4c5a9] bg-stone-900 overflow-hidden relative z-10"><img src="${escapeHTML(c.image)}" alt="${escapeHTML(c.name)}" loading="lazy" decoding="async" referrerpolicy="no-referrer" class="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105" onerror="this.style.display='none'"></div>` : ''}
                         
                         <div class="p-3 flex-grow flex flex-col justify-center min-w-0 relative z-10">
                             <div class="flex justify-between items-start mb-1">
