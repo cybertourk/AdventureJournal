@@ -1239,6 +1239,11 @@ const fetchWithProxyCascade = async (targetUrl) => {
             console.log(`Attempting D&D Beyond fetch via: ${proxy.split('/')[2]}`);
             const response = await fetch(proxy, { headers: { 'Cache-Control': 'no-cache' } });
             
+            // NEW: Detect 403 or 404 explicitly to catch D&D Beyond private sheets!
+            if (response.status === 403 || response.status === 404) {
+                throw new Error("D&D Beyond denied access. Please go to D&D Beyond and ensure this character's privacy setting is set to 'Public' on the Home tab.");
+            }
+
             if (!response.ok) {
                 throw new Error(`HTTP Error: ${response.status}`);
             }
@@ -1249,6 +1254,11 @@ const fetchWithProxyCascade = async (targetUrl) => {
         } catch (err) {
             console.warn(`Proxy failed: ${proxy.split('/')[2]}`, err);
             lastError = err;
+            
+            // If we hit our specific privacy error, bubble it up immediately and stop trying proxies!
+            if (err.message.includes("D&D Beyond denied access")) {
+                throw err;
+            }
         }
     }
     
