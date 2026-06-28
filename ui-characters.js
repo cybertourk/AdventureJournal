@@ -900,8 +900,7 @@ export const savePCEdit = async () => {
       };
 
       // Recalculate max Essentia dynamically just in case DM changed ranks: Total Ranks * 4
-      const totalRanks = spatiaVal + wyirdVal + dynamisVal + vitarVal + formusVal + mentisVal + arcaniVal + umbrusVal + tempusVal;
-      const maxEssentia = totalRanks * 4;
+      const maxEssentia = (spatiaVal + wyirdVal + dynamisVal + vitarVal + formusVal + mentisVal + arcaniVal + umbrusVal + tempusVal) * 4;
       pmData.essentia = Math.min(pmData.essentia || 0, maxEssentia);
   }
 
@@ -1006,8 +1005,6 @@ export const savePCEdit = async () => {
           image: updatedPC.image
       });
   } else {
-      // PRESERVE CUSTOM TAGS: Get any tags currently on the codex entry, merge with the base tags, and deduplicate.
-      // This is the Safe Tag Merge logic ensuring manual adjustments to PC tags are retained safely.
       const existingTags = existingCodexEntry.tags || [];
       const mergedTags = [...new Set([...baseTags, ...existingTags])];
 
@@ -1028,12 +1025,10 @@ export const savePCEdit = async () => {
 
   let updatedCamp = { ...camp, playerCharacters: newPCs, codex: updatedCodexArray };
 
-  // Track Player Edits!
   if (!isDM) {
       updatedCamp = logPlayerActivity(updatedCamp, myUid, `updated the private journal for <span class="font-bold text-amber-700">${updatedPC.name}</span>.`, 'fa-user-pen');
   }
 
-  // Local Optimistic Update
   window.appData.activeCampaign = updatedCamp;
   reRender();
 
@@ -1099,7 +1094,7 @@ export const kickPlayer = async (uid) => {
 };
 
 // ============================================================================
-// --- D&D BEYOND IMPORT ENGINE ---
+// --- D&D BEYOND IMPORT & SYNC ENGINE ---
 // ============================================================================
 
 const parseDDBCharacter = (charData) => {
@@ -1227,9 +1222,7 @@ const parseDDBCharacter = (charData) => {
 
 const fetchWithProxyCascade = async (targetUrl) => {
     const proxies = [
-        // 1. JSON Wrapper (most robust for bypassing payload size filters and strict MIME checking)
         { url: `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`, type: 'json-wrap' },
-        // 2. Direct Raw Fetchers
         { url: `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`, type: 'raw' },
         { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`, type: 'raw' },
         { url: `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`, type: 'raw' },
@@ -1242,13 +1235,11 @@ const fetchWithProxyCascade = async (targetUrl) => {
             console.log(`Attempting D&D Beyond fetch via: ${proxy.url.split('/')[2]} (${proxy.type})`);
             const response = await fetch(proxy.url, { headers: { 'Cache-Control': 'no-cache' } });
             
-            // Handle payload limits gracefully
             if (response.status === 413) {
                 console.warn(`Proxy ${proxy.url.split('/')[2]} rejected the request because the character sheet is too large (413). Trying next proxy...`);
                 throw new Error(`Payload Too Large (413) - Character sheet is too big for ${proxy.url.split('/')[2]}`);
             }
 
-            // Detect 403 or 404 explicitly to catch D&D Beyond private sheets!
             if (response.status === 403 || response.status === 404) {
                 if (proxy.type !== 'json-wrap') {
                      throw new Error("D&D Beyond denied access. Please go to D&D Beyond and ensure this character's privacy setting is set to 'Public' on the Home tab.");
@@ -1261,7 +1252,6 @@ const fetchWithProxyCascade = async (targetUrl) => {
             
             const data = await response.json();
             
-            // Handle JSON wrapped response perfectly
             if (proxy.type === 'json-wrap') {
                 if (data.status && (data.status.http_code === 403 || data.status.http_code === 404)) {
                      throw new Error("D&D Beyond denied access. Please go to D&D Beyond and ensure this character's privacy setting is set to 'Public' on the Home tab.");
@@ -1278,7 +1268,6 @@ const fetchWithProxyCascade = async (targetUrl) => {
             console.warn(`Proxy failed: ${proxy.url.split('/')[2]}`, err.message);
             lastError = err;
             
-            // If we hit our specific privacy error, bubble it up immediately and stop trying proxies!
             if (err.message.includes("D&D Beyond denied access")) {
                 throw err;
             }
@@ -1288,6 +1277,137 @@ const fetchWithProxyCascade = async (targetUrl) => {
     throw new Error("All CORS proxies failed. Your character sheet is likely too large (Error 413) for free proxies to handle. Try removing excessive items or homebrew from your inventory on D&D Beyond, and try again.");
 };
 
+// =========================================================================
+// UI Helpers for Applying DDB Data Safely
+// =========================================================================
+
+const applyDdbSyncData = async (parsedData, isEditView, pcId) => {
+    updateDerivedState();
+    const camp = window.appData.activeCampaign;
+    if (!camp) return;
+
+    if (isEditView) {
+        const setVal = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined) el.value = val; };
+        
+        setVal('pc-edit-name', parsedData.name);
+        setVal('pc-edit-race', parsedData.race);
+        setVal('pc-edit-class', parsedData.classLevel);
+        setVal('pc-edit-background', parsedData.background);
+        setVal('pc-edit-alignment', parsedData.alignment);
+        setVal('pc-edit-faith', parsedData.faith);
+        setVal('pc-edit-gender', parsedData.gender);
+        setVal('pc-edit-age', parsedData.age);
+        setVal('pc-edit-size', parsedData.size);
+        setVal('pc-edit-height', parsedData.height);
+        setVal('pc-edit-weight', parsedData.weight);
+        setVal('pc-edit-eyes', parsedData.eyes);
+        setVal('pc-edit-hair', parsedData.hair);
+        setVal('pc-edit-skin', parsedData.skin);
+        
+        setVal('pc-edit-str', parsedData.str);
+        setVal('pc-edit-dex', parsedData.dex);
+        setVal('pc-edit-con', parsedData.con);
+        setVal('pc-edit-int', parsedData.int);
+        setVal('pc-edit-wis', parsedData.wis);
+        setVal('pc-edit-cha', parsedData.cha);
+        
+        setVal('pc-edit-saves', parsedData.saves);
+        setVal('pc-edit-skills', parsedData.skills);
+        setVal('pc-edit-proficiencies', parsedData.proficiencies);
+        setVal('pc-edit-wealth', parsedData.wealth);
+        
+        setVal('input-pc-edit-traits', parsedData.traits);
+        setVal('input-pc-edit-ideals', parsedData.ideals);
+        setVal('input-pc-edit-bonds', parsedData.bonds);
+        setVal('input-pc-edit-flaws', parsedData.flaws);
+        setVal('input-pc-edit-appearance', parsedData.appearance);
+        setVal('input-pc-edit-backstory', parsedData.backstory);
+        setVal('input-pc-edit-organizations', parsedData.organizations);
+        setVal('input-pc-edit-allies', parsedData.allies);
+        setVal('input-pc-edit-enemies', parsedData.enemies);
+        setVal('input-pc-edit-equipped', parsedData.equipped);
+        setVal('input-pc-edit-backpack', parsedData.backpack);
+        
+        notify("Fields populated! Click 'Inscribe' when ready to save.", "success");
+        
+        const zenDivs = ['traits', 'ideals', 'bonds', 'flaws', 'appearance', 'backstory', 'organizations', 'allies', 'enemies', 'equipped', 'backpack'];
+        zenDivs.forEach(z => {
+            const viewDiv = document.getElementById(`view-input-pc-edit-${z}`);
+            if (viewDiv) viewDiv.innerHTML = parsedData[z] ? window.appActions.parseSmartText(parsedData[z]) : '<span class="text-stone-400 italic">No entry provided...</span>';
+        });
+    } 
+    else {
+        const pc = camp.playerCharacters?.find(p => p.id === pcId);
+        if (!pc) return;
+
+        const mergedPC = {
+            ...pc,
+            ...parsedData,
+            image: pc.image || '', 
+            appearance: parsedData.appearance || pc.appearance || '',
+            backstory: parsedData.backstory || pc.backstory || '',
+        };
+
+        const updatedPCs = camp.playerCharacters.map(p => p.id === pcId ? mergedPC : p);
+        
+        let updatedCamp = { ...camp, playerCharacters: updatedPCs };
+        updatedCamp = logPlayerActivity(updatedCamp, window.appData.currentUserUid, `synced <span class="font-bold text-amber-700">${mergedPC.name}</span> with D&D Beyond.`, 'fa-cloud-arrow-down');
+
+        await saveCampaign(updatedCamp);
+        notify(`${mergedPC.name} synced perfectly.`, "success");
+        reRender(true);
+    }
+};
+
+const showDdbImportPreview = (parsedData, characterId, isManualModal) => {
+    window.appData.tempDdbImport = {
+        ...parsedData,
+        id: generateId(),
+        ddbId: characterId,
+        playerId: '', inspiration: 0, automaticSuccess: false, availableDowntime: 0, downtimeLog: ''
+    };
+
+    let analysis = `✅ Character Successfully Parsed.\n\n`;
+    analysis += `Name: ${parsedData.name}\n`;
+    analysis += `Race: ${parsedData.race}\n`;
+    analysis += `Class: ${parsedData.classLevel}\n\n`;
+    
+    analysis += `STR: ${parsedData.str} | DEX: ${parsedData.dex} | CON: ${parsedData.con}\n`;
+    analysis += `INT: ${parsedData.int} | WIS: ${parsedData.wis} | CHA: ${parsedData.cha}\n\n`;
+    
+    analysis += `Saving Throws: ${parsedData.saves || 'None'}\n`;
+    analysis += `Skills: ${parsedData.skills || 'None'}\n`;
+    analysis += `Proficiencies: ${parsedData.proficiencies || 'None'}\n\n`;
+    
+    analysis += `Wealth: ${parsedData.wealth}\n`;
+    
+    const eqCount = parsedData.equipped ? parsedData.equipped.split('\n').length : 0;
+    const bpCount = parsedData.backpack ? parsedData.backpack.split('\n').length : 0;
+    analysis += `Equipment: ${eqCount} items equipped, ${bpCount} in backpack.\n`;
+
+    const htmlContent = `
+        <div class="text-green-400 whitespace-pre-wrap mb-4 bg-stone-900 p-4 rounded-sm border border-stone-700 font-mono text-[10px] sm:text-xs overflow-auto max-h-[300px] shadow-inner">${analysis}</div>
+        <button onclick="window.appActions.executeDndBeyondImport()" class="w-full py-3 bg-emerald-700 text-white rounded-sm hover:bg-emerald-600 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md">
+            <i class="fa-solid fa-user-check mr-2"></i> Import ${parsedData.name} into Campaign
+        </button>
+    `;
+
+    if (isManualModal) {
+        const manualContent = document.getElementById('manual-sync-content');
+        if (manualContent) manualContent.innerHTML = htmlContent;
+    } else {
+        const output = document.getElementById('ddb-analysis-output');
+        if (output) {
+            output.innerHTML = htmlContent;
+            output.classList.remove('hidden', 'text-red-500');
+            output.classList.add('text-green-400');
+        }
+    }
+};
+
+// =========================================================================
+// Main Exported Engine Functions
+// =========================================================================
 
 export const openDndBeyondImportModal = () => {
     const container = document.getElementById('global-popup-container');
@@ -1310,7 +1430,7 @@ export const openDndBeyondImportModal = () => {
                         <button id="ddb-fetch-btn" onclick="window.appActions.fetchAndAnalyzeDndBeyond()" class="px-6 py-3 bg-stone-900 text-amber-50 rounded-sm hover:bg-stone-800 transition font-bold uppercase tracking-wider text-xs shadow-md shrink-0 whitespace-nowrap"><i class="fa-solid fa-cloud-arrow-down mr-2"></i> Fetch & Analyze</button>
                     </div>
 
-                    <div id="ddb-analysis-output" class="hidden flex-grow bg-stone-900 text-green-400 p-4 rounded-sm font-mono text-[10px] sm:text-xs overflow-auto custom-scrollbar min-h-[300px] border border-stone-700 shadow-inner whitespace-pre-wrap mt-4"></div>
+                    <div id="ddb-analysis-output" class="hidden flex-grow bg-stone-900 p-4 rounded-sm font-mono text-[10px] sm:text-xs overflow-auto custom-scrollbar min-h-[300px] border border-stone-700 shadow-inner whitespace-pre-wrap mt-4"></div>
                 </div>
             </div>
         </div>
@@ -1350,48 +1470,12 @@ export const fetchAndAnalyzeDndBeyond = async () => {
         }
 
         const parsedData = parseDDBCharacter(ddbData.data);
-        
-        window.appData.tempDdbImport = {
-            ...parsedData,
-            id: generateId(),
-            ddbId: characterId,
-            playerId: '', inspiration: 0, automaticSuccess: false, availableDowntime: 0, downtimeLog: ''
-        };
-
-        let analysis = `✅ Character Successfully Fetched via API.\n\n`;
-        analysis += `Name: ${parsedData.name}\n`;
-        analysis += `Race: ${parsedData.race}\n`;
-        analysis += `Class: ${parsedData.classLevel}\n\n`;
-        
-        analysis += `STR: ${parsedData.str} | DEX: ${parsedData.dex} | CON: ${parsedData.con}\n`;
-        analysis += `INT: ${parsedData.int} | WIS: ${parsedData.wis} | CHA: ${parsedData.cha}\n\n`;
-        
-        analysis += `Saving Throws: ${parsedData.saves || 'None'}\n`;
-        analysis += `Skills: ${parsedData.skills || 'None'}\n`;
-        analysis += `Proficiencies: ${parsedData.proficiencies || 'None'}\n\n`;
-        
-        analysis += `Wealth: ${parsedData.wealth}\n`;
-        
-        const eqCount = parsedData.equipped ? parsedData.equipped.split('\n').length : 0;
-        const bpCount = parsedData.backpack ? parsedData.backpack.split('\n').length : 0;
-        analysis += `Equipment: ${eqCount} items equipped, ${bpCount} in backpack.\n`;
-
-        output.innerHTML = `
-            <div class="text-green-400 whitespace-pre-wrap mb-4">${analysis}</div>
-            <button onclick="window.appActions.executeDndBeyondImport()" class="w-full py-3 bg-emerald-700 text-white rounded-sm hover:bg-emerald-600 transition font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md">
-                <i class="fa-solid fa-user-check mr-2"></i> Import ${parsedData.name} into Campaign
-            </button>
-        `;
-        
-        output.classList.remove('hidden');
-        output.classList.remove('text-red-500');
-        output.classList.add('text-green-400');
+        showDdbImportPreview(parsedData, characterId, false);
         
     } catch (e) {
-        output.textContent = "Error parsing D&D Beyond data: \n" + e.message;
-        output.classList.remove('hidden');
-        output.classList.remove('text-green-400');
-        output.classList.add('text-red-500');
+        console.error(e);
+        notify("Proxy fetch failed. Opening manual diagnostic tool.", "warning");
+        window.appActions.openDdbManualFallbackModal(characterId, false, null, true);
     } finally {
         btn.innerHTML = originalBtnHtml;
         btn.disabled = false;
@@ -1482,83 +1566,98 @@ export const quickSyncDDB = async (pcId) => {
         const parsedData = parseDDBCharacter(ddbData.data);
         parsedData.ddbId = characterId;
 
-        if (isEditView) {
-            const setVal = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined) el.value = val; };
-            
-            setVal('pc-edit-name', parsedData.name);
-            setVal('pc-edit-race', parsedData.race);
-            setVal('pc-edit-class', parsedData.classLevel);
-            setVal('pc-edit-background', parsedData.background);
-            setVal('pc-edit-alignment', parsedData.alignment);
-            setVal('pc-edit-faith', parsedData.faith);
-            setVal('pc-edit-gender', parsedData.gender);
-            setVal('pc-edit-age', parsedData.age);
-            setVal('pc-edit-size', parsedData.size);
-            setVal('pc-edit-height', parsedData.height);
-            setVal('pc-edit-weight', parsedData.weight);
-            setVal('pc-edit-eyes', parsedData.eyes);
-            setVal('pc-edit-hair', parsedData.hair);
-            setVal('pc-edit-skin', parsedData.skin);
-            
-            setVal('pc-edit-str', parsedData.str);
-            setVal('pc-edit-dex', parsedData.dex);
-            setVal('pc-edit-con', parsedData.con);
-            setVal('pc-edit-int', parsedData.int);
-            setVal('pc-edit-wis', parsedData.wis);
-            setVal('pc-edit-cha', parsedData.cha);
-            
-            setVal('pc-edit-saves', parsedData.saves);
-            setVal('pc-edit-skills', parsedData.skills);
-            setVal('pc-edit-proficiencies', parsedData.proficiencies);
-            setVal('pc-edit-wealth', parsedData.wealth);
-            
-            setVal('input-pc-edit-traits', parsedData.traits);
-            setVal('input-pc-edit-ideals', parsedData.ideals);
-            setVal('input-pc-edit-bonds', parsedData.bonds);
-            setVal('input-pc-edit-flaws', parsedData.flaws);
-            setVal('input-pc-edit-appearance', parsedData.appearance);
-            setVal('input-pc-edit-backstory', parsedData.backstory);
-            setVal('input-pc-edit-organizations', parsedData.organizations);
-            setVal('input-pc-edit-allies', parsedData.allies);
-            setVal('input-pc-edit-enemies', parsedData.enemies);
-            setVal('input-pc-edit-equipped', parsedData.equipped);
-            setVal('input-pc-edit-backpack', parsedData.backpack);
-            
-            notify("Fields populated! Click 'Inscribe' when ready to save.", "success");
-            
-            const zenDivs = ['traits', 'ideals', 'bonds', 'flaws', 'appearance', 'backstory', 'organizations', 'allies', 'enemies', 'equipped', 'backpack'];
-            zenDivs.forEach(z => {
-                const viewDiv = document.getElementById(`view-input-pc-edit-${z}`);
-                if (viewDiv) viewDiv.innerHTML = parsedData[z] ? window.appActions.parseSmartText(parsedData[z]) : '<span class="text-stone-400 italic">No entry provided...</span>';
-            });
-        } 
-        else {
-            const pc = camp.playerCharacters?.find(p => p.id === pcId);
-            if (!pc) return;
-
-            const mergedPC = {
-                ...pc,
-                ...parsedData,
-                image: pc.image || '', 
-                appearance: parsedData.appearance || pc.appearance || '',
-                backstory: parsedData.backstory || pc.backstory || '',
-            };
-
-            const updatedPCs = camp.playerCharacters.map(p => p.id === pcId ? mergedPC : p);
-            
-            let updatedCamp = { ...camp, playerCharacters: updatedPCs };
-            updatedCamp = logPlayerActivity(updatedCamp, window.appData.currentUserUid, `synced <span class="font-bold text-amber-700">${mergedPC.name}</span> with D&D Beyond.`, 'fa-cloud-arrow-down');
-
-            await saveCampaign(updatedCamp);
-            notify(`${mergedPC.name} synced perfectly.`, "success");
-            reRender(true);
-        }
+        await applyDdbSyncData(parsedData, isEditView, pcId);
 
     } catch (e) {
         console.error(e);
-        notify("Failed to sync: " + e.message, "error");
+        notify("Proxy sync failed. Opening manual diagnostic tool.", "warning");
+        window.appActions.openDdbManualFallbackModal(characterId, isEditView, pcId, false);
     }
 };
+
+// =========================================================================
+// MANUAL DIAGNOSTIC FALLBACK TOOL
+// =========================================================================
+
+export const openDdbManualFallbackModal = (characterId, isEditView, pcId = null, isImportFlow = false) => {
+    const container = document.getElementById('global-popup-container');
+    if (!container) return;
+
+    const apiUrl = `https://character-service.dndbeyond.com/character/v5/character/${characterId}`;
+
+    container.innerHTML = `
+        <div class="fixed inset-0 bg-stone-900 bg-opacity-80 flex items-center justify-center p-4 z-[19000] backdrop-blur-sm animate-in">
+            <div class="bg-[#f4ebd8] rounded-sm w-full max-w-xl border border-[#d4c5a9] shadow-2xl relative overflow-hidden flex flex-col">
+                <div class="bg-stone-900 p-4 border-b-4 border-amber-600 shadow-md shrink-0 flex justify-between items-center text-amber-50">
+                    <h2 class="text-lg font-serif font-bold flex items-center"><i class="fa-solid fa-triangle-exclamation mr-2 text-amber-500"></i> Manual Sync Fallback</h2>
+                    <button onclick="document.getElementById('global-popup-container').innerHTML = '';" class="text-stone-400 hover:text-white transition"><i class="fa-solid fa-times text-xl"></i></button>
+                </div>
+                <div id="manual-sync-content" class="p-5 sm:p-6 overflow-y-auto bg-[#fdfbf7] flex flex-col gap-4">
+                    <p class="text-sm text-stone-700 font-serif leading-relaxed">
+                        The automated proxy sync was blocked. This usually happens if your character sheet file size exceeds the 1MB limit for free proxies (often caused by large spell lists on casters).
+                    </p>
+                    
+                    <div class="bg-blue-50 border border-blue-200 p-4 rounded-sm">
+                        <h3 class="font-bold text-blue-900 text-xs uppercase tracking-widest mb-2">Step 1: Download Raw Data</h3>
+                        <p class="text-xs text-blue-800 mb-3">Click this direct link. When the massive text file opens, press <strong>CTRL+S</strong> (or right-click -> Save As...) to save it as a JSON file to your device.</p>
+                        <a href="${apiUrl}" target="_blank" class="block w-full text-center py-2 bg-blue-600 text-white rounded-sm font-bold uppercase tracking-wider text-[10px] shadow-sm hover:bg-blue-700 transition">
+                            <i class="fa-solid fa-external-link-alt mr-1"></i> Open Direct D&D Beyond Link
+                        </a>
+                    </div>
+
+                    <div class="bg-amber-50 border border-amber-200 p-4 rounded-sm">
+                        <h3 class="font-bold text-amber-900 text-xs uppercase tracking-widest mb-2">Step 2: Upload File</h3>
+                        <input type="file" id="ddb-manual-upload" accept=".json,application/json" class="w-full text-xs text-stone-700 file:mr-4 file:py-2 file:px-4 file:rounded-sm file:border-0 file:text-xs file:font-bold file:bg-amber-200 file:text-amber-900 hover:file:bg-amber-300 cursor-pointer">
+                        <button onclick="window.appActions.processManualDdbUpload(${isEditView}, '${pcId || ''}', ${isImportFlow}, '${characterId}')" class="mt-3 w-full py-2 bg-stone-900 text-white rounded-sm font-bold uppercase tracking-wider text-[10px] shadow-sm hover:bg-stone-800 transition">
+                            <i class="fa-solid fa-upload mr-1"></i> Process File
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+};
+
+export const processManualDdbUpload = (isEditView, pcId, isImportFlow, characterId) => {
+    const fileInput = document.getElementById('ddb-manual-upload');
+    if (!fileInput.files || fileInput.files.length === 0) {
+        notify("Please select a JSON file first.", "error");
+        return;
+    }
+
+    const file = fileInput.files[0];
+    const reader = new FileReader();
+    
+    reader.onload = async (e) => {
+        try {
+            const rawText = e.target.result;
+            const ddbData = JSON.parse(rawText);
+            
+            if (!ddbData || !ddbData.success || !ddbData.data) {
+                throw new Error("Invalid D&D Beyond JSON structure.");
+            }
+
+            const parsedData = parseDDBCharacter(ddbData.data);
+            parsedData.ddbId = characterId || (ddbData.data.id ? ddbData.data.id.toString() : '');
+            
+            if (isImportFlow) {
+                showDdbImportPreview(parsedData, parsedData.ddbId, true);
+            } else {
+                await applyDdbSyncData(parsedData, isEditView, pcId);
+                document.getElementById('global-popup-container').innerHTML = '';
+            }
+            
+        } catch (err) {
+            console.error(err);
+            notify("Failed to parse file: " + err.message, "error");
+        }
+    };
+    reader.readAsText(file);
+};
+
+// =========================================================================
+// Global Event Bindings
+// =========================================================================
 
 if (typeof window !== 'undefined') {
     window.appActions = window.appActions || {};
@@ -1585,9 +1684,13 @@ if (typeof window !== 'undefined') {
     window.appActions.deletePC = deletePC;
     window.appActions.kickPlayer = kickPlayer;
     
-    // DDB Integration Imports
+    // DDB Integration Imports & Syncs
     window.appActions.openDndBeyondImportModal = openDndBeyondImportModal;
     window.appActions.fetchAndAnalyzeDndBeyond = fetchAndAnalyzeDndBeyond;
     window.appActions.executeDndBeyondImport = executeDndBeyondImport;
     window.appActions.quickSyncDDB = quickSyncDDB;
+    
+    // Manual DDB Fallback Tool
+    window.appActions.openDdbManualFallbackModal = openDdbManualFallbackModal;
+    window.appActions.processManualDdbUpload = processManualDdbUpload;
 }
