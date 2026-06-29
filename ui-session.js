@@ -367,6 +367,16 @@ export function getSessionEditHTML(state) {
     const title = isNew ? "Log New Session" : "Amend Session Record";
     const defaultName = isNew ? `Log from ${new Date().toLocaleDateString()}` : (session.name || '');
 
+    // Default DM main tab state
+    const activeDmMainTab = state.activeDmMainTab || 'session';
+
+    const getDmMainTabClass = (tabId) => {
+        if (tabId === activeDmMainTab) {
+            return "whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-900 bg-[#f4ebd8] border-t-2 border-l border-r border-[#d4c5a9] border-t-red-900";
+        }
+        return "whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-600 border-transparent hover:text-stone-800";
+    };
+
     // Format the date strings for the input fields
     let defaultRealDate = '';
     try {
@@ -643,14 +653,14 @@ export function getSessionEditHTML(state) {
 
         <!-- Tabs Navigation -->
         <div class="flex bg-[#e8dec7] border-b-2 border-stone-800 shrink-0 px-2 sm:px-4 pt-2 gap-1 overflow-x-auto hide-scrollbar z-10 relative">
-            <button id="tab-btn-session" class="whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-900 bg-[#f4ebd8] border-t-2 border-l border-r border-[#d4c5a9] border-t-red-900" onclick="window.appActions.switchSessionTab('session')">The Narrative</button>
-            <button id="tab-btn-pcs" class="whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-600 border-transparent hover:text-stone-800" onclick="window.appActions.switchSessionTab('pcs')">Hero Management</button>
-            <button id="tab-btn-treasury" class="whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-600 border-transparent hover:text-stone-800" onclick="window.appActions.switchSessionTab('treasury')">Treasury</button>
-            <button id="tab-btn-preview" class="whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-600 border-transparent hover:text-stone-800" onclick="window.appActions.switchSessionTab('preview')">Live Scroll Preview</button>
+            <button id="tab-btn-session" class="${getDmMainTabClass('session')}" onclick="window.appActions.switchSessionTab('session')">The Narrative</button>
+            <button id="tab-btn-pcs" class="${getDmMainTabClass('pcs')}" onclick="window.appActions.switchSessionTab('pcs')">Hero Management</button>
+            <button id="tab-btn-treasury" class="${getDmMainTabClass('treasury')}" onclick="window.appActions.switchSessionTab('treasury')">Treasury</button>
+            <button id="tab-btn-preview" class="${getDmMainTabClass('preview')}" onclick="window.appActions.switchSessionTab('preview')">Live Scroll Preview</button>
         </div>
 
         <!-- Tab Content: Session Narrative -->
-        <div id="tab-content-session" class="flex-grow overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 bg-[#fdfbf7]">
+        <div id="tab-content-session" class="${activeDmMainTab === 'session' ? '' : 'hidden'} flex-grow overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 bg-[#fdfbf7]">
             <div class="max-w-3xl mx-auto">
                 <!-- DM Sub-tab bar for the Narrative -->
                 <div class="flex gap-1.5 p-1 bg-stone-100 border border-[#d4c5a9] rounded-sm mb-6 max-w-lg">
@@ -669,7 +679,7 @@ export function getSessionEditHTML(state) {
         </div>
 
         <!-- Tab Content: PCs -->
-        <div id="tab-content-pcs" class="hidden flex-grow overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 bg-[#fdfbf7]">
+        <div id="tab-content-pcs" class="${activeDmMainTab === 'pcs' ? '' : 'hidden'} flex-grow overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 bg-[#fdfbf7]">
             <div class="max-w-3xl mx-auto">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                 ${rosterPCs.map(pc => {
@@ -704,7 +714,7 @@ export function getSessionEditHTML(state) {
         </div>
 
         <!-- NEW Tab Content: Treasury -->
-        <div id="tab-content-treasury" class="hidden flex-grow overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 bg-[#fdfbf7]">
+        <div id="tab-content-treasury" class="${activeDmMainTab === 'treasury' ? '' : 'hidden'} flex-grow overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 bg-[#fdfbf7]">
             <div class="max-w-3xl mx-auto">
                 
                 <!-- Arc Budget & Settings -->
@@ -760,7 +770,7 @@ export function getSessionEditHTML(state) {
         </div>
 
         <!-- Tab Content: Preview -->
-        <div id="tab-content-preview" class="hidden flex-grow overflow-hidden bg-[#fdfbf7] p-0 relative">
+        <div id="tab-content-preview" class="${activeDmMainTab === 'preview' ? '' : 'hidden'} flex-grow overflow-hidden bg-[#fdfbf7] p-0 relative">
             <div class="absolute inset-0 overflow-y-auto custom-scrollbar p-6 sm:p-8">
                 <div id="draft-preview-text" class="max-w-3xl mx-auto font-serif text-sm text-stone-900 leading-relaxed whitespace-pre-wrap bg-white p-8 rounded-sm shadow-md border border-[#d4c5a9] min-h-full">
                     <div class="text-center text-stone-400 mt-20"><i class="fa-solid fa-shadow fa-spin text-3xl mb-4"></i><p>Generating Preview...</p></div>
