@@ -616,22 +616,31 @@ export function getSessionEditHTML(state) {
     // --- NEW TAB: TREASURY (Ledger & Budget) ---
     // Dynamically build the historic loot ledger for this specific Adventure Arc!
     let historicLootHtml = '';
-    const pastSessions = (adv.sessions || []).filter(s => s.id !== state.activeSessionId && s.lootText && s.lootText.trim());
+    const arcSessions = adv.sessions || [];
     
-    if (pastSessions.length > 0) {
-        pastSessions.forEach(pastSess => {
-            const parsedPastLoot = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(pastSess.lootText) : pastSess.lootText;
+    if (arcSessions.length > 0) {
+        arcSessions.forEach(sess => {
+            const isCurrent = sess.id === state.activeSessionId;
+            const hasLoot = sess.lootText && sess.lootText.trim();
+            const parsedLoot = hasLoot ? ((window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(sess.lootText) : sess.lootText) : '<span class="italic text-stone-400">No treasure recorded.</span>';
+            
+            const highlightClass = isCurrent ? 'border-blue-400 bg-blue-50/30' : 'border-[#d4c5a9] bg-white';
+            const currentBadge = isCurrent ? '<span class="ml-2 text-[9px] font-bold text-blue-700 uppercase tracking-widest bg-blue-100 px-1.5 py-0.5 rounded border border-blue-300 shadow-sm"><i class="fa-solid fa-pen mr-1"></i> Current</span>' : '';
+
             historicLootHtml += `
-            <div class="mb-4 bg-white p-4 border border-[#d4c5a9] rounded-sm shadow-sm">
-                <div class="flex justify-between items-center mb-2 border-b border-stone-200 pb-2">
-                    <span class="text-xs font-bold font-serif text-stone-900">${pastSess.name}</span>
-                    <span class="text-[10px] font-bold text-amber-700 uppercase tracking-widest bg-amber-50 px-2 py-1 rounded shadow-sm border border-amber-200">Value: ${pastSess.lootValue || 0} gp</span>
+            <div class="mb-4 p-4 border rounded-sm shadow-sm ${highlightClass}">
+                <div class="flex justify-between items-center mb-2 border-b border-stone-200 pb-2 flex-wrap gap-2">
+                    <div class="flex items-center">
+                        <span class="text-xs font-bold font-serif text-stone-900">${sess.name || 'Unnamed Session'}</span>
+                        ${currentBadge}
+                    </div>
+                    <span class="text-[10px] font-bold text-amber-700 uppercase tracking-widest bg-amber-50 px-2 py-1 rounded shadow-sm border border-amber-200">Value: ${sess.lootValue || 0} gp</span>
                 </div>
-                <div class="text-xs text-stone-800 font-serif leading-relaxed">${parsedPastLoot}</div>
+                <div class="text-xs text-stone-800 font-serif leading-relaxed">${parsedLoot}</div>
             </div>`;
         });
     } else {
-        historicLootHtml = `<p class="text-stone-500 italic text-sm py-4 text-center bg-stone-50 border border-dashed border-stone-300 rounded-sm">No treasure has been discovered in previous sessions during this Arc.</p>`;
+        historicLootHtml = `<p class="text-stone-500 italic text-sm py-4 text-center bg-stone-50 border border-dashed border-stone-300 rounded-sm">No sessions have been recorded in this Arc yet.</p>`;
     }
 
     return `
@@ -760,8 +769,8 @@ export function getSessionEditHTML(state) {
 
                 <!-- Historic Loot Ledger -->
                 <div>
-                    <h3 class="text-sm font-bold text-stone-800 uppercase tracking-widest mb-4 border-b border-[#d4c5a9] pb-2"><i class="fa-solid fa-coins mr-2 text-stone-500"></i> Historic Ledger</h3>
-                    <p class="text-stone-500 text-[10px] uppercase tracking-widest font-bold mb-4">Treasure distributed during previous sessions in this Arc.</p>
+                    <h3 class="text-sm font-bold text-stone-800 uppercase tracking-widest mb-4 border-b border-[#d4c5a9] pb-2"><i class="fa-solid fa-coins mr-2 text-stone-500"></i> Arc Ledger</h3>
+                    <p class="text-stone-500 text-[10px] uppercase tracking-widest font-bold mb-4">Treasure distributed across all sessions in this Arc.</p>
                     ${historicLootHtml}
                 </div>
 
