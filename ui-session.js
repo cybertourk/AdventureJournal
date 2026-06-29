@@ -603,6 +603,28 @@ export function getSessionEditHTML(state) {
         </div>
     `;
 
+    // --- NEW TAB: TREASURY (Ledger & Budget) ---
+    // Dynamically build the historic loot ledger for this specific Adventure Arc!
+    let historicLootHtml = '';
+    const pastSessions = (adv.sessions || []).filter(s => s.id !== state.activeSessionId && s.lootText && s.lootText.trim());
+    
+    if (pastSessions.length > 0) {
+        pastSessions.forEach(pastSess => {
+            const parsedPastLoot = (window.appActions && window.appActions.parseSmartText) ? window.appActions.parseSmartText(pastSess.lootText) : pastSess.lootText;
+            historicLootHtml += `
+            <div class="mb-4 bg-white p-4 border border-[#d4c5a9] rounded-sm shadow-sm">
+                <div class="flex justify-between items-center mb-2 border-b border-stone-200 pb-2">
+                    <span class="text-xs font-bold font-serif text-stone-900">${pastSess.name}</span>
+                    <span class="text-[10px] font-bold text-amber-700 uppercase tracking-widest bg-amber-50 px-2 py-1 rounded shadow-sm border border-amber-200">Value: ${pastSess.lootValue || 0} gp</span>
+                </div>
+                <div class="text-xs text-stone-800 font-serif leading-relaxed">${parsedPastLoot}</div>
+            </div>`;
+        });
+    } else {
+        historicLootHtml = `<p class="text-stone-500 italic text-sm py-4 text-center bg-stone-50 border border-dashed border-stone-300 rounded-sm">No treasure has been discovered in previous sessions during this Arc.</p>`;
+    }
+
+
     return `
     <div class="animate-in slide-in-from-bottom-4 duration-300 bg-[#fdfbf7] rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col max-w-4xl mx-auto h-[calc(100vh-100px)] sm:h-[calc(100vh-120px)] relative">
         
@@ -623,6 +645,7 @@ export function getSessionEditHTML(state) {
         <div class="flex bg-[#e8dec7] border-b-2 border-stone-800 shrink-0 px-2 sm:px-4 pt-2 gap-1 overflow-x-auto hide-scrollbar z-10 relative">
             <button id="tab-btn-session" class="whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-900 bg-[#f4ebd8] border-t-2 border-l border-r border-[#d4c5a9] border-t-red-900" onclick="window.appActions.switchSessionTab('session')">The Narrative</button>
             <button id="tab-btn-pcs" class="whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-600 border-transparent hover:text-stone-800" onclick="window.appActions.switchSessionTab('pcs')">Hero Management</button>
+            <button id="tab-btn-treasury" class="whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-600 border-transparent hover:text-stone-800" onclick="window.appActions.switchSessionTab('treasury')">Treasury</button>
             <button id="tab-btn-preview" class="whitespace-nowrap px-4 sm:px-5 py-2 sm:py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs rounded-t-sm transition text-stone-600 border-transparent hover:text-stone-800" onclick="window.appActions.switchSessionTab('preview')">Live Scroll Preview</button>
         </div>
 
@@ -677,9 +700,15 @@ export function getSessionEditHTML(state) {
                     `;
                 }).join('')}
                 </div>
+            </div>
+        </div>
+
+        <!-- NEW Tab Content: Treasury -->
+        <div id="tab-content-treasury" class="hidden flex-grow overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 bg-[#fdfbf7]">
+            <div class="max-w-3xl mx-auto">
                 
-                <!-- Budget Area -->
-                <div class="mt-8 p-5 bg-[#f4ebd8] border border-[#d4c5a9] rounded-sm shadow-sm">
+                <!-- Arc Budget & Settings -->
+                <div class="mb-8 p-5 bg-[#f4ebd8] border border-[#d4c5a9] rounded-sm shadow-sm">
                     <h3 class="text-sm font-bold text-stone-800 uppercase tracking-widest mb-4 border-b border-[#d4c5a9] pb-2"><i class="fa-solid fa-scale-balanced mr-2 text-amber-700"></i> Arc Budget & Settings</h3>
                     <div class="grid grid-cols-3 gap-4 mb-5">
                         <div>
@@ -719,6 +748,14 @@ export function getSessionEditHTML(state) {
                         </div>
                     </div>
                 </div>
+
+                <!-- Historic Loot Ledger -->
+                <div>
+                    <h3 class="text-sm font-bold text-stone-800 uppercase tracking-widest mb-4 border-b border-[#d4c5a9] pb-2"><i class="fa-solid fa-coins mr-2 text-stone-500"></i> Historic Ledger</h3>
+                    <p class="text-stone-500 text-[10px] uppercase tracking-widest font-bold mb-4">Treasure distributed during previous sessions in this Arc.</p>
+                    ${historicLootHtml}
+                </div>
+
             </div>
         </div>
 
