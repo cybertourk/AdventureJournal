@@ -634,7 +634,6 @@ export function getSessionEditHTML(state) {
         historicLootHtml = `<p class="text-stone-500 italic text-sm py-4 text-center bg-stone-50 border border-dashed border-stone-300 rounded-sm">No treasure has been discovered in previous sessions during this Arc.</p>`;
     }
 
-
     return `
     <div class="animate-in slide-in-from-bottom-4 duration-300 bg-[#fdfbf7] rounded-sm border-2 border-stone-700 shadow-[0_15px_40px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col max-w-4xl mx-auto h-[calc(100vh-100px)] sm:h-[calc(100vh-120px)] relative">
         
@@ -653,14 +652,14 @@ export function getSessionEditHTML(state) {
 
         <!-- Tabs Navigation -->
         <div class="flex bg-[#e8dec7] border-b-2 border-stone-800 shrink-0 px-2 sm:px-4 pt-2 gap-1 overflow-x-auto hide-scrollbar z-10 relative">
-            <button id="tab-btn-session" class="${getDmMainTabClass('session')}" onclick="window.appActions.switchSessionTab('session')">The Narrative</button>
-            <button id="tab-btn-pcs" class="${getDmMainTabClass('pcs')}" onclick="window.appActions.switchSessionTab('pcs')">Hero Management</button>
-            <button id="tab-btn-treasury" class="${getDmMainTabClass('treasury')}" onclick="window.appActions.switchSessionTab('treasury')">Treasury</button>
-            <button id="tab-btn-preview" class="${getDmMainTabClass('preview')}" onclick="window.appActions.switchSessionTab('preview')">Live Scroll Preview</button>
+            <button id="dm-tab-btn-session" class="${getDmMainTabClass('session')}" onclick="window.appActions.switchSessionTab('session')">The Narrative</button>
+            <button id="dm-tab-btn-pcs" class="${getDmMainTabClass('pcs')}" onclick="window.appActions.switchSessionTab('pcs')">Hero Management</button>
+            <button id="dm-tab-btn-treasury" class="${getDmMainTabClass('treasury')}" onclick="window.appActions.switchSessionTab('treasury')">Treasury</button>
+            <button id="dm-tab-btn-preview" class="${getDmMainTabClass('preview')}" onclick="window.appActions.switchSessionTab('preview')">Live Scroll Preview</button>
         </div>
 
         <!-- Tab Content: Session Narrative -->
-        <div id="tab-content-session" class="${activeDmMainTab === 'session' ? '' : 'hidden'} flex-grow overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 bg-[#fdfbf7]">
+        <div id="dm-tab-content-session" style="${activeDmMainTab === 'session' ? '' : 'display: none;'}" class="${activeDmMainTab === 'session' ? '' : 'hidden'} flex-grow overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 bg-[#fdfbf7]">
             <div class="max-w-3xl mx-auto">
                 <!-- DM Sub-tab bar for the Narrative -->
                 <div class="flex gap-1.5 p-1 bg-stone-100 border border-[#d4c5a9] rounded-sm mb-6 max-w-lg">
@@ -679,7 +678,7 @@ export function getSessionEditHTML(state) {
         </div>
 
         <!-- Tab Content: PCs -->
-        <div id="tab-content-pcs" class="${activeDmMainTab === 'pcs' ? '' : 'hidden'} flex-grow overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 bg-[#fdfbf7]">
+        <div id="dm-tab-content-pcs" style="${activeDmMainTab === 'pcs' ? '' : 'display: none;'}" class="${activeDmMainTab === 'pcs' ? '' : 'hidden'} flex-grow overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 bg-[#fdfbf7]">
             <div class="max-w-3xl mx-auto">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                 ${rosterPCs.map(pc => {
@@ -714,7 +713,7 @@ export function getSessionEditHTML(state) {
         </div>
 
         <!-- NEW Tab Content: Treasury -->
-        <div id="tab-content-treasury" class="${activeDmMainTab === 'treasury' ? '' : 'hidden'} flex-grow overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 bg-[#fdfbf7]">
+        <div id="dm-tab-content-treasury" style="${activeDmMainTab === 'treasury' ? '' : 'display: none;'}" class="${activeDmMainTab === 'treasury' ? '' : 'hidden'} flex-grow overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 bg-[#fdfbf7]">
             <div class="max-w-3xl mx-auto">
                 
                 <!-- Arc Budget & Settings -->
@@ -770,7 +769,7 @@ export function getSessionEditHTML(state) {
         </div>
 
         <!-- Tab Content: Preview -->
-        <div id="tab-content-preview" class="${activeDmMainTab === 'preview' ? '' : 'hidden'} flex-grow overflow-hidden bg-[#fdfbf7] p-0 relative">
+        <div id="dm-tab-content-preview" style="${activeDmMainTab === 'preview' ? '' : 'display: none;'}" class="${activeDmMainTab === 'preview' ? '' : 'hidden'} flex-grow overflow-hidden bg-[#fdfbf7] p-0 relative">
             <div class="absolute inset-0 overflow-y-auto custom-scrollbar p-6 sm:p-8">
                 <div id="draft-preview-text" class="max-w-3xl mx-auto font-serif text-sm text-stone-900 leading-relaxed whitespace-pre-wrap bg-white p-8 rounded-sm shadow-md border border-[#d4c5a9] min-h-full">
                     <div class="text-center text-stone-400 mt-20"><i class="fa-solid fa-shadow fa-spin text-3xl mb-4"></i><p>Generating Preview...</p></div>
