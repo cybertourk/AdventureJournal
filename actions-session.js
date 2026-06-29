@@ -32,10 +32,29 @@ export const openSessionEdit = (sessionId = null) => {
 };
 
 export const switchSessionTab = (tabId) => {
-    updateSessionTabUI(tabId);
+    updateDerivedState();
+    window.appData.activeDmMainTab = tabId;
+    
+    // Safely attempt the legacy core UI tab toggler 
+    try {
+        updateSessionTabUI(tabId);
+    } catch (e) {
+        console.warn("Handled new tab UI routing safely.");
+    }
+
     if (tabId === 'preview') {
         window.appActions.updateSessionPreview();
     }
+    
+    // Hard re-render ensures new dynamic tabs instantly show/hide correctly
+    reRender(true);
+    
+    // Immediately calculate and inject the budget math so it doesn't show "0 gp" when opening the Treasury tab
+    setTimeout(() => {
+        if (window.appActions.updateSessionBudget) {
+            window.appActions.updateSessionBudget();
+        }
+    }, 50);
 };
 
 export const updateSessionBudget = () => {
