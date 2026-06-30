@@ -367,13 +367,18 @@ export function getAtlasHTML(state) {
                         <div id="atlas-pin-search-results" class="absolute z-10 w-full bg-white border border-[#d4c5a9] rounded-b-sm shadow-xl max-h-40 overflow-y-auto hidden top-[46px] custom-scrollbar text-xs"></div>
                     </div>
 
-                    <!-- Hidden inputs for coordinates -->
+                    <!-- Hidden inputs for coordinates and editing ID -->
                     <input type="hidden" id="atlas-pin-lat">
                     <input type="hidden" id="atlas-pin-lng">
+                    <input type="hidden" id="atlas-pin-id">
 
-                    <div class="flex justify-end gap-2 pt-2 border-t border-[#d4c5a9]">
-                        <button onclick="document.getElementById('atlas-pin-modal').classList.add('hidden'); window.appActions.setAtlasMode('pan');" class="px-3 py-1.5 text-stone-600 border border-stone-400 rounded-sm hover:bg-stone-200 transition font-bold uppercase tracking-wider text-[8px]">Cancel</button>
-                        <button onclick="window.appActions.confirmAtlasPin()" class="px-3 py-1.5 bg-red-900 text-amber-50 rounded-sm hover:bg-red-800 transition font-bold uppercase tracking-wider text-[8px] shadow-md"><i class="fa-solid fa-map-pin mr-1"></i> Drop Pin</button>
+                    <div class="flex justify-between items-center pt-2 border-t border-[#d4c5a9]">
+                        <button id="atlas-pin-delete-btn" onclick="window.appActions.deleteAtlasPin(document.getElementById('atlas-pin-id').value); document.getElementById('atlas-pin-modal').classList.add('hidden');" class="hidden px-3 py-1.5 text-red-700 bg-red-100 hover:bg-red-200 border border-red-300 rounded-sm transition font-bold uppercase tracking-wider text-[8px]"><i class="fa-solid fa-trash mr-1"></i> Delete</button>
+                        
+                        <div class="flex justify-end gap-2 ml-auto">
+                            <button onclick="document.getElementById('atlas-pin-modal').classList.add('hidden'); window.appActions.setAtlasMode('pan');" class="px-3 py-1.5 text-stone-600 border border-stone-400 rounded-sm hover:bg-stone-200 transition font-bold uppercase tracking-wider text-[8px]">Cancel</button>
+                            <button onclick="window.appActions.confirmAtlasPin()" id="atlas-pin-save-btn" class="px-3 py-1.5 bg-red-900 text-amber-50 rounded-sm hover:bg-red-800 transition font-bold uppercase tracking-wider text-[8px] shadow-md"><i class="fa-solid fa-map-pin mr-1"></i> Drop Pin</button>
+                        </div>
                     </div>
                 </div>
             </div>
