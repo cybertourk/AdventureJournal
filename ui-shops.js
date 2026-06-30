@@ -136,7 +136,7 @@ export function getBazaarHTML(state) {
                             <span>•</span>
                             <span><i class="fa-solid fa-user-tie mr-1"></i>${safeOwner}</span>
                         </div>
-                        <p class="text-xs text-stone-600 font-serif leading-relaxed line-clamp-3 italic">"${safeDesc || 'Welcome, traveler...'}"</p>
+                        <p class="text-xs text-stone-600 font-serif leading-relaxed line-clamp-3 italic whitespace-pre-wrap">"${safeDesc || 'Welcome, traveler...'}"</p>
                     </div>
                 </div>
                 
@@ -381,7 +381,7 @@ export function getStorefrontHTML(state) {
                 <div class="flex-grow flex flex-col justify-between min-w-0">
                     <div>
                         <h4 class="font-serif font-bold text-lg text-stone-900 mb-2 border-b border-stone-200 pb-1">The Atmosphere</h4>
-                        <p class="text-stone-700 text-sm leading-relaxed font-serif italic mb-6">"${safeDesc || 'Welcome, traveler. Have a look at our selection...'}"</p>
+                        <p class="text-stone-700 text-sm leading-relaxed font-serif italic mb-6 whitespace-pre-wrap">"${safeDesc || 'Welcome, traveler. Have a look at our selection...'}"</p>
                         
                         <h4 class="font-serif font-bold text-lg text-stone-900 mb-3 border-b border-stone-200 pb-1">Merchant Inventory</h4>
                         ${invHtml}
