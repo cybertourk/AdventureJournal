@@ -28,7 +28,7 @@ function getRarityColor(rarity) {
     return 'text-stone-500 bg-stone-100 border-stone-200'; // Common or Custom
 }
 
-// --- HELPER: ESCAPE SPECIAL CHARACTERS FOR SAFETY ---
+// --- HELPER: ESCAPE SPECIAL CHARACTERS FOR HTML SAFETY ---
 const escapeHTML = (str) => {
     if (!str) return '';
     return String(str)
@@ -37,6 +37,17 @@ const escapeHTML = (str) => {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+};
+
+// --- HELPER: ESCAPE FOR INLINE JAVASCRIPT CALLS ---
+const escapeJS = (str) => {
+    if (!str) return '';
+    return String(str)
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
 };
 
 export function getBazaarHTML(state) {
@@ -165,7 +176,7 @@ export function getBazaarHTML(state) {
         html += `
         <div class="bg-[#fdfbf7] border border-[#d4c5a9] rounded-sm shadow-sm overflow-hidden">
             <div class="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 sm:p-4 bg-stone-900 text-amber-500 border-b border-transparent gap-3 sm:gap-0">
-                <button class="flex items-center gap-3 flex-grow text-left focus:outline-none" onclick="window.appActions.toggleBazaarLocation('${escapeHTML(loc).replace(/'/g, "\\'")}')">
+                <button class="flex items-center gap-3 flex-grow text-left focus:outline-none" onclick="window.appActions.toggleBazaarLocation('${escapeJS(loc)}')">
                     <i class="fa-solid fa-map-location-dot text-lg w-6 text-center shrink-0"></i>
                     <span class="font-serif font-bold text-base sm:text-lg tracking-wide">${escapeHTML(loc)}</span>
                     <span class="bg-stone-800 text-stone-400 text-[10px] px-2 py-0.5 rounded-full border border-stone-700 font-sans shrink-0">${openShops} / ${totalShops} Open</span>
@@ -173,8 +184,8 @@ export function getBazaarHTML(state) {
                 </button>
                 ${isDM ? `
                 <div class="flex gap-1 shrink-0 w-full sm:w-auto justify-end sm:justify-start">
-                    <button onclick="window.appActions.toggleAllShops('${escapeHTML(loc).replace(/'/g, "\\'")}', true)" class="px-2 py-1 bg-emerald-950 text-emerald-400 border border-emerald-800 rounded-sm text-[9px] font-bold uppercase tracking-wider hover:bg-emerald-900 transition">Open All</button>
-                    <button onclick="window.appActions.toggleAllShops('${escapeHTML(loc).replace(/'/g, "\\'")}', false)" class="px-2 py-1 bg-stone-850 text-stone-400 border border-stone-700 rounded-sm text-[9px] font-bold uppercase tracking-wider hover:bg-stone-800 transition">Close All</button>
+                    <button onclick="window.appActions.toggleAllShops('${escapeJS(loc)}', true)" class="px-2 py-1 bg-emerald-950 text-emerald-400 border border-emerald-800 rounded-sm text-[9px] font-bold uppercase tracking-wider hover:bg-emerald-900 transition">Open All</button>
+                    <button onclick="window.appActions.toggleAllShops('${escapeJS(loc)}', false)" class="px-2 py-1 bg-stone-850 text-stone-400 border border-stone-700 rounded-sm text-[9px] font-bold uppercase tracking-wider hover:bg-stone-800 transition">Close All</button>
                 </div>
                 ` : ''}
             </div>
