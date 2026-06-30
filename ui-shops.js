@@ -50,6 +50,62 @@ const escapeJS = (str) => {
         .replace(/>/g, '&gt;');
 };
 
+// --- HELPER: STRIP MARKDOWN FOR PREVIEW CARDS ---
+const stripMarkdown = (str) => {
+    if (!str) return '';
+    return str
+        .replace(/^#+ /gm, '') // Remove headers
+        .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold
+        .replace(/(^|[^\w\*])\*([^\*]+)\*([^\w\*]|$)/g, '$1$2$3') // Remove italics
+        .replace(/^[\*\-] /gm, '') // Remove list bullets
+        .replace(/^---\s*$/gm, '') // Remove HR
+        .replace(/\n/g, ' ') // Collapse newlines
+        .trim();
+};
+
+// --- HELPER: CUSTOM MARKDOWN ENGINE FOR DESCRIPTIONS ---
+const parseMarkdown = (str) => {
+    if (!str) return '';
+    let html = escapeHTML(str);
+
+    // Bold
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-stone-900">$1</strong>');
+    
+    // Italic
+    html = html.replace(/(^|[^\w\*])\*([^\*]+)\*([^\w\*]|$)/g, '$1<em class="italic">$2</em>$3');
+    
+    // HR
+    html = html.replace(/^---\s*$/gm, '%%HR%%');
+    
+    // Headers
+    html = html.replace(/^### (.*$)/gm, '%%H3%%$1%%ENDH%%');
+    html = html.replace(/^## (.*$)/gm, '%%H2%%$1%%ENDH%%');
+    html = html.replace(/^# (.*$)/gm, '%%H1%%$1%%ENDH%%');
+    
+    // Lists
+    html = html.replace(/^[\*\-] (.*$)/gm, '%%LI%%$1%%ENDLI%%');
+    html = html.replace(/(%%LI%%.*?%%ENDLI%%\n?)+/g, '%%UL%%$&%%ENDUL%%');
+    
+    // Newlines -> Paragraph breaks or BRs
+    html = html.replace(/\n\n/g, '%%P_BREAK%%');
+    html = html.replace(/\n/g, '<br>');
+
+    // Restore tags
+    html = html.replace(/%%HR%%/g, '<hr class="my-6 border-t-2 border-stone-300">');
+    html = html.replace(/%%H3%%(.*?)%%ENDH%%/g, '<h3 class="text-lg font-serif font-bold text-stone-900 mt-5 mb-2">$1</h3>');
+    html = html.replace(/%%H2%%(.*?)%%ENDH%%/g, '<h2 class="text-xl font-serif font-bold text-stone-900 mt-6 mb-2 border-b border-[#d4c5a9] pb-1">$1</h2>');
+    html = html.replace(/%%H1%%(.*?)%%ENDH%%/g, '<h1 class="text-2xl font-serif font-bold text-emerald-900 mt-8 mb-3 border-b-2 border-emerald-700 pb-1">$1</h1>');
+    html = html.replace(/%%UL%%(.*?)%%ENDUL%%/g, '<ul class="my-3 text-stone-800 space-y-1">$1</ul>');
+    html = html.replace(/%%LI%%(.*?)%%ENDLI%%/g, '<li class="ml-5 list-disc marker:text-emerald-700 pl-1">$1</li>');
+    html = html.replace(/%%P_BREAK%%/g, '</p><p class="mb-3">');
+
+    // Clean up BRs around blocks
+    html = html.replace(/(<\/h[1-3]>|<\/ul>|<hr.*?>)<br>/g, '$1');
+    html = html.replace(/<br>(<h[1-3]|<ul|<hr)/g, '$1');
+
+    return `<div class="font-serif text-[15px] text-stone-800 leading-relaxed"><p class="mb-3">${html}</p></div>`;
+};
+
 export function getBazaarHTML(state) {
     const camp = state.activeCampaign;
     if (!camp) return '';
@@ -107,9 +163,11 @@ export function getBazaarHTML(state) {
             const statusColor = shop.isOpen ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 'text-stone-500 bg-stone-100 border-stone-200';
             const statusLabel = shop.isOpen ? 'Open' : 'Closed';
             const safeShopName = escapeHTML(shop.name);
-            const safeDesc = escapeHTML(shop.desc);
             const safeOwner = escapeHTML(shop.ownerName || 'Unknown');
             const safeType = escapeHTML(shop.shopType || 'Merchant');
+            
+            // Clean up the markdown strictly for the preview snippet
+            const plainDesc = escapeHTML(stripMarkdown(shop.desc));
             
             // Link the Atlas Map icon properly whether it's an auto-generated entry or a manual link!
             const targetMapId = shop.linkedCodexId || shop.id;
@@ -136,7 +194,7 @@ export function getBazaarHTML(state) {
                             <span>•</span>
                             <span><i class="fa-solid fa-user-tie mr-1"></i>${safeOwner}</span>
                         </div>
-                        <p class="text-xs text-stone-600 font-serif leading-relaxed line-clamp-3 italic whitespace-pre-wrap">"${safeDesc || 'Welcome, traveler...'}"</p>
+                        <p class="text-xs text-stone-600 font-serif leading-relaxed line-clamp-3 italic">"${plainDesc || 'Welcome, traveler...'}"</p>
                     </div>
                 </div>
                 
@@ -238,7 +296,6 @@ export function getStorefrontHTML(state) {
     if (!shop) return '<div class="text-center text-red-500 p-8 font-serif font-bold text-xl">Merchant not found.</div>';
 
     const safeName = escapeHTML(shop.name);
-    const safeDesc = escapeHTML(shop.desc);
     const safeOwner = escapeHTML(shop.ownerName || 'Unknown');
     const safeType = escapeHTML(shop.shopType || 'Merchant');
     const safeLoc = escapeHTML(shop.location || 'Traveling');
@@ -381,7 +438,10 @@ export function getStorefrontHTML(state) {
                 <div class="flex-grow flex flex-col justify-between min-w-0">
                     <div>
                         <h4 class="font-serif font-bold text-lg text-stone-900 mb-2 border-b border-stone-200 pb-1">The Atmosphere</h4>
-                        <p class="text-stone-700 text-sm leading-relaxed font-serif italic mb-6 whitespace-pre-wrap">"${safeDesc || 'Welcome, traveler. Have a look at our selection...'}"</p>
+                        
+                        <div class="bg-[#fdfbf7] p-4 rounded-sm border border-[#d4c5a9] mb-6 shadow-sm">
+                            ${parseMarkdown(shop.desc || '*Welcome, traveler. Have a look at our selection...*')}
+                        </div>
                         
                         <h4 class="font-serif font-bold text-lg text-stone-900 mb-3 border-b border-stone-200 pb-1">Merchant Inventory</h4>
                         ${invHtml}
@@ -406,7 +466,6 @@ export function getShopBackroomHTML(state) {
     if (!shop) return '<div class="text-center text-red-500 p-8 font-serif font-bold text-xl">Merchant not found.</div>';
 
     const safeName = escapeHTML(shop.name);
-    const safeDesc = escapeHTML(shop.desc);
     const safeOwner = escapeHTML(shop.ownerName || 'Unknown');
     const safeType = escapeHTML(shop.shopType || 'Merchant');
     const safeLoc = escapeHTML(shop.location || 'Traveling');
